@@ -1,10 +1,11 @@
 <?php
 namespace Src\Controllers;
 
-class HomeController
+class StatusController
 {
     public function index()
     {
+        // Carrega variáveis do .env
         require_once __DIR__ . '/../Configs/EnvConfig.php';
         \src\Configs\EnvConfig::carregar();
         $status = [
@@ -66,7 +67,10 @@ class HomeController
                 ];
             }
         }
-        $descricao = 'API modular PHP com detecção automática de módulos e rotas.';
-        include __DIR__ . '/../Views/index.php';
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => $status,
+            'modules' => $modules
+        ]);
     }
 }
