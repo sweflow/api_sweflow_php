@@ -1,0 +1,5 @@
+# Ignore diretórios:
+/vendor/
+
+# Ignore arquivos:
+.env

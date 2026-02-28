@@ -1,0 +1,22 @@
+{
+    "name": "adimael/api_sweflow_php",
+    "description": "API modular PHP com detecção automática de módulos e rotas.",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "src\\": "src/",
+            "src\\Modules\\": "src/Modules/"
+        }
+    },
+    "authors": [
+        {
+            "name": "adimael",
+            "email": "adimaelbr@gmail.com"
+        }
+    ],
+    "require": {
+        "ext-pdo_pgsql": "*",
+        "firebase/php-jwt": "^7.0",
+        "vlucas/phpdotenv": "^5.6"
+    }
+}
