@@ -67,6 +67,46 @@ class HomeController
             }
         }
         $descricao = 'API modular PHP com detecção automática de módulos e rotas.';
+
+        // Status do banco de dados
+        $dbStatus = [
+            'conectado' => false,
+            'erro' => ''
+        ];
+        // Corrige nomes das variáveis conforme .env
+        $dbType = $_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql';
+        if ($dbType === 'postgresql') $dbType = 'pgsql';
+        $dbHost = $_ENV['DB_HOST'] ?? '';
+        $dbName = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
+        $dbUser = $_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? '';
+        $dbPass = $_ENV['DB_SENHA'] ?? $_ENV['DB_PASSWORD'] ?? '';
+        $dbPort = $_ENV['DB_PORT'] ?? ($dbType === 'pgsql' ? '5432' : '3306');
+        $canConnect = $dbHost && $dbName && $dbUser;
+        if ($canConnect) {
+            try {
+                set_error_handler(function(){}); // ignora warnings temporariamente
+                $options = [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                    \PDO::ATTR_TIMEOUT => 2 // timeout de 2 segundos (MySQL)
+                ];
+                if ($dbType === 'pgsql') {
+                    $dsn = "pgsql:host=$dbHost;port=$dbPort;dbname=$dbName";
+                } else {
+                    $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName";
+                }
+                $pdo = @new \PDO($dsn, $dbUser, $dbPass, $options);
+                @$pdo->query($dbType === 'pgsql' ? 'SELECT 1' : 'SELECT 1');
+                $dbStatus['conectado'] = true;
+                restore_error_handler();
+            } catch (\Throwable $e) {
+                restore_error_handler();
+                $dbStatus['erro'] = $e->getMessage();
+            }
+        } else {
+            $dbStatus['erro'] = 'Configuração do banco incompleta.';
+        }
+
         include __DIR__ . '/../Views/index.php';
     }
 }

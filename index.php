@@ -1,22 +1,109 @@
 <?php
-// Carrega variáveis do .env para $_ENV
+// Carrega variáveis do .env usando Dotenv
+require __DIR__ . '/vendor/autoload.php';
 if (file_exists(__DIR__ . '/.env')) {
-	$lines = file(__DIR__ . '/.env');
-	foreach ($lines as $line) {
-		$line = trim($line);
-		if ($line === '' || $line[0] === '#') continue;
-		if (preg_match('/^([A-Z0-9_]+)=(.*)$/', $line, $matches)) {
-			$key = $matches[1];
-			$value = trim($matches[2], '"');
-			$_ENV[$key] = $value;
-		}
-	}
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+}
+// Rota para status do banco em tempo real
+if (file_exists(__DIR__ . '/src/Modules/Usuario/Routes/web.php')) {
+	require_once __DIR__ . '/src/Modules/Usuario/Routes/web.php';
 }
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 if ($uri === '/api/status') {
-	require_once __DIR__ . '/src/Controllers/StatusController.php';
-	$controller = new \Src\Controllers\StatusController();
-	$controller->index();
+	// Status do servidor
+	$status = [
+		'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
+		'port' => $_SERVER['SERVER_PORT'] ?? '80',
+		'env' => $_ENV['APP_ENV'] ?? 'local',
+		'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
+	];
+	// Módulos detectados
+	$modules = [];
+	$modulesDir = __DIR__ . '/src/Modules';
+	if (is_dir($modulesDir)) {
+		foreach (scandir($modulesDir) as $module) {
+			if ($module === '.' || $module === '..') continue;
+			$routes = [];
+			$routesFile = $modulesDir . "/$module/Routes/web.php";
+			if (file_exists($routesFile)) {
+				$fileContent = file_get_contents($routesFile);
+				preg_match_all('/Route::(get|post|put|delete|patch)\s*\(\s*[\'\"]([^\'\"]+)[\'\"]\s*,\s*\[.*?\]\s*(?:,\s*([^\)]*))?\)/s', $fileContent, $matches, PREG_SET_ORDER);
+				foreach ($matches as $match) {
+					$method = strtoupper($match[1]);
+					$uri = $match[2];
+					$middlewares = isset($match[3]) ? $match[3] : '';
+					$isPrivate = false;
+					if (
+						strpos($middlewares, 'RouteProtectionMiddleware::class') !== false ||
+						strpos($middlewares, 'RouteProtectionMiddleware') !== false
+					) {
+						$isPrivate = true;
+					}
+					$routes[] = [
+						'method' => $method,
+						'uri' => $uri,
+						'tipo' => $isPrivate ? 'privada' : 'pública'
+					];
+				}
+			}
+			$modules[] = [
+				'name' => $module,
+				'routes' => $routes
+			];
+		}
+	}
+	header('Content-Type: application/json; charset=utf-8');
+	echo json_encode([
+		'status' => $status,
+		'modules' => $modules
+	], JSON_UNESCAPED_UNICODE);
+	exit;
+}
+if ($uri === '/api/db-status') {
+	require __DIR__ . '/vendor/autoload.php';
+	if (file_exists(__DIR__ . '/.env')) {
+		$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+		$dotenv->load();
+	}
+	$dbType = $_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql';
+	if ($dbType === 'postgresql') $dbType = 'pgsql';
+	$dbHost = $_ENV['DB_HOST'] ?? '';
+	$dbName = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
+	$dbUser = $_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? '';
+	$dbPass = $_ENV['DB_SENHA'] ?? $_ENV['DB_PASSWORD'] ?? '';
+	$dbPort = $_ENV['DB_PORT'] ?? ($dbType === 'pgsql' ? '5432' : '3306');
+	$canConnect = $dbHost && $dbName && $dbUser;
+	$dbStatus = [
+		'conectado' => false,
+		'erro' => ''
+	];
+	if ($canConnect) {
+		try {
+			set_error_handler(function(){});
+			$options = [
+				PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+				PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+				PDO::ATTR_TIMEOUT => 2
+			];
+			if ($dbType === 'pgsql') {
+				$dsn = "pgsql:host=$dbHost;port=$dbPort;dbname=$dbName";
+			} else {
+				$dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName";
+			}
+			$pdo = @new PDO($dsn, $dbUser, $dbPass, $options);
+			@$pdo->query($dbType === 'pgsql' ? 'SELECT 1' : 'SELECT 1');
+			$dbStatus['conectado'] = true;
+			restore_error_handler();
+		} catch (Throwable $e) {
+			restore_error_handler();
+			$dbStatus['erro'] = $e->getMessage();
+		}
+	} else {
+		$dbStatus['erro'] = 'Configuração do banco incompleta.';
+	}
+	header('Content-Type: application/json; charset=utf-8');
+	echo json_encode($dbStatus, JSON_UNESCAPED_UNICODE);
 	exit;
 }
 // Autoload do Composer (se existir)
@@ -25,11 +112,26 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
 }
 
 // Carrega rotas dos módulos
-require_once __DIR__ . '/src/Modules/Usuario/Routes/web.php';
+$modulesDir = __DIR__ . '/src/Modules';
+if (is_dir($modulesDir)) {
+	foreach (scandir($modulesDir) as $module) {
+		if ($module === '.' || $module === '..') continue;
+		$routesFile = $modulesDir . "/$module/Routes/web.php";
+		if (file_exists($routesFile)) {
+			require_once $routesFile;
+		}
+	}
+}
 
-// Serve arquivos estáticos da pasta public
+
+// Serve arquivos estáticos da pasta public, exceto para a rota principal
 $publicPath = __DIR__ . '/public' . $_SERVER['REQUEST_URI'];
-if (php_sapi_name() === 'cli-server' && file_exists($publicPath) && !is_dir($publicPath)) {
+if (
+	php_sapi_name() === 'cli-server' &&
+	file_exists($publicPath) &&
+	!is_dir($publicPath) &&
+	$uri !== '/' && $uri !== '/index.php'
+) {
 	$mimeTypes = [
 		'css' => 'text/css',
 		'js' => 'application/javascript',
