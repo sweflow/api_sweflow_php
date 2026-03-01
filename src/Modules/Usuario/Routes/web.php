@@ -1,5 +1,6 @@
 <?php
 
+use src\Middlewares\RouteProtectionMiddleware;
 use src\Routes\Route;
 use src\Modules\Usuario\Controllers\UsuarioController;
 
@@ -9,6 +10,7 @@ Route::post('/api/criar/usuario', [UsuarioController::class, 'criar'], [
 
 // Rota para listar usuários
 Route::get('/api/usuarios', [UsuarioController::class, 'listar'], [
+    RouteProtectionMiddleware::class => []
 ]);
 
 // Rota para buscar um usuário por UUID

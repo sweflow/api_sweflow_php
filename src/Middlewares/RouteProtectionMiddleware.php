@@ -10,11 +10,14 @@ use Firebase\JWT\Key;
 
 class RouteProtectionMiddleware
 {
-    public static function handle()
+    public static function handle($roles = [])
     {
-        // Exemplo de proteção: verifica se existe um token de acesso
-        // Proteção JWT
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $userRole = null;
+        $jwtValid = false;
+        $apiKeyValid = false;
+
+        // Tenta validar JWT
         if (preg_match('/Bearer\s+(.*)/i', $authHeader, $matches)) {
             $jwt = $matches[1];
             $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET');
@@ -30,19 +33,39 @@ class RouteProtectionMiddleware
                     echo json_encode(['error' => 'Token JWT expirado.'], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
-                // Se chegou aqui, JWT é válido
-                return;
+                if (isset($decoded->nivel_acesso)) {
+                    $userRole = $decoded->nivel_acesso;
+                }
+                $jwtValid = true;
             } catch (\Exception $e) {
                 http_response_code(401);
                 echo json_encode(['error' => 'Token JWT inválido ou assinatura incorreta.'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
         }
-        // Fallback: API_KEY
-        if (empty($_SERVER['HTTP_X_API_KEY']) || $_SERVER['HTTP_X_API_KEY'] !== ($_ENV['API_KEY'] ?? getenv('API_KEY'))) {
+
+        // Tenta validar API_KEY
+        if (!$jwtValid) {
+            $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
+            $apiKeyEnv = $_ENV['API_KEY'] ?? getenv('API_KEY');
+            if (!empty($apiKey) && $apiKey === $apiKeyEnv) {
+                $userRole = 'api_key';
+                $apiKeyValid = true;
+            }
+        }
+
+        // BLOQUEIO ABSOLUTO: só permite acesso se JWT OU API_KEY forem válidos
+        if (!$jwtValid && !$apiKeyValid) {
             http_response_code(403);
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['error' => 'Acesso negado à rota protegida.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['error' => 'Acesso negado à rota protegida. Nenhuma autenticação válida fornecida.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        // Validação de papéis
+        if (!empty($roles) && (!in_array($userRole, $roles, true))) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Acesso restrito para este papel.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
     }

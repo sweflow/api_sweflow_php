@@ -167,11 +167,16 @@ if (isset($routes) && is_array($routes)) {
 		if ($route['method'] === $method) {
 			$params = matchRoute($route['uri'], $uri);
 			if ($params !== false) {
-				// Executa middleware se existir
-				if (!empty($route['middleware']) && class_exists($route['middleware'])) {
-					$middleware = $route['middleware'];
-					if (method_exists($middleware, 'handle')) {
-						$middleware::handle();
+				// Executa middlewares se existirem (suporta parâmetros)
+				if (!empty($route['middleware'])) {
+					if (is_array($route['middleware'])) {
+						foreach ($route['middleware'] as $middlewareClass => $params) {
+							if (is_string($middlewareClass) && class_exists($middlewareClass) && method_exists($middlewareClass, 'handle')) {
+								$middlewareClass::handle($params);
+							}
+						}
+					} elseif (is_string($route['middleware']) && class_exists($route['middleware']) && method_exists($route['middleware'], 'handle')) {
+						$route['middleware']::handle();
 					}
 				}
 				if (is_array($route['handler']) && count($route['handler']) === 2) {
@@ -237,7 +242,7 @@ if (isset($routes) && is_array($routes)) {
 						}
 						error_log('DEBUG: Antes de chamar método do controller');
 						// Passa Request como primeiro argumento
-						$result = $controller->$methodName($request, ...array_values($params));
+						$result = $controller->$methodName($request, ...(is_array($params) ? array_values($params) : []));
 						if ($result instanceof \src\Http\Response\Response) {
 							$result->Enviar();
 						} elseif ($result) {
@@ -246,7 +251,7 @@ if (isset($routes) && is_array($routes)) {
 						error_log('DEBUG: Método do controller chamado');
 					} else {
 						$controller = new $controllerClass();
-						$controller->$methodName(...array_values($params));
+						$controller->$methodName(...(is_array($params) ? array_values($params) : []));
 					}
 				} else {
 					call_user_func($route['handler']);
