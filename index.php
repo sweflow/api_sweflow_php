@@ -177,8 +177,77 @@ if (isset($routes) && is_array($routes)) {
 				if (is_array($route['handler']) && count($route['handler']) === 2) {
 					$controllerClass = $route['handler'][0];
 					$methodName = $route['handler'][1];
-					$controller = new $controllerClass();
-					$controller->$methodName(...array_values($params));
+
+					// Injeção de dependências profissional para UsuarioController
+					if ($controllerClass === 'src\Modules\Usuario\Controllers\UsuarioController') {
+						// Certifique-se que $pdo está disponível neste escopo
+						if (!isset($pdo) || !$pdo instanceof PDO) {
+							// Recria a conexão caso não exista
+							$options = [
+								PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+								PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+								PDO::ATTR_TIMEOUT => 2
+							];
+							$dbType = $_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql';
+							if ($dbType === 'postgresql') $dbType = 'pgsql';
+							$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
+							$dbName = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
+							$dbUser = $_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? '';
+							$dbPass = $_ENV['DB_SENHA'] ?? $_ENV['DB_PASSWORD'] ?? '';
+							$dbPort = $_ENV['DB_PORT'] ?? ($dbType === 'pgsql' ? '5432' : '3306');
+							$dsn = $dbType === 'pgsql'
+								? "pgsql:host=$dbHost;port=$dbPort;dbname=$dbName"
+								: "mysql:host=$dbHost;port=$dbPort;dbname=$dbName";
+							error_log('DEBUG: Tentando conectar ao banco com DSN: ' . $dsn . ' | Usuário: ' . $dbUser . ' | Host: ' . $dbHost . ' | Porta: ' . $dbPort);
+							$pdo = new PDO($dsn, $dbUser, $dbPass, $options);
+						}
+						$usuarioRepository = new \src\Modules\Usuario\Repositories\UsuarioRepository($pdo);
+						$usuarioService = new \src\Modules\Usuario\Services\UsuarioService($usuarioRepository);
+						error_log('DEBUG: Antes de instanciar UsuarioController');
+						$controller = new $controllerClass($usuarioService);
+						error_log('DEBUG: UsuarioController instanciado');
+						// Cria objeto Request
+						$headers = getallheaders();
+						$contentType = '';
+						foreach ($headers as $k => $v) {
+							if (strtolower($k) === 'content-type') {
+								$contentType = strtolower($v);
+								break;
+							}
+						}
+						$rawBody = file_get_contents('php://input');
+						$body = $_POST;
+						if (str_contains($contentType, 'application/json')) {
+							$json = json_decode($rawBody, true);
+							if (is_array($json)) {
+								$body = $json;
+							}
+						}
+						$request = new \src\Http\Request\Request(
+							$body,
+							$_GET,
+							$headers,
+							$_SERVER['REQUEST_METHOD'] ?? null,
+							$_SERVER['REQUEST_URI'] ?? null,
+							$rawBody
+						);
+						// Adiciona parâmetros da rota (ex: uuid) ao objeto Request
+						if (is_array($params)) {
+							$request->params = $params;
+						}
+						error_log('DEBUG: Antes de chamar método do controller');
+						// Passa Request como primeiro argumento
+						$result = $controller->$methodName($request, ...array_values($params));
+						if ($result instanceof \src\Http\Response\Response) {
+							$result->Enviar();
+						} elseif ($result) {
+							echo $result;
+						}
+						error_log('DEBUG: Método do controller chamado');
+					} else {
+						$controller = new $controllerClass();
+						$controller->$methodName(...array_values($params));
+					}
 				} else {
 					call_user_func($route['handler']);
 				}
@@ -215,22 +284,6 @@ function matchRoute($routeUri, $requestUri) {
 	return $params;
 }
 
-foreach ($routes as $route) {
-	if ($route['method'] === $method) {
-		$params = matchRoute($route['uri'], $uri);
-		if ($params !== false) {
-			if (is_array($route['handler']) && count($route['handler']) === 2) {
-				$controllerClass = $route['handler'][0];
-				$methodName = $route['handler'][1];
-				$controller = new $controllerClass();
-				$controller->$methodName(...array_values($params));
-			} else {
-				call_user_func($route['handler']);
-			}
-			exit;
-		}
-	}
-}
 
 // Se não encontrou rota
 http_response_code(404);
