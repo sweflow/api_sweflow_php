@@ -1,7 +1,7 @@
 <?php
 
 
-namespace src\Database\Mysql;
+namespace Src\Database\Mysql;
 
 use src\Database\Exceptions\DatabaseException;
 use src\Database\Exceptions\DatabaseConnectionException;

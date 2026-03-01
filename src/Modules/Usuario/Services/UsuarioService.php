@@ -1,9 +1,9 @@
 <?php
 
-namespace src\Modules\Usuario\Services;
+namespace Src\Modules\Usuario\Services;
 
-use src\Modules\Usuario\Entities\Usuario;
-use src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
+use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
+use Src\Modules\Usuario\Entities\Usuario;
 use DomainException;
 
 class UsuarioService implements UsuarioServiceInterface

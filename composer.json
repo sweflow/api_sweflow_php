@@ -7,8 +7,8 @@
     },
     "autoload": {
         "psr-4": {
-            "src\\": "src/",
-            "src\\Modules\\": "src/Modules/"
+            "Src\\": "src/",
+            "Src\\Modules\\": "src/Modules/"
         }
     }
 }

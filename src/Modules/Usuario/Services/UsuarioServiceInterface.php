@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Modules\Usuario\Services;
+namespace Src\Modules\Usuario\Services;
 
 // Removido import duplicado
 use src\Modules\Usuario\Entities\Usuario;

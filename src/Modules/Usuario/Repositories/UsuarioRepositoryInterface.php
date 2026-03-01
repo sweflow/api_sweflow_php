@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Modules\Usuario\Repositories;
+namespace Src\Modules\Usuario\Repositories;
 
 use src\Modules\Usuario\Entities\Usuario;
 

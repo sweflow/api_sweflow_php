@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Http\Request;
+namespace Src\Http\Request;
 
 class Request
 {

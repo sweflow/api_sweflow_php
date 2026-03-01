@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Configs;
+namespace Src\Configs;
 
 use src\Exceptions\EnvFileNotFoundException;
 

@@ -1,6 +1,8 @@
 <?php
 
-namespace src\Exceptions;
+namespace Src\Exceptions;
+
+use Src\Exceptions\ApplicationException;
 
 class EnvFileNotFoundException extends ApplicationException
 {

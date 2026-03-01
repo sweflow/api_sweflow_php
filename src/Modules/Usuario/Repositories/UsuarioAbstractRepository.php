@@ -1,14 +1,15 @@
 <?php
 
-namespace src\Modules\Usuario\Repositories;
+namespace Src\Modules\Usuario\Repositories;
 
 use PDO;
 use PDOException;
-use src\Modules\Usuario\Entities\Usuario;
+use Src\Modules\Usuario\Entities\Usuario;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
 use src\Database\Exceptions\DatabaseQueryException;
 use InvalidArgumentException;
+use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 
 abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
 {

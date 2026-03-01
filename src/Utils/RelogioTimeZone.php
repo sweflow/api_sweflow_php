@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Utils;
+namespace Src\Utils;
 
 final class RelogioTimeZone
 {

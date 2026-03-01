@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Exceptions;
+namespace Src\Exceptions;
 
 abstract class ApplicationException extends \RuntimeException
 {

@@ -1,7 +1,9 @@
 <?php
-namespace src\Database\Exceptions;
+namespace Src\Database\Exceptions;
+
+use Src\Database\Exceptions\DatabaseException;
 
 /**
- * Exceção para erro de timeout de banco de dados.
+ * Exceção para erro de timeout na conexão ou consulta ao banco de dados.
  */
 class DatabaseTimeoutException extends DatabaseException {}

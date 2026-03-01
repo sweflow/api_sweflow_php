@@ -1,5 +1,5 @@
 <?php
-namespace src\Database\Exceptions;
+namespace Src\Database\Exceptions;
 
 /**
  * Exceção para erro de conexão com banco de dados.

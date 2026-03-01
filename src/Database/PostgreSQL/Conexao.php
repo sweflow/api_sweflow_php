@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Database\PostgreSQL;
+namespace Src\Database\PostgreSQL;
 use src\Database\Exceptions\DatabaseException;
 use src\Database\Exceptions\DatabaseConnectionException;
 use src\Database\Exceptions\DatabaseQueryException;

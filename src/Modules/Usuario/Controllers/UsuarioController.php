@@ -1,11 +1,11 @@
 <?php
 
-namespace src\Modules\Usuario\Controllers;
+namespace Src\Modules\Usuario\Controllers;
 
-use src\Modules\Usuario\Services\UsuarioServiceInterface;
-use src\Modules\Usuario\Entities\Usuario;
-use src\Http\Response\Response;
-use src\Utils\ImageProcessor;
+use Src\Modules\Usuario\Services\UsuarioServiceInterface;
+use Src\Modules\Usuario\Entities\Usuario;
+use Src\Http\Response\Response;
+use Src\Utils\ImageProcessor;
 use DomainException;
 use Throwable;
 

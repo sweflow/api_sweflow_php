@@ -1,6 +1,6 @@
 <?php
 
-namespace src\Modules\Usuario\Entities;
+namespace Src\Modules\Usuario\Entities;
 
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;

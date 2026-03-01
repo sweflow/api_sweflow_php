@@ -1,11 +1,11 @@
 <?php
 
-namespace src\Modules\Usuario\Repositories;
+namespace Src\Modules\Usuario\Repositories;
 
-use src\Modules\Usuario\Entities\Usuario;
-use Ramsey\Uuid\Uuid;
-use src\Utils\RelogioTimeZone;
 use PDO;
+use Src\Modules\Usuario\Entities\Usuario;
+use Src\Utils\RelogioTimeZone;
+use Src\Modules\Usuario\Repositories\UsuarioAbstractRepository;
 
 class UsuarioRepository extends UsuarioAbstractRepository
 {

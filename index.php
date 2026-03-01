@@ -167,12 +167,17 @@ if (isset($routes) && is_array($routes)) {
 		if ($route['method'] === $method) {
 			$params = matchRoute($route['uri'], $uri);
 			if ($params !== false) {
-				// Executa middlewares se existirem (suporta parâmetros)
+				// Executa middlewares se existirem (suporta parâmetros e arrays simples)
 				if (!empty($route['middleware'])) {
 					if (is_array($route['middleware'])) {
-						foreach ($route['middleware'] as $middlewareClass => $params) {
-							if (is_string($middlewareClass) && class_exists($middlewareClass) && method_exists($middlewareClass, 'handle')) {
-								$middlewareClass::handle($params);
+						foreach ($route['middleware'] as $key => $middleware) {
+							// Se for array associativo (chave = classe, valor = params)
+							if (is_string($key) && class_exists($key) && method_exists($key, 'handle')) {
+								$key::handle($middleware);
+							}
+							// Se for array de valores (classe como valor)
+							elseif (is_string($middleware) && class_exists($middleware) && method_exists($middleware, 'handle')) {
+								$middleware::handle();
 							}
 						}
 					} elseif (is_string($route['middleware']) && class_exists($route['middleware']) && method_exists($route['middleware'], 'handle')) {
@@ -185,6 +190,7 @@ if (isset($routes) && is_array($routes)) {
 
 					// Injeção de dependências profissional para UsuarioController
 					if ($controllerClass === 'src\Modules\Usuario\Controllers\UsuarioController') {
+						$controllerClass = 'Src\\Modules\\Usuario\\Controllers\\UsuarioController';
 						// Certifique-se que $pdo está disponível neste escopo
 						if (!isset($pdo) || !$pdo instanceof PDO) {
 							// Recria a conexão caso não exista
@@ -206,8 +212,8 @@ if (isset($routes) && is_array($routes)) {
 							error_log('DEBUG: Tentando conectar ao banco com DSN: ' . $dsn . ' | Usuário: ' . $dbUser . ' | Host: ' . $dbHost . ' | Porta: ' . $dbPort);
 							$pdo = new PDO($dsn, $dbUser, $dbPass, $options);
 						}
-						$usuarioRepository = new \src\Modules\Usuario\Repositories\UsuarioRepository($pdo);
-						$usuarioService = new \src\Modules\Usuario\Services\UsuarioService($usuarioRepository);
+						$usuarioRepository = new \Src\Modules\Usuario\Repositories\UsuarioRepository($pdo);
+						$usuarioService = new \Src\Modules\Usuario\Services\UsuarioService($usuarioRepository);
 						error_log('DEBUG: Antes de instanciar UsuarioController');
 						$controller = new $controllerClass($usuarioService);
 						error_log('DEBUG: UsuarioController instanciado');
@@ -228,21 +234,23 @@ if (isset($routes) && is_array($routes)) {
 								$body = $json;
 							}
 						}
-						$request = new \src\Http\Request\Request(
-							$body,
-							$_GET,
-							$headers,
-							$_SERVER['REQUEST_METHOD'] ?? null,
-							$_SERVER['REQUEST_URI'] ?? null,
-							$rawBody
-						);
+						$requestClass = 'src\\Http\\Request\\Request';
+						if ($requestClass === 'src\\Http\\Request\\Request') {
+							$requestClass = 'Src\\Http\\Request\\Request';
+						}
+						$request = new $requestClass([], [], $headers, $contentType, $_SERVER['REQUEST_METHOD'] ?? null, $_SERVER['REQUEST_URI'] ?? null, $rawBody);
 						// Adiciona parâmetros da rota (ex: uuid) ao objeto Request
 						if (is_array($params)) {
 							$request->params = $params;
 						}
 						error_log('DEBUG: Antes de chamar método do controller');
 						// Passa Request como primeiro argumento
-						$result = $controller->$methodName($request, ...(is_array($params) ? array_values($params) : []));
+						// Se for listar, não passar params se não forem numéricos
+						if ($methodName === 'listar') {
+							$result = $controller->listar($request);
+						} else {
+							$result = $controller->$methodName($request, ...(is_array($params) ? array_values($params) : []));
+						}
 						if ($result instanceof \src\Http\Response\Response) {
 							$result->Enviar();
 						} elseif ($result) {
