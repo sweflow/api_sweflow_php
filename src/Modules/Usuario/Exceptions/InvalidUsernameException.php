@@ -2,15 +2,11 @@
 
 namespace Modules\Usuario\Exceptions;
 
-class InvalidUsernameException extends DomainException
+class InvalidUsernameException extends \DomainException
 {
-    public function __construct(string $username = '', int $code = 0, ?\Throwable $previous = null)
+    public function __construct(string $message = 'Username inválido.', int $code = 0, ?\Throwable $previous = null)
     {
-        if (trim($username) === '') {
-            $message = "Username não informado.";
-        } else {
-            $message = "Username inválido: $username";
-        }
+        // Preserve the specific validation message passed by the caller for clearer feedback.
         parent::__construct($message, $code, $previous);
     }
 }

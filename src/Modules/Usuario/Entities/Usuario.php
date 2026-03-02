@@ -218,6 +218,7 @@ final class Usuario
         // Exemplo: pelo menos uma letra maiúscula, uma minúscula e um número
         $temMaiuscula = preg_match('/[A-Z]/', $senha);
         $temMinuscula = preg_match('/[a-z]/', $senha);
+        $temEspecial = preg_match('/[^a-zA-Z0-9]/', $senha);
 
         if (!$temMaiuscula) {
             throw new InvalidPasswordException('Senha deve conter ao menos uma letra maiúscula.');
@@ -227,6 +228,9 @@ final class Usuario
         }
         if (!preg_match('/[0-9]/', $senha)) {
             throw new InvalidPasswordException('Senha deve conter ao menos um número.');
+        }
+        if (!$temEspecial) {
+            throw new InvalidPasswordException('Senha deve conter ao menos um caractere especial.');
         }
     }
 
