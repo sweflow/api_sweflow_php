@@ -7,7 +7,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Src\\": "src/",
+            "Src\\": "src/Kernel/",
             "Src\\Modules\\": "src/Modules/"
         }
     }

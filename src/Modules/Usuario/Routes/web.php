@@ -1,39 +1,15 @@
 <?php
 
-use Src\Routes\Route;
-use src\Modules\Usuario\Controllers\UsuarioController;
 use Src\Middlewares\RouteProtectionMiddleware;
+use Src\Modules\Usuario\Controllers\UsuarioController;
+use Src\Routes\Route;
 
-// Rota para criar um novo usuário
-Route::post('/api/criar/usuario', [UsuarioController::class, 'criar'], [
-]);
+$protected = [RouteProtectionMiddleware::class];
 
-// Rota para listar usuários
-Route::get('/api/usuarios', [UsuarioController::class, 'listar'], [
-    RouteProtectionMiddleware::class
-]);
-
-// Rota para buscar um usuário por UUID
-Route::get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar'], [
-    RouteProtectionMiddleware::class
-]);
-
-// Rota para atualizar um usuário por UUID
-Route::put('/api/usuario/atualizar/{uuid}', [UsuarioController::class, 'atualizar'], [
-    RouteProtectionMiddleware::class
-]);
-
-// Rota para deletar um usuário por UUID
-Route::delete('/api/usuario/deletar/{uuid}', [UsuarioController::class, 'deletar'], [
-    RouteProtectionMiddleware::class
-]);
-
-// Rota para desativar um usuário por UUID
-Route::patch('/api/usuario/{uuid}/desativar', [UsuarioController::class, 'desativar'], [
-    RouteProtectionMiddleware::class
-]);
-
-// Rota para ativar um usuário por UUID
-Route::patch('/api/usuario/{uuid}/ativar', [UsuarioController::class, 'ativar'], [
-    RouteProtectionMiddleware::class
-]);
+Route::post('/api/criar/usuario', [UsuarioController::class, 'criar']);
+Route::get('/api/usuarios', [UsuarioController::class, 'listar'], $protected);
+Route::get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar'], $protected);
+Route::put('/api/usuario/atualizar/{uuid}', [UsuarioController::class, 'atualizar'], $protected);
+Route::delete('/api/usuario/deletar/{uuid}', [UsuarioController::class, 'deletar'], $protected);
+Route::patch('/api/usuario/{uuid}/desativar', [UsuarioController::class, 'desativar'], $protected);
+Route::patch('/api/usuario/{uuid}/ativar', [UsuarioController::class, 'ativar'], $protected);
