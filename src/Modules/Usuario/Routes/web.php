@@ -15,20 +15,25 @@ Route::get('/api/usuarios', [UsuarioController::class, 'listar'], [
 
 // Rota para buscar um usuário por UUID
 Route::get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar'], [
+    RouteProtectionMiddleware::class
 ]);
 
 // Rota para atualizar um usuário por UUID
 Route::put('/api/usuario/atualizar/{uuid}', [UsuarioController::class, 'atualizar'], [
+    RouteProtectionMiddleware::class
 ]);
 
 // Rota para deletar um usuário por UUID
 Route::delete('/api/usuario/deletar/{uuid}', [UsuarioController::class, 'deletar'], [
+    RouteProtectionMiddleware::class
 ]);
 
 // Rota para desativar um usuário por UUID
 Route::patch('/api/usuario/{uuid}/desativar', [UsuarioController::class, 'desativar'], [
+    RouteProtectionMiddleware::class
 ]);
 
 // Rota para ativar um usuário por UUID
 Route::patch('/api/usuario/{uuid}/ativar', [UsuarioController::class, 'ativar'], [
+    RouteProtectionMiddleware::class
 ]);

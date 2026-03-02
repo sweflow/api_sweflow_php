@@ -11,7 +11,12 @@
     <div class="container">
         <aside class="sidebar">
             <div class="logo">
-                <i class="fa-solid fa-cubes"></i> Sweflow API
+                <?php if (!empty($logo_url)): ?>
+                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:32px;height:32px;border-radius:6px;object-fit:contain;vertical-align:middle;margin-right:8px;" />
+                <?php else: ?>
+                    <i class="fa-solid fa-cubes"></i>
+                <?php endif; ?>
+                Sweflow API
             </div>
             <nav>
                 <ul>
@@ -23,7 +28,14 @@
         </aside>
         <main class="content">
             <section id="descricao">
-                <h1><i class="fa-solid fa-cubes"></i> Sweflow API</h1>
+                <h1>
+                    <?php if (!empty($logo_url)): ?>
+                        <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:40px;height:40px;border-radius:8px;object-fit:contain;vertical-align:middle;margin-right:10px;" />
+                    <?php else: ?>
+                        <i class="fa-solid fa-cubes"></i>
+                    <?php endif; ?>
+                    Sweflow API
+                </h1>
                 <p><?= $descricao ?></p>
             </section>
             <section id="status">

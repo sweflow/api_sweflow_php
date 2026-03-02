@@ -5,6 +5,11 @@ if (file_exists(__DIR__ . '/.env')) {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 }
+// Captura o corpo cru da requisição uma única vez para reutilizar sem consumir php://input repetidamente
+if (!isset($GLOBALS['__raw_input'])) {
+	$GLOBALS['__raw_input'] = file_get_contents('php://input');
+	error_log('[index] raw_input len=' . strlen((string)$GLOBALS['__raw_input']) . ' first100=' . substr((string)$GLOBALS['__raw_input'], 0, 100));
+}
 // Rota para status do banco em tempo real
 if (file_exists(__DIR__ . '/src/Modules/Usuario/Routes/web.php')) {
 	require_once __DIR__ . '/src/Modules/Usuario/Routes/web.php';
@@ -34,11 +39,18 @@ if ($uri === '/api/status') {
 					$uri = $match[2];
 					$middlewares = isset($match[3]) ? $match[3] : '';
 					$isPrivate = false;
-					if (
-						strpos($middlewares, 'RouteProtectionMiddleware::class') !== false ||
-						strpos($middlewares, 'RouteProtectionMiddleware') !== false
-					) {
-						$isPrivate = true;
+					if ($middlewares !== '') {
+						$needles = [
+							'RouteProtectionMiddleware',
+							'AuthHybridMiddleware',
+							'Middleware'
+						];
+						foreach ($needles as $needle) {
+							if (strpos($middlewares, $needle) !== false) {
+								$isPrivate = true;
+								break;
+							}
+						}
 					}
 					$routes[] = [
 						'method' => $method,
@@ -227,6 +239,9 @@ if (isset($routes) && is_array($routes)) {
 							}
 						}
 						$rawBody = file_get_contents('php://input');
+						if (isset($GLOBALS['__raw_input']) && $GLOBALS['__raw_input'] !== '') {
+							$rawBody = $GLOBALS['__raw_input'];
+						}
 						$body = $_POST;
 						if (str_contains($contentType, 'application/json')) {
 							$json = json_decode($rawBody, true);
@@ -242,6 +257,13 @@ if (isset($routes) && is_array($routes)) {
 						// Adiciona parâmetros da rota (ex: uuid) ao objeto Request
 						if (is_array($params)) {
 							$request->params = $params;
+						}
+						// Injeta usuário autenticado do middleware de cookie, se disponível
+						if (isset($GLOBALS['__auth_user'])) {
+							$request = $request->withAttribute('auth_user', $GLOBALS['__auth_user']);
+						}
+						if (isset($GLOBALS['__auth_payload'])) {
+							$request = $request->withAttribute('auth_payload', $GLOBALS['__auth_payload']);
 						}
 						error_log('DEBUG: Antes de chamar método do controller');
 						// Passa Request como primeiro argumento
@@ -259,7 +281,12 @@ if (isset($routes) && is_array($routes)) {
 						error_log('DEBUG: Método do controller chamado');
 					} else {
 						$controller = new $controllerClass();
-						$controller->$methodName(...(is_array($params) ? array_values($params) : []));
+						$result = $controller->$methodName(...(is_array($params) ? array_values($params) : []));
+						if ($result instanceof \Src\Http\Response\Response || $result instanceof \src\Http\Response\Response) {
+							$result->Enviar();
+						} elseif ($result) {
+							echo $result;
+						}
 					}
 				} else {
 					call_user_func($route['handler']);

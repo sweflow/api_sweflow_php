@@ -49,6 +49,9 @@ A Sweflow API é uma API modular desenvolvida em PHP, com arquitetura profission
 - `PATCH /api/usuario/{uuid}/desativar` — Desativar usuário
 - `DELETE /api/usuario/{uuid}` — Excluir usuário
 - `GET /usuario/{uuid}` — Buscar usuário por UUID
+- `POST /api/auth/login` — Autenticação e emissão de cookie HttpOnly
+- `GET /api/auth/me` — Retorna o usuário autenticado a partir do cookie JWT
+- `POST /api/auth/logout` — Remove o cookie de autenticação
 
 ## Estrutura de Pastas
 ```

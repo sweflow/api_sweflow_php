@@ -15,9 +15,9 @@ $payload = [
     'api_access' => true,
     'tipo' => 'api'
 ];
-$secret = $_ENV['JWT_SECRET'] ?? '';
+$secret = $_ENV['JWT_API_SECRET'] ?? '';
 if (!$secret) {
-    echo "JWT_SECRET não configurado\n";
+    echo "JWT_API_SECRET não configurado\n";
     exit(1);
 }
 $jwt = JWT::encode($payload, $secret, 'HS256');
