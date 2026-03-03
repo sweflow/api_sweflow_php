@@ -73,6 +73,108 @@ $router->get('/dashboard', [DashboardController::class, 'index'], [
     AdminOnlyMiddleware::class,
 ]);
 
+function isPrivateRoute(array $route): bool {
+    $private = [
+        AuthHybridMiddleware::class,
+        AdminOnlyMiddleware::class,
+        \Src\Middlewares\RouteProtectionMiddleware::class,
+    ];
+    foreach ($route['middlewares'] ?? [] as $mw) {
+        $def = $mw['definition'] ?? null;
+        if (is_string($def) && in_array($def, $private, true)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function absoluteUrl(string $uri): string {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? ('localhost');
+    return rtrim($scheme . '://' . $host, '/') . $uri;
+}
+
+function isSitemapEligible(array $route): bool {
+    if (strtoupper($route['method']) !== 'GET') return false;
+    $uri = $route['uri'] ?? '';
+    if ($uri === '') return false;
+    if (strpos($uri, '/api/') === 0) return false; // não indexa APIs
+    if (strpos($uri, '{') !== false) return false; // ignora rotas dinâmicas
+    if (isPrivateRoute($route)) return false;
+    if (in_array($uri, ['/sitemap.xml', '/robots.txt'], true)) return false;
+    return true;
+}
+
+$router->get('/sitemap.xml', function () use ($router, $modules) {
+    // Rotas públicas (GET, não dinâmicas, sem middlewares privados)
+    $routes = array_filter($router->all(), fn(array $route) => isSitemapEligible($route));
+
+    // Adiciona fallback das descrições dos módulos para garantir que rotas públicas habilitadas entrem no sitemap
+    foreach ($modules->providers() as $name => $provider) {
+        if (!$modules->isEnabled($name)) {
+            continue;
+        }
+        $desc = $provider->describe();
+        foreach (($desc['routes'] ?? []) as $route) {
+            $method = strtoupper($route['method'] ?? 'GET');
+            $uri = $route['uri'] ?? '';
+            $isProtected = ($route['protected'] ?? false) || ($route['tipo'] ?? '') === 'privada';
+            if ($method !== 'GET') continue;
+            if ($uri === '' || strpos($uri, '{') !== false) continue;
+            if (strpos($uri, '/api/') === 0) continue;
+            if ($isProtected) continue;
+            $routes[] = ['method' => 'GET', 'uri' => $uri, 'middlewares' => []];
+        }
+    }
+
+    // remove duplicados e normaliza canonicals (/index.php -> /)
+    $uris = [];
+    foreach ($routes as $route) {
+        $uri = $route['uri'];
+        if ($uri === '/index.php') {
+            $uri = '/';
+        }
+        if (in_array($uri, ['/sitemap.xml', '/robots.txt'], true)) {
+            continue;
+        }
+        $uris[$uri] = true;
+    }
+
+    ksort($uris);
+
+    $urls = array_map(function ($uri) {
+        $loc = absoluteUrl($uri);
+        return "  <url><loc>{$loc}</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>";
+    }, array_keys($uris));
+
+    $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" .
+        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n" .
+        implode("\n", $urls) . "\n" .
+        "</urlset>";
+
+    return new Response($xml, 200, ['Content-Type' => 'application/xml; charset=utf-8']);
+});
+
+$router->get('/robots.txt', function () use ($router) {
+    $privateUris = array_map(fn($r) => $r['uri'], array_filter($router->all(), fn($r) => isPrivateRoute($r)));
+    $privateUris = array_values(array_unique(array_filter($privateUris)));
+
+    $lines = [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /api/',
+    ];
+
+    foreach ($privateUris as $uri) {
+        $lines[] = 'Disallow: ' . $uri;
+    }
+
+    $lines[] = 'Sitemap: ' . absoluteUrl('/sitemap.xml');
+
+    $body = implode("\n", $lines);
+    return new Response($body, 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+});
+
 $router->get('/api/status', function () use ($modules, $router) {
     $status = [
         'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
