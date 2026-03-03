@@ -9,6 +9,8 @@ $protected = [AuthHybridMiddleware::class];
 // Autenticação de usuário
 Route::post('/api/auth/login', [AuthController::class, 'login']);
 Route::post('/api/login', [AuthController::class, 'loginPublic']);
+Route::post('/api/auth/recuperacao-senha', [AuthController::class, 'solicitarRecuperacaoSenha']);
+Route::post('/api/auth/resetar-senha', [AuthController::class, 'resetarSenha']);
 Route::get('/api/auth/me', [AuthController::class, 'me'], $protected);
 Route::post('/api/auth/logout', [AuthController::class, 'logout'], $protected);
 Route::post('/api/auth/refresh', [AuthController::class, 'refresh']);

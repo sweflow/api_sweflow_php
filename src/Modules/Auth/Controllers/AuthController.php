@@ -9,6 +9,7 @@ use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Src\Modules\Auth\Services\AuthService;
 use Src\Modules\Usuario\Repositories\UsuarioRepository;
+use Src\Modules\Email\Services\EmailService;
 
 class AuthController
 {
@@ -16,6 +17,7 @@ class AuthController
     private ?UsuarioRepository $usuarioRepository = null;
     private ?RefreshTokenRepository $refreshTokenRepository = null;
     private ?AccessTokenBlacklistRepository $accessBlacklist = null;
+    private ?EmailService $emailService = null;
     private ?PDO $pdo = null;
 
     public function login(): Response
@@ -119,6 +121,103 @@ class AuthController
             return Response::json([
                 'status' => 'error',
                 'message' => 'Erro interno ao autenticar',
+                'details' => $this->debugAtivo() ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    public function solicitarRecuperacaoSenha(): Response
+    {
+        try {
+            $dados = $this->corpoDaRequisicao();
+            $email = trim($dados['email'] ?? '');
+
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'E-mail inválido ou não informado.'
+                ], 400);
+            }
+
+            $usuario = $this->repositorio()->buscarPorEmail($email);
+
+            if ($usuario) {
+                $canSend = $this->podeDispararEmailRecuperacao($email);
+
+                $token = bin2hex(random_bytes(32));
+                $this->repositorio()->salvarTokenRecuperacaoSenha($usuario->getUuid()->toString(), $token);
+                $link = $this->montarLinkRecuperacaoSenha($token);
+
+                if ($canSend) {
+                    try {
+                        $this->registrarDisparoEmailRecuperacao($email);
+                        $this->mailer()->sendPasswordReset(
+                            $usuario->getEmail(),
+                            $usuario->getNomeCompleto(),
+                            $link,
+                            $_ENV['MAILER_LOGO_URL'] ?? null
+                        );
+                    } catch (\Throwable $mailError) {
+                        error_log('[AuthController] Falha ao enviar e-mail de recuperação: ' . $mailError->getMessage());
+                    }
+                }
+            }
+
+            return Response::json([
+                'status' => 'success',
+                'message' => 'Se o e-mail informado estiver cadastrado, um link de recuperação será enviado.'
+            ]);
+        } catch (\Throwable $e) {
+            return Response::json([
+                'status' => 'error',
+                'message' => 'Não foi possível iniciar a recuperação de senha.',
+                'details' => $this->debugAtivo() ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    public function resetarSenha(): Response
+    {
+        try {
+            $dados = $this->corpoDaRequisicao();
+            $token = trim($dados['token'] ?? '');
+            $novaSenha = (string)($dados['nova_senha'] ?? $dados['password'] ?? '');
+
+            if ($token === '') {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'Token é obrigatório.'
+                ], 400);
+            }
+
+            if (strlen($novaSenha) < 8) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'Nova senha deve ter ao menos 8 caracteres.'
+                ], 400);
+            }
+
+            $usuario = $this->repositorio()->buscarPorTokenRecuperacaoSenha($token);
+
+            if (!$usuario) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'Token inválido ou expirado.'
+                ], 400);
+            }
+
+            $usuario->alterarSenha($novaSenha);
+            $this->repositorio()->salvar($usuario);
+            $this->repositorio()->limparTokenRecuperacaoSenha($usuario->getUuid()->toString());
+
+            return Response::json([
+                'status' => 'success',
+                'message' => 'Senha redefinida com sucesso.'
+            ]);
+        } catch (\Throwable $e) {
+            return Response::json([
+                'status' => 'error',
+                'message' => 'Não foi possível redefinir a senha.',
                 'details' => $this->debugAtivo() ? $e->getMessage() : null
             ], 500);
         }
@@ -482,5 +581,77 @@ class AuthController
         if ($gravado === false) {
             throw new DomainException('Não foi possível salvar a política de verificação.');
         }
+    }
+
+    private function caminhoThrottleRecuperacao(): string
+    {
+        return dirname(__DIR__, 4) . '/storage/password_reset_throttle.json';
+    }
+
+    private function podeDispararEmailRecuperacao(string $email): bool
+    {
+        $path = $this->caminhoThrottleRecuperacao();
+        $window = 120; // segundos
+        $now = time();
+
+        if (!is_file($path)) {
+            return true;
+        }
+
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            return true;
+        }
+
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return true;
+        }
+
+        $last = $data[strtolower($email)] ?? 0;
+        return ($now - (int)$last) >= $window;
+    }
+
+    private function registrarDisparoEmailRecuperacao(string $email): void
+    {
+        $path = $this->caminhoThrottleRecuperacao();
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+
+        $data = [];
+        $json = @file_get_contents($path);
+        if ($json !== false) {
+            $decoded = json_decode($json, true);
+            if (is_array($decoded)) {
+                $data = $decoded;
+            }
+        }
+
+        $data[strtolower($email)] = time();
+        @file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function mailer(): EmailService
+    {
+        if ($this->emailService instanceof EmailService) {
+            return $this->emailService;
+        }
+
+        $this->emailService = new EmailService();
+        return $this->emailService;
+    }
+
+    private function montarLinkRecuperacaoSenha(string $token): string
+    {
+        $base = rtrim($_ENV['APP_URL_FRONTEND'] ?? $_ENV['APP_URL'] ?? ($_ENV['APP_URL_APP'] ?? ''), '/');
+        if ($base === '') {
+            $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $base = $scheme . '://' . $host;
+        }
+
+        return $base . '/recuperar-senha?token=' . urlencode($token);
     }
 }
