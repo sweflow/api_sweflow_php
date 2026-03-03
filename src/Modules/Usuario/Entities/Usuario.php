@@ -77,6 +77,11 @@ final class Usuario
         }
     }
 
+    private static function normalizarUsername(string $username): string
+    {
+        return strtolower(trim($username));
+    }
+
     public static function registrar(
         string $nomeCompleto,
         string $username,
@@ -90,7 +95,9 @@ final class Usuario
         string $statusVerificacao = 'Não verificado'
     ): self
     {
-        self::validarUsername($username);
+        $usernameNormalizado = self::normalizarUsername($username);
+
+        self::validarUsername($usernameNormalizado);
         self::validarEmail($email);
         self::validarSenha($senha);
         self::validarNivelAcesso($nivelAcesso);
@@ -98,7 +105,7 @@ final class Usuario
         return new self(
             Uuid::uuid4(),
             $nomeCompleto,
-            $username,
+            $usernameNormalizado,
             $email,
             password_hash($senha, PASSWORD_ARGON2ID),
             $nivelAcesso,
@@ -133,10 +140,12 @@ final class Usuario
         ?DateTimeImmutable $atualizadoEm = null,
         string $statusVerificacao = 'Não verificado'
     ): self {
+        $usernameNormalizado = self::normalizarUsername($username);
+
         return new self(
             $uuid,
             $nomeCompleto,
-            $username,
+            $usernameNormalizado,
             $email,
             $senhaHash,
             $nivelAcesso,
@@ -195,8 +204,8 @@ final class Usuario
             throw new InvalidUsernameException('Username deve ter ao menos 3 caracteres.');
         }
         // Só pode conter letras, números, ponto e underline
-        if (!preg_match('/^[a-zA-Z0-9._]+$/', $username)) {
-            throw new InvalidUsernameException('Username só pode conter letras, números, ponto ou underline.');
+        if (!preg_match('/^[a-z0-9._]+$/', $username)) {
+            throw new InvalidUsernameException('Username só pode conter letras minúsculas, números, ponto ou underline.');
         }
         // Só pode conter UM caractere especial (ponto ou underline)
         $matches = preg_match_all('/[._]/', $username);
@@ -311,8 +320,9 @@ final class Usuario
 
     public function setUsername(string $username): void
     {
-        self::validarUsername($username);
-        $this->username = $username;
+        $usernameNormalizado = self::normalizarUsername($username);
+        self::validarUsername($usernameNormalizado);
+        $this->username = $usernameNormalizado;
     }
 
     public function setEmail(string $email): void

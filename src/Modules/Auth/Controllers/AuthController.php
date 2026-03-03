@@ -142,23 +142,25 @@ class AuthController
             $usuario = $this->repositorio()->buscarPorEmail($email);
 
             if ($usuario) {
-                $canSend = $this->podeDispararEmailRecuperacao($email);
-
                 $token = bin2hex(random_bytes(32));
                 $this->repositorio()->salvarTokenRecuperacaoSenha($usuario->getUuid()->toString(), $token);
-                $link = $this->montarLinkRecuperacaoSenha($token);
 
-                if ($canSend) {
-                    try {
-                        $this->registrarDisparoEmailRecuperacao($email);
-                        $this->mailer()->sendPasswordReset(
-                            $usuario->getEmail(),
-                            $usuario->getNomeCompleto(),
-                            $link,
-                            $_ENV['MAILER_LOGO_URL'] ?? null
-                        );
-                    } catch (\Throwable $mailError) {
-                        error_log('[AuthController] Falha ao enviar e-mail de recuperação: ' . $mailError->getMessage());
+                if ($this->emailModuleEnabled()) {
+                    $canSend = $this->podeDispararEmailRecuperacao($email);
+                    $link = $this->montarLinkRecuperacaoSenha($token);
+
+                    if ($canSend) {
+                        try {
+                            $this->registrarDisparoEmailRecuperacao($email);
+                            $this->mailer()->sendPasswordReset(
+                                $usuario->getEmail(),
+                                $usuario->getNomeCompleto(),
+                                $link,
+                                $_ENV['MAILER_LOGO_URL'] ?? null
+                            );
+                        } catch (\Throwable $mailError) {
+                            error_log('[AuthController] Falha ao enviar e-mail de recuperação: ' . $mailError->getMessage());
+                        }
                     }
                 }
             }
@@ -552,6 +554,9 @@ class AuthController
 
     private function carregarPoliticaVerificacaoEmail(): bool
     {
+        if (!$this->emailModuleEnabled()) {
+            return false;
+        }
         $caminho = $this->caminhoPoliticaVerificacaoEmail();
         if (!file_exists($caminho)) {
             return false;
@@ -569,6 +574,9 @@ class AuthController
 
     private function salvarPoliticaVerificacaoEmail(bool $enabled): void
     {
+        if ($enabled && !$this->emailModuleEnabled()) {
+            throw new DomainException('Ative o módulo de E-mail para habilitar a verificação por e-mail.');
+        }
         $caminho = $this->caminhoPoliticaVerificacaoEmail();
         $diretorio = dirname($caminho);
         if (!is_dir($diretorio)) {
@@ -641,6 +649,26 @@ class AuthController
 
         $this->emailService = new EmailService();
         return $this->emailService;
+    }
+
+    private function emailModuleEnabled(): bool
+    {
+        $path = dirname(__DIR__, 4) . '/storage/modules_state.json';
+        if (!is_file($path)) {
+            return true; // padrão: habilitado
+        }
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            return true;
+        }
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return true;
+        }
+        return !(
+            array_key_exists('Email', $data)
+            && $data['Email'] === false
+        );
     }
 
     private function montarLinkRecuperacaoSenha(string $token): string

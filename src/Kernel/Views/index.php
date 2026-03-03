@@ -242,6 +242,55 @@
                     let lockUntil = 0;
                     let lockInterval = null;
 
+                    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+
+                    function normalizeLogin(value) {
+                        return (value || '').toLowerCase();
+                    }
+
+                    function detectLoginType(value) {
+                        return value.includes('@') ? 'email' : 'username';
+                    }
+
+                    function validateLoginValue(raw) {
+                        const value = normalizeLogin(raw.trim());
+                        if (!value) {
+                            return { ok: false, message: 'Informe o usuário ou e-mail.', normalized: value };
+                        }
+
+                        const type = detectLoginType(value);
+
+                        if (type === 'email') {
+                            if (/\s/.test(value)) {
+                                return { ok: false, message: 'E-mail não pode conter espaços.', normalized: value, type };
+                            }
+                            if (!emailRegex.test(value)) {
+                                return { ok: false, message: 'E-mail inválido.', normalized: value, type };
+                            }
+                            return { ok: true, message: '', normalized: value, type };
+                        }
+
+                        if (/^[._]/.test(value)) {
+                            return { ok: false, message: 'Username não pode iniciar com "." ou "_".', normalized: value, type };
+                        }
+                        if (/\s/.test(value)) {
+                            return { ok: false, message: 'Username não pode conter espaços.', normalized: value, type };
+                        }
+                        if (value.length < 3) {
+                            return { ok: false, message: 'Username deve ter ao menos 3 caracteres.', normalized: value, type };
+                        }
+                        if (!/^[a-z0-9._]+$/.test(value)) {
+                            return { ok: false, message: 'Use apenas letras minúsculas, números, "." ou "_".', normalized: value, type };
+                        }
+
+                        const specialCount = (value.match(/[._]/g) || []).length;
+                        if (specialCount > 1) {
+                            return { ok: false, message: 'Username pode ter no máximo um "." ou "_".', normalized: value, type };
+                        }
+
+                        return { ok: true, message: '', normalized: value, type };
+                    }
+
                     function loadPersistedState() {
                         try {
                             attempts = Number(localStorage.getItem('loginAttempts') || '0') || 0;
@@ -324,6 +373,28 @@
                     loadPersistedState();
                     applyLockState(isLocked());
 
+                    if (loginInput) {
+                        loginInput.addEventListener('input', () => {
+                            const normalized = normalizeLogin(loginInput.value);
+                            if (loginInput.value !== normalized) {
+                                loginInput.value = normalized;
+                            }
+                            const validation = validateLoginValue(loginInput.value);
+                            if (feedback) {
+                                if (!validation.ok && normalized) {
+                                    feedback.textContent = validation.message;
+                                    feedback.classList.add('error');
+                                } else if (!normalized) {
+                                    feedback.textContent = '';
+                                    feedback.classList.remove('error', 'success');
+                                } else {
+                                    feedback.textContent = '';
+                                    feedback.classList.remove('error');
+                                }
+                            }
+                        });
+                    }
+
                     function openModal() {
                         if (!modalOverlay) return;
                         modalOverlay.classList.add('show');
@@ -370,6 +441,18 @@
                             applyLockState(true);
                             return;
                         }
+                        const validation = validateLoginValue(loginInput ? loginInput.value : '');
+                        if (!validation.ok) {
+                            if (feedback) {
+                                feedback.textContent = validation.message;
+                                feedback.classList.add('error');
+                            }
+                            if (loginInput) {
+                                loginInput.focus();
+                                loginInput.value = validation.normalized;
+                            }
+                            return;
+                        }
                         if (feedback) {
                             feedback.textContent = '';
                             feedback.classList.remove('error', 'success');
@@ -381,7 +464,7 @@
 
                         try {
                             const payload = {
-                                login: loginInput ? loginInput.value.trim() : '',
+                                login: validation.normalized,
                                 senha: passwordInput ? passwordInput.value : ''
                             };
 

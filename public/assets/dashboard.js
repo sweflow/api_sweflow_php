@@ -622,6 +622,8 @@ window.onload = function () {
             openEmailModalBtn.classList.add('disabled');
             openEmailModalBtn.title = 'Módulo de E-mail desabilitado. Habilite em "Funcionalidades" para enviar.';
         }
+
+        updateAuthVerifyUI(authRequireEmailVerification, false);
     }
 
     function handleUnauthorized(status) {
@@ -634,15 +636,23 @@ window.onload = function () {
 
     function updateAuthVerifyUI(state, loading = false) {
         if (!authVerifyToggle || !authVerifyTag) return;
-        authVerifyToggle.checked = state;
-        authVerifyToggle.disabled = loading;
+        const disabledByModule = !emailModuleEnabled;
+        const effectiveState = disabledByModule ? false : state;
+        authVerifyToggle.checked = effectiveState;
+        authVerifyToggle.disabled = loading || disabledByModule;
         if (loading) {
             authVerifyTag.textContent = 'Sincronizando...';
             authVerifyTag.style.backgroundColor = '#fff3cd';
             authVerifyTag.style.color = '#8a6d3b';
             return;
         }
-        if (state) {
+        if (disabledByModule) {
+            authVerifyTag.textContent = 'Requer módulo E-mail';
+            authVerifyTag.style.backgroundColor = '#fdeaea';
+            authVerifyTag.style.color = '#b3261e';
+            return;
+        }
+        if (effectiveState) {
             authVerifyTag.textContent = 'Verificação exigida';
             authVerifyTag.style.backgroundColor = '#e5f7ee';
             authVerifyTag.style.color = '#0f7b3b';
@@ -676,6 +686,12 @@ window.onload = function () {
 
     async function persistAuthPolicy(enabled) {
         if (!authVerifyToggle) return;
+        if (!emailModuleEnabled && enabled) {
+            alert('Ative o módulo de E-mail para exigir verificação por e-mail.');
+            updateAuthVerifyUI(authRequireEmailVerification, false);
+            authVerifyToggle.checked = false;
+            return;
+        }
         updateAuthVerifyUI(enabled, true);
         try {
             const res = await fetch('/api/auth/email-verification', {

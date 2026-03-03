@@ -63,7 +63,7 @@ class UsuarioController
             );
             $this->service->criar($usuario);
 
-            if ($this->politicaVerificacaoAtiva()) {
+            if ($this->emailModuleEnabled() && $this->politicaVerificacaoAtiva()) {
                 $token = bin2hex(random_bytes(32));
                 $this->service->salvarTokenVerificacaoEmail($usuario->getUuid()->toString(), $token);
                 $link = $this->montarLinkVerificacao($token);
@@ -825,6 +825,9 @@ class UsuarioController
         if (!is_array($dados)) {
             return false;
         }
+        if (!$this->emailModuleEnabled()) {
+            return false;
+        }
         return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
     }
 
@@ -846,5 +849,25 @@ class UsuarioController
         }
         $this->emailService = new EmailService();
         return $this->emailService;
+    }
+
+    private function emailModuleEnabled(): bool
+    {
+        $path = dirname(__DIR__, 4) . '/storage/modules_state.json';
+        if (!is_file($path)) {
+            return true;
+        }
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            return true;
+        }
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return true;
+        }
+        return !(
+            array_key_exists('Email', $data)
+            && $data['Email'] === false
+        );
     }
 }
