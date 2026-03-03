@@ -35,8 +35,16 @@ class AuthHybridMiddleware implements MiddlewareInterface
             return $this->responder(401, 'Não autenticado: token ausente.');
         }
 
-        $payload = $this->decodificarJwtUsuario($token);
-        $this->validarClaimsUsuario($payload);
+        try {
+            $payload = $this->decodificarJwtUsuario($token);
+            $this->validarClaimsUsuario($payload);
+        } catch (DomainException $e) {
+            $this->limparCookieAuth();
+            return $this->responder(401, $e->getMessage());
+        } catch (\Throwable $e) {
+            $this->limparCookieAuth();
+            return $this->responder(401, 'Token inválido ou expirado.');
+        }
 
         if ($this->blacklistRepo->isRevoked($payload->jti ?? '')) {
             return $this->responder(401, 'Token revogado. Faça login novamente.');
@@ -98,5 +106,18 @@ class AuthHybridMiddleware implements MiddlewareInterface
     private function responder(int $status, string $mensagem): Response
     {
         return Response::json(['error' => $mensagem], $status);
+    }
+
+    private function limparCookieAuth(): void
+    {
+        if (isset($_COOKIE['auth_token'])) {
+            @setcookie('auth_token', '', [
+                'expires' => time() - 3600,
+                'path' => '/',
+                'httponly' => true,
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                'samesite' => 'Lax',
+            ]);
+        }
     }
 }

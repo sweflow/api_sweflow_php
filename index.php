@@ -83,8 +83,15 @@ $router->get('/api/status', function () use ($modules, $router) {
 
     $moduleList = [];
     foreach ($modules->providers() as $name => $provider) {
+        $enabled = $modules->isEnabled($name);
         $desc = $provider->describe();
-        $moduleList[] = array_merge(['name' => $name, 'enabled' => $modules->isEnabled($name)], $desc);
+        $routes = $enabled ? ($desc['routes'] ?? []) : [];
+        unset($desc['routes']);
+
+        $moduleList[] = array_merge(
+            ['name' => $name, 'enabled' => $enabled, 'routes' => $routes],
+            $desc
+        );
     }
 
     return Response::json([

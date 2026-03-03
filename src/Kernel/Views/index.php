@@ -124,9 +124,10 @@
                 }
 
                 function renderRoutes(data) {
-                    const modules = data.modules || [];
+                    const modules = (data.modules || []).filter(m => m.enabled !== false);
                     let html = '';
                     modules.forEach(mod => {
+                        if (!mod.routes || mod.routes.length === 0) return;
                         html += `<h3>${mod.name ?? mod.nome}</h3>`;
                         html += `<table class="routes-table"><thead><tr><th>Método</th><th>URI</th><th>Tipo</th></tr></thead><tbody>`;
                         (mod.routes || []).forEach(route => {

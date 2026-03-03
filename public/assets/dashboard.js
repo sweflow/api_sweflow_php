@@ -150,13 +150,15 @@ window.onload = function () {
 
     function renderModules(modules) {
         if (!modulesList) return;
-        modulesList.innerHTML = modules.map(m => `<li><strong>${m.name ?? m.nome}</strong></li>`).join('');
+        const enabled = modules.filter(m => m.enabled !== false);
+        modulesList.innerHTML = enabled.map(m => `<li><strong>${m.name ?? m.nome}</strong></li>`).join('');
     }
 
     function renderRoutes(modules) {
         if (!routesList) return;
+        const enabled = modules.filter(m => m.enabled !== false && Array.isArray(m.routes) && m.routes.length > 0);
         let html = '';
-        modules.forEach(mod => {
+        enabled.forEach(mod => {
             html += `<h3>${mod.name ?? mod.nome}</h3>`;
             html += `<table class="routes-table"><thead><tr><th>Método</th><th>URI</th><th>Tipo</th></tr></thead><tbody>`;
             (mod.routes || []).forEach(route => {

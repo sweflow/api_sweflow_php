@@ -11,6 +11,9 @@ class LeitorModulos
     {
         $modulos = [];
         foreach ($this->modules->providers() as $nome => $provider) {
+            if (!$this->modules->isEnabled($nome)) {
+                continue; // ignora módulos desabilitados
+            }
             $descricao = $provider->describe();
             $modulos[] = [
                 'nome' => $nome,

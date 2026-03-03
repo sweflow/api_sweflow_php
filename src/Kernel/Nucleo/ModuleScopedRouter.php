@@ -71,6 +71,7 @@ class ModuleScopedRouter implements RouterInterface
             return $next($request);
         };
 
-        return array_merge([$guard], $middlewares);
+        // Coloca o guard no fim para que ele rode primeiro na pipeline (middlewares são invertidos no dispatch)
+        return array_merge($middlewares, [$guard]);
     }
 }
