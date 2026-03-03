@@ -129,6 +129,13 @@ class AuthController
     public function solicitarRecuperacaoSenha(): Response
     {
         try {
+            if (!$this->emailModuleEnabled()) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'Módulo de E-mail desabilitado. Habilite para enviar recuperação de senha.'
+                ], 503);
+            }
+
             $dados = $this->corpoDaRequisicao();
             $email = trim($dados['email'] ?? '');
 
