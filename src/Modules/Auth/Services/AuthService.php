@@ -35,6 +35,10 @@ class AuthService
             throw new DomainException('Usuário desativado.', 403);
         }
 
+        if ($usuario->getNivelAcesso() !== 'admin_system') {
+            throw new DomainException('Apenas usuários com nível admin_system podem acessar.', 403);
+        }
+
         return $usuario;
     }
 

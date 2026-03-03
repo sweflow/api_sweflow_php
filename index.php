@@ -3,8 +3,12 @@
 use Dotenv\Dotenv;
 use Src\Contracts\ContainerInterface;
 use Src\Contracts\RouterInterface;
+use Src\Controllers\DashboardController;
 use Src\Database\PdoFactory;
 use Src\Http\Response\Response;
+use Src\Middlewares\AdminOnlyMiddleware;
+use Src\Middlewares\AuthHybridMiddleware;
+use Src\Modules\Usuario\Repositories\UsuarioRepository;
 use Src\Nucleo\Application;
 use Src\Nucleo\Container;
 use Src\Nucleo\ModuleLoader;
@@ -64,6 +68,10 @@ $modules->registerRoutes($router);
 // Core routes
 $router->get('/', [\Src\Controllers\HomeController::class, 'index']);
 $router->get('/index.php', [\Src\Controllers\HomeController::class, 'index']);
+$router->get('/dashboard', [DashboardController::class, 'index'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
 
 $router->get('/api/status', function () use ($modules, $router) {
     $status = [
@@ -76,7 +84,7 @@ $router->get('/api/status', function () use ($modules, $router) {
     $moduleList = [];
     foreach ($modules->providers() as $name => $provider) {
         $desc = $provider->describe();
-        $moduleList[] = array_merge(['name' => $name], $desc);
+        $moduleList[] = array_merge(['name' => $name, 'enabled' => $modules->isEnabled($name)], $desc);
     }
 
     return Response::json([
@@ -93,32 +101,146 @@ $router->get('/api/status', function () use ($modules, $router) {
 });
 
 $router->get('/api/db-status', function () use ($container) {
-    static $lastEnvMtime = null;
-    static $lastResult = null;
-
-    $envPath = __DIR__ . '/.env';
-    $envMtime = file_exists($envPath) ? filemtime($envPath) : 0;
-
-    if ($lastResult !== null && $lastEnvMtime === $envMtime) {
-        return $lastResult;
-    }
+    $driverEnv = strtolower($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql');
+    $driverEnv = $driverEnv === 'postgresql' ? 'pgsql' : $driverEnv;
+    $host = $_ENV['DB_HOST'] ?? '';
+    $name = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
+    $port = $_ENV['DB_PORT'] ?? ($driverEnv === 'pgsql' ? '5432' : '3306');
 
     try {
         $pdo = $container->make(\PDO::class);
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $probe = $driver === 'pgsql' ? 'SELECT 1' : 'SELECT 1';
         $pdo->query($probe);
-        $lastResult = Response::json(['conectado' => true]);
+        $dbName = null;
+        try {
+            $dbName = $pdo->query($driver === 'pgsql' ? 'select current_database()' : 'select database()')->fetchColumn();
+        } catch (\Throwable $inner) {
+            $dbName = $name;
+        }
+
+        return Response::json([
+            'conectado' => true,
+            'database' => [
+                'driver' => $driver,
+                'host' => $host,
+                'port' => $port,
+                'nome' => $dbName ?: $name,
+            ],
+        ]);
     } catch (\Throwable $e) {
-        $lastResult = Response::json([
+        return Response::json([
             'conectado' => false,
+            'database' => [
+                'driver' => $driverEnv,
+                'host' => $host,
+                'port' => $port,
+                'nome' => $name,
+            ],
             'erro' => $e->getMessage(),
         ], 500);
     }
-
-    $lastEnvMtime = $envMtime;
-    return $lastResult;
 });
+
+$router->get('/api/dashboard/metrics', function () use ($container, $modules, $router) {
+    $status = [
+        'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
+        'port' => $_SERVER['SERVER_PORT'] ?? '80',
+        'env' => $_ENV['APP_ENV'] ?? 'local',
+        'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
+    ];
+
+    $moduleList = [];
+    foreach ($modules->providers() as $name => $provider) {
+        $desc = $provider->describe();
+        $moduleList[] = array_merge(['name' => $name, 'enabled' => $modules->isEnabled($name)], $desc);
+    }
+
+    $dbStatus = [
+        'conectado' => false,
+        'database' => null,
+        'erro' => null,
+    ];
+
+    try {
+        $pdo = $container->make(\PDO::class);
+        $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $host = $_ENV['DB_HOST'] ?? '';
+        $name = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
+        $port = $_ENV['DB_PORT'] ?? ($driver === 'pgsql' ? '5432' : '3306');
+        $probe = $driver === 'pgsql' ? 'SELECT 1' : 'SELECT 1';
+        $pdo->query($probe);
+        $dbName = $pdo->query($driver === 'pgsql' ? 'select current_database()' : 'select database()')->fetchColumn();
+
+        $dbStatus['conectado'] = true;
+        $dbStatus['database'] = [
+            'driver' => $driver,
+            'host' => $host,
+            'port' => $port,
+            'nome' => $dbName ?: $name,
+        ];
+    } catch (\Throwable $e) {
+        $dbStatus['erro'] = $e->getMessage();
+    }
+
+    $usuarios = ['total' => null, 'erro' => null];
+    try {
+        $repo = $container->make(UsuarioRepository::class);
+        $usuarios['total'] = $repo->contar();
+    } catch (\Throwable $e) {
+        $usuarios['erro'] = $e->getMessage();
+    }
+
+    return Response::json([
+        'status' => $status,
+        'modules' => $moduleList,
+        'routes' => array_map(
+            fn($route) => [
+                'method' => $route['method'],
+                'uri' => $route['uri'],
+            ],
+            $router->all()
+        ),
+        'database' => $dbStatus,
+        'usuarios' => $usuarios,
+    ]);
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+$router->get('/api/modules/state', function () use ($modules) {
+    $states = $modules->states();
+    $list = [];
+    foreach ($states as $name => $enabled) {
+        $list[] = ['name' => $name, 'enabled' => $enabled];
+    }
+    return Response::json(['modules' => $list]);
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+$router->post('/api/modules/toggle', function ($request) use ($modules) {
+    $body = $request->body ?? [];
+    $name = $body['name'] ?? null;
+    $enabled = $body['enabled'] ?? null;
+    if (!$name || !is_string($name)) {
+        return Response::json(['error' => 'Nome do módulo é obrigatório'], 400);
+    }
+    $current = $modules->isEnabled($name);
+    $target = $enabled === null ? !$current : filter_var($enabled, FILTER_VALIDATE_BOOLEAN);
+
+    if ($modules->isProtected($name) && $target === false) {
+        return Response::json(['error' => "O módulo {$name} é essencial e não pode ser desabilitado."], 400);
+    }
+
+    $modules->setEnabled($name, $target);
+    return Response::json(['name' => $name, 'enabled' => $modules->isEnabled($name)]);
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
 
 $application = new Application($container, $router, $modules);
 $application->run();

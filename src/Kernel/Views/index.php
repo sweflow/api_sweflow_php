@@ -20,6 +20,7 @@
             </div>
             <nav>
                 <ul>
+                    <li><a href="#login" id="open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="nav-login-text">Login</span></a></li>
                     <li><a href="#status"><i class="fa-solid fa-server"></i> Status</a></li>
                     <li><a href="#modulos"><i class="fa-solid fa-layer-group"></i> Módulos</a></li>
                     <li><a href="#rotas"><i class="fa-solid fa-route"></i> Rotas</a></li>
@@ -37,6 +38,9 @@
                     Sweflow API
                 </h1>
                 <p><?= $descricao ?></p>
+                <div class="cta-row">
+                    <button class="btn primary login-btn" id="cta-open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="cta-login-text">Fazer login</span></button>
+                </div>
             </section>
             <section id="status">
                 <h2><i class="fa-solid fa-server"></i> Status do Servidor</h2>
@@ -46,7 +50,7 @@
             </section>
             <section id="db-status">
                 <h2><i class="fa-solid fa-database"></i> Status do Banco de Dados</h2>
-                <div id="db-status-content" style="margin-bottom: 18px;">
+                <div id="db-status-content" class="db-status"> 
                     <i class="fa-solid fa-database" style="color:gray"></i> <span style="color:gray">Carregando...</span>
                 </div>
             </section>
@@ -60,68 +64,277 @@
                 <h2><i class="fa-solid fa-route"></i> Rotas dos Módulos</h2>
                 <div id="routes-list">Carregando...</div>
             </section>
+
+            <div class="modal-overlay" id="login-modal" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
+                    <div class="modal-header">
+                        <h2 id="login-modal-title"><i class="fa-solid fa-lock"></i> Login administrativo</h2>
+                        <button type="button" class="modal-close" id="login-close" aria-label="Fechar modal">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <form id="login-form" class="login-form">
+                        <div class="input-group">
+                            <label for="login-user">Usuário ou e-mail</label>
+                            <input type="text" id="login-user" name="login" placeholder="admin" autocomplete="username" required />
+                        </div>
+                        <div class="input-group">
+                            <label for="login-password">Senha</label>
+                            <input type="password" id="login-password" name="senha" placeholder="••••••••" autocomplete="current-password" required />
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="login-submit" class="btn primary login-btn"><i class="fa-solid fa-door-open"></i> Fazer login</button>
+                            <button type="button" class="btn ghost" id="login-cancel">Cancelar</button>
+                        </div>
+                        <div id="login-feedback" class="login-feedback" aria-live="polite"></div>
+                    </form>
+                </div>
+            </div>
             <script>
             window.onload = function() {
+                const statusList = document.getElementById('status-list');
+                const modulesList = document.getElementById('modules-list');
+                const routesList = document.getElementById('routes-list');
+                const dbStatusContent = document.getElementById('db-status-content');
+                const dbDetails = null;
+                const loginModal = document.getElementById('login-modal');
+                const openLoginNav = document.getElementById('open-login');
+                const openLoginCta = document.getElementById('cta-open-login');
+                const loginClose = document.getElementById('login-close');
+                const loginCancel = document.getElementById('login-cancel');
+                const navLoginText = document.getElementById('nav-login-text');
+                const ctaLoginText = document.getElementById('cta-login-text');
+
                 function renderStatus(data) {
-                    const status = data.status;
-                    document.getElementById('status-list').innerHTML = `
-                        <li><strong>Host:</strong> ${status.host}</li>
-                        <li><strong>Porta:</strong> ${status.port}</li>
-                        <li><strong>Ambiente:</strong> ${status.env}</li>
-                        <li><strong>Debug:</strong> ${status.debug}</li>
+                    const status = data.status || {};
+                    if (!statusList) return;
+                    statusList.innerHTML = `
+                        <li><strong>Host:</strong> ${status.host ?? '-'}</li>
+                        <li><strong>Porta:</strong> ${status.port ?? '-'}</li>
+                        <li><strong>Ambiente:</strong> ${status.env ?? '-'}</li>
+                        <li><strong>Debug:</strong> ${status.debug ?? '-'}</li>
                     `;
                 }
+
                 function renderModules(data) {
-                    const modules = data.modules;
-                    const el = document.getElementById('modules-list');
-                    if (el) {
-                        el.innerHTML = modules.map(m => `<li><strong>${m.name}</strong></li>`).join('');
+                    const modules = data.modules || [];
+                    if (modulesList) {
+                        modulesList.innerHTML = modules.map(m => `<li><strong>${m.name ?? m.nome}</strong></li>`).join('');
                     }
                 }
+
                 function renderRoutes(data) {
-                    const modules = data.modules;
+                    const modules = data.modules || [];
                     let html = '';
                     modules.forEach(mod => {
-                        html += `<h3>${mod.name}</h3>`;
+                        html += `<h3>${mod.name ?? mod.nome}</h3>`;
                         html += `<table class="routes-table"><thead><tr><th>Método</th><th>URI</th><th>Tipo</th></tr></thead><tbody>`;
-                        mod.routes.forEach(route => {
-                            html += `<tr><td>${route.method}</td><td>${route.uri}</td><td>${route.tipo === 'pública' ? '<span class=public><i class=fa-solid fa-unlock></i> Pública</span>' : '<span class=private><i class=fa-solid fa-lock></i> Privada</span>'}</td></tr>`;
+                        (mod.routes || []).forEach(route => {
+                            const tipo = route.tipo === 'pública' ? '<span class=public><i class=fa-solid fa-unlock></i> Pública</span>' : '<span class=private><i class=fa-solid fa-lock></i> Privada</span>';
+                            html += `<tr><td>${route.method}</td><td>${route.uri}</td><td>${tipo}</td></tr>`;
                         });
                         html += `</tbody></table>`;
                     });
-                    const el = document.getElementById('routes-list');
-                    if (el) {
-                        el.innerHTML = html;
+                    if (routesList) {
+                        routesList.innerHTML = html;
                     }
                 }
+
+                function renderDbStatus(data) {
+                    if (!dbStatusContent) return;
+                    const conectado = !!data.conectado;
+                    const database = data.database || {};
+                    const iconColor = conectado ? 'green' : 'red';
+                    const texto = conectado ? 'Conectado' : 'Desconectado';
+                    let html = `<i class="fa-solid fa-database" style="color:${iconColor}"></i> <span style="color:${iconColor}">${texto}</span>`;
+                    if (data.erro) {
+                        html += `<div class="alert error"><strong>Erro:</strong> ${data.erro}</div>`;
+                    }
+                    dbStatusContent.innerHTML = html;
+                }
+
                 function updateData() {
-                    fetch('/api/status').then(r => r.json()).then(data => {
-                        renderStatus(data);
-                        renderModules(data);
-                        renderRoutes(data);
-                    });
+                    fetch('/api/status')
+                        .then(r => r.json())
+                        .then(data => {
+                            renderStatus(data);
+                            renderModules(data);
+                            renderRoutes(data);
+                        })
+                        .catch(() => {});
                 }
-                updateData();
-                setInterval(updateData, 3000);
-                // Atualização do status do banco
+
                 function updateDbStatus() {
-                    fetch('/api/db-status').then(r => r.json()).then(data => {
-                        let html = '';
-                        if (data.conectado) {
-                            html = '<i class="fa-solid fa-database" style="color:green"></i> <span style="color:green">Conectado</span>';
-                        } else {
-                            html = '<i class="fa-solid fa-database" style="color:red"></i> <span style="color:red">Desconectado</span>';
+                    fetch('/api/db-status')
+                        .then(r => r.json())
+                        .then(data => renderDbStatus(data))
+                        .catch(() => {});
+                }
+
+                function updateLoginLabels(isAuthed) {
+                    if (navLoginText) {
+                        navLoginText.textContent = isAuthed ? 'Dashboard' : 'Login';
+                    }
+                    if (ctaLoginText) {
+                        ctaLoginText.textContent = isAuthed ? 'Ir para Dashboard' : 'Fazer login';
+                    }
+                }
+
+                async function checkSession() {
+                    try {
+                        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                        if (res.ok) {
+                            updateLoginLabels(true);
+                            if (openLoginNav) {
+                                openLoginNav.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
+                            }
+                            if (openLoginCta) {
+                                openLoginCta.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
+                            }
+                            return true;
                         }
-                        if (data.erro) {
-                            html += '<div style="color:red"><strong>Erro:</strong> ' + data.erro + '</div>';
+                    } catch (e) {
+                        // ignore
+                    }
+                    updateLoginLabels(false);
+                    return false;
+                }
+
+                function updateLoginLabels(isAuthed) {
+                    if (navLoginText) {
+                        navLoginText.textContent = isAuthed ? 'Dashboard' : 'Login';
+                    }
+                    if (ctaLoginText) {
+                        ctaLoginText.textContent = isAuthed ? 'Ir para Dashboard' : 'Fazer login';
+                    }
+                }
+
+                async function checkSession() {
+                    try {
+                        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                        if (res.ok) {
+                            updateLoginLabels(true);
+                            if (openLoginNav) {
+                                openLoginNav.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
+                            }
+                            if (openLoginCta) {
+                                openLoginCta.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
+                            }
+                            return true;
                         }
-                        const el = document.getElementById('db-status-content');
+                    } catch (e) {
+                        // ignore
+                    }
+                    updateLoginLabels(false);
+                    return false;
+                }
+
+                function setupLogin() {
+                    const form = document.getElementById('login-form');
+                    const loginInput = document.getElementById('login-user');
+                    const passwordInput = document.getElementById('login-password');
+                    const feedback = document.getElementById('login-feedback');
+                    const submitBtn = document.getElementById('login-submit');
+                    const modalOverlay = loginModal;
+
+                    function openModal() {
+                        if (!modalOverlay) return;
+                        modalOverlay.classList.add('show');
+                        modalOverlay.setAttribute('aria-hidden', 'false');
+                        if (loginInput) {
+                            setTimeout(() => loginInput.focus(), 50);
+                        }
+                    }
+
+                    function closeModal() {
+                        if (!modalOverlay) return;
+                        modalOverlay.classList.remove('show');
+                        modalOverlay.setAttribute('aria-hidden', 'true');
+                    }
+
+                    [openLoginNav, openLoginCta].forEach(el => {
                         if (el) {
-                            el.innerHTML = html;
+                            el.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                openModal();
+                            });
+                        }
+                    });
+
+                    if (loginClose) {
+                        loginClose.addEventListener('click', closeModal);
+                    }
+                    if (loginCancel) {
+                        loginCancel.addEventListener('click', closeModal);
+                    }
+                    if (modalOverlay) {
+                        modalOverlay.addEventListener('click', function(e) {
+                            if (e.target === modalOverlay) {
+                                closeModal();
+                            }
+                        });
+                    }
+
+                    if (!form) return;
+
+                    form.addEventListener('submit', async function (e) {
+                        e.preventDefault();
+                        if (feedback) {
+                            feedback.textContent = '';
+                            feedback.classList.remove('error', 'success');
+                        }
+                            if (submitBtn) {
+                                submitBtn.disabled = true;
+                                submitBtn.textContent = 'Autenticando...';
+                            }
+
+                        try {
+                            const payload = {
+                                login: loginInput ? loginInput.value.trim() : '',
+                                senha: passwordInput ? passwordInput.value : ''
+                            };
+
+                            const response = await fetch('/api/auth/login', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            const body = await response.json();
+                            if (!response.ok) {
+                                const mensagem = body.message || body.error || body.erro || 'Falha ao autenticar.';
+                                throw new Error(mensagem);
+                            }
+
+                            if (feedback) {
+                                feedback.textContent = 'Login realizado. Redirecionando para o dashboard...';
+                                feedback.classList.add('success');
+                            }
+                            setTimeout(() => {
+                                window.location.href = '/dashboard';
+                            }, 600);
+                        } catch (err) {
+                            if (feedback) {
+                                feedback.textContent = err.message;
+                                feedback.classList.add('error');
+                            }
+                        } finally {
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = 'Fazer login';
+                            }
                         }
                     });
                 }
+
+                updateData();
                 updateDbStatus();
+                setupLogin();
+                checkSession();
+
+                setInterval(updateData, 3000);
                 setInterval(updateDbStatus, 3000);
             };
             </script>

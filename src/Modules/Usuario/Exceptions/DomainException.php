@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Usuario\Exceptions;
+namespace Src\Modules\Usuario\Exceptions;
 
 use Exception;
 

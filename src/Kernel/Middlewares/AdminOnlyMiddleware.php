@@ -1,0 +1,44 @@
+<?php
+
+namespace Src\Middlewares;
+
+use Src\Contracts\MiddlewareInterface;
+use Src\Http\Request\Request;
+use Src\Http\Response\Response;
+
+class AdminOnlyMiddleware implements MiddlewareInterface
+{
+    public function handle(Request $request, callable $next): Response
+    {
+        $payload = $request->attribute('auth_payload');
+        $usuario = $request->attribute('auth_user');
+
+        if ($payload === null || $usuario === null) {
+            return Response::json(['error' => 'Autenticação obrigatória.'], 401);
+        }
+
+        $nivel = $payload->nivel_acesso ?? null;
+        $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
+
+        if ($nivel !== 'admin_system' || $nivelUsuario !== 'admin_system') {
+            return Response::json(['error' => 'Acesso restrito a admin_system.'], 403);
+        }
+
+        $result = $next($request);
+
+        if ($result instanceof Response) {
+            return $result;
+        }
+
+        // Garante retorno Response mesmo que o próximo handler devolva null/array/string
+        if (is_array($result) || is_object($result)) {
+            return Response::json($result);
+        }
+
+        if (is_string($result)) {
+            return Response::html($result);
+        }
+
+        return Response::json([], 204);
+    }
+}

@@ -55,7 +55,7 @@ class Container implements ContainerInterface
         }
 
         $pos = strrpos($abstract, '\\');
-        $ns = $pos !== false ? substr($abstract, 0, $pos + 2) : '';
+        $ns = $pos !== false ? substr($abstract, 0, $pos + 1) : '';
         $base = $pos !== false ? substr($abstract, $pos + 1) : $abstract;
         $candidate = $ns . substr($base, 0, -9); // drop 'Interface'
 

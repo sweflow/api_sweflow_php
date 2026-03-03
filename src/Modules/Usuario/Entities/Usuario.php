@@ -5,11 +5,11 @@ namespace Src\Modules\Usuario\Entities;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use src\Utils\RelogioTimeZone;
-use src\Domain\Exceptions;
-use Modules\Usuario\Exceptions\InvalidEmailException;
-use Modules\Usuario\Exceptions\InvalidPasswordException;
-use Modules\Usuario\Exceptions\InvalidUsernameException;
+use Src\Utils\RelogioTimeZone;
+use Src\Domain\Exceptions;
+use Src\Modules\Usuario\Exceptions\InvalidEmailException;
+use Src\Modules\Usuario\Exceptions\InvalidPasswordException;
+use Src\Modules\Usuario\Exceptions\InvalidUsernameException;
 
 
 final class Usuario
