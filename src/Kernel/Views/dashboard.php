@@ -52,9 +52,28 @@
                 </div>
             </section>
 
+            <section class="card" id="email-actions">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <h2 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-envelope"></i> Disparo de e-mail <span id="email-module-state" class="pill" style="font-weight:700;">Carregando...</span></h2>
+                    <button class="btn primary" id="open-email-modal"><i class="fa-solid fa-paper-plane"></i> Enviar e-mail personalizado</button>
+                </div>
+                <p style="margin-top:10px;color:#505050;">Envie comunicações de confirmação, recuperação de senha ou mensagens customizadas.</p>
+            </section>
+
             <section class="card" id="features">
                 <h2><i class="fa-solid fa-toggle-on"></i> Funcionalidades (módulos)</h2>
                 <div class="toggle-grid" id="modules-toggle-list">Carregando...</div>
+                <div class="toggle-card" id="auth-verify-card" style="margin-top:12px;">
+                    <div class="toggle-info">
+                        <span class="toggle-name">Login só após e-mail verificado</span>
+                        <span class="toggle-tag" id="auth-verify-tag">Carregando...</span>
+                        <small style="color:#6c6c6c;">Aplicável a novos logins do módulo Auth; exige <code>verificado_email = true</code>.</small>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="require-email-verification" />
+                        <span class="slider"></span>
+                    </label>
+                </div>
             </section>
 
             <section class="card" id="modules">
@@ -102,6 +121,130 @@
             <p>O módulo <strong id="protected-modal-name">--</strong> é essencial para o sistema e não pode ser desabilitado.</p>
             <div class="form-actions" style="justify-content: flex-end;">
                 <button class="btn primary" id="protected-modal-ok">Entendi</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="email-disabled-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-ban"></i> Módulo desabilitado</h2>
+                <button class="modal-close" id="email-disabled-close" aria-label="Fechar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p>O módulo de E-mail está desabilitado. Habilite em "Funcionalidades" para usar os envios.</p>
+            <div class="form-actions" style="justify-content: flex-end;">
+                <button class="btn primary" id="email-disabled-ok">Entendi</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="email-modal">
+        <div class="modal email-modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-envelope"></i> Enviar e-mail personalizado</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="btn ghost" id="email-preview-btn" type="button"><i class="fa-solid fa-eye"></i> Pré-visualizar</button>
+                    <button class="btn ghost" id="email-fullscreen-btn" type="button"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Tela cheia</button>
+                    <button class="modal-close" id="email-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <form id="email-form" class="email-form" autocomplete="off">
+                <div class="input-group">
+                    <label for="email-to">Para</label>
+                    <input type="text" id="email-to" name="to" placeholder="email@exemplo.com ou vários separados por vírgula" />
+                    <small>Para múltiplos e-mails, separe por vírgula ou quebra de linha.</small>
+                </div>
+                <div class="input-group">
+                    <label for="email-subject">Assunto</label>
+                    <input type="text" id="email-subject" name="subject" placeholder="Assunto do e-mail" required />
+                </div>
+                <div class="input-group">
+                    <label for="email-logo">Logo (URL opcional)</label>
+                    <input type="url" id="email-logo" name="logo_url" placeholder="https://.../logo.png" />
+                </div>
+
+                <div class="email-toolbar" id="email-toolbar">
+                    <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
+                    <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
+                    <button type="button" data-cmd="insertOrderedList"><i class="fa-solid fa-list-ol"></i></button>
+                    <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" data-cmd="formatBlock" data-value="blockquote"><i class="fa-solid fa-quote-left"></i></button>
+                    <button type="button" data-cmd="formatBlock" data-value="pre"><i class="fa-solid fa-code"></i></button>
+                    <button type="button" data-cmd="align-left" title="Alinhar à esquerda"><i class="fa-solid fa-align-left"></i></button>
+                    <button type="button" data-cmd="align-center" title="Centralizar"><i class="fa-solid fa-align-center"></i></button>
+                    <button type="button" data-cmd="align-right" title="Alinhar à direita"><i class="fa-solid fa-align-right"></i></button>
+                    <button type="button" data-cmd="align-justify" title="Justificar"><i class="fa-solid fa-align-justify"></i></button>
+                    <button type="button" data-cmd="createLink"><i class="fa-solid fa-link"></i></button>
+                    <button type="button" data-cmd="insertImage"><i class="fa-solid fa-image"></i></button>
+                    <select id="email-font-size" aria-label="Tamanho da fonte">
+                        <option value="">Tam.</option>
+                        <option value="12">12px</option>
+                        <option value="14">14px</option>
+                        <option value="18">18px</option>
+                        <option value="22">22px</option>
+                        <option value="28">28px</option>
+                        <option value="36">36px</option>
+                    </select>
+                    <label class="color-picker">Cor
+                        <input type="color" id="email-font-color" />
+                    </label>
+                    <label class="color-picker">Fundo
+                        <input type="color" id="email-bg-color" />
+                    </label>
+                </div>
+
+                <div class="email-editor" id="email-editor" contenteditable="true" aria-label="Editor de e-mail"></div>
+                <div class="email-preview" id="email-preview" hidden></div>
+
+                <div class="form-actions" style="justify-content: flex-end;">
+                    <button type="button" class="btn ghost" id="email-cancel">Cancelar</button>
+                    <button type="submit" class="btn primary" id="email-send"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+                </div>
+                <div id="email-feedback" class="login-feedback" aria-live="polite"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="link-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-link"></i> Inserir link</h2>
+                <button class="modal-close" id="link-close" aria-label="Fechar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="input-group">
+                <label for="link-url">URL do link</label>
+                <input type="url" id="link-url" name="link-url" placeholder="https://exemplo.com" />
+                <small class="hint">Selecione o texto no editor e informe a URL do link.</small>
+            </div>
+            <div class="form-actions" style="justify-content: flex-end;">
+                <button class="btn ghost" id="link-cancel">Cancelar</button>
+                <button class="btn primary" id="link-confirm">Inserir</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="image-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-image"></i> Inserir imagem</h2>
+                <button class="modal-close" id="image-close" aria-label="Fechar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="input-group">
+                <label for="image-url">URL da imagem</label>
+                <input type="url" id="image-url" name="image-url" placeholder="https://exemplo.com/imagem.png" />
+                <small class="hint">Informe a URL pública da imagem que será embutida no e-mail.</small>
+            </div>
+            <div class="form-actions" style="justify-content: flex-end;">
+                <button class="btn ghost" id="image-cancel">Cancelar</button>
+                <button class="btn primary" id="image-confirm">Inserir</button>
             </div>
         </div>
     </div>

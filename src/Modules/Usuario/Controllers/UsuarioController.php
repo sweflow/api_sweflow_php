@@ -5,6 +5,7 @@ namespace Src\Modules\Usuario\Controllers;
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use Src\Http\Response\Response;
+use Src\Modules\Email\Services\EmailService;
 use Src\Utils\ImageProcessor;
 use DomainException;
 use Throwable;
@@ -14,6 +15,7 @@ class UsuarioController
 {
     public function __construct(
         private UsuarioServiceInterface $service,
+        private ?EmailService $emailService = null,
     ) {}
     
     /**
@@ -60,6 +62,13 @@ class UsuarioController
                 'Não verificado'
             );
             $this->service->criar($usuario);
+
+            if ($this->politicaVerificacaoAtiva()) {
+                $token = bin2hex(random_bytes(32));
+                $this->service->salvarTokenVerificacaoEmail($usuario->getUuid()->toString(), $token);
+                $link = $this->montarLinkVerificacao($token);
+                $this->mailer()->sendConfirmation($usuario->getEmail(), $usuario->getNomeCompleto(), $link, $_ENV['MAILER_LOGO_URL'] ?? null);
+            }
 
             return Response::json([
                 'status' => 'success',
@@ -800,5 +809,42 @@ class UsuarioController
             'status' => 'error',
             'message' => 'UUID não informado'
         ], 400);
+    }
+
+    private function politicaVerificacaoAtiva(): bool
+    {
+        $caminho = dirname(__DIR__, 4) . '/storage/auth_policy.json';
+        if (!file_exists($caminho)) {
+            return false;
+        }
+        $json = @file_get_contents($caminho);
+        if ($json === false) {
+            return false;
+        }
+        $dados = json_decode($json, true);
+        if (!is_array($dados)) {
+            return false;
+        }
+        return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
+    }
+
+    private function montarLinkVerificacao(string $token): string
+    {
+        $base = rtrim($_ENV['APP_URL_FRONTEND'] ?? $_ENV['APP_URL'] ?? ($_ENV['APP_URL_APP'] ?? ''), '/');
+        if ($base === '') {
+            $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $base = $scheme . '://' . $host;
+        }
+        return $base . '/api/auth/verify-email?token=' . urlencode($token);
+    }
+
+    private function mailer(): EmailService
+    {
+        if ($this->emailService instanceof EmailService) {
+            return $this->emailService;
+        }
+        $this->emailService = new EmailService();
+        return $this->emailService;
     }
 }

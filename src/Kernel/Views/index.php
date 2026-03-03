@@ -236,6 +236,93 @@
                     const feedback = document.getElementById('login-feedback');
                     const submitBtn = document.getElementById('login-submit');
                     const modalOverlay = loginModal;
+                    const maxAttempts = 5;
+                    const lockDurationMs = 30 * 1000;
+                    let attempts = 0;
+                    let lockUntil = 0;
+                    let lockInterval = null;
+
+                    function loadPersistedState() {
+                        try {
+                            attempts = Number(localStorage.getItem('loginAttempts') || '0') || 0;
+                            lockUntil = Number(localStorage.getItem('loginLockUntil') || '0') || 0;
+                        } catch (_) {
+                            attempts = 0;
+                            lockUntil = 0;
+                        }
+                    }
+
+                    function persistState() {
+                        try {
+                            localStorage.setItem('loginAttempts', String(attempts));
+                            localStorage.setItem('loginLockUntil', String(lockUntil));
+                        } catch (_) {
+                            // ignore persistence errors
+                        }
+                    }
+
+                    function isLocked() {
+                        return lockUntil > Date.now();
+                    }
+
+                    function remainingSeconds() {
+                        return Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+                    }
+
+                    function stopLockTimer() {
+                        if (lockInterval) {
+                            clearInterval(lockInterval);
+                            lockInterval = null;
+                        }
+                    }
+
+                    function applyLockState(locked) {
+                        if (!form) return;
+                        const lockedMessage = `Muitas tentativas. Tente novamente em ${remainingSeconds()}s.`;
+                        [loginInput, passwordInput, submitBtn].forEach(el => {
+                            if (!el) return;
+                            el.disabled = locked;
+                            if (locked) {
+                                el.classList.add('disabled');
+                            } else {
+                                el.classList.remove('disabled');
+                            }
+                        });
+                        if (locked) {
+                            if (feedback) {
+                                feedback.textContent = lockedMessage;
+                                feedback.classList.add('error');
+                            }
+                            stopLockTimer();
+                            lockInterval = setInterval(() => {
+                                if (!isLocked()) {
+                                    stopLockTimer();
+                                    applyLockState(false);
+                                    return;
+                                }
+                                if (feedback) {
+                                    feedback.textContent = `Muitas tentativas. Tente novamente em ${remainingSeconds()}s.`;
+                                    feedback.classList.add('error');
+                                }
+                            }, 1000);
+                        } else {
+                            stopLockTimer();
+                            if (feedback && feedback.textContent.startsWith('Muitas tentativas')) {
+                                feedback.textContent = '';
+                                feedback.classList.remove('error');
+                            }
+                        }
+                    }
+
+                    function lockForm() {
+                        lockUntil = Date.now() + lockDurationMs;
+                        attempts = 0;
+                        persistState();
+                        applyLockState(true);
+                    }
+
+                    loadPersistedState();
+                    applyLockState(isLocked());
 
                     function openModal() {
                         if (!modalOverlay) return;
@@ -279,6 +366,10 @@
 
                     form.addEventListener('submit', async function (e) {
                         e.preventDefault();
+                        if (isLocked()) {
+                            applyLockState(true);
+                            return;
+                        }
                         if (feedback) {
                             feedback.textContent = '';
                             feedback.classList.remove('error', 'success');
@@ -308,6 +399,10 @@
                                 throw new Error(mensagem);
                             }
 
+                            attempts = 0;
+                            lockUntil = 0;
+                            persistState();
+
                             if (feedback) {
                                 feedback.textContent = 'Login realizado. Redirecionando para o dashboard...';
                                 feedback.classList.add('success');
@@ -320,10 +415,23 @@
                                 feedback.textContent = err.message;
                                 feedback.classList.add('error');
                             }
+                            attempts += 1;
+                            if (attempts >= maxAttempts) {
+                                lockForm();
+                                return;
+                            }
+                            persistState();
+                            if (feedback && !isLocked()) {
+                                const restantes = Math.max(0, maxAttempts - attempts);
+                                feedback.textContent += ` (Tentativas restantes: ${restantes})`;
+                            }
                         } finally {
                             if (submitBtn) {
                                 submitBtn.disabled = false;
                                 submitBtn.textContent = 'Fazer login';
+                            }
+                            if (isLocked()) {
+                                applyLockState(true);
                             }
                         }
                     });

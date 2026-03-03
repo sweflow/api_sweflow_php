@@ -8,6 +8,9 @@ window.onload = function () {
     const routesList = document.getElementById('routes-list');
     const modulesToggleList = document.getElementById('modules-toggle-list');
     const protectedModules = ['Auth', 'Usuario'];
+    let moduleState = {};
+    let emailModuleEnabled = true;
+    let authRequireEmailVerification = false;
     const disableModal = document.getElementById('disable-modal');
     const disableModalName = document.getElementById('disable-modal-name');
     const disableModalText = document.getElementById('disable-modal-text');
@@ -18,7 +21,43 @@ window.onload = function () {
     const protectedModalName = document.getElementById('protected-modal-name');
     const protectedModalClose = document.getElementById('protected-modal-close');
     const protectedModalOk = document.getElementById('protected-modal-ok');
+    const emailDisabledModal = document.getElementById('email-disabled-modal');
+    const emailDisabledClose = document.getElementById('email-disabled-close');
+    const emailDisabledOk = document.getElementById('email-disabled-ok');
     const logoutBtn = document.getElementById('logout-btn');
+    const emailModal = document.getElementById('email-modal');
+    const openEmailModalBtn = document.getElementById('open-email-modal');
+    const emailClose = document.getElementById('email-close');
+    const emailCancel = document.getElementById('email-cancel');
+    const emailForm = document.getElementById('email-form');
+    const emailTo = document.getElementById('email-to');
+    const emailSubject = document.getElementById('email-subject');
+    const emailLogo = document.getElementById('email-logo');
+    const emailEditor = document.getElementById('email-editor');
+    const emailPreview = document.getElementById('email-preview');
+    const emailPreviewBtn = document.getElementById('email-preview-btn');
+    const emailFullscreenBtn = document.getElementById('email-fullscreen-btn');
+    const emailToolbar = document.getElementById('email-toolbar');
+    const emailFontSize = document.getElementById('email-font-size');
+    const emailFontColor = document.getElementById('email-font-color');
+    const emailBgColor = document.getElementById('email-bg-color');
+    const emailFeedback = document.getElementById('email-feedback');
+    const emailSend = document.getElementById('email-send');
+    const authVerifyToggle = document.getElementById('require-email-verification');
+    const authVerifyTag = document.getElementById('auth-verify-tag');
+    const linkModal = document.getElementById('link-modal');
+    const linkUrl = document.getElementById('link-url');
+    const linkConfirm = document.getElementById('link-confirm');
+    const linkCancel = document.getElementById('link-cancel');
+    const linkClose = document.getElementById('link-close');
+    const imageModal = document.getElementById('image-modal');
+    const imageUrl = document.getElementById('image-url');
+    const imageConfirm = document.getElementById('image-confirm');
+    const imageCancel = document.getElementById('image-cancel');
+    const imageClose = document.getElementById('image-close');
+    let imagePopover = null;
+    let imagePopoverTarget = null;
+    let savedSelection = null;
 
     function askDisable(moduleName) {
         return new Promise((resolve) => {
@@ -82,6 +121,33 @@ window.onload = function () {
         requestAnimationFrame(() => protectedModal.classList.add('show'));
     }
 
+    function showEmailDisabledModal() {
+        if (!emailDisabledModal) {
+            alert('O módulo de E-mail está desabilitado. Habilite em "Funcionalidades" para usar os envios.');
+            return;
+        }
+
+        const cleanup = () => {
+            emailDisabledModal.classList.remove('show');
+            if (emailDisabledOk) emailDisabledOk.onclick = null;
+            if (emailDisabledClose) emailDisabledClose.onclick = null;
+        };
+
+        const closeHandler = () => cleanup();
+
+        if (emailDisabledOk) emailDisabledOk.onclick = closeHandler;
+        if (emailDisabledClose) emailDisabledClose.onclick = closeHandler;
+
+        emailDisabledModal.addEventListener('click', function overlayClick(e) {
+            if (e.target === emailDisabledModal) {
+                closeHandler();
+                emailDisabledModal.removeEventListener('click', overlayClick);
+            }
+        });
+
+        requestAnimationFrame(() => emailDisabledModal.classList.add('show'));
+    }
+
     function renderModules(modules) {
         if (!modulesList) return;
         modulesList.innerHTML = modules.map(m => `<li><strong>${m.name ?? m.nome}</strong></li>`).join('');
@@ -102,6 +168,321 @@ window.onload = function () {
         routesList.innerHTML = html;
     }
 
+    function openEmailModal() {
+        if (!emailModal) return;
+        emailModal.classList.add('show');
+        if (emailEditor) emailEditor.focus();
+    }
+
+    function closeEmailModal() {
+        if (!emailModal) return;
+        emailModal.classList.remove('show');
+        if (emailFeedback) {
+            emailFeedback.textContent = '';
+            emailFeedback.className = 'login-feedback';
+        }
+        if (emailForm) emailForm.reset();
+        if (emailSend) {
+            emailSend.disabled = false;
+            emailSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
+        }
+    }
+
+    function togglePreview() {
+        if (!emailPreview || !emailEditor) return;
+        const isHidden = emailPreview.hasAttribute('hidden');
+        if (isHidden) {
+            emailPreview.innerHTML = emailEditor.innerHTML;
+            emailPreview.removeAttribute('hidden');
+            emailEditor.setAttribute('hidden', 'hidden');
+            emailPreviewBtn.classList.add('active');
+        } else {
+            emailPreview.setAttribute('hidden', 'hidden');
+            emailEditor.removeAttribute('hidden');
+            emailPreviewBtn.classList.remove('active');
+        }
+    }
+
+    function toggleFullscreen() {
+        if (!emailModal) return;
+        emailModal.querySelector('.email-modal')?.classList.toggle('fullscreen');
+    }
+
+    function storeSelection() {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        if (emailEditor && emailEditor.contains(range.commonAncestorContainer)) {
+            savedSelection = range.cloneRange();
+        }
+    }
+
+    function restoreSelection() {
+        if (!savedSelection) return;
+        const sel = window.getSelection();
+        if (!sel) return;
+        sel.removeAllRanges();
+        sel.addRange(savedSelection);
+    }
+
+    function openLinkModal() {
+        if (!linkModal) return;
+        if (linkUrl) linkUrl.value = '';
+        linkModal.classList.add('show');
+        requestAnimationFrame(() => linkUrl?.focus());
+    }
+
+    function closeLinkModal() {
+        if (!linkModal) return;
+        linkModal.classList.remove('show');
+    }
+
+    function openImageModal() {
+        if (!imageModal) return;
+        if (imageUrl) imageUrl.value = '';
+        imageModal.classList.add('show');
+        requestAnimationFrame(() => imageUrl?.focus());
+    }
+
+    function closeImageModal() {
+        if (!imageModal) return;
+        imageModal.classList.remove('show');
+    }
+
+    function handleToolbarClick(e) {
+        const btn = e.target.closest('button');
+        if (!btn || !emailEditor) return;
+        e.preventDefault();
+        const cmd = btn.getAttribute('data-cmd');
+        const value = btn.getAttribute('data-value') || null;
+        if (!cmd) return;
+        if (cmd.startsWith('align-')) {
+            const map = {
+                'align-left': 'justifyLeft',
+                'align-center': 'justifyCenter',
+                'align-right': 'justifyRight',
+                'align-justify': 'justifyFull',
+            };
+            const exec = map[cmd];
+            if (exec) document.execCommand(exec, false, null);
+            return;
+        }
+        if (cmd === 'createLink') {
+            storeSelection();
+            openLinkModal();
+            return;
+        }
+        if (cmd === 'insertImage') {
+            storeSelection();
+            openImageModal();
+            return;
+        }
+        if (cmd === 'formatBlock' && value) {
+            document.execCommand('formatBlock', false, value);
+            return;
+        }
+        document.execCommand(cmd, false, value);
+    }
+
+    function insertImageWithDefaults(url) {
+        if (!emailEditor) return;
+        restoreSelection();
+        const range = savedSelection ? savedSelection.cloneRange() : null;
+        if (!range) {
+            document.execCommand('insertImage', false, url);
+            return;
+        }
+
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = '';
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.style.display = 'inline-block';
+        img.style.margin = '6px 8px';
+
+        range.deleteContents();
+        range.insertNode(img);
+
+        const sel = window.getSelection();
+        if (sel) {
+            sel.removeAllRanges();
+            const afterRange = document.createRange();
+            afterRange.setStartAfter(img);
+            afterRange.setEndAfter(img);
+            sel.addRange(afterRange);
+            savedSelection = afterRange.cloneRange();
+        }
+    }
+
+    function ensureImagePopover() {
+        if (imagePopover) return imagePopover;
+        const pop = document.createElement('div');
+        pop.className = 'image-popover';
+        pop.innerHTML = `
+            <div class="image-popover-row">
+                <label>Tamanho</label>
+                <input type="range" min="40" max="1200" step="10" class="image-size-range" />
+                <input type="number" min="40" max="1200" step="10" class="image-size-number" aria-label="Largura em pixels" />
+                <button type="button" class="btn ghost image-reset">Reset</button>
+            </div>
+            <div class="image-popover-hint">Use os botões de alinhamento existentes para centralizar ou alinhar.</div>
+        `;
+        document.body.appendChild(pop);
+        imagePopover = pop;
+        return pop;
+    }
+
+    function hideImagePopover() {
+        if (imagePopover) {
+            imagePopover.classList.remove('show');
+            imagePopoverTarget = null;
+        }
+    }
+
+    function positionImagePopover(img) {
+        const pop = ensureImagePopover();
+        const rect = img.getBoundingClientRect();
+        const top = window.scrollY + rect.top - pop.offsetHeight - 8;
+        const left = window.scrollX + rect.left;
+        pop.style.top = `${Math.max(8, top)}px`;
+        pop.style.left = `${Math.max(8, left)}px`;
+    }
+
+    function showImagePopover(img) {
+        const pop = ensureImagePopover();
+        const rangeInput = pop.querySelector('.image-size-range');
+        const numberInput = pop.querySelector('.image-size-number');
+        const resetBtn = pop.querySelector('.image-reset');
+        const currentWidth = parseInt(img.style.width || '', 10) || img.getBoundingClientRect().width;
+
+        imagePopoverTarget = img;
+        pop.classList.add('show');
+        positionImagePopover(img);
+
+        const applyWidth = (val) => {
+            const clamped = Math.max(40, Math.min(1200, Number(val) || currentWidth));
+            img.style.width = `${clamped}px`;
+            img.style.height = 'auto';
+            if (rangeInput) rangeInput.value = String(clamped);
+            if (numberInput) numberInput.value = String(clamped);
+        };
+
+        if (rangeInput) {
+            rangeInput.value = String(currentWidth);
+            rangeInput.oninput = (ev) => applyWidth(ev.target.value);
+        }
+        if (numberInput) {
+            numberInput.value = String(currentWidth);
+            numberInput.oninput = (ev) => applyWidth(ev.target.value);
+        }
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                img.style.width = '';
+                img.style.height = 'auto';
+                if (rangeInput) rangeInput.value = '';
+                if (numberInput) numberInput.value = '';
+            };
+        }
+    }
+
+    function applyFontSizePx(px) {
+        if (!emailEditor || !px) return;
+        document.execCommand('fontSize', false, '7');
+        emailEditor.querySelectorAll('font[size="7"]').forEach(node => {
+            node.removeAttribute('size');
+            node.style.fontSize = `${px}px`;
+            node.style.lineHeight = '1.4';
+        });
+    }
+
+    function handleFontSizeChange() {
+        if (!emailFontSize) return;
+        const v = Number(emailFontSize.value);
+        if (!v) return;
+        const sizeMap = {
+            12: 13, // 12x requested, slightly larger for readability
+            14: 17,
+            18: 20,
+            22: 24,
+            28: 32,
+            36: 40
+        };
+        const targetPx = sizeMap[v] ?? v;
+        applyFontSizePx(targetPx);
+    }
+
+    function handleFontColorChange() {
+        const v = emailFontColor?.value;
+        if (v) document.execCommand('foreColor', false, v);
+    }
+
+    function handleBgColorChange() {
+        const v = emailBgColor?.value;
+        if (v) document.execCommand('hiliteColor', false, v);
+    }
+
+    function extractEmailsFromText(text) {
+        const parts = (text || '').split(/[,;\n\s]+/);
+        return parts
+            .map(p => p.trim())
+            .filter(p => p !== '' && /.+@.+\..+/.test(p));
+    }
+
+    async function submitEmail(e) {
+        e.preventDefault();
+        if (!emailForm || !emailEditor || !emailSubject) return;
+
+        const recipients = extractEmailsFromText(emailTo?.value || '').map(e => ({ email: e, name: e }));
+        const payload = {
+            recipients,
+            subject: emailSubject.value.trim(),
+            logo_url: emailLogo?.value.trim() || '',
+            html: emailEditor.innerHTML.trim(),
+        };
+
+        if (!payload.recipients.length || !payload.subject || !payload.html) {
+            if (emailFeedback) {
+                emailFeedback.textContent = 'Informe destinatários, assunto e conteúdo.';
+                emailFeedback.className = 'login-feedback error';
+            }
+            return;
+        }
+
+        if (emailSend) {
+            emailSend.disabled = true;
+            emailSend.innerHTML = 'Enviando...';
+        }
+
+        try {
+            const res = await fetch('/api/email/custom', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                credentials: 'same-origin'
+            });
+            const body = await res.json();
+            if (!res.ok) {
+                throw new Error(body.error || body.message || 'Falha ao enviar e-mail');
+            }
+            if (emailFeedback) {
+                emailFeedback.textContent = 'E-mail enviado com sucesso.';
+                emailFeedback.className = 'login-feedback success';
+            }
+            setTimeout(closeEmailModal, 800);
+        } catch (err) {
+            if (emailFeedback) {
+                emailFeedback.textContent = err.message;
+                emailFeedback.className = 'login-feedback error';
+            }
+        } finally {
+            if (emailSend) {
+                emailSend.disabled = false;
+                emailSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
+            }
+        }
+    }
+
     async function handleLogout(e) {
         if (e) e.preventDefault();
         try {
@@ -117,8 +498,11 @@ window.onload = function () {
 
     function renderFeatureToggles(modules) {
         if (!modulesToggleList) return;
+        moduleState = {};
+
         modulesToggleList.innerHTML = modules.map(mod => {
             const enabled = mod.enabled !== false;
+            moduleState[mod.name] = enabled;
             return `
                 <div class="toggle-card">
                     <div class="toggle-info">
@@ -167,6 +551,8 @@ window.onload = function () {
                 }
             });
         });
+
+        updateEmailCardState();
     }
 
     async function fetchModulesState() {
@@ -217,12 +603,95 @@ window.onload = function () {
         renderFeatureToggles(modules);
     }
 
+    function updateEmailCardState() {
+        emailModuleEnabled = Boolean(moduleState['Email']);
+        const statePill = document.getElementById('email-module-state');
+        const openEmailModalBtn = document.getElementById('open-email-modal');
+        if (!statePill || !openEmailModalBtn) return;
+
+        if (emailModuleEnabled) {
+            statePill.textContent = 'Habilitado';
+            statePill.style.backgroundColor = '#e5f7ee';
+            statePill.style.color = '#0f7b3b';
+            openEmailModalBtn.classList.remove('disabled');
+            openEmailModalBtn.title = 'Enviar e-mail personalizado';
+        } else {
+            statePill.textContent = 'Desabilitado';
+            statePill.style.backgroundColor = '#fdeaea';
+            statePill.style.color = '#b3261e';
+            openEmailModalBtn.classList.add('disabled');
+            openEmailModalBtn.title = 'Módulo de E-mail desabilitado. Habilite em "Funcionalidades" para enviar.';
+        }
+    }
+
     function handleUnauthorized(status) {
         if (status === 401 || status === 403) {
             window.location.href = '/';
             return true;
         }
         return false;
+    }
+
+    function updateAuthVerifyUI(state, loading = false) {
+        if (!authVerifyToggle || !authVerifyTag) return;
+        authVerifyToggle.checked = state;
+        authVerifyToggle.disabled = loading;
+        if (loading) {
+            authVerifyTag.textContent = 'Sincronizando...';
+            authVerifyTag.style.backgroundColor = '#fff3cd';
+            authVerifyTag.style.color = '#8a6d3b';
+            return;
+        }
+        if (state) {
+            authVerifyTag.textContent = 'Verificação exigida';
+            authVerifyTag.style.backgroundColor = '#e5f7ee';
+            authVerifyTag.style.color = '#0f7b3b';
+        } else {
+            authVerifyTag.textContent = 'Opcional';
+            authVerifyTag.style.backgroundColor = '#f5f6fb';
+            authVerifyTag.style.color = '#6c6c6c';
+        }
+    }
+
+    async function fetchAuthPolicy() {
+        if (!authVerifyToggle) return;
+        updateAuthVerifyUI(authRequireEmailVerification, true);
+        try {
+            const res = await fetch('/api/auth/email-verification');
+            if (handleUnauthorized(res.status)) return;
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || body.message || 'Não foi possível obter a política.');
+            authRequireEmailVerification = Boolean(body.require_verification ?? body.requireVerification ?? body.enabled);
+            updateAuthVerifyUI(authRequireEmailVerification, false);
+        } catch (err) {
+            authRequireEmailVerification = false;
+            updateAuthVerifyUI(authRequireEmailVerification, false);
+            if (authVerifyTag) {
+                authVerifyTag.textContent = 'Falha ao carregar';
+                authVerifyTag.style.backgroundColor = '#fdeaea';
+                authVerifyTag.style.color = '#b3261e';
+            }
+        }
+    }
+
+    async function persistAuthPolicy(enabled) {
+        if (!authVerifyToggle) return;
+        updateAuthVerifyUI(enabled, true);
+        try {
+            const res = await fetch('/api/auth/email-verification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ require_verification: enabled })
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || body.message || 'Erro ao salvar política.');
+            authRequireEmailVerification = enabled;
+            updateAuthVerifyUI(authRequireEmailVerification, false);
+        } catch (err) {
+            updateAuthVerifyUI(authRequireEmailVerification, false);
+            if (authVerifyToggle) authVerifyToggle.checked = authRequireEmailVerification;
+            alert(err.message);
+        }
     }
 
     function fetchMetrics() {
@@ -243,8 +712,10 @@ window.onload = function () {
             .catch(() => {});
     }
 
+
     fetchMetrics();
     fetchModulesState();
+    fetchAuthPolicy();
     setInterval(() => {
         fetchMetrics();
         fetchModulesState();
@@ -252,5 +723,98 @@ window.onload = function () {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    if (openEmailModalBtn) {
+        openEmailModalBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!emailModuleEnabled) {
+                showEmailDisabledModal();
+                return;
+            }
+            openEmailModal();
+        });
+    }
+    if (emailClose) emailClose.addEventListener('click', closeEmailModal);
+    if (emailCancel) emailCancel.addEventListener('click', closeEmailModal);
+    if (emailToolbar) emailToolbar.addEventListener('click', handleToolbarClick);
+    if (emailEditor) {
+        emailEditor.addEventListener('keyup', storeSelection);
+        emailEditor.addEventListener('mouseup', storeSelection);
+        emailEditor.addEventListener('mouseleave', storeSelection);
+        emailEditor.addEventListener('input', storeSelection);
+    }
+    if (emailFontSize) emailFontSize.addEventListener('change', handleFontSizeChange);
+    if (emailFontColor) emailFontColor.addEventListener('change', handleFontColorChange);
+    if (emailBgColor) emailBgColor.addEventListener('change', handleBgColorChange);
+    if (emailPreviewBtn) emailPreviewBtn.addEventListener('click', (e) => { e.preventDefault(); togglePreview(); });
+    if (emailFullscreenBtn) emailFullscreenBtn.addEventListener('click', (e) => { e.preventDefault(); toggleFullscreen(); });
+    if (emailForm) emailForm.addEventListener('submit', submitEmail);
+    if (authVerifyToggle) authVerifyToggle.addEventListener('change', (e) => {
+        persistAuthPolicy(e.target.checked);
+    });
+
+    if (linkConfirm) {
+        linkConfirm.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = linkUrl?.value.trim();
+            if (!url) return;
+            restoreSelection();
+            document.execCommand('createLink', false, url);
+            closeLinkModal();
+            emailEditor?.focus();
+        });
+    }
+    if (linkCancel) linkCancel.addEventListener('click', (e) => { e.preventDefault(); closeLinkModal(); emailEditor?.focus(); });
+    if (linkClose) linkClose.addEventListener('click', (e) => { e.preventDefault(); closeLinkModal(); emailEditor?.focus(); });
+    if (linkModal) {
+        linkModal.addEventListener('click', (ev) => {
+            if (ev.target === linkModal) {
+                closeLinkModal();
+                emailEditor?.focus();
+            }
+        });
+    }
+
+    if (imageConfirm) {
+        imageConfirm.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = imageUrl?.value.trim();
+            if (!url) return;
+            insertImageWithDefaults(url);
+            closeImageModal();
+            emailEditor?.focus();
+        });
+    }
+    if (imageCancel) imageCancel.addEventListener('click', (e) => { e.preventDefault(); closeImageModal(); emailEditor?.focus(); });
+    if (imageClose) imageClose.addEventListener('click', (e) => { e.preventDefault(); closeImageModal(); emailEditor?.focus(); });
+    if (imageModal) {
+        imageModal.addEventListener('click', (ev) => {
+            if (ev.target === imageModal) {
+                closeImageModal();
+                emailEditor?.focus();
+            }
+        });
+    }
+
+    if (emailEditor) {
+        emailEditor.addEventListener('click', (ev) => {
+            const img = ev.target.closest('img');
+            if (!img) {
+                hideImagePopover();
+                return;
+            }
+            showImagePopover(img);
+        });
+
+        document.addEventListener('click', (ev) => {
+            if (!imagePopover) return;
+            if (imagePopover.contains(ev.target) || ev.target.closest('img')) return;
+            hideImagePopover();
+        });
+
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') hideImagePopover();
+        });
     }
 };

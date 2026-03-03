@@ -30,6 +30,68 @@ class AuthController
             $senha = $dados['senha'] ?? $dados['password'] ?? '';
 
             $usuario = $this->servico()->autenticar($login, $senha);
+            if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
+                throw new DomainException('Você precisa confirmar seu e-mail antes de fazer login.', 403);
+            }
+            $tokens = $this->servico()->emitirTokens($usuario);
+            $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
+
+            return Response::json([
+                'status' => 'success',
+                'access_token' => $tokens['access_token'],
+                'expires_in' => $tokens['access_expira_em'],
+                'refresh_token' => $tokens['refresh_token'],
+                'refresh_expires_in' => $tokens['refresh_expira_em'],
+                'usuario' => [
+                    'uuid' => $usuario->getUuid()->toString(),
+                    'nome_completo' => $usuario->getNomeCompleto(),
+                    'username' => $usuario->getUsername(),
+                    'email' => $usuario->getEmail(),
+                    'nivel_acesso' => $usuario->getNivelAcesso(),
+                ]
+            ]);
+        } catch (DomainException $e) {
+            $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
+            return Response::json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], $status);
+        } catch (\Throwable $e) {
+            return Response::json([
+                'status' => 'error',
+                'message' => 'Erro interno ao autenticar',
+                'details' => $this->debugAtivo() ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    public function loginPublic(): Response
+    {
+        try {
+            $this->refreshRepositorio()->purgeExpired();
+            $this->blacklistRepositorio()->purgeExpired();
+
+            $dados = $this->corpoDaRequisicao();
+            $login = $dados['login'] ?? $dados['email'] ?? $dados['username'] ?? '';
+            $senha = $dados['senha'] ?? $dados['password'] ?? '';
+
+            if (trim($login) === '' || trim($senha) === '') {
+                throw new DomainException('Login e senha são obrigatórios.', 400);
+            }
+
+            $usuario = $this->buscarUsuarioPorLogin($login);
+            if (!$usuario || !$usuario->verificarSenha($senha)) {
+                throw new DomainException('Credenciais inválidas.', 401);
+            }
+
+            if (!$usuario->isAtivo()) {
+                throw new DomainException('Usuário desativado.', 403);
+            }
+
+            if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
+                throw new DomainException('Você precisa confirmar seu e-mail antes de fazer login.', 403);
+            }
+
             $tokens = $this->servico()->emitirTokens($usuario);
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
 
@@ -176,6 +238,47 @@ class AuthController
             'status' => 'success',
             'message' => 'Logout realizado com sucesso.'
         ]);
+    }
+
+    public function verifyEmail(): Response
+    {
+        $token = $_GET['token'] ?? '';
+        if (trim($token) === '') {
+            return Response::json(['status' => 'error', 'message' => 'Token não informado.'], 400);
+        }
+        try {
+            $usuario = $this->repositorio()->buscarPorTokenVerificacaoEmail($token);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Token inválido ou expirado.'], 400);
+            }
+            $this->repositorio()->marcarEmailComoVerificado($usuario->getUuid()->toString());
+            return Response::json(['status' => 'success', 'message' => 'E-mail verificado com sucesso.']);
+        } catch (DomainException $e) {
+            $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Falha ao verificar e-mail.'], 500);
+        }
+    }
+
+    public function emailVerificationPolicy(): Response
+    {
+        try {
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $body = $this->corpoDaRequisicao();
+                $enabled = filter_var($body['require_verification'] ?? $body['enabled'] ?? $body['value'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $this->salvarPoliticaVerificacaoEmail($enabled);
+                return Response::json(['require_verification' => $enabled]);
+            }
+
+            $estado = $this->carregarPoliticaVerificacaoEmail();
+            return Response::json(['require_verification' => $estado]);
+        } catch (DomainException $e) {
+            $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
+            return Response::json(['error' => $e->getMessage()], $status);
+        } catch (\Throwable $e) {
+            return Response::json(['error' => 'Falha ao processar política de verificação de e-mail'], 500);
+        }
     }
 
     private function servico(): AuthService
@@ -333,5 +436,51 @@ class AuthController
     private function debugAtivo(): bool
     {
         return $this->boolEnv($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?? 'false');
+    }
+
+    private function buscarUsuarioPorLogin(string $login)
+    {
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            return $this->repositorio()->buscarPorEmail($login);
+        }
+        return $this->repositorio()->buscarPorUsername($login);
+    }
+
+    private function caminhoPoliticaVerificacaoEmail(): string
+    {
+        return dirname(__DIR__, 4) . '/storage/auth_policy.json';
+    }
+
+    private function carregarPoliticaVerificacaoEmail(): bool
+    {
+        $caminho = $this->caminhoPoliticaVerificacaoEmail();
+        if (!file_exists($caminho)) {
+            return false;
+        }
+        $json = @file_get_contents($caminho);
+        if ($json === false) {
+            return false;
+        }
+        $dados = json_decode($json, true);
+        if (!is_array($dados)) {
+            return false;
+        }
+        return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
+    }
+
+    private function salvarPoliticaVerificacaoEmail(bool $enabled): void
+    {
+        $caminho = $this->caminhoPoliticaVerificacaoEmail();
+        $diretorio = dirname($caminho);
+        if (!is_dir($diretorio)) {
+            if (!@mkdir($diretorio, 0775, true) && !is_dir($diretorio)) {
+                throw new DomainException('Não foi possível criar diretório de política.');
+            }
+        }
+        $payload = ['require_verification' => $enabled];
+        $gravado = @file_put_contents($caminho, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        if ($gravado === false) {
+            throw new DomainException('Não foi possível salvar a política de verificação.');
+        }
     }
 }

@@ -1,0 +1,188 @@
+<?php
+
+namespace Src\Modules\Email\Services;
+
+use PHPMailer\PHPMailer\Exception as MailException;
+use PHPMailer\PHPMailer\PHPMailer;
+use Src\Modules\Email\ValueObjects\EmailMessage;
+
+class EmailService
+{
+    /**
+     * @param array<int,array{email:string,name?:string}>|string $recipients
+     */
+    public function sendCustom(array|string $recipients, string $subject, string $htmlBody, ?string $logoUrl = null): void
+    {
+        $normalized = $this->normalizeRecipients($recipients);
+        $message = new EmailMessage($normalized, $subject, $htmlBody, $logoUrl);
+        $this->deliver($message);
+    }
+
+    public function sendConfirmation(string $toEmail, string $toName, string $confirmLink, ?string $logoUrl = null): void
+    {
+        $subject = 'Confirme seu e-mail';
+        $body = "<p>Olá, {$this->escape($toName)}!</p><p>Clique no link abaixo para confirmar seu e-mail:</p><p><a href='{$this->escapeAttr($confirmLink)}'>{$this->escapeAttr($confirmLink)}</a></p>";
+        $recipients = [['email' => $toEmail, 'name' => $toName]];
+        $this->deliver(new EmailMessage($recipients, $subject, $body, $logoUrl));
+    }
+
+    public function sendPasswordReset(string $toEmail, string $toName, string $resetLink, ?string $logoUrl = null): void
+    {
+        $subject = 'Recuperação de senha';
+        $body = "<p>Olá, {$this->escape($toName)}!</p><p>Use o link abaixo para redefinir sua senha:</p><p><a href='{$this->escapeAttr($resetLink)}'>{$this->escapeAttr($resetLink)}</a></p>";
+        $recipients = [['email' => $toEmail, 'name' => $toName]];
+        $this->deliver(new EmailMessage($recipients, $subject, $body, $logoUrl));
+    }
+
+    private function deliver(EmailMessage $message): void
+    {
+        $mail = $this->makeMailer();
+
+        foreach ($message->getRecipients() as $recipient) {
+            $mail->addAddress($recipient['email'], $recipient['name'] ?? '');
+        }
+
+        $mail->Subject = $message->getSubject();
+        $mail->isHTML(true);
+        $body = $message->getBody();
+
+        if ($message->getLogoUrl()) {
+            $cid = 'logo_' . md5($message->getLogoUrl());
+            $logoUrl = $message->getLogoUrl();
+            $logoAlt = 'Logo';
+            $logoName = basename(parse_url($logoUrl, PHP_URL_PATH) ?: 'logo.png');
+            $embedded = false;
+
+            try {
+                if (preg_match('#^https?://#i', $logoUrl)) {
+                    $data = @file_get_contents($logoUrl);
+                    if ($data !== false) {
+                        $mail->addStringEmbeddedImage($data, $cid, $logoName);
+                        $embedded = true;
+                    }
+                } else {
+                    $mail->addEmbeddedImage($logoUrl, $cid, $logoName);
+                    $embedded = true;
+                }
+            } catch (MailException $e) {
+                // fallback abaixo
+            }
+
+            if ($embedded) {
+                $body = "<div style='margin-bottom:16px'><img src='cid:{$cid}' alt='{$this->escape($logoAlt)}' style='max-height:64px;'></div>" . $body;
+            } else {
+                $body = "<div style='margin-bottom:16px'><img src='{$this->escapeAttr($logoUrl)}' alt='{$this->escape($logoAlt)}' style='max-height:64px;'></div>" . $body;
+            }
+        }
+
+        $mail->Body = $body;
+        $mail->AltBody = strip_tags($body);
+
+        $sent = $mail->send();
+        if (!$sent) {
+            throw new \RuntimeException('Falha ao enviar e-mail.');
+        }
+    }
+
+    /**
+     * @param array<int,array{email:string,name?:string}>|string $recipients
+     * @return array<int,array{email:string,name:string}>
+     */
+    private function normalizeRecipients(array|string $recipients): array
+    {
+        $list = [];
+
+        if (is_string($recipients)) {
+            $emails = preg_split('/[;,\n]+/', $recipients) ?: [];
+            foreach ($emails as $email) {
+                $email = trim($email);
+                if ($email !== '') {
+                    $list[] = ['email' => $email, 'name' => $email];
+                }
+            }
+        } else {
+            foreach ($recipients as $rec) {
+                $email = trim($rec['email'] ?? ($rec['to'] ?? ''));
+                if ($email === '') {
+                    continue;
+                }
+                $name = trim($rec['name'] ?? $email);
+                $list[] = ['email' => $email, 'name' => $name];
+            }
+        }
+
+        // dedup por email
+        $unique = [];
+        $seen = [];
+        foreach ($list as $item) {
+            if (isset($seen[$item['email']])) {
+                continue;
+            }
+            $seen[$item['email']] = true;
+            $unique[] = $item;
+        }
+
+        if (count($unique) === 0) {
+            throw new \InvalidArgumentException('Destinatários não informados.');
+        }
+
+        return $unique;
+    }
+
+    private function makeMailer(): PHPMailer
+    {
+        $mail = new PHPMailer(true);
+
+        $mail->isSMTP();
+        $mail->Host = $_ENV['MAILER_HOST'] ?? '';
+        $mail->Port = (int) ($_ENV['MAILER_PORT'] ?? 587);
+        $mail->SMTPAuth = true;
+        $mail->Username = $_ENV['MAILER_USERNAME'] ?? '';
+        $mail->Password = $_ENV['MAILER_PASSWORD'] ?? '';
+        $mail->SMTPSecure = $this->resolveEncryption($_ENV['MAILER_ENCRYPTION'] ?? '') ?? PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->CharSet = 'UTF-8';
+        $mail->Encoding = 'base64';
+        // Nunca envia debug para a resposta HTTP; se precisar, loga em error_log.
+        $debug = $this->boolEnv($_ENV['MAILER_DEBUG'] ?? 'false');
+        $mail->SMTPDebug = $debug ? 2 : 0;
+        $mail->Debugoutput = static function ($str, $level) {
+            error_log('[MAILER][' . $level . '] ' . $str);
+        };
+
+        $fromEmail = $_ENV['MAILER_FROM_EMAIL'] ?? 'no-reply@example.com';
+        $fromName = $_ENV['MAILER_FROM_NAME'] ?? 'API';
+        $mail->setFrom($fromEmail, $fromName);
+
+        $replyTo = $_ENV['MAILER_REPLY_TO'] ?? '';
+        if ($replyTo) {
+            $mail->addReplyTo($replyTo);
+        }
+
+        return $mail;
+    }
+
+    private function boolEnv(string $value): bool
+    {
+        return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function resolveEncryption(string $value): ?string
+    {
+        $v = strtolower(trim($value));
+        return match ($v) {
+            'tls', 'starttls' => PHPMailer::ENCRYPTION_STARTTLS,
+            'ssl' => PHPMailer::ENCRYPTION_SMTPS,
+            default => null,
+        };
+    }
+
+    private function escape(string $text): string
+    {
+        return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    }
+
+    private function escapeAttr(string $text): string
+    {
+        return htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+}
