@@ -20,7 +20,7 @@
             </div>
             <nav>
                 <ul>
-                    <li><a href="#login" id="open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="nav-login-text">Login</span></a></li>
+                    <li><a href="#login" id="open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="nav-login-text" style="visibility:hidden">Login</span></a></li>
                     <li><a href="#status"><i class="fa-solid fa-server"></i> Status</a></li>
                     <li><a href="#modulos"><i class="fa-solid fa-layer-group"></i> Módulos</a></li>
                     <li><a href="#rotas"><i class="fa-solid fa-route"></i> Rotas</a></li>
@@ -39,7 +39,7 @@
                 </h1>
                 <p><?= $descricao ?></p>
                 <div class="cta-row">
-                    <button class="btn primary login-btn" id="cta-open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="cta-login-text">Fazer login</span></button>
+                    <button class="btn primary login-btn" id="cta-open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="cta-login-text" style="visibility:hidden">Fazer login</span></button>
                 </div>
             </section>
             <section id="status">
@@ -172,6 +172,11 @@
                         .catch(() => {});
                 }
 
+                function revealLoginLabels() {
+                    if (navLoginText) navLoginText.style.visibility = 'visible';
+                    if (ctaLoginText) ctaLoginText.style.visibility = 'visible';
+                }
+
                 function updateLoginLabels(isAuthed) {
                     if (navLoginText) {
                         navLoginText.textContent = isAuthed ? 'Dashboard' : 'Login';
@@ -179,28 +184,46 @@
                     if (ctaLoginText) {
                         ctaLoginText.textContent = isAuthed ? 'Ir para Dashboard' : 'Fazer login';
                     }
+                    revealLoginLabels();
                 }
 
-                function hasAuthCookie() {
-                    return document.cookie.split(';').some(part => part.trim().startsWith('auth_token='));
+                function attachLoginRedirects() {
+                    if (openLoginNav) {
+                        openLoginNav.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
+                    }
+                    if (openLoginCta) {
+                        openLoginCta.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
+                    }
+                }
+
+                const SESSION_FLAG = 'hasAuthSession';
+
+                function presetLoginState() {
+                    const hasSession = localStorage.getItem(SESSION_FLAG) === '1';
+                    updateLoginLabels(hasSession);
+                    if (hasSession) {
+                        attachLoginRedirects();
+                    }
                 }
 
                 async function checkSession() {
-                    if (!hasAuthCookie()) {
+                    const shouldProbe = localStorage.getItem(SESSION_FLAG) === '1';
+                    if (!shouldProbe) {
                         updateLoginLabels(false);
                         return false;
                     }
+
                     try {
                         const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
                         if (res.ok) {
+                            localStorage.setItem(SESSION_FLAG, '1');
                             updateLoginLabels(true);
-                            if (openLoginNav) {
-                                openLoginNav.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
-                            }
-                            if (openLoginCta) {
-                                openLoginCta.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
-                            }
+                            attachLoginRedirects();
                             return true;
+                        }
+                        // 401/403 -> limpa flag para evitar novas tentativas
+                        if (res.status === 401 || res.status === 403) {
+                            localStorage.removeItem(SESSION_FLAG);
                         }
                     } catch (e) {
                         // ignore
@@ -470,6 +493,7 @@
                                 feedback.textContent = 'Login realizado. Redirecionando para o dashboard...';
                                 feedback.classList.add('success');
                             }
+                            try { localStorage.setItem(SESSION_FLAG, '1'); } catch (_) {}
                             setTimeout(() => {
                                 window.location.href = '/dashboard';
                             }, 600);
@@ -500,6 +524,7 @@
                     });
                 }
 
+                presetLoginState();
                 updateData();
                 updateDbStatus();
                 setupLogin();

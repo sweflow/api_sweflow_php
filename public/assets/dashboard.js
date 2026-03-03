@@ -494,7 +494,11 @@ window.onload = function () {
             // ignore
         }
         // Clear client-side tokens if stored
-        try { localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token'); } catch (_) {}
+        try {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('hasAuthSession');
+        } catch (_) {}
         window.location.href = '/';
     }
 

@@ -458,9 +458,17 @@ class AuthController
 
     private function definirCookieAuth(string $token, int $expiraEm): void
     {
-        $secure = $this->boolEnv($_ENV['COOKIE_SECURE'] ?? getenv('COOKIE_SECURE') ?? 'false');
-        $sameSite = $this->resolverSameSite($_ENV['COOKIE_SAMESITE'] ?? getenv('COOKIE_SAMESITE') ?? 'Lax');
+        $envSecure = $this->boolEnv($_ENV['COOKIE_SECURE'] ?? getenv('COOKIE_SECURE') ?? 'false');
+        $envSameSite = $this->resolverSameSite($_ENV['COOKIE_SAMESITE'] ?? getenv('COOKIE_SAMESITE') ?? 'Lax');
         $domain = trim($_ENV['COOKIE_DOMAIN'] ?? getenv('COOKIE_DOMAIN') ?? '');
+
+        $appUrl = $_ENV['APP_URL'] ?? getenv('APP_URL') ?? '';
+        $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: '';
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower($scheme) === 'https';
+
+        // Em ambiente http local, não use cookie Secure; força SameSite Lax para enviar o cookie.
+        $secure = $envSecure && $isHttps;
+        $sameSite = (!$secure && $envSameSite === 'None') ? 'Lax' : $envSameSite;
 
         $opcoes = [
             'expires' => $expiraEm,
