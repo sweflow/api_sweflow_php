@@ -181,36 +181,15 @@
                     }
                 }
 
-                async function checkSession() {
-                    try {
-                        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-                        if (res.ok) {
-                            updateLoginLabels(true);
-                            if (openLoginNav) {
-                                openLoginNav.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
-                            }
-                            if (openLoginCta) {
-                                openLoginCta.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
-                            }
-                            return true;
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                    updateLoginLabels(false);
-                    return false;
-                }
-
-                function updateLoginLabels(isAuthed) {
-                    if (navLoginText) {
-                        navLoginText.textContent = isAuthed ? 'Dashboard' : 'Login';
-                    }
-                    if (ctaLoginText) {
-                        ctaLoginText.textContent = isAuthed ? 'Ir para Dashboard' : 'Fazer login';
-                    }
+                function hasAuthCookie() {
+                    return document.cookie.split(';').some(part => part.trim().startsWith('auth_token='));
                 }
 
                 async function checkSession() {
+                    if (!hasAuthCookie()) {
+                        updateLoginLabels(false);
+                        return false;
+                    }
                     try {
                         const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
                         if (res.ok) {
