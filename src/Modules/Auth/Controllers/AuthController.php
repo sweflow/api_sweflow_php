@@ -163,7 +163,7 @@ class AuthController
                                 $usuario->getEmail(),
                                 $usuario->getNomeCompleto(),
                                 $link,
-                                $_ENV['MAILER_LOGO_URL'] ?? null
+                                $_ENV['APP_LOGO_URL'] ?? null
                             );
                         } catch (\Throwable $mailError) {
                             error_log('[AuthController] Falha ao enviar e-mail de recuperação: ' . $mailError->getMessage());
@@ -688,7 +688,7 @@ class AuthController
 
     private function montarLinkRecuperacaoSenha(string $token): string
     {
-        $base = rtrim($_ENV['APP_URL_FRONTEND'] ?? $_ENV['APP_URL'] ?? ($_ENV['APP_URL_APP'] ?? ''), '/');
+        $base = rtrim($_ENV['APP_URL_FRONTEND'] ?? $_ENV['APP_URL'] ?? '', '/');
         if ($base === '') {
             $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';

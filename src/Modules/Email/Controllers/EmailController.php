@@ -21,7 +21,7 @@ class EmailController
         $toLegacy = trim($body['to'] ?? '');
         $subject = trim($body['subject'] ?? '');
         $html = trim($body['html'] ?? '');
-        $logo = $body['logo_url'] ?? ($_ENV['MAILER_LOGO_URL'] ?? null);
+        $logo = $body['logo_url'] ?? ($_ENV['APP_LOGO_URL'] ?? null);
 
         if (($recipients === null || $recipients === '') && $toLegacy !== '') {
             $recipients = [$toLegacy];
