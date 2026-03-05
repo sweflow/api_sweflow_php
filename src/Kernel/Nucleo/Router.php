@@ -1,12 +1,12 @@
 <?php
-namespace Src\Nucleo;
+namespace Src\Kernel\Nucleo;
 
 use ReflectionMethod;
-use Src\Contracts\ContainerInterface;
-use Src\Contracts\MiddlewareInterface;
-use Src\Contracts\RouterInterface;
-use Src\Http\Request\Request;
-use Src\Http\Response\Response;
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
 
 class Router implements RouterInterface
 {

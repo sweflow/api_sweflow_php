@@ -4,7 +4,7 @@ namespace Src\Modules\Auth\Controllers;
 
 use DomainException;
 use PDO;
-use Src\Http\Response\Response;
+use Src\Kernel\Http\Response\Response;
 use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Src\Modules\Auth\Services\AuthService;
@@ -17,8 +17,11 @@ class AuthController
     private ?UsuarioRepository $usuarioRepository = null;
     private ?RefreshTokenRepository $refreshTokenRepository = null;
     private ?AccessTokenBlacklistRepository $accessBlacklist = null;
-    private ?EmailService $emailService = null;
     private ?PDO $pdo = null;
+
+    public function __construct(
+        private ?EmailService $emailService
+    ) {}
 
     public function login(): Response
     {
@@ -569,9 +572,6 @@ class AuthController
 
     private function carregarPoliticaVerificacaoEmail(): bool
     {
-        if (!$this->emailModuleEnabled()) {
-            return false;
-        }
         $caminho = $this->caminhoPoliticaVerificacaoEmail();
         if (!file_exists($caminho)) {
             return false;
@@ -589,9 +589,6 @@ class AuthController
 
     private function salvarPoliticaVerificacaoEmail(bool $enabled): void
     {
-        if ($enabled && !$this->emailModuleEnabled()) {
-            throw new DomainException('Ative o módulo de E-mail para habilitar a verificação por e-mail.');
-        }
         $caminho = $this->caminhoPoliticaVerificacaoEmail();
         $diretorio = dirname($caminho);
         if (!is_dir($diretorio)) {
@@ -656,13 +653,8 @@ class AuthController
         @file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
-    private function mailer(): EmailService
+    private function mailer(): ?EmailService
     {
-        if ($this->emailService instanceof EmailService) {
-            return $this->emailService;
-        }
-
-        $this->emailService = new EmailService();
         return $this->emailService;
     }
 

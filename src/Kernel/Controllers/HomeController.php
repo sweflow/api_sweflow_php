@@ -1,7 +1,7 @@
 <?php
-namespace Src\Controllers;
+namespace Src\Kernel\Controllers;
 
-use Src\View;
+use Src\Kernel\View;
 
 class HomeController
 {

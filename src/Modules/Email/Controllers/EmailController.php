@@ -2,7 +2,7 @@
 
 namespace Src\Modules\Email\Controllers;
 
-use Src\Http\Response\Response;
+use Src\Kernel\Http\Response\Response;
 use Src\Modules\Email\Services\EmailService;
 
 class EmailController

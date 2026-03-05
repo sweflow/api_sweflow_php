@@ -187,23 +187,11 @@
                     revealLoginLabels();
                 }
 
-                function attachLoginRedirects() {
-                    if (openLoginNav) {
-                        openLoginNav.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
-                    }
-                    if (openLoginCta) {
-                        openLoginCta.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/dashboard'; });
-                    }
-                }
-
                 const SESSION_FLAG = 'hasAuthSession';
 
                 function presetLoginState() {
                     const hasSession = localStorage.getItem(SESSION_FLAG) === '1';
                     updateLoginLabels(hasSession);
-                    if (hasSession) {
-                        attachLoginRedirects();
-                    }
                 }
 
                 async function checkSession() {
@@ -218,7 +206,6 @@
                         if (res.ok) {
                             localStorage.setItem(SESSION_FLAG, '1');
                             updateLoginLabels(true);
-                            attachLoginRedirects();
                             return true;
                         }
                         // 401/403 -> limpa flag para evitar novas tentativas
@@ -415,8 +402,19 @@
 
                     [openLoginNav, openLoginCta].forEach(el => {
                         if (el) {
-                            el.addEventListener('click', function(e) {
+                            el.addEventListener('click', async function(e) {
                                 e.preventDefault();
+                                const hasFlag = (localStorage.getItem(SESSION_FLAG) === '1');
+                                if (hasFlag) {
+                                    try {
+                                        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                                        if (res.ok) {
+                                            window.location.href = '/dashboard';
+                                            return;
+                                        }
+                                    } catch (_) {}
+                                    try { localStorage.removeItem(SESSION_FLAG); } catch (_) {}
+                                }
                                 openModal();
                             });
                         }
@@ -428,13 +426,14 @@
                     if (loginCancel) {
                         loginCancel.addEventListener('click', closeModal);
                     }
-                    if (modalOverlay) {
+                    // Removed overlay click listener to prevent closing when clicking outside form
+                    /* if (modalOverlay) {
                         modalOverlay.addEventListener('click', function(e) {
                             if (e.target === modalOverlay) {
                                 closeModal();
                             }
                         });
-                    }
+                    } */
 
                     if (!form) return;
 

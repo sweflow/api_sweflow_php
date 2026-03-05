@@ -4,7 +4,6 @@ namespace Src\Modules\Email\Services;
 
 use PHPMailer\PHPMailer\Exception as MailException;
 use PHPMailer\PHPMailer\PHPMailer;
-use Src\Modules\Email\ValueObjects\EmailMessage;
 
 class EmailService
 {
@@ -14,8 +13,7 @@ class EmailService
     public function sendCustom(array|string $recipients, string $subject, string $htmlBody, ?string $logoUrl = null): void
     {
         $normalized = $this->normalizeRecipients($recipients);
-        $message = new EmailMessage($normalized, $subject, $htmlBody, $logoUrl);
-        $this->deliver($message);
+        $this->deliver($normalized, $subject, $htmlBody, $logoUrl);
     }
 
     public function sendConfirmation(string $toEmail, string $toName, string $confirmLink, ?string $logoUrl = null): void
@@ -23,7 +21,7 @@ class EmailService
         $subject = 'Confirme seu e-mail';
         $body = "<p>Olá, {$this->escape($toName)}!</p><p>Clique no link abaixo para confirmar seu e-mail:</p><p><a href='{$this->escapeAttr($confirmLink)}'>{$this->escapeAttr($confirmLink)}</a></p>";
         $recipients = [['email' => $toEmail, 'name' => $toName]];
-        $this->deliver(new EmailMessage($recipients, $subject, $body, $logoUrl));
+        $this->deliver($recipients, $subject, $body, $logoUrl);
     }
 
     public function sendPasswordReset(string $toEmail, string $toName, string $resetLink, ?string $logoUrl = null): void
@@ -31,24 +29,29 @@ class EmailService
         $subject = 'Recuperação de senha';
         $body = "<p>Olá, {$this->escape($toName)}!</p><p>Use o link abaixo para redefinir sua senha:</p><p><a href='{$this->escapeAttr($resetLink)}'>{$this->escapeAttr($resetLink)}</a></p>";
         $recipients = [['email' => $toEmail, 'name' => $toName]];
-        $this->deliver(new EmailMessage($recipients, $subject, $body, $logoUrl));
+        $this->deliver($recipients, $subject, $body, $logoUrl);
     }
 
-    private function deliver(EmailMessage $message): void
+    /**
+     * @param array<int,array{email:string,name:string}> $recipients
+     */
+    private function deliver(array $recipients, string $subject, string $body, ?string $logoUrl = null): void
     {
+        if (count($recipients) === 0) {
+            throw new \InvalidArgumentException('Destinatários não informados.');
+        }
+
         $mail = $this->makeMailer();
 
-        foreach ($message->getRecipients() as $recipient) {
+        foreach ($recipients as $recipient) {
             $mail->addAddress($recipient['email'], $recipient['name'] ?? '');
         }
 
-        $mail->Subject = $message->getSubject();
+        $mail->Subject = $subject;
         $mail->isHTML(true);
-        $body = $message->getBody();
 
-        if ($message->getLogoUrl()) {
-            $cid = 'logo_' . md5($message->getLogoUrl());
-            $logoUrl = $message->getLogoUrl();
+        if ($logoUrl) {
+            $cid = 'logo_' . md5($logoUrl);
             $logoAlt = 'Logo';
             $logoName = basename(parse_url($logoUrl, PHP_URL_PATH) ?: 'logo.png');
             $embedded = false;

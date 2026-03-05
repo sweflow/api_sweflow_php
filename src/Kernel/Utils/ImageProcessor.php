@@ -1,6 +1,6 @@
 <?php
 
-namespace Src\Utils;
+namespace Src\Kernel\Utils;
 
 class ImageProcessor
 {
@@ -46,8 +46,7 @@ class ImageProcessor
 
         $dst = imagecreatetruecolor($newWidth, $newHeight);
         if (!$dst) {
-            // @intelephense-ignore-next-line
-            imagedestroy($src);
+            $src = null;
             return self::fallbackMove($tmpPath, $destPath);
         }
 
@@ -63,17 +62,13 @@ class ImageProcessor
         $saved = self::saveImage($dst, $destPath, $mime, $quality);
 
         if (!$saved) {
-            // @intelephense-ignore-next-line
-            imagedestroy($src);
-            // @intelephense-ignore-next-line
-            imagedestroy($dst);
+            $src = null;
+            $dst = null;
             return self::fallbackMove($tmpPath, $destPath);
         }
 
-        // @intelephense-ignore-next-line
-        imagedestroy($src);
-        // @intelephense-ignore-next-line
-        imagedestroy($dst);
+        $src = null;
+        $dst = null;
         return true;
     }
 

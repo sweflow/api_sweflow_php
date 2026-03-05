@@ -1,10 +1,10 @@
 <?php
 
-namespace Src\Nucleo;
+namespace Src\Kernel\Nucleo;
 
-use Src\Contracts\RouterInterface;
-use Src\Http\Request\Request;
-use Src\Http\Response\Response;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
 
 /**
  * Router decorator that injects a module-enabled guard into all routes.
@@ -50,6 +50,22 @@ class ModuleScopedRouter implements RouterInterface
     public function add(string $method, string $uri, $handler, array $middlewares = []): void
     {
         $this->router->add($method, $uri, $handler, $this->withGuard($middlewares));
+        // Guarda a rota no provider associado (se possível) ou expõe um evento.
+        // Como não temos evento, vamos adicionar um método getter para as rotas do módulo
+        // mas o ModuleScopedRouter é efêmero.
+        // Vamos adicionar um array público de rotas registradas NESTA instância.
+        $this->registeredRoutes[] = [
+            'method' => $method,
+            'uri' => $uri,
+            'middlewares' => $middlewares,
+        ];
+    }
+
+    private array $registeredRoutes = [];
+
+    public function getRegisteredRoutes(): array
+    {
+        return $this->registeredRoutes;
     }
 
     public function dispatch(Request $request): Response

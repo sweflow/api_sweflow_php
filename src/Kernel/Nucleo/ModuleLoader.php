@@ -1,11 +1,11 @@
 <?php
 
-namespace Src\Nucleo;
+namespace Src\Kernel\Nucleo;
 
-use Src\Contracts\ContainerInterface;
-use Src\Contracts\ModuleProviderInterface;
-use Src\Contracts\RouterInterface;
-use Src\Nucleo\SimpleModuleProvider;
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\ModuleProviderInterface;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Nucleo\SimpleModuleProvider;
 
 class ModuleLoader
 {
@@ -17,11 +17,13 @@ class ModuleLoader
     /** @var string[] */
     private array $protectedModules = ['Auth', 'Usuario'];
     private string $stateFile;
+    private string $cacheFile;
 
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
         $this->stateFile = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_state.json';
+        $this->cacheFile = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_cache.php';
         $this->enabled = $this->loadState();
     }
 
@@ -30,6 +32,15 @@ class ModuleLoader
     */
     public function discover(string $modulesPath): void
     {
+        // Se estivermos em produção e o cache existir, usa o cache
+        if (($_ENV['APP_ENV'] ?? 'local') === 'production' && file_exists($this->cacheFile)) {
+            $cachedModules = require $this->cacheFile;
+            if (is_array($cachedModules)) {
+                $this->rehydrateProviders($cachedModules);
+                return;
+            }
+        }
+
         if (!is_dir($modulesPath)) {
             return;
         }
@@ -55,6 +66,37 @@ class ModuleLoader
         $this->enabled = array_intersect_key($this->enabled, $this->providers);
 
         $this->persistState();
+
+        // Se estiver em produção, gera o cache
+        if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
+            $this->cacheModules();
+        }
+    }
+
+    private function rehydrateProviders(array $cachedModules): void
+    {
+        foreach ($cachedModules as $module => $data) {
+            // Em SimpleModuleProvider, só precisamos saber o caminho base
+            // Se no futuro tivermos providers customizados, precisaremos salvar a classe no cache
+            if (isset($data['path']) && is_dir($data['path'])) {
+                 $this->providers[$module] = new SimpleModuleProvider($module, $data['path']);
+            }
+        }
+    }
+
+    private function cacheModules(): void
+    {
+        $data = [];
+        foreach ($this->providers as $name => $provider) {
+            if ($provider instanceof SimpleModuleProvider) {
+                $data[$name] = [
+                    'path' => $provider->getPath(),
+                ];
+            }
+        }
+        
+        $content = "<?php\nreturn " . var_export($data, true) . ";\n";
+        @file_put_contents($this->cacheFile, $content);
     }
 
     public function bootAll(): void
@@ -166,50 +208,13 @@ class ModuleLoader
         @file_put_contents($this->stateFile, json_encode($this->enabled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
-    private function loadProvider(string $module, string $moduleDir): ?ModuleProviderInterface
+    private function loadProvider(string $moduleName, string $modulePath): ?ModuleProviderInterface
     {
-        $moduleFile = $moduleDir . DIRECTORY_SEPARATOR . 'module.php';
-        if (file_exists($moduleFile)) {
-            $providerClass = include $moduleFile;
-            if (is_array($providerClass)) {
-                return SimpleModuleProvider::fromConfig($module, $providerClass);
-            }
-            if (is_string($providerClass)) {
-                if (!class_exists($providerClass)) {
-                    return null;
-                }
-                return $this->container->make($providerClass);
-            }
-            if ($providerClass instanceof ModuleProviderInterface) {
-                return $providerClass;
-            }
-        }
-
-        $classFile = $moduleDir . DIRECTORY_SEPARATOR . 'Module.php';
-        if (file_exists($classFile)) {
-            require_once $classFile;
-        }
-        $className = "Src\\Modules\\{$module}\\Module";
-        if (class_exists($className)) {
-            $instance = $this->container->make($className);
-            if ($instance instanceof ModuleProviderInterface) {
-                return $instance;
-            }
-        }
-
-        $routesFile = $moduleDir . DIRECTORY_SEPARATOR . 'routes.php';
-        $bindingsFile = $moduleDir . DIRECTORY_SEPARATOR . 'bindings.php';
-        $legacyWeb = $moduleDir . DIRECTORY_SEPARATOR . 'Routes' . DIRECTORY_SEPARATOR . 'web.php';
-        $routes = file_exists($routesFile) ? include $routesFile : [];
-        $bindings = file_exists($bindingsFile) ? include $bindingsFile : [];
-        $legacyRoutes = file_exists($legacyWeb) ? $this->loadLegacyWebRoutes($legacyWeb) : [];
-
-        if (!empty($routes) || !empty($bindings) || !empty($legacyRoutes)) {
-            $mergedRoutes = array_merge($routes ?: [], $legacyRoutes ?: []);
-            return new SimpleModuleProvider($module, $bindings ?: [], $mergedRoutes);
-        }
-
-        return null;
+        // Convenção: SimpleModuleProvider
+        // Apenas cria um provider genérico que aponta para o diretório
+        // O SimpleModuleProvider precisa ser ajustado para guardar o path
+        /** @var ModuleProviderInterface */
+        return new SimpleModuleProvider($moduleName, $modulePath);
     }
 
     private function loadLegacyWebRoutes(string $file): array

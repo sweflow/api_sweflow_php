@@ -5,7 +5,7 @@ namespace Src\Modules\Usuario\Entities;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Src\Utils\RelogioTimeZone;
+use Src\Kernel\Utils\RelogioTimeZone;
 use Src\Domain\Exceptions;
 use Src\Modules\Usuario\Exceptions\InvalidEmailException;
 use Src\Modules\Usuario\Exceptions\InvalidPasswordException;

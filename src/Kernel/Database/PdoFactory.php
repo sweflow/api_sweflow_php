@@ -1,6 +1,6 @@
 <?php
 
-namespace Src\Database;
+namespace Src\Kernel\Database;
 
 use PDO;
 use RuntimeException;

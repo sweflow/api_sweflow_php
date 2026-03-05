@@ -1,9 +1,9 @@
 <?php
 
-namespace Src\Contracts;
+namespace Src\Kernel\Contracts;
 
-use Src\Http\Request\Request;
-use Src\Http\Response\Response;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
 
 interface RouterInterface
 {

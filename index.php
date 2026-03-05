@@ -1,18 +1,18 @@
 <?php
 
 use Dotenv\Dotenv;
-use Src\Contracts\ContainerInterface;
-use Src\Contracts\RouterInterface;
-use Src\Controllers\DashboardController;
-use Src\Database\PdoFactory;
-use Src\Http\Response\Response;
-use Src\Middlewares\AdminOnlyMiddleware;
-use Src\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Controllers\DashboardController;
+use Src\Kernel\Database\PdoFactory;
+use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
 use Src\Modules\Usuario\Repositories\UsuarioRepository;
-use Src\Nucleo\Application;
-use Src\Nucleo\Container;
-use Src\Nucleo\ModuleLoader;
-use Src\Nucleo\Router;
+use Src\Kernel\Nucleo\Application;
+use Src\Kernel\Nucleo\Container;
+use Src\Kernel\Nucleo\ModuleLoader;
+use Src\Kernel\Nucleo\Router;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -60,14 +60,13 @@ $container->bind(RouterInterface::class, $router, true);
 $modules = new ModuleLoader($container);
 $container->bind(ModuleLoader::class, $modules, true);
 
-// Auto-discover modules and register routes
-$modules->discover(__DIR__ . '/src/Modules');
-$modules->bootAll();
-$modules->registerRoutes($router);
+// Boot Application
+$app = new Application($container, $router, $modules);
+$app->boot();
 
 // Core routes
-$router->get('/', [\Src\Controllers\HomeController::class, 'index']);
-$router->get('/index.php', [\Src\Controllers\HomeController::class, 'index']);
+$router->get('/', [\Src\Kernel\Controllers\HomeController::class, 'index']);
+$router->get('/index.php', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/dashboard', [DashboardController::class, 'index'], [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
@@ -77,7 +76,7 @@ function isPrivateRoute(array $route): bool {
     $private = [
         AuthHybridMiddleware::class,
         AdminOnlyMiddleware::class,
-        \Src\Middlewares\RouteProtectionMiddleware::class,
+        \Src\Kernel\Middlewares\RouteProtectionMiddleware::class,
     ];
     foreach ($route['middlewares'] ?? [] as $mw) {
         $def = $mw['definition'] ?? null;
@@ -188,24 +187,27 @@ $router->get('/api/status', function () use ($modules, $router) {
         $enabled = $modules->isEnabled($name);
         $desc = $provider->describe();
         $routes = $enabled ? ($desc['routes'] ?? []) : [];
-        unset($desc['routes']);
+        // Não removemos as rotas de desc aqui, pois precisamos delas na lista de módulos
+        // O front-end espera que cada módulo tenha sua lista de 'routes' para exibir na tabela "Rotas dos Módulos"
 
         $moduleList[] = array_merge(
-            ['name' => $name, 'enabled' => $enabled, 'routes' => $routes],
-            $desc
+            ['name' => $name, 'enabled' => $enabled],
+            $desc // desc já contém 'routes'
         );
     }
 
     return Response::json([
         'status' => $status,
         'modules' => $moduleList,
-        'routes' => array_map(
+        // O front-end usa 'modules' para exibir as rotas agrupadas por módulo
+        // O campo 'routes' abaixo é redundante ou usado para outra coisa, mas vamos manter
+        'routes' => array_values(array_map(
             fn($route) => [
                 'method' => $route['method'],
                 'uri' => $route['uri'],
             ],
             $router->all()
-        ),
+        )),
     ]);
 });
 

@@ -1,10 +1,10 @@
 <?php
 
-namespace Src\Nucleo;
+namespace Src\Kernel\Nucleo;
 
-use Src\Contracts\ContainerInterface;
-use Src\Contracts\ModuleProviderInterface;
-use Src\Contracts\RouterInterface;
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\ModuleProviderInterface;
+use Src\Kernel\Contracts\RouterInterface;
 
 /**
  * Lightweight provider created from plain config arrays so modules stay minimal.
@@ -12,53 +12,47 @@ use Src\Contracts\RouterInterface;
 class SimpleModuleProvider implements ModuleProviderInterface
 {
     private string $name;
-    private array $bindings;
-    private array $routes;
+    private string $path;
+    private array $bindings = [];
+    private array $routes = [];
 
-    public function __construct(string $name, array $bindings = [], array $routes = [])
+    public function __construct(string $name, string $path)
     {
         $this->name = $name;
-        $this->bindings = $bindings;
-        $this->routes = $routes;
+        $this->path = $path;
+        $this->loadConfig();
     }
 
-    public static function fromConfig(string $name, array $config): self
+    private function loadConfig(): void
     {
-        return new self(
-            $config['name'] ?? $name,
-            $config['bindings'] ?? [],
-            $config['routes'] ?? []
-        );
+        // Carrega rotas se existirem
+        $webRoutes = $this->path . '/Routes/web.php';
+        if (file_exists($webRoutes)) {
+            // Em vez de include direto que executa, vamos apenas salvar o caminho
+            // O registro real acontece em registerRoutes passando o router
+        }
+    }
+
+    public function getPath(): string
+    {
+        return $this->path;
     }
 
     public function boot(ContainerInterface $container): void
     {
-        foreach ($this->bindings as $abstract => $concrete) {
-            if (is_string($concrete)) {
-                $container->bind($abstract, fn(ContainerInterface $c) => $c->make($concrete));
-                continue;
-            }
-
-            if (is_callable($concrete)) {
-                $container->bind($abstract, $concrete);
-                continue;
-            }
-        }
+        // Zero config: bindings são automáticos pelo container
     }
 
     public function registerRoutes(RouterInterface $router): void
     {
-        foreach ($this->routes as $route) {
-            $method = strtoupper($route['method'] ?? 'GET');
-            $uri = $route['uri'] ?? '';
-            $handler = $route['action'] ?? null;
-            $middlewares = $route['middlewares'] ?? [];
+        $webRoutes = $this->path . '/Routes/web.php';
+        if (file_exists($webRoutes)) {
+             $container = null; 
+             require $webRoutes;
 
-            if (!$uri || !$handler) {
-                continue;
-            }
-
-            $router->add($method, $uri, $handler, $middlewares);
+             if ($router instanceof ModuleScopedRouter) {
+                 $this->routes = $router->getRegisteredRoutes();
+             }
         }
     }
 

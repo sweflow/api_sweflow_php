@@ -1,5 +1,5 @@
 <?php
-namespace Src\Controllers;
+namespace Src\Kernel\Controllers;
 
 use Src\Nucleo\InfoServidor;
 use Src\Nucleo\LeitorModulos;

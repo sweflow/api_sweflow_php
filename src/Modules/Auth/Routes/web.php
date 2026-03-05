@@ -1,19 +1,20 @@
 <?php
 
 use Src\Modules\Auth\Controllers\AuthController;
-use Src\Routes\Route;
-use Src\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
 
 $protected = [AuthHybridMiddleware::class];
 
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
 // Autenticação de usuário
-Route::post('/api/auth/login', [AuthController::class, 'login']);
-Route::post('/api/login', [AuthController::class, 'loginPublic']);
-Route::post('/api/auth/recuperacao-senha', [AuthController::class, 'solicitarRecuperacaoSenha']);
-Route::post('/api/auth/resetar-senha', [AuthController::class, 'resetarSenha']);
-Route::get('/api/auth/me', [AuthController::class, 'me'], $protected);
-Route::post('/api/auth/logout', [AuthController::class, 'logout'], $protected);
-Route::post('/api/auth/refresh', [AuthController::class, 'refresh']);
-Route::get('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
-Route::post('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
-Route::get('/api/auth/verify-email', [AuthController::class, 'verifyEmail']);
+$router->post('/api/auth/login', [AuthController::class, 'login']);
+$router->post('/api/login', [AuthController::class, 'loginPublic']);
+$router->post('/api/auth/recuperacao-senha', [AuthController::class, 'solicitarRecuperacaoSenha']);
+$router->post('/api/auth/resetar-senha', [AuthController::class, 'resetarSenha']);
+$router->get('/api/auth/me', [AuthController::class, 'me'], $protected);
+$router->post('/api/auth/logout', [AuthController::class, 'logout'], $protected);
+$router->post('/api/auth/refresh', [AuthController::class, 'refresh']);
+$router->get('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
+$router->post('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
+$router->get('/api/auth/verify-email', [AuthController::class, 'verifyEmail']);

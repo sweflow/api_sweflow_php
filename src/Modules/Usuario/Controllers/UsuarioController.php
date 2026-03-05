@@ -4,9 +4,9 @@ namespace Src\Modules\Usuario\Controllers;
 
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
 use Src\Modules\Usuario\Entities\Usuario;
-use Src\Http\Response\Response;
+use Src\Kernel\Http\Response\Response;
 use Src\Modules\Email\Services\EmailService;
-use Src\Utils\ImageProcessor;
+use Src\Kernel\Utils\ImageProcessor;
 use DomainException;
 use Throwable;
 
@@ -15,7 +15,7 @@ class UsuarioController
 {
     public function __construct(
         private UsuarioServiceInterface $service,
-        private ?EmailService $emailService = null,
+        private ?EmailService $emailService
     ) {}
     
     /**
@@ -63,11 +63,12 @@ class UsuarioController
             );
             $this->service->criar($usuario);
 
-            if ($this->emailModuleEnabled() && $this->politicaVerificacaoAtiva()) {
+            // Tenta enviar e-mail se o serviço estiver disponível
+            if ($this->emailService && $this->politicaVerificacaoAtiva()) {
                 $token = bin2hex(random_bytes(32));
                 $this->service->salvarTokenVerificacaoEmail($usuario->getUuid()->toString(), $token);
                 $link = $this->montarLinkVerificacao($token);
-                $this->mailer()->sendConfirmation($usuario->getEmail(), $usuario->getNomeCompleto(), $link, $_ENV['APP_LOGO_URL'] ?? null);
+                $this->emailService->sendConfirmation($usuario->getEmail(), $usuario->getNomeCompleto(), $link, $_ENV['APP_LOGO_URL'] ?? null);
             }
 
             return Response::json([
@@ -825,10 +826,13 @@ class UsuarioController
         if (!is_array($dados)) {
             return false;
         }
-        if (!$this->emailModuleEnabled()) {
-            return false;
-        }
+        
         return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
+    }
+
+    private function mailer(): ?EmailService
+    {
+        return $this->emailService;
     }
 
     private function montarLinkVerificacao(string $token): string
@@ -840,34 +844,5 @@ class UsuarioController
             $base = $scheme . '://' . $host;
         }
         return $base . '/api/auth/verify-email?token=' . urlencode($token);
-    }
-
-    private function mailer(): EmailService
-    {
-        if ($this->emailService instanceof EmailService) {
-            return $this->emailService;
-        }
-        $this->emailService = new EmailService();
-        return $this->emailService;
-    }
-
-    private function emailModuleEnabled(): bool
-    {
-        $path = dirname(__DIR__, 4) . '/storage/modules_state.json';
-        if (!is_file($path)) {
-            return true;
-        }
-        $json = @file_get_contents($path);
-        if ($json === false) {
-            return true;
-        }
-        $data = json_decode($json, true);
-        if (!is_array($data)) {
-            return true;
-        }
-        return !(
-            array_key_exists('Email', $data)
-            && $data['Email'] === false
-        );
     }
 }

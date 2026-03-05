@@ -1,13 +1,13 @@
 <?php
 
-namespace Src\Middlewares;
+namespace Src\Kernel\Middlewares;
 
 use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Src\Contracts\MiddlewareInterface;
-use Src\Http\Request\Request;
-use Src\Http\Response\Response;
+use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 
 class AuthCookieMiddleware implements MiddlewareInterface

@@ -1,125 +1,177 @@
-# Guia rápido: criando módulos na API modular
-## Visão geral (o que você precisa saber)
-- Você só trabalha em `src/Modules/`. O kernel em `src/Kernel/` não precisa de mudanças.
-- Cada módulo é auto-descoberto. Basta criar a pasta do módulo e um `Routes/web.php` declarando rotas.
-- O container resolve dependências por convenção: interfaces terminando com `Interface` são mapeadas para a classe de mesmo nome (sem `Interface`) no mesmo namespace. Ex.: `UsuarioServiceInterface` -> `UsuarioService`.
-- Se dois módulos precisarem falar entre si, defina a interface em `src/Kernel/Contracts/` e implemente no próprio módulo. Assim nenhum módulo conhece a classe do outro, só o contrato.
-## Estrutura mínima (exemplo real do módulo Usuario)
+# 🚀 Guia Completo: Desenvolvimento Modular no Sweflow API
+
+Bem-vindo ao desenvolvimento no Sweflow. Este guia foi escrito para você, desenvolvedor, que quer criar funcionalidades poderosas sem perder tempo configurando arquivos complexos.
+
+A filosofia aqui é simples: **Foque no seu código. O sistema cuida do resto.**
+
+---
+
+## 🎯 O Conceito "Zero Config"
+
+No Sweflow, você não precisa registrar seus módulos em nenhum lugar. Não existe um arquivo `modules.json` gigante e centralizado.
+
+A regra é simples: **Uma pasta é um módulo.**
+
+Se você criar a pasta `src/Modules/Financeiro`, o sistema automaticamente entende que o módulo Financeiro existe e está pronto para uso.
+
+---
+
+## 🏗️ 1. Estrutura de um Módulo
+
+Um módulo é apenas um agrupamento de classes que resolvem um problema específico (ex: Usuario, Financeiro, Notificacao).
+
+A estrutura é flexível, mas recomendamos este padrão para manter a organização:
+
+```text
+src/Modules/Financeiro/
+├── Controllers/       # Onde ficam seus endpoints da API
+│   └── FaturaController.php
+├── Services/          # Onde fica a lógica de negócio (o coração do módulo)
+│   └── FaturaService.php
+├── Repositories/      # (Opcional) Acesso ao banco de dados
+│   └── FaturaRepository.php
+├── Entities/          # (Opcional) Classes que representam seus dados
+│   └── Fatura.php
+└── Routes/
+    └── web.php        # ⚠️ Obrigatório se você quiser ter URLs acessíveis
 ```
-src/Modules/Usuario/
-    Controllers/
-        UsuarioController.php
-    Services/
-        UsuarioServiceInterface.php
-        UsuarioService.php
-    Repositories/
-        UsuarioRepositoryInterface.php
-        UsuarioRepository.php
-    Entities/
-        Usuario.php                 <- entidade de domínio
-    Routes/
-        web.php                     <- define as rotas do módulo
-```
-### 1) Rotas em `Routes/web.php`
-O loader lê esse arquivo e registra as rotas. No módulo Usuario:
+
+---
+
+## 🛣️ 2. Criando Rotas (Endpoints)
+
+Para que seu módulo seja acessível via API (HTTP), você precisa definir rotas. O Sweflow procura automaticamente pelo arquivo `Routes/web.php` dentro do seu módulo.
+
+**Exemplo Prático:**
+Arquivo: `src/Modules/Financeiro/Routes/web.php`
+
 ```php
 <?php
 
-use Src\Middlewares\RouteProtectionMiddleware;
-use Src\Modules\Usuario\Controllers\UsuarioController;
-use Src\Routes\Route;
+use Src\Modules\Financeiro\Controllers\FaturaController;
+use Src\Middlewares\AuthHybridMiddleware;
 
-$protected = [RouteProtectionMiddleware::class];
+// O framework já disponibiliza a variável $router para você.
 
-Route::post('/api/criar/usuario', [UsuarioController::class, 'criar']);
-Route::get('/api/usuarios', [UsuarioController::class, 'listar'], $protected);
-Route::get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar'], $protected);
-Route::put('/api/usuario/atualizar/{uuid}', [UsuarioController::class, 'atualizar'], $protected);
-Route::delete('/api/usuario/deletar/{uuid}', [UsuarioController::class, 'deletar'], $protected);
-Route::patch('/api/usuario/{uuid}/desativar', [UsuarioController::class, 'desativar'], $protected);
-Route::patch('/api/usuario/{uuid}/ativar', [UsuarioController::class, 'ativar'], $protected);
-```
-### 2) Convenção de interfaces (injeção automática)
-Se você declarar `UsuarioServiceInterface` e implementar `UsuarioService` no mesmo namespace, o container entrega `UsuarioService` sempre que alguém pedir `UsuarioServiceInterface` — sem arquivo vinculativo. Exemplo prático (separando cada arquivo):
-```php
-// src/Modules/Usuario/Services/UsuarioServiceInterface.php
-namespace Src\Modules\Usuario\Services;
+// Rota Pública: Qualquer um pode acessar
+$router->get('/faturas/publicas', [FaturaController::class, 'listarPublicas']);
 
-interface UsuarioServiceInterface {}
+// Rota Protegida: Exige login (Middleware de Autenticação)
+$router->post('/faturas', [FaturaController::class, 'criar'], [
+    AuthHybridMiddleware::class
+]);
 ```
 
-```php
-// src/Modules/Usuario/Services/UsuarioService.php
-namespace Src\Modules\Usuario\Services;
+---
 
-class UsuarioService implements UsuarioServiceInterface {}
-```
+## 💉 3. Injeção de Dependência (A Mágica do Container)
+
+Você nunca precisa usar `new Service()` manualmente. O **Container** do Sweflow é inteligente e cria as classes para você.
+
+### Como funciona?
+Basta declarar o que você precisa no **construtor** da sua classe.
+
+**Exemplo:**
+Seu `FaturaController` precisa do `FaturaService` para trabalhar.
 
 ```php
-// Em qualquer classe que receba UsuarioServiceInterface no construtor:
-// public function __construct(UsuarioServiceInterface $service) { ... }
-// o container instancia UsuarioService e injeta automaticamente.
-```
-### 3) Controller do módulo (UsuarioController)
-- Injeta o serviço via interface.
-- Usa `Response::json` para responder.
-- Lê dados do corpo da requisição (`$request->body`) e parâmetros de rota (`$request->param('uuid')`).
-Trecho real:
-```php
-// construtor
-public function __construct(private UsuarioServiceInterface $service) {}
+namespace Src\Modules\Financeiro\Controllers;
 
-// ação de criação
-public function criar($request): Response
+use Src\Modules\Financeiro\Services\FaturaService;
+
+class FaturaController
 {
-    $data = $request->body ?? [];
-    // valida campos, chama $this->service->criar(...)
-    return Response::json(['status' => 'success'], 201);
-}
-```
-### 4) Service (UsuarioService)
-- Contém regra de negócio: valida unicidade de e-mail/username, altera senha, ativa/desativa, etc.
-- Depende de `UsuarioRepositoryInterface`, que o container resolve para `UsuarioRepository`.
-Trecho real (construtor + criar):
-```php
-public function __construct(private UsuarioRepositoryInterface $repository) {}
+    // Apenas declare aqui. O Container vai criar o FaturaService e entregar pronto.
+    public function __construct(
+        private FaturaService $service
+    ) {}
 
-public function criar(Usuario $usuario): void
-{
-    if ($this->repository->emailExiste($usuario->getEmail())) {
-        throw new DomainException('E-mail já cadastrado.');
+    public function criar($request)
+    {
+        $this->service->gerarFatura(...);
     }
-    if ($this->repository->usernameExiste($usuario->getUsername())) {
-        throw new DomainException('Username já cadastrado.');
-    }
-    $this->repository->salvar($usuario);
 }
 ```
-### 5) Repository (UsuarioRepository)
-- Lida com o banco via PDO (injeção automática do PDO compartilhado do container).
-- Implementa a interface `UsuarioRepositoryInterface` e converte linhas em entidades `Usuario`.
-Trecho real (construtor):
+
+---
+
+## 🤝 4. Comunicação Entre Módulos (O Poder Real)
+
+Aqui é onde o Sweflow brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
+
+Temos duas formas de fazer isso, e você escolhe a melhor para cada caso.
+
+### A. Dependência Obrigatória (Hard Dependency) 🔒
+Use quando seu módulo **NÃO FUNCIONA** sem o outro.
+
+*Exemplo: Não existe Fatura sem Usuário.*
+
 ```php
-public function __construct(\PDO $pdo)
+use Src\Modules\Usuario\Services\UsuarioService;
+
+class FaturaService
 {
-    parent::__construct($pdo);
+    public function __construct(
+        private UsuarioService $usuarioService // Obrigatório!
+    ) {}
+
+    public function criarFatura($userId)
+    {
+        // Se alguém deletar a pasta do módulo Usuario, o sistema vai parar aqui com um erro.
+        // Isso é bom! Protege seu sistema de inconsistência.
+        $user = $this->usuarioService->buscar($userId);
+    }
 }
 ```
-### 6) Entidade (Usuario)
-- Fica em `Entities/Usuario.php` e representa o domínio (campos, validações, alteração de senha, ativar/desativar, etc.).
-### 7) Protegendo rotas (middleware)
-- Basta passar middlewares na rota (veja `$protected` no `web.php`).
-- O middleware `RouteProtectionMiddleware` roda antes do controller nas rotas que o recebem.
-## Contratos compartilhados entre módulos (quando Auth precisa de dados do Usuário)
-1) Defina a interface no núcleo: `src/Kernel/Contracts/UserProviderInterface.php`.
-2) Implemente no módulo Usuario: `UserProvider` implementa `UserProviderInterface` usando o repositório.
-3) No módulo Auth, injete apenas `UserProviderInterface`; o container entrega `UserProvider` pela convenção de nome.
-Isso evita acoplamento: Auth não conhece classes do módulo Usuario, apenas o contrato no núcleo.
-## Checklist final
-- Criar pasta do módulo em `src/Modules/MeuModulo/`.
-- Criar `Routes/web.php` com as rotas (opcionalmente com middlewares).
-- Implementar Controllers, Services, Repositories, Entities no seu módulo.
-- Usar interfaces + convenção de nomes (Interface -> classe sem `Interface` no mesmo namespace). Sem configurações extras.
-- Se precisar de contratos compartilhados entre módulos, coloque a interface em `src/Kernel/Contracts/` e implemente no seu módulo.
-- Não alterar nada em `src/Kernel/` para criar módulos.
-Pronto: o loader descobre o módulo automaticamente, registra rotas, resolve dependências e o front de status exibe as rotas detectadas.
+
+### B. Dependência Opcional (Soft Dependency) 🍃
+Use quando seu módulo **PODE USAR** o outro, mas funciona perfeitamente sem ele.
+
+*Exemplo: O sistema envia e-mail de aviso, mas se o módulo de E-mail for removido, a fatura continua sendo gerada normalmente.*
+
+**O Segredo:** Adicione `?` (nullable) e defina `= null`.
+
+```php
+use Src\Modules\Email\Services\EmailService;
+
+class FaturaService
+{
+    public function __construct(
+        // O Container tenta encontrar o EmailService.
+        // Se o módulo Email não existir (pasta deletada), ele injeta NULL suavemente.
+        private ?EmailService $emailService = null
+    ) {}
+
+    public function processar()
+    {
+        // ... lógica de gerar fatura ...
+
+        // Uso elegante com nullsafe operator do PHP 8
+        // Se $emailService for null, essa linha é ignorada. Sem erros. Sem if.
+        $this->emailService?->enviarAviso("Fatura gerada!");
+    }
+}
+```
+
+---
+
+## 🔎 Curiosidade: Como o Container Sabe?
+
+Você não precisa decorar isso, mas é bom saber para se sentir seguro:
+
+1.  **Detecção Automática:** O Container lê o tipo da variável (`UsuarioService`) usando *Reflection*.
+2.  **Resolução Recursiva:** Se `UsuarioService` precisar de `UsuarioRepository`, e o Repository precisar de `PDO`, o Container resolve tudo em cascata.
+3.  **Proteção contra Ciclos:** Se A precisa de B e B precisa de A, o Container detecta o loop infinito e avisa você com um erro claro, em vez de travar o servidor.
+4.  **Tratamento de Erros:**
+    *   Se você pedir uma classe que **não existe** e for opcional (`?`), ele injeta `null`.
+    *   Se a classe **existe** mas tem erro no código (syntax error), ele estoura o erro real para você corrigir. Ele não esconde a sujeira.
+
+---
+
+## ✅ Resumo das Boas Práticas
+
+1.  **Namespaces:** Sempre use `namespace Src\Modules\NomeDoModulo\Pasta;`.
+2.  **Isolamento de Dados:** Um módulo nunca deve fazer SQL direto na tabela de outro módulo. Sempre peça o `Service` do outro módulo.
+3.  **Simplicidade:** Comece pequeno. Crie apenas Controller e Service. Só crie Repositories se tiver queries SQL complexas.
+
+Divirta-se codando! 🚀

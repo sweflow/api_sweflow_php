@@ -1,8 +1,8 @@
 <?php
-namespace Src\Controllers;
+namespace Src\Kernel\Controllers;
 
-use Src\View;
-use Src\Database\PdoFactory;
+use Src\Kernel\View;
+use Src\Kernel\Database\PdoFactory;
 use Src\Modules\Auth\Services\AuthService;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Src\Modules\Usuario\Repositories\UsuarioRepository;

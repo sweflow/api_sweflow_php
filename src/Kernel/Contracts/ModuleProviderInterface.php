@@ -1,8 +1,8 @@
 <?php
 
-namespace Src\Contracts;
+namespace Src\Kernel\Contracts;
 
-use Src\Http\Response\Response;
+use Src\Kernel\Http\Response\Response;
 
 interface ModuleProviderInterface
 {
