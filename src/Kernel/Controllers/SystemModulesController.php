@@ -182,10 +182,6 @@ class SystemModulesController
         }
 
         // Tenta remover o namespace do psr-4
-        // Assume namespace padrão ou tenta adivinhar. 
-        // Como não temos o path do módulo garantido (pode já ter sido apagado ou vamos apagar),
-        // vamos procurar por namespaces que apontem para src/Modules/$moduleName
-        
         $changed = false;
         if (isset($json['autoload']['psr-4'])) {
             foreach ($json['autoload']['psr-4'] as $ns => $path) {
@@ -197,10 +193,56 @@ class SystemModulesController
                 }
             }
         }
+        
+        // Remove também do require, caso tenha sido adicionado lá (fallback antigo ou manual)
+        // O nome do pacote geralmente é sweflow/module-$moduleName (lowercase)
+        $packageName = 'sweflow/module-' . strtolower($moduleName);
+        if (isset($json['require'][$packageName])) {
+            unset($json['require'][$packageName]);
+            $changed = true;
+        }
 
         if ($changed) {
             file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             exec('composer dump-autoload');
+        }
+        
+        // Limpa Capabilities Registry se o módulo estava lá
+        // Isso resolve o problema de "Provider Active" mesmo após desinstalação
+        $this->removeModuleFromCapabilities($moduleName);
+    }
+    
+    private function removeModuleFromCapabilities(string $moduleName): void
+    {
+        $storageDir = dirname(__DIR__, 3) . '/storage';
+        $registryFile = $storageDir . '/capabilities_registry.json';
+        
+        if (!file_exists($registryFile)) {
+            return;
+        }
+        
+        $json = @file_get_contents($registryFile);
+        $map = $json ? json_decode($json, true) : [];
+        $changed = false;
+        
+        // O plugin name salvo no registry pode variar (ex: 'sweflow-module-email', 'email', 'Email')
+        // Vamos varrer e remover qualquer valor que pareça ser este módulo
+        $candidates = [
+            $moduleName,
+            strtolower($moduleName),
+            'sweflow-module-' . strtolower($moduleName),
+            'module-' . strtolower($moduleName)
+        ];
+        
+        foreach ($map as $cap => $activePlugin) {
+            if (in_array($activePlugin, $candidates)) {
+                unset($map[$cap]);
+                $changed = true;
+            }
+        }
+        
+        if ($changed) {
+            file_put_contents($registryFile, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 
