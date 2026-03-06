@@ -217,13 +217,13 @@ Use quando seu módulo **PODE USAR** outro, mas funciona sem ele. Isso permite d
 ```php
 namespace Src\Modules\Financeiro\Services;
 
-use Src\Modules\Email\Services\EmailService;
+use Src\Kernel\Contracts\EmailSenderInterface;
 
 class FaturaService
 {
     public function __construct(
         // O Container tenta injetar. Se a classe não existir, injeta NULL.
-        private ?EmailService $emailService = null
+        private ?EmailSenderInterface $emailService = null
     ) {}
 
     public function emitir()

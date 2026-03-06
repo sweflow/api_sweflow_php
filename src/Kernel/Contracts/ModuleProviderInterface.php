@@ -20,4 +20,9 @@ interface ModuleProviderInterface
      * Optional health/status info for introspection endpoints.
      */
     public function describe(): array;
+
+    public function onInstall(): void;
+    public function onEnable(): void;
+    public function onDisable(): void;
+    public function onUninstall(): void;
 }

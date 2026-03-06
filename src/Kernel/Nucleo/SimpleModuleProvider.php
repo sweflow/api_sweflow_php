@@ -15,6 +15,7 @@ class SimpleModuleProvider implements ModuleProviderInterface
     private string $path;
     private array $bindings = [];
     private array $routes = [];
+    private array $metadata = [];
 
     public function __construct(string $name, string $path)
     {
@@ -31,6 +32,21 @@ class SimpleModuleProvider implements ModuleProviderInterface
             // Em vez de include direto que executa, vamos apenas salvar o caminho
             // O registro real acontece em registerRoutes passando o router
         }
+
+        // Carrega metadados (composer.json ou plugin.json)
+        $composerJson = $this->path . '/composer.json';
+        if (file_exists($composerJson)) {
+            $data = json_decode(file_get_contents($composerJson), true);
+            $this->metadata['description'] = $data['description'] ?? '';
+            $this->metadata['version'] = $data['version'] ?? '1.0.0';
+        }
+        
+        $pluginJson = $this->path . '/plugin.json';
+        if (file_exists($pluginJson)) {
+            $data = json_decode(file_get_contents($pluginJson), true);
+            if (!empty($data['description'])) $this->metadata['description'] = $data['description'];
+            if (!empty($data['version'])) $this->metadata['version'] = $data['version'];
+        }
     }
 
     public function getPath(): string
@@ -45,10 +61,27 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function registerRoutes(RouterInterface $router): void
     {
-        $webRoutes = $this->path . '/Routes/web.php';
-        if (file_exists($webRoutes)) {
+        // Tenta achar arquivo de rotas.
+        // Padrão 1: raiz/Routes/web.php (Módulos Nativos)
+        // Padrão 2: raiz/src/Routes/routes.php (Plugins Sweflow instalados)
+        
+        $candidates = [
+            $this->path . '/Routes/web.php',
+            $this->path . '/src/Routes/routes.php',
+            $this->path . '/src/Routes/web.php',
+        ];
+        
+        $routeFile = null;
+        foreach ($candidates as $f) {
+            if (file_exists($f)) {
+                $routeFile = $f;
+                break;
+            }
+        }
+
+        if ($routeFile) {
              $container = null; 
-             require $webRoutes;
+             require $routeFile;
 
              if ($router instanceof ModuleScopedRouter) {
                  $this->routes = $router->getRegisteredRoutes();
@@ -60,6 +93,8 @@ class SimpleModuleProvider implements ModuleProviderInterface
     {
         return [
             'name' => $this->name,
+            'description' => $this->metadata['description'] ?? '',
+            'version' => $this->metadata['version'] ?? '1.0.0',
             'routes' => array_map(function ($route) {
                 return [
                     'method' => strtoupper($route['method'] ?? 'GET'),
@@ -69,5 +104,25 @@ class SimpleModuleProvider implements ModuleProviderInterface
                 ];
             }, $this->routes),
         ];
+    }
+
+    public function onInstall(): void
+    {
+        // Default empty implementation for simple modules
+    }
+
+    public function onEnable(): void
+    {
+        // Default empty implementation for simple modules
+    }
+
+    public function onDisable(): void
+    {
+        // Default empty implementation for simple modules
+    }
+
+    public function onUninstall(): void
+    {
+        // Default empty implementation for simple modules
     }
 }

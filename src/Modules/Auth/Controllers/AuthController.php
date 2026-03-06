@@ -9,7 +9,7 @@ use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Src\Modules\Auth\Services\AuthService;
 use Src\Modules\Usuario\Repositories\UsuarioRepository;
-use Src\Modules\Email\Services\EmailService;
+use Src\Kernel\Contracts\EmailSenderInterface;
 
 class AuthController
 {
@@ -20,7 +20,7 @@ class AuthController
     private ?PDO $pdo = null;
 
     public function __construct(
-        private ?EmailService $emailService
+        private ?EmailSenderInterface $emailService
     ) {}
 
     public function login(): Response
@@ -653,7 +653,7 @@ class AuthController
         @file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
-    private function mailer(): ?EmailService
+    private function mailer(): ?EmailSenderInterface
     {
         return $this->emailService;
     }

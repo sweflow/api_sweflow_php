@@ -12,6 +12,8 @@ use Src\Modules\Usuario\Repositories\UsuarioRepository;
 use Src\Kernel\Nucleo\Application;
 use Src\Kernel\Nucleo\Container;
 use Src\Kernel\Nucleo\ModuleLoader;
+use Src\Kernel\Nucleo\PluginManager;
+use Src\Kernel\Support\DB\PluginMigrator;
 use Src\Kernel\Nucleo\Router;
 
 require __DIR__ . '/vendor/autoload.php';
@@ -54,6 +56,12 @@ $container->bind(ContainerInterface::class, $container, true);
 // Shared PDO for modules
 $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv(), true);
 
+$migrator = new PluginMigrator(PdoFactory::fromEnv(), __DIR__);
+$container->bind(PluginMigrator::class, $migrator, true);
+
+$manager = new PluginManager($migrator, __DIR__ . '/storage');
+$container->bind(PluginManager::class, $manager, true);
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -68,6 +76,46 @@ $app->boot();
 $router->get('/', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/index.php', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/dashboard', [DashboardController::class, 'index'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Marketplace page (dashboard UI)
+$router->get('/modules/marketplace', [\Src\Kernel\Controllers\MarketplacePageController::class, 'index'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Marketplace API (busca e instalação)
+$router->get('/api/system/marketplace', [\Src\Kernel\Controllers\SystemModulesController::class, 'search'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->post('/api/system/modules/install', [\Src\Kernel\Controllers\SystemModulesController::class, 'install'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->post('/api/system/modules/uninstall', [\Src\Kernel\Controllers\SystemModulesController::class, 'uninstall'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Modules Management API (Dashboard toggles)
+$router->get('/api/system/modules', [\Src\Kernel\Controllers\StatusController::class, 'modules'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->post('/api/system/modules/toggle', [\Src\Kernel\Controllers\StatusController::class, 'toggle'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Capabilities API
+$router->get('/api/capabilities', [\Src\Kernel\Controllers\CapabilitiesController::class, 'index'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->post('/api/capabilities/provider', [\Src\Kernel\Controllers\CapabilitiesController::class, 'set'], [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);

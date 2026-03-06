@@ -5,7 +5,7 @@ namespace Src\Modules\Usuario\Controllers;
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use Src\Kernel\Http\Response\Response;
-use Src\Modules\Email\Services\EmailService;
+use Src\Kernel\Contracts\EmailSenderInterface;
 use Src\Kernel\Utils\ImageProcessor;
 use DomainException;
 use Throwable;
@@ -15,7 +15,7 @@ class UsuarioController
 {
     public function __construct(
         private UsuarioServiceInterface $service,
-        private ?EmailService $emailService
+        private ?EmailSenderInterface $emailService
     ) {}
     
     /**
@@ -830,7 +830,7 @@ class UsuarioController
         return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
     }
 
-    private function mailer(): ?EmailService
+    private function mailer(): ?EmailSenderInterface
     {
         return $this->emailService;
     }

@@ -1,15 +1,12 @@
 <?php
-
-namespace Src\Modules\Email\Services;
+namespace SweflowModules\Email\Services;
 
 use PHPMailer\PHPMailer\Exception as MailException;
 use PHPMailer\PHPMailer\PHPMailer;
+use Src\Kernel\Contracts\EmailSenderInterface;
 
-class EmailService
+class EmailService implements EmailSenderInterface
 {
-    /**
-     * @param array<int,array{email:string,name?:string}>|string $recipients
-     */
     public function sendCustom(array|string $recipients, string $subject, string $htmlBody, ?string $logoUrl = null): void
     {
         $normalized = $this->normalizeRecipients($recipients);
@@ -32,9 +29,6 @@ class EmailService
         $this->deliver($recipients, $subject, $body, $logoUrl);
     }
 
-    /**
-     * @param array<int,array{email:string,name:string}> $recipients
-     */
     private function deliver(array $recipients, string $subject, string $body, ?string $logoUrl = null): void
     {
         if (count($recipients) === 0) {
@@ -50,7 +44,7 @@ class EmailService
         $mail->Subject = $subject;
         $mail->isHTML(true);
 
-        if ($logoUrl) {
+        if (!empty($logoUrl)) {
             $cid = 'logo_' . md5($logoUrl);
             $logoAlt = 'Logo';
             $logoName = basename(parse_url($logoUrl, PHP_URL_PATH) ?: 'logo.png');
@@ -63,17 +57,17 @@ class EmailService
                         $mail->addStringEmbeddedImage($data, $cid, $logoName);
                         $embedded = true;
                     }
-                } else {
+                } elseif (file_exists($logoUrl)) {
                     $mail->addEmbeddedImage($logoUrl, $cid, $logoName);
                     $embedded = true;
                 }
             } catch (MailException $e) {
-                // fallback abaixo
             }
 
             if ($embedded) {
                 $body = "<div style='margin-bottom:16px'><img src='cid:{$cid}' alt='{$this->escape($logoAlt)}' style='max-height:64px;'></div>" . $body;
             } else {
+                // If it's a URL but we failed to embed (e.g. timeout), just link it
                 $body = "<div style='margin-bottom:16px'><img src='{$this->escapeAttr($logoUrl)}' alt='{$this->escape($logoAlt)}' style='max-height:64px;'></div>" . $body;
             }
         }
@@ -87,10 +81,6 @@ class EmailService
         }
     }
 
-    /**
-     * @param array<int,array{email:string,name?:string}>|string $recipients
-     * @return array<int,array{email:string,name:string}>
-     */
     private function normalizeRecipients(array|string $recipients): array
     {
         $list = [];
@@ -114,7 +104,6 @@ class EmailService
             }
         }
 
-        // dedup por email
         $unique = [];
         $seen = [];
         foreach ($list as $item) {
@@ -137,26 +126,25 @@ class EmailService
         $mail = new PHPMailer(true);
 
         $mail->isSMTP();
-        $mail->Host = $_ENV['MAILER_HOST'] ?? '';
-        $mail->Port = (int) ($_ENV['MAILER_PORT'] ?? 587);
+        $mail->Host = $_ENV['EMAIL_HOST'] ?? $_ENV['MAILER_HOST'] ?? '';
+        $mail->Port = (int) ($_ENV['EMAIL_PORT'] ?? $_ENV['MAILER_PORT'] ?? 587);
         $mail->SMTPAuth = true;
-        $mail->Username = $_ENV['MAILER_USERNAME'] ?? '';
-        $mail->Password = $_ENV['MAILER_PASSWORD'] ?? '';
-        $mail->SMTPSecure = $this->resolveEncryption($_ENV['MAILER_ENCRYPTION'] ?? '') ?? PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Username = $_ENV['EMAIL_USERNAME'] ?? $_ENV['MAILER_USERNAME'] ?? '';
+        $mail->Password = $_ENV['EMAIL_PASSWORD'] ?? $_ENV['MAILER_PASSWORD'] ?? '';
+        $mail->SMTPSecure = $this->resolveEncryption($_ENV['EMAIL_ENCRYPTION'] ?? $_ENV['MAILER_ENCRYPTION'] ?? '') ?? PHPMailer::ENCRYPTION_STARTTLS;
         $mail->CharSet = 'UTF-8';
         $mail->Encoding = 'base64';
-        // Nunca envia debug para a resposta HTTP; se precisar, loga em error_log.
-        $debug = $this->boolEnv($_ENV['MAILER_DEBUG'] ?? 'false');
+        $debug = $this->boolEnv($_ENV['EMAIL_DEBUG'] ?? $_ENV['MAILER_DEBUG'] ?? 'false');
         $mail->SMTPDebug = $debug ? 2 : 0;
         $mail->Debugoutput = static function ($str, $level) {
             error_log('[MAILER][' . $level . '] ' . $str);
         };
 
-        $fromEmail = $_ENV['MAILER_FROM_EMAIL'] ?? 'no-reply@example.com';
-        $fromName = $_ENV['MAILER_FROM_NAME'] ?? 'API';
+        $fromEmail = $_ENV['EMAIL_FROM'] ?? $_ENV['MAILER_FROM_EMAIL'] ?? 'no-reply@example.com';
+        $fromName = $_ENV['EMAIL_FROM_NAME'] ?? $_ENV['MAILER_FROM_NAME'] ?? 'API';
         $mail->setFrom($fromEmail, $fromName);
 
-        $replyTo = $_ENV['MAILER_REPLY_TO'] ?? '';
+        $replyTo = $_ENV['EMAIL_REPLY_TO'] ?? $_ENV['MAILER_REPLY_TO'] ?? '';
         if ($replyTo) {
             $mail->addReplyTo($replyTo);
         }

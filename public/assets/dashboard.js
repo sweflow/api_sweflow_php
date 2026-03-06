@@ -150,9 +150,105 @@ window.onload = function () {
 
     function renderModules(modules) {
         if (!modulesList) return;
-        const enabled = modules.filter(m => m.enabled !== false);
-        modulesList.innerHTML = enabled.map(m => `<li><strong>${m.name ?? m.nome}</strong></li>`).join('');
+        
+        if (!modules || modules.length === 0) {
+            modulesList.innerHTML = '<div class="muted" style="grid-column: 1/-1; text-align: center; padding: 40px; color: #95a5a6;">Nenhum módulo encontrado.</div>';
+            return;
+        }
+
+        modulesList.innerHTML = modules.map(mod => {
+            const isEnabled = mod.enabled !== false; // API might return explicit false
+            const isProtected = mod.protected || ['Auth', 'Usuario'].includes(mod.name);
+            const statusClass = isEnabled ? 'active' : 'inactive';
+            const statusText = isEnabled ? 'Ativo' : 'Inativo';
+            
+            let cardStatusClass = isProtected ? 'status-system' : (isEnabled ? 'status-active' : 'status-inactive');
+            
+            // Determine icon based on module name
+            let iconClass = 'fa-cube';
+            const nameLower = (mod.name || mod.nome || '').toLowerCase();
+            if (nameLower.includes('auth')) iconClass = 'fa-shield-halved';
+            else if (nameLower.includes('user') || nameLower.includes('usuario')) iconClass = 'fa-users';
+            else if (nameLower.includes('email')) iconClass = 'fa-envelope';
+            else if (nameLower.includes('payment') || nameLower.includes('pagamento')) iconClass = 'fa-credit-card';
+            else if (nameLower.includes('report') || nameLower.includes('relatorio')) iconClass = 'fa-chart-pie';
+            else if (nameLower.includes('plugin')) iconClass = 'fa-plug';
+
+            let actionElement = '';
+            if (!isProtected) {
+                const btnClass = isEnabled ? 'toggle-on' : 'toggle-off';
+                const btnIcon = isEnabled ? 'fa-power-off' : 'fa-play';
+                const btnText = isEnabled ? 'Desativar' : 'Ativar';
+                // Note: toggleModule must be globally available or attached via event delegation. 
+                // Since we render HTML string, onclick needs global scope. We'll attach toggleModule to window.
+                actionElement = `<button class="module-btn ${btnClass}" onclick="window.toggleModule('${mod.name ?? mod.nome}')"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
+            } else {
+                actionElement = `<span style="font-size:0.85rem;color:#95a5a6;font-style:italic;"><i class="fa-solid fa-lock"></i> Protegido</span>`;
+            }
+
+            const routeCount = (mod.routes || []).length;
+            const routeText = routeCount === 1 ? 'rota' : 'rotas';
+
+            return `
+            <div class="module-card ${cardStatusClass}">
+                <div class="module-header">
+                    <div class="module-info">
+                        <div class="module-icon"><i class="fa-solid ${iconClass}"></i></div>
+                        <div class="module-meta">
+                            <h3 class="module-title">${mod.name ?? mod.nome}</h3>
+                            <span class="module-version">v${mod.version || '1.0.0'}</span>
+                        </div>
+                    </div>
+                    <span class="module-badge ${isProtected ? 'system' : statusClass}">${statusText}</span>
+                </div>
+                
+                <div class="module-description" title="${mod.description || ''}">
+                    ${mod.description || 'Sem descrição disponível para este módulo.'}
+                </div>
+                
+                <div class="module-stats">
+                    <div class="stat-item" title="Rotas registradas">
+                        <i class="fa-solid fa-route"></i> ${routeCount} ${routeText}
+                    </div>
+                    <div class="stat-item" title="Tipo de módulo">
+                            ${isProtected ? '<i class="fa-solid fa-lock"></i> Core' : '<i class="fa-solid fa-puzzle-piece"></i> Extensão'}
+                    </div>
+                </div>
+
+                <div class="module-footer">
+                    ${actionElement}
+                </div>
+            </div>
+            `;
+        }).join('');
     }
+
+    // Expose toggleModule globally
+    window.toggleModule = async function(name) {
+        if (protectedModules.includes(name)) {
+            showProtectedModal(name);
+            return;
+        }
+        
+        // Optimistic UI update could go here, but for now we rely on re-fetch
+        try {
+            // Check current state from DOM or cache if needed, but endpoint handles toggle
+            const res = await fetch('/api/modules/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ module: name }) // StatusController expects 'module', not 'name'
+            });
+            const data = await res.json();
+            if (data.enabled !== undefined) {
+                fetchMetrics(); // Refresh UI
+                fetchModulesState(); // Refresh toggles list
+            } else {
+                alert('Erro ao alterar status: ' + (data.error || 'Desconhecido'));
+            }
+        } catch (e) {
+            alert('Erro de conexão.');
+        }
+    };
 
     function renderRoutes(modules) {
         if (!routesList) return;
@@ -168,6 +264,61 @@ window.onload = function () {
             html += `</tbody></table>`;
         });
         routesList.innerHTML = html;
+    }
+
+    async function loadCapabilities() {
+        const el = document.getElementById('capabilities-list');
+        if (!el) return;
+        el.textContent = 'Carregando...';
+        try {
+            const res = await fetch('/api/capabilities');
+            const data = await res.json();
+            const items = data.items || [];
+            if (items.length === 0) {
+                el.innerHTML = '<div class="muted">Nenhuma capability detectada.</div>';
+                return;
+            }
+            const rows = items.map(it => {
+                const options = (it.providers || []).map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
+                return `
+                <div class="toggle-card">
+                    <div class="toggle-info">
+                        <span class="toggle-name">${it.capability}</span>
+                        <span class="toggle-tag">Ativo: ${it.active ?? 'nenhum'}</span>
+                    </div>
+                    <div>
+                        <label class="pill">Provider</label>
+                        <select data-capability="${it.capability}" class="capability-select">${options}</select>
+                    </div>
+                </div>`;
+            }).join('');
+            el.innerHTML = rows;
+            el.querySelectorAll('select.capability-select').forEach(sel => {
+                sel.addEventListener('change', async () => {
+                    const cap = sel.getAttribute('data-capability');
+                    const plugin = sel.value;
+                    sel.disabled = true;
+                    try {
+                        const res = await fetch('/api/capabilities/provider', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ capability: cap, plugin })
+                        });
+                        if (!res.ok) {
+                            alert('Falha ao definir provider.');
+                        } else {
+                            await loadCapabilities();
+                        }
+                    } catch (e) {
+                        alert('Erro ao definir provider.');
+                    } finally {
+                        sel.disabled = false;
+                    }
+                });
+            });
+        } catch (e) {
+            el.innerHTML = '<div class="muted">Erro ao carregar capabilities.</div>';
+        }
     }
 
     function openEmailModal() {
@@ -736,6 +887,7 @@ window.onload = function () {
 
 
     fetchMetrics();
+    loadCapabilities();
     fetchModulesState();
     fetchAuthPolicy();
     setInterval(() => {

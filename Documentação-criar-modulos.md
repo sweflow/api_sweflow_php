@@ -132,14 +132,14 @@ Use quando seu módulo **PODE USAR** o outro, mas funciona perfeitamente sem ele
 **O Segredo:** Adicione `?` (nullable) e defina `= null`.
 
 ```php
-use Src\Modules\Email\Services\EmailService;
+use Src\Kernel\Contracts\EmailSenderInterface;
 
 class FaturaService
 {
     public function __construct(
         // O Container tenta encontrar o EmailService.
         // Se o módulo Email não existir (pasta deletada), ele injeta NULL suavemente.
-        private ?EmailService $emailService = null
+        private ?EmailSenderInterface $emailService = null
     ) {}
 
     public function processar()

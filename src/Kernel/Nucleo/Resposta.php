@@ -1,5 +1,5 @@
 <?php
-namespace Src\Nucleo;
+namespace Src\Kernel\Nucleo;
 
 class Resposta
 {
