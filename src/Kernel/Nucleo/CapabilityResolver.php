@@ -33,17 +33,38 @@ class CapabilityResolver
     {
         $projectRoot = dirname(__DIR__, 3);
         $providers = [];
-        foreach ([$projectRoot . DIRECTORY_SEPARATOR . 'plugins', $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow'] as $root) {
+        $searchPaths = [
+            $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules',
+            $projectRoot . DIRECTORY_SEPARATOR . 'plugins',
+            $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow'
+        ];
+
+        foreach ($searchPaths as $root) {
             if (!is_dir($root)) continue;
             foreach (scandir($root) as $dir) {
                 if ($dir === '.' || $dir === '..') continue;
                 $path = $root . DIRECTORY_SEPARATOR . $dir;
                 if (!is_dir($path)) continue;
+                
+                // Support plugin.json (legacy/standard)
+                $provides = [];
                 $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
-                if (!is_file($pluginJson)) continue;
-                $pj = json_decode(@file_get_contents($pluginJson), true) ?: [];
-                $provides = $pj['provides'] ?? [];
+                
+                if (is_file($pluginJson)) {
+                    $pj = json_decode(@file_get_contents($pluginJson), true) ?: [];
+                    $provides = $pj['provides'] ?? [];
+                } else {
+                    // Support composer.json (modern modules)
+                    $composerJson = $path . DIRECTORY_SEPARATOR . 'composer.json';
+                    if (is_file($composerJson)) {
+                        $cj = json_decode(@file_get_contents($composerJson), true) ?: [];
+                        $provides = $cj['extra']['sweflow']['provides'] ?? [];
+                    }
+                }
+
                 if (is_array($provides) && in_array($capability, $provides, true)) {
+                    // Use folder name as provider ID, or 'name' from json if preferred?
+                    // Existing code uses basename($path). Let's stick to that for consistency.
                     $providers[] = basename($path);
                 }
             }
@@ -51,6 +72,72 @@ class CapabilityResolver
         $providers = array_values(array_unique($providers));
         sort($providers, SORT_NATURAL | SORT_FLAG_CASE);
         return $providers;
+    }
+
+    public function getAllCapabilities(): array
+    {
+        $projectRoot = dirname(__DIR__, 3);
+        $capabilities = [];
+        $searchPaths = [
+            $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules',
+            $projectRoot . DIRECTORY_SEPARATOR . 'plugins',
+            $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow'
+        ];
+
+        foreach ($searchPaths as $root) {
+            if (!is_dir($root)) continue;
+            foreach (scandir($root) as $dir) {
+                if ($dir === '.' || $dir === '..') continue;
+                $path = $root . DIRECTORY_SEPARATOR . $dir;
+                if (!is_dir($path)) continue;
+
+                $provides = [];
+                $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
+                if (is_file($pluginJson)) {
+                    $pj = json_decode(@file_get_contents($pluginJson), true) ?: [];
+                    $provides = $pj['provides'] ?? [];
+                } else {
+                    $composerJson = $path . DIRECTORY_SEPARATOR . 'composer.json';
+                    if (is_file($composerJson)) {
+                        $cj = json_decode(@file_get_contents($composerJson), true) ?: [];
+                        $provides = $cj['extra']['sweflow']['provides'] ?? [];
+                    }
+                }
+
+                if (is_array($provides)) {
+                    foreach ($provides as $cap) {
+                        $capabilities[$cap] = true;
+                    }
+                }
+            }
+        }
+        return array_keys($capabilities);
+    }
+
+    public function validate(): void
+    {
+        $map = $this->read();
+        $changed = false;
+
+        foreach ($map as $cap => $provider) {
+            // Check if this provider actually provides this capability
+            $available = $this->listProviders($cap);
+            if (!in_array($provider, $available)) {
+                // Autocorrect: Remove invalid provider
+                unset($map[$cap]);
+                $changed = true;
+                
+                // Optional: Auto-select if there is exactly one alternative?
+                // For now, just removing is safer and meets "autocorreção" requirement (fixing invalid state).
+                if (count($available) === 1) {
+                    $map[$cap] = $available[0];
+                }
+            }
+        }
+
+        if ($changed) {
+            $this->write($map);
+        }
     }
 
     private function read(): array
