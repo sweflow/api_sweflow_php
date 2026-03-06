@@ -10,8 +10,7 @@
     "autoload": {
         "psr-4": {
             "Src\\": "src/",
-            "Src\\Modules\\": "src/Modules/",
-            "SweflowModules\\Email\\": "src/Modules/Email/src/"
+            "Src\\Modules\\": "src/Modules/"
         }
     },
     "repositories": [
