@@ -13,39 +13,48 @@ class SystemModulesController
 
     public function search(Request $request): Response
     {
-        $query = $request->query['q'] ?? 'sweflow/module';
+        $query = $request->query['q'] ?? '';
+        $page = (int)($request->query['page'] ?? 1);
+        $perPage = (int)($request->query['limit'] ?? 12);
         
-        // 1. Busca no Packagist
-        $url = 'https://packagist.org/search.json?q=' . urlencode($query) . '&type=library'; 
+        if ($page < 1) $page = 1;
+        if ($perPage < 1) $perPage = 12;
+
+        // 1. Busca plugins locais
+        $localPlugins = $this->scanLocalPlugins($query);
+
+        // 2. Busca no Packagist
+        $remotePlugins = [];
+        // Se a busca estiver vazia, talvez não queiramos buscar TUDO no packagist, 
+        // mas vamos manter o padrão 'sweflow/module' se vazio.
+        $searchQuery = empty($query) ? 'sweflow/module' : $query;
+        $url = 'https://packagist.org/search.json?q=' . urlencode($searchQuery) . '&type=library'; 
         
         try {
             $context = stream_context_create([
                 'http' => ['timeout' => 5]
             ]);
             $json = @file_get_contents($url, false, $context);
-            $data = $json ? json_decode($json, true) : [];
+            $remoteData = $json ? json_decode($json, true) : [];
+            $remotePlugins = $remoteData['results'] ?? [];
         } catch (\Throwable $e) {
-            $data = ['results' => []];
+            // Silently fail remote search
         }
 
-        // 2. Busca plugins locais
-        $localPlugins = $this->scanLocalPlugins($query);
-        $remoteNames = array_column($data['results'] ?? [], 'name');
+        // 3. Merge: Prioriza locais, adiciona remotos se não duplicados
+        $localNames = array_column($localPlugins, 'name');
+        $merged = $localPlugins;
         
-        foreach ($localPlugins as $local) {
-            if (!in_array($local['name'], $remoteNames)) {
-                $data['results'][] = $local;
+        foreach ($remotePlugins as $remote) {
+            if (!in_array($remote['name'], $localNames)) {
+                $merged[] = $remote;
             }
         }
 
-        // 3. Verifica status de instalação para cada resultado
-        $installed = $this->pluginManager->read(); // Precisa ser publico ou usar getter
-        
-        foreach ($data['results'] as &$pkg) {
-            // Normaliza nome para checar instalação (ex: sweflow/module-email -> email)
+        // 4. Status de Instalação
+        $installed = $this->pluginManager->read();
+        foreach ($merged as &$pkg) {
             $shortName = str_replace(['sweflow/module-', 'sweflow/', 'module-'], '', $pkg['name']);
-            
-            // Verifica se está no registro de plugins
             if (isset($installed[$shortName])) {
                 $pkg['installed'] = true;
                 $pkg['enabled'] = $installed[$shortName]['enabled'] ?? false;
@@ -53,8 +62,22 @@ class SystemModulesController
                 $pkg['installed'] = false;
             }
         }
+        unset($pkg); // quebra referencia
 
-        return (new Response())->json($data);
+        // 5. Paginação Manual (já que mergeamos fontes diferentes)
+        $total = count($merged);
+        $offset = ($page - 1) * $perPage;
+        $items = array_slice($merged, $offset, $perPage);
+
+        return (new Response())->json([
+            'results' => $items,
+            'pagination' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => ceil($total / $perPage)
+            ]
+        ]);
     }
 
     public function uninstall(Request $request): Response
