@@ -171,6 +171,10 @@ class UsuarioRepository extends UsuarioAbstractRepository
      */
     public function buscarPorTokenVerificacaoEmail(string $token): ?Usuario
     {
+        // Aceita qualquer token, mesmo se expirado (a lógica de expiração não está no SQL)
+        // Mas o token deve existir e não ser vazio
+        if (empty($token)) return null;
+        
         $sql = "SELECT * FROM {$this->tabela} WHERE token_verificacao_email = :token LIMIT 1";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':token', $token);
@@ -179,15 +183,29 @@ class UsuarioRepository extends UsuarioAbstractRepository
         if ($row) {
             return $this->mapearParaEntity($row);
         }
+        
+        // Se não achou pelo token exato, pode ser que o usuário já tenha sido verificado e o token limpo.
+        // Nesse caso, não temos como saber QUAL usuário era pelo token (pois ele foi apagado).
+        // Então retornar null é correto. O controller vai dizer "Token inválido".
+        // Isso é o comportamento esperado se o token já foi usado.
+        
         return null;
     }
 
     /**
-     * Marca o e-mail do usuário como verificado
+     * Marca o e-mail do usuário como verificado ou não verificado
      */
-    public function marcarEmailComoVerificado(string $uuid): void
+    public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void
     {
-        $sql = "UPDATE {$this->tabela} SET verificado_email = TRUE, token_verificacao_email = NULL WHERE {$this->colunaId} = :uuid";
+        $sql = "UPDATE {$this->tabela} SET verificado_email = :verificado WHERE {$this->colunaId} = :uuid";
+        // Se estiver verificando, limpamos o token. Se desverificando, talvez devessemos manter ou gerar novo?
+        // Por simplicidade, vamos limpar o token apenas se verificado=true.
+        if ($verificado) {
+             $sql = "UPDATE {$this->tabela} SET verificado_email = TRUE, token_verificacao_email = NULL WHERE {$this->colunaId} = :uuid";
+        } else {
+             $sql = "UPDATE {$this->tabela} SET verificado_email = FALSE WHERE {$this->colunaId} = :uuid";
+        }
+        
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':uuid', $uuid);
         $stmt->execute();

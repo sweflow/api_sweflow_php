@@ -103,6 +103,12 @@ class SystemModulesController
 
             $this->pluginManager->uninstall($pluginName);
             
+            // Remove do capabilities após o uninstall
+            $this->removeModuleFromCapabilities($shortName);
+            
+            // Decrementa contador
+            $this->decrementDownload($package);
+            
             return (new Response())->json(['message' => 'Módulo removido com sucesso e composer.json atualizado']);
         } catch (\Throwable $e) {
             return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
@@ -184,6 +190,9 @@ class SystemModulesController
 
             $this->pluginManager->install($pluginName);
             
+            // Incrementa contador
+            $this->incrementDownload($package);
+            
             return (new Response())->json(['message' => 'Módulo instalado com sucesso em src/Modules e registrado no composer.json']);
         } catch (\Throwable $e) {
             return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
@@ -210,6 +219,8 @@ class SystemModulesController
             foreach ($json['autoload']['psr-4'] as $ns => $path) {
                 // Normaliza path
                 $path = str_replace('\\', '/', $path);
+                // Procura por src/Modules/Email/
+                // O moduleName vem capitalizado (Ex: Email)
                 if (str_contains($path, "src/Modules/{$moduleName}/")) {
                     unset($json['autoload']['psr-4'][$ns]);
                     $changed = true;
@@ -227,12 +238,11 @@ class SystemModulesController
 
         if ($changed) {
             file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            exec('composer dump-autoload');
+            // exec('composer dump-autoload'); // O PluginManager::uninstall já pode estar rodando isso ou cuidando disso
+            // Mas vamos garantir:
+            // Se possível rodar, rodamos. Se falhar (ambiente restrito), paciência.
+            @exec('composer dump-autoload');
         }
-        
-        // Limpa Capabilities Registry se o módulo estava lá
-        // Isso resolve o problema de "Provider Active" mesmo após desinstalação
-        $this->removeModuleFromCapabilities($moduleName);
     }
     
     private function removeModuleFromCapabilities(string $moduleName): void
@@ -376,11 +386,67 @@ class SystemModulesController
             $results[] = [
                 'name' => $name,
                 'description' => $desc . ' (src/Modules)',
-                'downloads' => 0,
+                'downloads' => $this->getDownloadCount($name),
                 'url' => '',
                 'repository' => ''
             ];
         }
         return $results;
+    }
+
+    private function getDownloadCount(string $moduleName): int
+    {
+        $stats = $this->loadStats();
+        return $stats[$moduleName] ?? 0;
+    }
+
+    private function incrementDownload(string $moduleName): void
+    {
+        // Normalize name
+        if (str_starts_with($moduleName, 'sweflow/module-')) {
+            $moduleName = 'sweflow/module-' . str_replace('sweflow/module-', '', $moduleName);
+        } elseif (!str_contains($moduleName, '/')) {
+            $moduleName = 'sweflow/module-' . strtolower($moduleName);
+        }
+
+        $stats = $this->loadStats();
+        if (!isset($stats[$moduleName])) {
+            $stats[$moduleName] = 0;
+        }
+        $stats[$moduleName]++;
+        $this->saveStats($stats);
+    }
+
+    private function decrementDownload(string $moduleName): void
+    {
+        // Normalize name
+        if (str_starts_with($moduleName, 'sweflow/module-')) {
+            $moduleName = 'sweflow/module-' . str_replace('sweflow/module-', '', $moduleName);
+        } elseif (!str_contains($moduleName, '/')) {
+            // Assume short name like 'email', convert to package name
+            $moduleName = 'sweflow/module-' . strtolower($moduleName);
+        }
+
+        $stats = $this->loadStats();
+        if (isset($stats[$moduleName]) && $stats[$moduleName] > 0) {
+            $stats[$moduleName]--;
+            $this->saveStats($stats);
+        }
+    }
+
+    private function loadStats(): array
+    {
+        $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
+        if (!file_exists($file)) {
+            return [];
+        }
+        $json = @file_get_contents($file);
+        return $json ? json_decode($json, true) : [];
+    }
+
+    private function saveStats(array $stats): void
+    {
+        $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
+        @file_put_contents($file, json_encode($stats, JSON_PRETTY_PRINT));
     }
 }

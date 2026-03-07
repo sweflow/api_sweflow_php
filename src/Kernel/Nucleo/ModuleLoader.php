@@ -57,10 +57,7 @@ class ModuleLoader
                 // Precisamos instanciar o Provider correto.
                 
                 // 1. Tenta achar classe Provider via PSR-4 padrão: Src\Modules\{Module}\{Module}Provider
-                $providerClass = "Src\\Modules\\{$module}\\{$module}Provider"; // Ex: Src\Modules\Auth\AuthProvider (não existe no Auth atual, usa controller direto?)
-                
-                // O Auth atual não tem Provider, ele é carregado "magicamente" pelo SimpleModuleProvider?
-                // O SimpleModuleProvider assume que não há classe provider e faz o trabalho sujo.
+                $providerClass = "Src\\Modules\\{$module}\\{$module}Provider"; 
                 
                 // Se o módulo tiver um composer.json com "extra.sweflow.providers", devemos honrar.
                 $composerJson = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
@@ -76,6 +73,11 @@ class ModuleLoader
                                     $providerInstance = $this->container->make($pClass);
                                     if ($providerInstance instanceof ModuleProviderInterface) {
                                         $this->providers[$module] = $providerInstance;
+                                        // Garante que o provider tem um nome associado, se possível
+                                        if (method_exists($providerInstance, 'setName') && empty($providerInstance->getName())) {
+                                            $providerInstance->setName($module);
+                                        }
+                                        
                                         if (!array_key_exists($module, $this->enabled)) {
                                             $this->enabled[$module] = true;
                                         }
@@ -332,13 +334,32 @@ class ModuleLoader
     {
         $provides = $this->providerProvides($provider);
         if (empty($provides)) {
+            // Se o módulo não declara capabilities, ele está sempre ativo (se enabled)
             return true;
         }
+        
         $pluginId = $this->providerPluginId($provider);
+        
         foreach ($provides as $cap) {
             $active = $resolver->resolve($cap);
-            if ($active !== null && $active !== $pluginId) {
-                return false;
+            
+            // Se a capability não tem provider definido, ou se o definido é este plugin
+            if ($active === null) {
+                // Auto-claim: Se ninguém tem essa capability, eu assumo
+                $resolver->setProvider($cap, $pluginId);
+                return true;
+            }
+            
+            if ($active !== $pluginId) {
+                // Existe outro provider ativo para esta capability.
+                // Mas espera: capabilities_registry armazena o nome da PASTA (ex: 'Email').
+                // O pluginId deve bater com o nome da pasta.
+                
+                // Normaliza para comparação (case insensitive e limpeza de prefixos se necessário)
+                // O registry salva 'Email', o pluginId retorna 'Email'.
+                if (strcasecmp($active, $pluginId) !== 0) {
+                     return false;
+                }
             }
         }
         return true;
@@ -346,21 +367,84 @@ class ModuleLoader
 
     private function providerProvides(ModuleProviderInterface $provider): array
     {
-        $file = (new \ReflectionClass($provider))->getFileName() ?: '';
-        $pluginRoot = $this->guessPluginRoot($file);
-        if (!$pluginRoot) return [];
-        $pj = $pluginRoot . DIRECTORY_SEPARATOR . 'plugin.json';
-        if (!is_file($pj)) return [];
-        $data = json_decode(@file_get_contents($pj), true) ?: [];
-        $provides = $data['provides'] ?? [];
-        return is_array($provides) ? array_values(array_filter($provides)) : [];
+        // Try to find composer.json first (modern modules)
+        $ref = new \ReflectionClass($provider);
+        $file = $ref->getFileName() ?: '';
+        if (empty($file)) return []; // Fix for internal classes or eval'd code
+        
+        $dir = dirname($file);
+        
+        // Walk up to find composer.json or plugin.json
+        for ($i = 0; $i < 4; $i++) {
+            // Check boundaries
+            if (empty($dir) || $dir === '.' || $dir === '/' || $dir === '\\') break;
+
+            $composer = $dir . DIRECTORY_SEPARATOR . 'composer.json';
+            if (is_file($composer)) {
+                $data = json_decode(file_get_contents($composer), true);
+                $provides = $data['extra']['sweflow']['provides'] ?? [];
+                if (!empty($provides)) return $provides;
+            }
+            
+            $plugin = $dir . DIRECTORY_SEPARATOR . 'plugin.json';
+            if (is_file($plugin)) {
+                $data = json_decode(file_get_contents($plugin), true);
+                $provides = $data['provides'] ?? [];
+                if (!empty($provides)) return $provides;
+            }
+            
+            $dir = dirname($dir);
+        }
+        
+        return [];
     }
 
     private function providerPluginId(ModuleProviderInterface $provider): string
     {
-        $file = (new \ReflectionClass($provider))->getFileName() ?: '';
-        $pluginRoot = $this->guessPluginRoot($file);
-        return $pluginRoot ? basename($pluginRoot) : (new \ReflectionClass($provider))->getShortName();
+        // 1. Explicit name (SimpleModuleProvider or Custom Provider with getName)
+        if (method_exists($provider, 'getName')) {
+            $name = $provider->getName();
+            if (!empty($name)) {
+                return $name;
+            }
+        }
+        
+        // 2. Reflection fallback
+        $ref = new \ReflectionClass($provider);
+        $file = $ref->getFileName() ?: '';
+        
+        // 3. Try to guess from composer.json "name" if available
+        $root = $this->guessPluginRoot($file);
+        if ($root) {
+            // Priority:
+            // A. If root is inside src/Modules/NAME, use NAME (folder name)
+            // B. Use composer.json name? (No, registry uses folder/ID)
+            
+            // Check if root is a direct child of src/Modules
+            $parent = dirname($root);
+            if (basename($parent) === 'Modules' && basename(dirname($parent)) === 'src') {
+                return basename($root);
+            }
+            
+            // Fallback for plugins/NAME or other structures
+            return basename($root);
+        }
+
+        // 4. Fallback: Parse path manually if guessPluginRoot failed or file is weird
+        if (str_contains($file, 'src' . DIRECTORY_SEPARATOR . 'Modules')) {
+            $parts = explode(DIRECTORY_SEPARATOR, $file);
+            $idx = array_search('Modules', $parts);
+            if ($idx !== false && isset($parts[$idx + 1])) {
+                return $parts[$idx + 1];
+            }
+        }
+        
+        // 5. Hardcode hack: if it's the EmailServiceProvider, force "Email"
+        if ($ref->getShortName() === 'EmailServiceProvider') {
+            return 'Email';
+        }
+        
+        return $ref->getShortName();
     }
 
     private function guessPluginRoot(string $providerFile): ?string

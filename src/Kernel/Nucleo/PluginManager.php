@@ -178,7 +178,13 @@ class PluginManager
         $projectRoot = dirname(__DIR__, 3);
         
         // Normalize name to handle "email", "module-email", "sweflow-module-email", "sweflow/module-email"
-        $simpleName = str_replace(['sweflow-module-', 'module-', 'sweflow/'], '', $pluginName);
+        // Also handle "sweflow/module-email" -> "email"
+        $simpleName = $pluginName;
+        if (str_contains($simpleName, '/')) {
+            $parts = explode('/', $simpleName);
+            $simpleName = end($parts); // "module-email"
+        }
+        $simpleName = str_replace(['sweflow-module-', 'module-'], '', $simpleName); // "email"
         
         // Capitalize for Modules (Email)
         $moduleName = ucfirst($simpleName);

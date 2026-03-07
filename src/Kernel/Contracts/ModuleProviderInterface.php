@@ -21,6 +21,16 @@ interface ModuleProviderInterface
      */
     public function describe(): array;
 
+    /**
+     * Get the module name.
+     */
+    public function getName(): string;
+
+    /**
+     * Set the module name.
+     */
+    public function setName(string $name): void;
+
     public function onInstall(): void;
     public function onEnable(): void;
     public function onDisable(): void;

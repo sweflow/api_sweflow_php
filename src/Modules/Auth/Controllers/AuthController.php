@@ -135,7 +135,15 @@ class AuthController
             if (!$this->emailModuleEnabled()) {
                 return Response::json([
                     'status' => 'error',
-                    'message' => 'Módulo de E-mail desabilitado. Habilite para enviar recuperação de senha.'
+                    'message' => 'Módulo de E-mail não está ativo. Impossível enviar recuperação de senha.'
+                ], 503);
+            }
+            
+            // Verifica se o serviço de email foi injetado corretamente (extra check)
+            if ($this->emailService === null) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'Serviço de e-mail não disponível no sistema.'
                 ], 503);
             }
 
@@ -353,15 +361,32 @@ class AuthController
 
     public function verifyEmail(): Response
     {
+        // Tenta pegar o token da URL (padrão) ou do corpo da requisição (caso alguém envie JSON)
         $token = $_GET['token'] ?? '';
+        
         if (trim($token) === '') {
-            return Response::json(['status' => 'error', 'message' => 'Token não informado.'], 400);
+            $body = $this->corpoDaRequisicao();
+            $token = $body['token'] ?? '';
         }
+
+        if (trim($token) === '') {
+            return Response::json([
+                'status' => 'error', 
+                'message' => 'Token de verificação não informado. Informe-o via URL (?token=...) ou no corpo da requisição.'
+            ], 400);
+        }
+
         try {
             $usuario = $this->repositorio()->buscarPorTokenVerificacaoEmail($token);
             if (!$usuario) {
                 return Response::json(['status' => 'error', 'message' => 'Token inválido ou expirado.'], 400);
             }
+            
+            // Verifica se já foi verificado anteriormente
+            if ($usuario->isEmailVerificado()) {
+                return Response::json(['status' => 'success', 'message' => 'O usuário já se encontra com o e-mail verificado.']);
+            }
+
             $this->repositorio()->marcarEmailComoVerificado($usuario->getUuid()->toString());
             return Response::json(['status' => 'success', 'message' => 'E-mail verificado com sucesso.']);
         } catch (DomainException $e) {
@@ -378,17 +403,104 @@ class AuthController
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $body = $this->corpoDaRequisicao();
                 $enabled = filter_var($body['require_verification'] ?? $body['enabled'] ?? $body['value'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                
+                // Prioridade para ação de verificar usuário se os dados estiverem presentes
+                if (!empty($body['user_id']) || !empty($body['email'])) {
+                    $targetUser = null;
+                    if (!empty($body['user_id'])) {
+                        $targetUser = $this->repositorio()->buscarPorUuid($body['user_id']);
+                    } elseif (!empty($body['email'])) {
+                        $targetUser = $this->repositorio()->buscarPorEmail($body['email']);
+                    }
+                    
+                    if ($targetUser) {
+                        // Verifica se o campo 'verified' foi passado explicitamente.
+                        // Se não for passado, assume TRUE.
+                        // Se for passado "false" (string) ou false (bool), filter_var deve tratar.
+                        // O problema pode ser que filter_var com FILTER_VALIDATE_BOOLEAN retorna false se a chave não existir?
+                        // Não, ?? true garante true.
+                        // Mas se o usuário enviar "require_verification": false, ele quer DESATIVAR a verificação global?
+                        // Ou quer DESATIVAR o status do usuário?
+                        // O usuário está enviando: { "email": "...", "require_verification": false }
+                        // "require_verification" é o nome do campo da POLICY global.
+                        // Para o usuário, eu usei o campo "verified" no código anterior: $body['verified']
+                        
+                        // Ah! O usuário está enviando "require_verification": false no JSON, mas o código espera "verified".
+                        // Vamos suportar "require_verification" também para alterar o status do usuário se user_id/email estiver presente.
+                        
+                        $verifiedParam = $body['verified'] ?? $body['require_verification'] ?? true;
+                        $setVerified = filter_var($verifiedParam, FILTER_VALIDATE_BOOLEAN);
+                        
+                        if ($setVerified) {
+                             if ($targetUser->isEmailVerificado()) {
+                                 return Response::json(['status' => 'success', 'message' => 'O usuário já se encontra com o e-mail verificado.']);
+                             }
+                             $this->repositorio()->marcarEmailComoVerificado($targetUser->getUuid()->toString(), true);
+                             return Response::json(['status' => 'success', 'message' => 'Usuário marcado como verificado.']);
+                        } else {
+                             // Se a intenção é desmarcar (colocar como não verificado)
+                             if (!$targetUser->isEmailVerificado()) {
+                                 return Response::json(['status' => 'success', 'message' => 'O usuário já se encontra com o e-mail não verificado.']);
+                             }
+                             
+                             $this->repositorio()->marcarEmailComoVerificado($targetUser->getUuid()->toString(), false);
+                             return Response::json(['status' => 'success', 'message' => 'Usuário marcado como não verificado.']);
+                        }
+                    } else {
+                        return Response::json(['error' => 'Usuário alvo não encontrado.'], 404);
+                    }
+                }
+
+                // Apenas altera a política global se não for uma ação de usuário específico
+                $current = $this->carregarPoliticaVerificacaoEmail();
+                if ($current === $enabled) {
+                    return Response::json(['require_verification' => $enabled, 'message' => 'Nenhuma alteração realizada.']);
+                }
+
                 $this->salvarPoliticaVerificacaoEmail($enabled);
                 return Response::json(['require_verification' => $enabled]);
             }
 
             $estado = $this->carregarPoliticaVerificacaoEmail();
-            return Response::json(['require_verification' => $estado]);
+            
+            // Tenta identificar o usuário logado para retornar o status DELE também
+            $response = ['require_verification' => $estado];
+            
+            // O AuthHybridMiddleware já deve ter colocado o usuário no request se autenticado com sucesso
+            // Mas o controller atual não recebe o Request injetado no método.
+            // Vamos tentar pegar o token novamente.
+            
+            $token = $this->extrairTokenDeAutorizacao() ?? $this->tokenDoCookie();
+            if ($token) {
+                try {
+                    // Cuidado: AuthHybridMiddleware valida user/admin tokens.
+                    // Se for um token de API (gerar_jwt.php), decodificarToken falhará se usar segredo diferente?
+                    // Não, AuthService usa JWT_SECRET. gerar_jwt usa JWT_API_SECRET.
+                    // Se o usuário estiver usando token de API, ele não conseguirá decodificar aqui se usarmos AuthService (que usa JWT_SECRET).
+                    
+                    // Se o middleware AuthHybridMiddleware passou, significa que é um token de usuário válido (assinado com JWT_SECRET).
+                    // Se fosse token de API, AuthHybridMiddleware teria rejeitado (exceto se a rota estiver pública ou com outro middleware).
+                    // A rota GET está com $protected (AuthHybridMiddleware).
+                    // Então DEVE ser um token de usuário.
+                    
+                    $payload = $this->servico()->decodificarToken($token);
+                    $usuario = $this->repositorio()->buscarPorUuid($payload->sub ?? '');
+                    if ($usuario) {
+                        $isVerified = $usuario->isEmailVerificado();
+                        // Modificação solicitada: retornar apenas verificado_email
+                        return Response::json(['verificado_email' => $isVerified]);
+                    }
+                } catch (\Throwable $e) {
+                    // Ignora erro de token, retorna apenas a política
+                }
+            }
+            
+            return Response::json($response);
         } catch (DomainException $e) {
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
             return Response::json(['error' => $e->getMessage()], $status);
         } catch (\Throwable $e) {
-            return Response::json(['error' => 'Falha ao processar política de verificação de e-mail'], 500);
+            return Response::json(['error' => 'Falha ao processar solicitação.'], 500);
         }
     }
 
@@ -660,22 +772,32 @@ class AuthController
 
     private function emailModuleEnabled(): bool
     {
-        $path = dirname(__DIR__, 4) . '/storage/modules_state.json';
-        if (!is_file($path)) {
-            return true; // padrão: habilitado
+        // 1. Check if Email module is installed and enabled via ModuleLoader/PluginManager state
+        $storage = dirname(__DIR__, 4) . '/storage';
+        
+        // Use capabilities registry to check if 'email-sender' has an active provider
+        $capFile = $storage . '/capabilities_registry.json';
+        if (file_exists($capFile)) {
+            $caps = json_decode(file_get_contents($capFile), true) ?: [];
+            if (empty($caps['email-sender'])) {
+                return false;
+            }
+        } else {
+            // Fallback: Check modules_state.json directly if registry is missing
+            $stateFile = $storage . '/modules_state.json';
+            if (file_exists($stateFile)) {
+                $state = json_decode(file_get_contents($stateFile), true) ?: [];
+                // Check common names for email module
+                if (empty($state['Email']) && empty($state['sweflow-module-email']) && empty($state['module-email'])) {
+                    return false;
+                }
+            } else {
+                // If no state file exists, assume minimal install without email
+                return false;
+            }
         }
-        $json = @file_get_contents($path);
-        if ($json === false) {
-            return true;
-        }
-        $data = json_decode($json, true);
-        if (!is_array($data)) {
-            return true;
-        }
-        return !(
-            array_key_exists('Email', $data)
-            && $data['Email'] === false
-        );
+        
+        return true;
     }
 
     private function montarLinkRecuperacaoSenha(string $token): string

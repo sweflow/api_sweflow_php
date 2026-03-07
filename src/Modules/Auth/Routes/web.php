@@ -2,8 +2,10 @@
 
 use Src\Modules\Auth\Controllers\AuthController;
 use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\ApiTokenMiddleware;
 
 $protected = [AuthHybridMiddleware::class];
+$apiProtected = [ApiTokenMiddleware::class];
 
 /** @var \Src\Kernel\Contracts\RouterInterface $router */
 
@@ -16,5 +18,5 @@ $router->get('/api/auth/me', [AuthController::class, 'me'], $protected);
 $router->post('/api/auth/logout', [AuthController::class, 'logout'], $protected);
 $router->post('/api/auth/refresh', [AuthController::class, 'refresh']);
 $router->get('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
-$router->post('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
+$router->post('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $apiProtected);
 $router->get('/api/auth/verify-email', [AuthController::class, 'verifyEmail']);
