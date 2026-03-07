@@ -36,10 +36,19 @@ class CapabilitiesController
         $body = $request->body ?? [];
         $cap = $body['capability'] ?? null;
         $plugin = $body['plugin'] ?? null;
-        if (!$cap || !$plugin) {
-            return Response::json(['error' => 'Campos capability e plugin são obrigatórios'], 400);
+        
+        if (!$cap) {
+            return Response::json(['error' => 'Campo capability é obrigatório'], 400);
         }
+        
         $resolver = new CapabilityResolver(dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage');
+        
+        // Se plugin for vazio, remove o provider (limpa)
+        if (empty($plugin)) {
+            $resolver->removeProvider($cap);
+            return Response::json(['capability' => $cap, 'active' => null]);
+        }
+
         $resolver->setProvider($cap, $plugin);
         return Response::json(['capability' => $cap, 'active' => $plugin]);
     }

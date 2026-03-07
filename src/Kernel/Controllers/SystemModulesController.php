@@ -262,12 +262,15 @@ class SystemModulesController
         // Vamos varrer e remover qualquer valor que pareça ser este módulo
         $candidates = [
             $moduleName,
-            strtolower($moduleName),
+            ucfirst($moduleName), // Email
+            strtolower($moduleName), // email
             'sweflow-module-' . strtolower($moduleName),
-            'module-' . strtolower($moduleName)
+            'module-' . strtolower($moduleName),
+            'sweflow/module-' . strtolower($moduleName)
         ];
         
         foreach ($map as $cap => $activePlugin) {
+            // Verifica se o activePlugin está na lista de candidatos
             if (in_array($activePlugin, $candidates)) {
                 unset($map[$cap]);
                 $changed = true;

@@ -22,10 +22,11 @@
                 <ul>
                     <li><a href="/"><i class="fa-solid fa-arrow-left"></i> Voltar</a></li>
                     <li><a href="#metrics"><i class="fa-solid fa-chart-line"></i> Métricas</a></li>
-                    <li><a href="#modules"><i class="fa-solid fa-layer-group"></i> Módulos</a></li>
-                    <li><a href="#routes"><i class="fa-solid fa-route"></i> Rotas</a></li>
+                    <li><a href="#modules"><i class="fa-solid fa-cubes"></i> Módulos</a></li>
+                    <li><a href="#routes"><i class="fa-solid fa-signs-post"></i> Rotas</a></li>
+                    <li><a href="#feature-toggles"><i class="fa-solid fa-toggle-on"></i> Features</a></li>
                     <li><a href="/modules/marketplace"><i class="fa-solid fa-store"></i> Marketplace</a></li>
-                    <li><a href="#capabilities"><i class="fa-solid fa-plug"></i> Capabilities</a></li>
+                    <li><a href="#capabilities"><i class="fa-solid fa-plug"></i> Capacidades</a></li>
                     <li><a href="#" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Sair</a></li>
                 </ul>
             </nav>
@@ -91,7 +92,7 @@
             </section>
 
             <section class="card" id="capabilities">
-                <h2><i class="fa-solid fa-plug"></i> Capabilities</h2>
+                <h2><i class="fa-solid fa-plug"></i> Capacidades</h2>
                 <div id="capabilities-list">Carregando...</div>
             </section>
         </main>

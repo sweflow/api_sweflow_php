@@ -275,20 +275,27 @@ window.onload = function () {
             const data = await res.json();
             const items = data.items || [];
             if (items.length === 0) {
-                el.innerHTML = '<div class="muted">Nenhuma capability detectada.</div>';
+                el.innerHTML = '<div class="muted">Nenhuma capacidade detectada.</div>';
                 return;
             }
             const rows = items.map(it => {
                 const options = (it.providers || []).map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
+                
+                // Opção "Nenhum" (para desativar/limpar) se houver providers
+                const noneOption = `<option value="">-- Selecione --</option>`;
+                
                 return `
                 <div class="toggle-card">
                     <div class="toggle-info">
                         <span class="toggle-name">${it.capability}</span>
-                        <span class="toggle-tag">Ativo: ${it.active ?? 'nenhum'}</span>
+                        <span class="toggle-tag">Ativo: ${it.active || 'nenhum'}</span>
                     </div>
                     <div>
-                        <label class="pill">Provider</label>
-                        <select data-capability="${it.capability}" class="capability-select">${options}</select>
+                        <label class="pill">Provedor</label>
+                        <select data-capability="${it.capability}" class="capability-select">
+                            ${noneOption}
+                            ${options}
+                        </select>
                     </div>
                 </div>`;
             }).join('');
@@ -305,19 +312,19 @@ window.onload = function () {
                             body: JSON.stringify({ capability: cap, plugin })
                         });
                         if (!res.ok) {
-                            alert('Falha ao definir provider.');
+                            alert('Falha ao definir provedor.');
                         } else {
                             await loadCapabilities();
                         }
                     } catch (e) {
-                        alert('Erro ao definir provider.');
+                        alert('Erro ao definir provedor.');
                     } finally {
                         sel.disabled = false;
                     }
                 });
             });
         } catch (e) {
-            el.innerHTML = '<div class="muted">Erro ao carregar capabilities.</div>';
+            el.innerHTML = '<div class="muted">Erro ao carregar capacidades.</div>';
         }
     }
 

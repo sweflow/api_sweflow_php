@@ -29,6 +29,15 @@ class CapabilityResolver
         $this->write($map);
     }
 
+    public function removeProvider(string $capability): void
+    {
+        $map = $this->read();
+        if (isset($map[$capability])) {
+            unset($map[$capability]);
+            $this->write($map);
+        }
+    }
+
     public function listProviders(string $capability): array
     {
         $projectRoot = dirname(__DIR__, 3);
