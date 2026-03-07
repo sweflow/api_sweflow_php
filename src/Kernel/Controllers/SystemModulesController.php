@@ -141,6 +141,12 @@ class SystemModulesController
             $shortName = ucfirst($pluginName);
             $targetDir = dirname(__DIR__, 3) . '/src/Modules/' . $shortName;
             
+            // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
+            // Se for instalação via Packagist, podemos checar metadados antes?
+            // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.
+            // Mas a diretiva diz: "identifique automaticamente se o módulo instalado necessita de outro(s)... se necessitar, o modulo deve obrigar a instalação"
+            // A abordagem pós-download (acima) funciona: baixamos o módulo, lemos o composer.json dele, e se faltar algo, instalamos.
+            
             // 2. Se não existir, tenta baixar
             if (!is_dir($targetDir)) {
                  // Opção A: Se tiver composer, usa composer require mas força o path?
@@ -187,6 +193,53 @@ class SystemModulesController
                 // Se já existe, garante que está registrado no composer.json
                 $this->registerModuleInComposer($shortName, $targetDir);
             }
+
+            // --- NOVO: Verificação de Dependências ---
+            // Lê o composer.json do módulo instalado para checar dependências "require"
+            $moduleComposerPath = $targetDir . '/composer.json';
+            if (file_exists($moduleComposerPath)) {
+                $modJson = json_decode(file_get_contents($moduleComposerPath), true);
+                $requires = $modJson['require'] ?? [];
+                
+                foreach ($requires as $reqPackage => $version) {
+                    // Verifica se é um módulo do sistema (sweflow/module-*)
+                    if (str_starts_with($reqPackage, 'sweflow/module-')) {
+                        // Verifica se já está instalado
+                        $reqShortName = ucfirst(str_replace('sweflow/module-', '', $reqPackage));
+                        $reqDir = dirname(__DIR__, 3) . '/src/Modules/' . $reqShortName;
+                        
+                        if (!is_dir($reqDir)) {
+                            // Dependência faltando! Tenta instalar recursivamente?
+                            // Para evitar loop infinito ou complexidade, vamos apenas lançar erro ou tentar instalar.
+                            // A instrução diz: "o modulo deve obrigar a instalação dos módulos necessarios".
+                            // Vamos tentar instalar a dependência automaticamente.
+                            
+                            // Cria um novo request simulado para instalar a dependência
+                            $depRequest = new Request();
+                            $depRequest->body = ['package' => $reqPackage];
+                            
+                            $response = $this->install($depRequest);
+                            // O método getContent não existe na classe Response. 
+                            // O body está na propriedade privada, acessível via getBody().
+                            // Se for array/objeto, json_encode pode ser necessário ou acesso direto.
+                            
+                            $respBody = $response->getBody();
+                            // Se o corpo já for um array (Response::json constrói com array), usamos direto.
+                            // Se for string JSON, decodificamos.
+                            
+                            $respData = is_string($respBody) ? json_decode($respBody, true) : (array)$respBody;
+                            
+                            if (($response->getStatusCode() < 200 || $response->getStatusCode() >= 300)) {
+                                // Se falhar a instalação da dependência, aborta tudo?
+                                // Como já instalamos o módulo principal (git clone), ele vai ficar lá quebrado.
+                                // O ideal seria rollback, mas vamos lançar exceção avisando.
+                                throw new \Exception("Falha ao instalar dependência obrigatória '{$reqPackage}': " . ($respData['message'] ?? 'Erro desconhecido'));
+                            }
+                        }
+                    }
+                }
+            }
+            // -----------------------------------------
 
             $this->pluginManager->install($pluginName);
             
