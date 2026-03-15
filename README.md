@@ -14,32 +14,99 @@ A Sweflow API é uma API modular desenvolvida em PHP, com arquitetura profission
 - Configuração via .env
 - Respostas padronizadas em JSON
 
-## Instalação
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/sweflow/api_sweflow_php.git
-   ```
-2. Instale as dependências:
-   ```bash
-   composer install
-   ```
-3. Instale a extensão do banco de dados no PHP:
-   - Para PostgreSQL:
-     ```bash
-     sudo apt-get install php-pgsql
-     # ou no Windows, habilite a extensão 'php_pgsql' no php.ini
-     ```
-   - Para MySQL:
-     ```bash
-     sudo apt-get install php-mysql
-     # ou no Windows, habilite a extensão 'php_mysqli' no php.ini
-     ```
-4. Configure o arquivo `.env` conforme o exemplo em `EXEMPLO.env`.
-5. Crie as tabelas no banco de dados conforme o modelo em `docs/database.sql`.
-6. Inicie o servidor:
-   ```bash
-   php -S localhost:3005 index.php
-   ```
+## Requisitos
+- PHP 8.2+ e Composer
+- Extensões PHP:
+  - PostgreSQL: `pdo_pgsql` / `pgsql`
+  - MySQL: `pdo_mysql` / `mysqli`
+- Banco: PostgreSQL ou MySQL
+
+## Instalação (rápida)
+Clone e instale dependências:
+
+```bash
+git clone https://github.com/sweflow/api_sweflow_php.git
+cd api_sweflow_php
+composer install
+```
+
+Crie o `.env`:
+
+```bash
+cp EXEMPLO.env .env
+```
+
+Edite as variáveis principais (exemplo):
+- `APP_PORT=3005`
+- `DB_CONEXAO=postgresql` (ou `mysql`)
+- `DB_HOST`, `DB_PORT`, `DB_NOME`, `DB_USUARIO`, `DB_SENHA`
+- `JWT_SECRET` e `JWT_API_SECRET`
+
+## Setup automatizado (um comando)
+Para rodar tudo automaticamente no servidor (gera secrets JWT se estiverem vazios, cria banco via Docker, migra, seed e inicia servidor):
+
+```bash
+php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty
+```
+
+Ajuda do setup:
+
+```bash
+php sweflow setup --help
+```
+
+## Banco de dados, migrations e seed
+O projeto possui um runner de banco chamado `db` (na raiz do repositório):
+
+```bash
+php db
+```
+
+Comandos:
+
+```bash
+php db migrate   # migrations de módulos + plugins
+php db seed      # seeders de módulos + plugins
+php db rollback  # rollback da última migration de módulos
+```
+
+Plugins (migrations apenas de plugins):
+
+```bash
+php sweflow plugin:migrate
+php sweflow plugin:rollback NOME_DO_PLUGIN
+```
+
+Import rápido via SQL (opcional):
+- `src/Kernel/Database/sweflow_db_2026-03-02_013709.sql`
+
+## Rodar o servidor
+Servidor embutido do PHP:
+
+```bash
+php -S 0.0.0.0:3005 index.php
+```
+
+Com PM2 (produção):
+
+```bash
+pm2 start php --name sweflow-api -- -S 0.0.0.0:3005 index.php
+pm2 save
+pm2 logs sweflow-api --lines 200
+```
+
+## JWT (secrets e token de API)
+Gerar `JWT_SECRET` e `JWT_API_SECRET` se estiverem vazios (via setup):
+
+```bash
+php sweflow setup
+```
+
+Gerar um token JWT de API (1h) a partir de `JWT_API_SECRET`:
+
+```bash
+php gerar_jwt.php
+```
 
 ## Endpoints Principais
 - `POST /criar/usuario` — Criação de usuário

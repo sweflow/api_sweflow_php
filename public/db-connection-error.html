@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Banco de dados indisponível</title>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/db-connection-error.css" />
+  </head>
+  <body>
+    <main class="db-error-wrap">
+      <section class="db-error-card" role="alert" aria-live="polite">
+        <header class="db-error-header">
+          <div class="db-error-brand">
+            <img src="/favicon.ico" alt="Logo" />
+            <div class="db-error-brand-title">
+              <strong>Sweflow</strong>
+              <span>Serviço temporariamente indisponível</span>
+            </div>
+          </div>
+          <div class="db-error-pill">503 • Banco offline</div>
+        </header>
+
+        <div class="db-error-body">
+          <div class="db-error-main">
+            <h1>Não foi possível conectar ao banco de dados</h1>
+            <p>
+              A aplicação está online, mas o banco de dados não respondeu. Isso pode acontecer quando o serviço do banco
+              está parado, a porta está bloqueada ou as credenciais/host estão incorretos.
+            </p>
+
+            <div class="db-error-actions">
+              <button class="btn primary" type="button" onclick="location.reload()">Tentar novamente</button>
+              <a class="btn" href="/">Voltar para a página inicial</a>
+            </div>
+          </div>
+
+          <aside class="db-error-side">
+            <h2>Verificações rápidas</h2>
+            <ul class="db-error-checks">
+              <li><span class="dot danger"></span><span><strong>Serviço do banco</strong> está rodando (PostgreSQL/MySQL).</span></li>
+              <li><span class="dot accent"></span><span><strong>Host/porta</strong> conferem com o ambiente atual.</span></li>
+              <li><span class="dot ok"></span><span><strong>Firewall</strong> e rede permitem acesso à porta do banco.</span></li>
+              <li><span class="dot accent"></span><span><strong>.env</strong> está carregado e com DB_* preenchido.</span></li>
+            </ul>
+          </aside>
+        </div>
+
+        <footer class="db-error-footer">
+          <div>
+            <span>Ambiente:</span>
+            <code>{{app_env}}</code>
+            <span style="margin-left:10px;">Banco:</span>
+            <code>{{driver}}://{{host}}:{{port}}/{{database}}</code>
+          </div>
+          <div>
+            <a href="/api/db-status">Ver status via API</a>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>

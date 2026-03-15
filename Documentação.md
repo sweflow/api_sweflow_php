@@ -32,6 +32,9 @@ Antes de começar, certifique-se de ter em sua máquina:
 *   **Composer** (Gerenciador de dependências)
 *   **Git**
 *   Um banco de dados (**MySQL** ou **PostgreSQL**)
+*   Extensões PHP do banco:
+    * PostgreSQL: `pdo_pgsql` / `pgsql`
+    * MySQL: `pdo_mysql` / `mysqli`
 
 ### Passo a Passo
 
@@ -72,31 +75,63 @@ O Sweflow utiliza variáveis de ambiente para configuração segura. Nunca edite
     # No Windows: copy EXEMPLO.env .env
     ```
 
-2.  **Edite o arquivo `.env` com suas configurações:**
+2.  **Edite o arquivo `.env` com suas configurações (variáveis reais do projeto):**
     ```ini
     # Configurações do Banco de Dados
-    DB_CONNECTION=pgsql  # ou mysql
+    DB_CONEXAO=postgresql  # ou mysql
     DB_HOST=localhost
     DB_PORT=5432
-    DB_DATABASE=sweflow_db
-    DB_USERNAME=seu_usuario
-    DB_PASSWORD=sua_senha
+    DB_NOME=sweflow_db
+    DB_USUARIO=admin
+    DB_SENHA=sua_senha
 
     # Configurações da Aplicação
     APP_URL=http://localhost:3005
-    APP_ENV=local        # Use 'production' em produção para ativar caches
+    APP_ENV=development  # Use 'production' em produção
     APP_DEBUG=true       # Use 'false' em produção para esconder erros detalhados
+
+    # JWT
+    JWT_SECRET=
+    JWT_API_SECRET=
     ```
 
-3.  **Crie as tabelas no banco de dados:**
-    Execute o script SQL disponível na pasta de documentação ou migrations (se houver).
-    *   Exemplo: Importe o arquivo `src/Database/sweflow_db_*.sql` no seu gerenciador de banco de dados.
+3.  **Criar banco, tabelas e iniciar a API (recomendado):**
+    O projeto possui um comando único de setup com menu e modo automático.
+
+    *   Menu interativo:
+        ```bash
+        php sweflow setup
+        ```
+
+    *   Tudo automático (gera secrets JWT se vazios, cria DB via Docker, migra, seed e sobe servidor):
+        ```bash
+        php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty
+        ```
+
+    Ajuda:
+    ```bash
+    php sweflow setup --help
+    ```
 
 4.  **Inicie o servidor de desenvolvimento:**
     ```bash
     php -S localhost:3005 index.php
     ```
     Acesse: `http://localhost:3005`
+
+5.  **Migrations/seed (runner db):**
+    ```bash
+    php db
+    php db migrate
+    php db seed
+    php db rollback
+    ```
+
+6.  **Gerar token JWT de API (opcional):**
+    O arquivo `gerar_jwt.php` gera um token de API (1h) usando `JWT_API_SECRET` do `.env`.
+    ```bash
+    php gerar_jwt.php
+    ```
 
 ---
 
@@ -136,7 +171,7 @@ Crie o arquivo `src/Modules/Financeiro/Routes/web.php`. O sistema o carrega auto
 ```php
 <?php
 use Src\Modules\Financeiro\Controllers\FaturaController;
-use Src\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
 
 // Rota Pública
 $router->get('/api/faturas', [FaturaController::class, 'listar']);
@@ -157,7 +192,7 @@ O Sweflow possui um Container poderoso. Você não precisa instanciar classes ma
 namespace Src\Modules\Financeiro\Controllers;
 
 use Src\Modules\Financeiro\Services\FaturaService;
-use Src\Http\Response\Response;
+use Src\Kernel\Http\Response\Response;
 
 class FaturaController
 {
@@ -258,6 +293,18 @@ class FaturaService
 *   **Iniciar servidor local:**
     `php -S localhost:3005 index.php`
     
+*   **Setup (menu / automático):**
+    `php sweflow setup`
+    `php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty`
+
+*   **Banco (migrations/seed):**
+    `php db migrate`
+    `php db seed`
+    `php db rollback`
+
+*   **Token JWT de API (1h):**
+    `php gerar_jwt.php`
+
 *   **Rodar testes (se houver):**
     `php vendor/bin/phpunit`
 

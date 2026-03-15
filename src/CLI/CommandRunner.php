@@ -9,6 +9,7 @@ class CommandRunner
         if (!$command) {
             echo "Sweflow CLI\n";
             echo "Comandos disponíveis:\n";
+            echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
             echo "  make:module Nome\n";
             echo "  make:plugin Nome\n";
             echo "  plugin:inspect\n";
@@ -24,6 +25,9 @@ class CommandRunner
             return;
         }
         switch ($command) {
+            case 'setup':
+                (new SetupCommand())->handle($argv);
+                break;
             case 'make:module':
                 $name = $argv[2] ?? null;
                 if (!$name) {

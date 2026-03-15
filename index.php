@@ -46,6 +46,83 @@ if (file_exists(__DIR__ . '/.env')) {
     $dotenv->load();
 }
 
+function isDbConnectionError(\Throwable $e): bool
+{
+    $stack = [$e];
+    if ($e->getPrevious() instanceof \Throwable) {
+        $stack[] = $e->getPrevious();
+    }
+
+    foreach ($stack as $err) {
+        if ($err instanceof \PDOException) {
+            return true;
+        }
+
+        $msg = strtolower($err->getMessage());
+        if (str_contains($msg, 'sqlstate[08006]') || str_contains($msg, 'connection refused') || str_contains($msg, 'não foi possível conectar ao banco')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function requestWantsJson(string $uri): bool
+{
+    if (strpos($uri, '/api/') === 0) {
+        return true;
+    }
+
+    $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
+    if ($accept !== '' && str_contains($accept, 'application/json')) {
+        return true;
+    }
+
+    $xrw = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+    return $xrw === 'xmlhttprequest';
+}
+
+function renderDbConnectionError(string $uri): void
+{
+    if (requestWantsJson($uri)) {
+        if (!headers_sent()) {
+            http_response_code(503);
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Banco de dados indisponível. Tente novamente em instantes.',
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $driverEnv = strtolower($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql');
+    $driverEnv = $driverEnv === 'postgresql' ? 'pgsql' : $driverEnv;
+    $host = $_ENV['DB_HOST'] ?? 'localhost';
+    $name = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
+    $port = $_ENV['DB_PORT'] ?? ($driverEnv === 'pgsql' ? '5432' : '3306');
+    $appEnv = $_ENV['APP_ENV'] ?? 'local';
+
+    $templatePath = __DIR__ . '/public/db-connection-error.html';
+    $html = is_file($templatePath) ? (string) file_get_contents($templatePath) : '<!doctype html><meta charset="utf-8"><title>Banco indisponível</title><h1>Banco de dados indisponível</h1>';
+
+    $replacements = [
+        '{{driver}}' => htmlspecialchars((string) $driverEnv, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        '{{host}}' => htmlspecialchars((string) $host, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        '{{port}}' => htmlspecialchars((string) $port, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        '{{database}}' => htmlspecialchars((string) $name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        '{{app_env}}' => htmlspecialchars((string) $appEnv, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+    ];
+    $html = strtr($html, $replacements);
+
+    if (!headers_sent()) {
+        http_response_code(503);
+        header('Content-Type: text/html; charset=utf-8');
+    }
+    echo $html;
+    exit;
+}
+
 if (!isset($GLOBALS['__raw_input'])) {
     $GLOBALS['__raw_input'] = file_get_contents('php://input');
 }
@@ -53,11 +130,17 @@ if (!isset($GLOBALS['__raw_input'])) {
 $container = new Container();
 $container->bind(ContainerInterface::class, $container, true);
 
-// Shared PDO for modules
-$container->bind(\PDO::class, static fn() => PdoFactory::fromEnv(), true);
+try {
+    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv(), true);
 
-$migrator = new PluginMigrator(PdoFactory::fromEnv(), __DIR__);
-$container->bind(PluginMigrator::class, $migrator, true);
+    $migrator = new PluginMigrator(PdoFactory::fromEnv(), __DIR__);
+    $container->bind(PluginMigrator::class, $migrator, true);
+} catch (\Throwable $e) {
+    if (isDbConnectionError($e)) {
+        renderDbConnectionError($uri);
+    }
+    throw $e;
+}
 
 $manager = new PluginManager($migrator, __DIR__ . '/storage');
 $container->bind(PluginManager::class, $manager, true);

@@ -32,8 +32,28 @@ src/Modules/Financeiro/
 │   └── FaturaRepository.php
 ├── Entities/          # (Opcional) Classes que representam seus dados
 │   └── Fatura.php
+├── Database/
+│   ├── Migrations/    # (Opcional) Migrations do módulo
+│   └── Seeders/       # (Opcional) Seeders do módulo
 └── Routes/
     └── web.php        # ⚠️ Obrigatório se você quiser ter URLs acessíveis
+```
+
+---
+
+## 🧰 1.1 Criar módulo e plugin via CLI
+
+O projeto vem com uma CLI (`php sweflow`) que gera estrutura base automaticamente:
+
+```bash
+php sweflow make:module Financeiro
+php sweflow make:plugin Email --capability=email-sender --description="Envio de e-mails via SMTP"
+```
+
+Ver comandos disponíveis:
+
+```bash
+php sweflow
 ```
 
 ---
@@ -49,7 +69,7 @@ Arquivo: `src/Modules/Financeiro/Routes/web.php`
 <?php
 
 use Src\Modules\Financeiro\Controllers\FaturaController;
-use Src\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
 
 // O framework já disponibiliza a variável $router para você.
 
@@ -78,6 +98,7 @@ Seu `FaturaController` precisa do `FaturaService` para trabalhar.
 namespace Src\Modules\Financeiro\Controllers;
 
 use Src\Modules\Financeiro\Services\FaturaService;
+use Src\Kernel\Http\Response\Response;
 
 class FaturaController
 {
@@ -95,7 +116,120 @@ class FaturaController
 
 ---
 
+## 🗄️ 3.1 Migrations e Seeders (criar tabela, alterar e popular dados)
+
+O Sweflow executa migrations/seeders usando o runner `db` na raiz do projeto:
+
+```bash
+php db
+php db migrate
+php db seed
+php db rollback
+```
+
+### Criar uma migration (nova tabela)
+
+Crie um arquivo em:
+`src/Modules/Financeiro/Database/Migrations/2026_03_15_000001_create_exemplos_table.php`
+
+```php
+<?php
+
+use PDO;
+
+return [
+    'up' => function (PDO $pdo): void {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS exemplos (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        ");
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS exemplos");
+    },
+];
+```
+
+Aplicar no banco:
+
+```bash
+php db migrate
+```
+
+### Alterar uma tabela (nova migration)
+
+Crie uma nova migration (não edite migrations antigas em produção):
+`src/Modules/Financeiro/Database/Migrations/2026_03_15_000002_add_descricao_to_exemplos.php`
+
+```php
+<?php
+
+use PDO;
+
+return [
+    'up' => function (PDO $pdo): void {
+        $pdo->exec("ALTER TABLE exemplos ADD COLUMN descricao TEXT");
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("ALTER TABLE exemplos DROP COLUMN descricao");
+    },
+];
+```
+
+Aplicar:
+
+```bash
+php db migrate
+```
+
+### Adicionar dados (seeder)
+
+Crie um seeder em:
+`src/Modules/Financeiro/Database/Seeders/001_seed_exemplos.php`
+
+```php
+<?php
+
+use PDO;
+
+return function (PDO $pdo): void {
+    $pdo->exec("
+        INSERT INTO exemplos (nome, descricao)
+        VALUES
+          ('Primeiro registro', 'Seed inicial'),
+          ('Segundo registro', 'Seed inicial')
+    ");
+};
+```
+
+Executar:
+
+```bash
+php db seed
+```
+
+---
+
+## 🧩 3.2 Plugins: migrations versionadas e seeders
+
+Plugins seguem a estrutura:
+
+- `plugins/sweflow-module-seu-plugin/src/Database/Migrations/<versao>/*.php`
+- `plugins/sweflow-module-seu-plugin/src/Database/Seeders/*.php`
+
+Executar apenas migrations de plugins:
+
+```bash
+php sweflow plugin:migrate
+php sweflow plugin:rollback NOME_DO_PLUGIN
+```
+
 ## 🤝 4. Comunicação Entre Módulos (O Poder Real)
+
+Aqui é onde o Sweflow brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
 
 Aqui é onde o Sweflow brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
 

@@ -71,31 +71,35 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function registerRoutes(RouterInterface $router): void
     {
-        // Tenta achar arquivo de rotas.
+        // Tenta achar arquivos de rotas e carrega TODOS que encontrar
         // Padrão 1: raiz/Routes/web.php (Módulos Nativos)
         // Padrão 2: raiz/src/Routes/routes.php (Plugins Sweflow instalados)
+        // Padrão 3: raiz/Routes/api.php
+        // Padrão 4: raiz/Routes/Routes.php
         
         $candidates = [
             $this->path . '/Routes/web.php',
+            $this->path . '/Routes/api.php',
+            $this->path . '/Routes/Routes.php',
             $this->path . '/src/Routes/routes.php',
             $this->path . '/src/Routes/web.php',
+            $this->path . '/src/Routes/api.php',
         ];
         
-        $routeFile = null;
+        // Remove duplicatas (caso haja links simbolicos ou paths iguais)
+        $candidates = array_unique($candidates);
+        
+        $found = false;
         foreach ($candidates as $f) {
             if (file_exists($f)) {
-                $routeFile = $f;
-                break;
+                $container = null; 
+                require $f;
+                $found = true;
             }
         }
 
-        if ($routeFile) {
-             $container = null; 
-             require $routeFile;
-
-             if ($router instanceof ModuleScopedRouter) {
-                 $this->routes = $router->getRegisteredRoutes();
-             }
+        if ($found && $router instanceof ModuleScopedRouter) {
+             $this->routes = $router->getRegisteredRoutes();
         }
     }
 
