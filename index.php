@@ -453,7 +453,7 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules, $r
 
     $usuarios = ['total' => null, 'erro' => null];
     try {
-        $repo = $container->make(UsuarioRepository::class);
+        $repo = $container->make(\Src\Modules\Usuario\Repositories\UsuarioRepository::class);
         $usuarios['total'] = $repo->contar();
     } catch (\Throwable $e) {
         $usuarios['erro'] = $e->getMessage();
