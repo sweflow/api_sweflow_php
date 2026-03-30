@@ -10,6 +10,7 @@ class CommandRunner
             echo "Sweflow CLI\n";
             echo "Comandos disponíveis:\n";
             echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
+            echo "  migrate [--seed] [--rollback]\n";
             echo "  make:module Nome\n";
             echo "  make:plugin Nome\n";
             echo "  plugin:inspect\n";
@@ -28,6 +29,8 @@ class CommandRunner
             case 'setup':
                 (new SetupCommand())->handle($argv);
                 break;
+            case 'migrate':
+                exit((new MigrateCommand())->run(array_slice($argv, 2)));
             case 'make:module':
                 $name = $argv[2] ?? null;
                 if (!$name) {

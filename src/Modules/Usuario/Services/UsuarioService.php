@@ -2,6 +2,7 @@
 
 namespace Src\Modules\Usuario\Services;
 
+use Src\Kernel\Database\PdoFactory;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use DomainException;
@@ -220,7 +221,34 @@ class UsuarioService implements UsuarioServiceInterface
         if (!$usuario) {
             throw new DomainException('Usuário não encontrado.');
         }
+
+        $this->deletarDadosRelacionados($uuid);
         $this->repository->deletar($uuid);
+    }
+
+    private function deletarDadosRelacionados(string $uuid): void
+    {
+        try {
+            if (!class_exists(\Src\Modules\Comunidade\Repositories\PublicacaoRepository::class)) {
+                return;
+            }
+
+            $pdo = PdoFactory::fromEnv();
+            $publicacoes = new \Src\Modules\Comunidade\Repositories\PublicacaoRepository($pdo);
+            $notifications = new \Src\Modules\Comunidade\Repositories\NotificationRepository($pdo);
+            $followers = new \Src\Modules\Comunidade\Repositories\FollowerRepository($pdo, $notifications);
+            $curtidasComentario = new \Src\Modules\Comunidade\Repositories\CurtidaComentarioRepository($pdo);
+            $comentarios = new \Src\Modules\Comunidade\Repositories\ComentarioRepository($pdo, $publicacoes, $curtidasComentario);
+            $curtidas = new \Src\Modules\Comunidade\Repositories\CurtidaRepository($pdo, $publicacoes);
+
+            $notifications->deletarPorUsuario($uuid);
+            $followers->deletarPorUsuario($uuid);
+            $curtidasComentario->deletarPorUsuario($uuid);
+            $comentarios->deletarPorUsuario($uuid);
+            $curtidas->deletarPorUsuario($uuid);
+            $publicacoes->deletarPorAutor($uuid);
+        } catch (\Throwable $e) {
+        }
     }
 
     /**

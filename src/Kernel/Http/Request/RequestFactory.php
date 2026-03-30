@@ -14,9 +14,16 @@ class RequestFactory
 
         $contentType = $headers['Content-Type'] ?? ($headers['content-type'] ?? '');
         if (stripos($contentType, 'application/json') !== false) {
-            $json = json_decode($rawBody ?: '', true);
-            if (is_array($json)) {
-                $body = $json;
+            // Limita profundidade e tamanho para evitar DoS
+            if (is_string($rawBody) && strlen($rawBody) <= 2 * 1024 * 1024) {
+                $json = json_decode($rawBody ?: '', true, 32);
+                if (is_array($json)) {
+                    // Sanitiza valores não-escalares para evitar TypeError nos controllers
+                    array_walk_recursive($json, function (&$v) {
+                        if (!is_scalar($v) && $v !== null) { $v = ''; }
+                    });
+                    $body = $json;
+                }
             }
         }
 

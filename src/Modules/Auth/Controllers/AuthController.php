@@ -5,42 +5,64 @@ namespace Src\Modules\Auth\Controllers;
 use DomainException;
 use PDO;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\AuditLogger;
 use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Src\Modules\Auth\Services\AuthService;
-use Src\Modules\Usuario\Repositories\UsuarioRepository;
+use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Kernel\Contracts\EmailSenderInterface;
 
 class AuthController
 {
     private ?AuthService $authService = null;
-    private ?UsuarioRepository $usuarioRepository = null;
+    private ?UserRepositoryInterface $usuarioRepository = null;
     private ?RefreshTokenRepository $refreshTokenRepository = null;
     private ?AccessTokenBlacklistRepository $accessBlacklist = null;
     private ?PDO $pdo = null;
+    private ?AuditLogger $auditLogger = null;
 
     public function __construct(
         private ?EmailSenderInterface $emailService
     ) {}
 
+    private function audit(): AuditLogger
+    {
+        if ($this->auditLogger === null) {
+            try {
+                $this->auditLogger = new AuditLogger($this->pdo());
+            } catch (\Throwable) {
+                $this->auditLogger = new AuditLogger(null);
+            }
+        }
+        return $this->auditLogger;
+    }
+
     public function login(): Response
     {
+        // Tempo mínimo de resposta para mitigar timing attacks (200ms)
+        $startTime = microtime(true);
+
         try {
-            // Limpa tokens expirados (melhor-esforço)
             $this->refreshRepositorio()->purgeExpired();
             $this->blacklistRepositorio()->purgeExpired();
 
             $dados = $this->corpoDaRequisicao();
-            $login = $dados['login'] ?? $dados['email'] ?? $dados['username'] ?? '';
+            $login = $dados['login'] ?? $dados['identifier'] ?? $dados['email'] ?? $dados['username'] ?? '';
             $senha = $dados['senha'] ?? $dados['password'] ?? '';
 
-            $usuario = $this->servico()->autenticar($login, $senha);
+            $usuario = $this->servico()->autenticar((string)$login, (string)$senha);
             if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
                 throw new DomainException('Você precisa confirmar seu e-mail antes de fazer login.', 403);
             }
             $tokens = $this->servico()->emitirTokens($usuario);
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
 
+            $this->audit()->registrar('auth.login.success', $usuario->getUuid()->toString(), [
+                'username' => $usuario->getUsername(),
+                'nivel_acesso' => $usuario->getNivelAcesso(),
+            ]);
+
+            $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
                 'status' => 'success',
                 'access_token' => $tokens['access_token'],
@@ -56,12 +78,12 @@ class AuthController
                 ]
             ]);
         } catch (DomainException $e) {
+            $this->audit()->registrar('auth.login.failed', null, ['reason' => $e->getMessage()]);
+            $this->enforceMinResponseTime($startTime, 200);
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
-            return Response::json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], $status);
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
         } catch (\Throwable $e) {
+            $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
                 'status' => 'error',
                 'message' => 'Erro interno ao autenticar',
@@ -72,34 +94,46 @@ class AuthController
 
     public function loginPublic(): Response
     {
+        $startTime = microtime(true);
+
         try {
             $this->refreshRepositorio()->purgeExpired();
             $this->blacklistRepositorio()->purgeExpired();
 
             $dados = $this->corpoDaRequisicao();
-            $login = $dados['login'] ?? $dados['email'] ?? $dados['username'] ?? '';
+            $login = $dados['login'] ?? $dados['identifier'] ?? $dados['email'] ?? $dados['username'] ?? '';
             $senha = $dados['senha'] ?? $dados['password'] ?? '';
 
-            if (trim($login) === '' || trim($senha) === '') {
+            if (trim((string)$login) === '' || trim((string)$senha) === '') {
+                $this->enforceMinResponseTime($startTime, 200);
                 throw new DomainException('Login e senha são obrigatórios.', 400);
             }
 
-            $usuario = $this->buscarUsuarioPorLogin($login);
-            if (!$usuario || !$usuario->verificarSenha($senha)) {
+            $usuario = $this->buscarUsuarioPorLogin((string)$login);
+            if (!$usuario || !$usuario->verificarSenha((string)$senha)) {
+                $this->audit()->registrar('auth.login.failed', null, ['identifier' => substr((string)$login, 0, 64)]);
+                $this->enforceMinResponseTime($startTime, 200);
                 throw new DomainException('Credenciais inválidas.', 401);
             }
 
             if (!$usuario->isAtivo()) {
+                $this->enforceMinResponseTime($startTime, 200);
                 throw new DomainException('Usuário desativado.', 403);
             }
 
             if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
+                $this->enforceMinResponseTime($startTime, 200);
                 throw new DomainException('Você precisa confirmar seu e-mail antes de fazer login.', 403);
             }
 
             $tokens = $this->servico()->emitirTokens($usuario);
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
 
+            $this->audit()->registrar('auth.login.success', $usuario->getUuid()->toString(), [
+                'username' => $usuario->getUsername(),
+            ]);
+
+            $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
                 'status' => 'success',
                 'access_token' => $tokens['access_token'],
@@ -115,12 +149,12 @@ class AuthController
                 ]
             ]);
         } catch (DomainException $e) {
+            $this->enforceMinResponseTime($startTime, 200);
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
-            return Response::json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], $status);
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
         } catch (\Throwable $e) {
+            // Garante delay mesmo em erros de banco/infra
+            $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
                 'status' => 'error',
                 'message' => 'Erro interno ao autenticar',
@@ -132,21 +166,6 @@ class AuthController
     public function solicitarRecuperacaoSenha(): Response
     {
         try {
-            if (!$this->emailModuleEnabled()) {
-                return Response::json([
-                    'status' => 'error',
-                    'message' => 'Módulo de E-mail não está ativo. Impossível enviar recuperação de senha.'
-                ], 503);
-            }
-            
-            // Verifica se o serviço de email foi injetado corretamente (extra check)
-            if ($this->emailService === null) {
-                return Response::json([
-                    'status' => 'error',
-                    'message' => 'Serviço de e-mail não disponível no sistema.'
-                ], 503);
-            }
-
             $dados = $this->corpoDaRequisicao();
             $email = trim($dados['email'] ?? '');
 
@@ -159,30 +178,36 @@ class AuthController
 
             $usuario = $this->repositorio()->buscarPorEmail($email);
 
-            if ($usuario) {
+            // Só tenta enviar e-mail se o módulo estiver disponível E o usuário existir
+            if ($usuario && $this->emailModuleEnabled() && $this->emailService !== null) {
                 $token = bin2hex(random_bytes(32));
                 $this->repositorio()->salvarTokenRecuperacaoSenha($usuario->getUuid()->toString(), $token);
 
-                if ($this->emailModuleEnabled()) {
-                    $canSend = $this->podeDispararEmailRecuperacao($email);
-                    $link = $this->montarLinkRecuperacaoSenha($token);
+                $canSend = $this->podeDispararEmailRecuperacao($email);
+                $link = $this->montarLinkRecuperacaoSenha($token);
 
-                    if ($canSend) {
-                        try {
-                            $this->registrarDisparoEmailRecuperacao($email);
-                            $this->mailer()->sendPasswordReset(
-                                $usuario->getEmail(),
-                                $usuario->getNomeCompleto(),
-                                $link,
-                                $_ENV['APP_LOGO_URL'] ?? null
-                            );
-                        } catch (\Throwable $mailError) {
+                if ($canSend) {
+                    try {
+                        $this->registrarDisparoEmailRecuperacao($email);
+                        $this->mailer()->sendPasswordReset(
+                            $usuario->getEmail(),
+                            $usuario->getNomeCompleto(),
+                            $link,
+                            $_ENV['APP_LOGO_URL'] ?? null
+                        );
+                    } catch (\Throwable $mailError) {
+                        if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
                             error_log('[AuthController] Falha ao enviar e-mail de recuperação: ' . $mailError->getMessage());
                         }
                     }
                 }
+            } elseif ($usuario && !$this->emailModuleEnabled()) {
+                // Módulo de e-mail inativo: salva o token mas não envia
+                $token = bin2hex(random_bytes(32));
+                $this->repositorio()->salvarTokenRecuperacaoSenha($usuario->getUuid()->toString(), $token);
             }
 
+            // Sempre retorna 200 com mensagem genérica para não revelar se o e-mail existe
             return Response::json([
                 'status' => 'success',
                 'message' => 'Se o e-mail informado estiver cadastrado, um link de recuperação será enviado.'
@@ -243,32 +268,55 @@ class AuthController
         }
     }
 
-    public function me(): Response
+    public function validarTokenRecuperacao($request, string $token): Response
     {
         try {
-            $payload = $GLOBALS['__auth_payload'] ?? null;
-            if ($payload) {
-                $usuario = $this->repositorio()->buscarPorUuid($payload->sub ?? '');
-            } else {
-                $token = $this->tokenDoCookie();
-                if ($token === null) {
-                    return Response::json([
-                        'status' => 'error',
-                        'message' => 'Não autenticado'
-                    ], 401);
-                }
-                $payload = $this->servico()->decodificarToken($token);
-                $payload->tipo = $payload->tipo ?? 'user';
-                $payload->iss = $payload->iss ?? ($_ENV['JWT_ISSUER'] ?? getenv('JWT_ISSUER') ?? null);
-                $payload->aud = $payload->aud ?? ($_ENV['JWT_AUDIENCE'] ?? getenv('JWT_AUDIENCE') ?? null);
-                $usuario = $this->repositorio()->buscarPorUuid($payload->sub ?? '');
+            $token = trim((string)$token);
+            if ($token === '') {
+                return Response::json(['status' => 'error', 'message' => 'Token inválido'], 400);
+            }
+            $usuario = $this->repositorio()->buscarPorTokenRecuperacaoSenha($token);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Token inválido ou expirado.'], 400);
+            }
+            return Response::json(['status' => 'success']);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao validar token'], 500);
+        }
+    }
+
+    public function me($request = null): Response
+    {
+        try {
+            // Caminho correto: usuário injetado pelo AuthHybridMiddleware via $request->attribute()
+            $authUser = null;
+            if (is_object($request) && method_exists($request, 'attribute')) {
+                $authUser = $request->attribute('auth_user');
             }
 
-            if (!$usuario) {
+            if ($authUser) {
                 return Response::json([
-                    'status' => 'error',
-                    'message' => 'Usuário não encontrado'
-                ], 404);
+                    'status' => 'success',
+                    'usuario' => [
+                        'uuid' => $authUser->getUuid()->toString(),
+                        'nome_completo' => $authUser->getNomeCompleto(),
+                        'username' => $authUser->getUsername(),
+                        'email' => $authUser->getEmail(),
+                        'nivel_acesso' => $authUser->getNivelAcesso(),
+                    ]
+                ]);
+            }
+
+            // Fallback via token (compatibilidade)
+            $token = $this->extrairTokenDeAutorizacao() ?? $this->tokenDoCookie();
+            if ($token === null) {
+                return Response::json(['status' => 'error', 'message' => 'Não autenticado'], 401);
+            }
+            $payload = $this->servico()->decodificarToken($token);
+            $usuario = $this->repositorio()->buscarPorUuid($payload->sub ?? '');
+
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Usuário não encontrado'], 404);
             }
 
             return Response::json([
@@ -283,15 +331,9 @@ class AuthController
             ]);
         } catch (DomainException $e) {
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 401;
-            return Response::json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], $status);
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
         } catch (\Throwable $e) {
-            return Response::json([
-                'status' => 'error',
-                'message' => 'Token inválido ou expirado'
-            ], 401);
+            return Response::json(['status' => 'error', 'message' => 'Token inválido ou expirado'], 401);
         }
     }
 
@@ -335,12 +377,14 @@ class AuthController
     public function logout(): Response
     {
         $token = $this->extrairTokenDeAutorizacao() ?? $this->tokenDoCookie();
+        $userUuid = null;
         try {
             $this->refreshRepositorio()->purgeExpired();
             $this->blacklistRepositorio()->purgeExpired();
 
             if ($token) {
                 $payload = $this->servico()->decodificarToken($token);
+                $userUuid = $payload->sub ?? null;
                 $jti = $payload->jti ?? '';
                 if ($jti !== '') {
                     $exp = $payload->exp ?? time();
@@ -352,11 +396,9 @@ class AuthController
             // ignora falha de melhor-esforço
         }
 
+        $this->audit()->registrar('auth.logout', $userUuid);
         $this->definirCookieAuth('', time() - 3600);
-        return Response::json([
-            'status' => 'success',
-            'message' => 'Logout realizado com sucesso.'
-        ]);
+        return Response::json(['status' => 'success', 'message' => 'Logout realizado com sucesso.']);
     }
 
     public function verifyEmail(): Response
@@ -513,10 +555,11 @@ class AuthController
         return $this->authService;
     }
 
-    private function repositorio(): UsuarioRepository
+    private function repositorio(): UserRepositoryInterface
     {
         if ($this->usuarioRepository === null) {
-            $this->usuarioRepository = new UsuarioRepository($this->pdo());
+            // Usa a implementação concreta via contrato — sem importar o módulo Usuario diretamente
+            $this->usuarioRepository = new \Src\Modules\Usuario\Repositories\UsuarioRepository($this->pdo());
         }
 
         return $this->usuarioRepository;
@@ -603,35 +646,57 @@ class AuthController
     private function corpoDaRequisicao(): array
     {
         $conteudoBruto = $GLOBALS['__raw_input'] ?? file_get_contents('php://input');
+        if (!is_string($conteudoBruto)) {
+            $conteudoBruto = '';
+        }
 
-        $dadosJson = json_decode($conteudoBruto, true) ?? [];
+        // Limita tamanho para evitar DoS por JSON profundo ou arrays gigantes
+        if (strlen($conteudoBruto) > 2 * 1024 * 1024) {
+            return array_merge($_POST);
+        }
+
+        // Tenta decodificar JSON com profundidade limitada
+        $dadosJson = json_decode($conteudoBruto, true, 32) ?? [];
         if (!is_array($dadosJson)) {
             $dadosJson = [];
         }
 
-        if (empty($dadosJson) && is_string($conteudoBruto) && trim($conteudoBruto) !== '') {
-            $brutoCorrigido = $conteudoBruto;
-            $brutoCorrigido = preg_replace('/([\{,]\s*)([A-Za-z0-9_]+)\s*:/', '$1"$2":', $brutoCorrigido);
-            $brutoCorrigido = preg_replace('/:\s*([A-Za-z0-9_@.\-]+)(\s*[},])/', ':"$1"$2', $brutoCorrigido);
-            $dadosJson = json_decode($brutoCorrigido, true) ?? [];
-            if (!is_array($dadosJson)) {
-                $dadosJson = [];
+        // Fallback: tenta corrigir JSON levemente malformado (apenas se pequeno)
+        if (empty($dadosJson) && strlen($conteudoBruto) < 4096 && trim($conteudoBruto) !== '') {
+            $brutoCorrigido = preg_replace('/([\{,]\s*)([A-Za-z0-9_]+)\s*:/', '$1"$2":', $conteudoBruto) ?? $conteudoBruto;
+            $brutoCorrigido = preg_replace('/:\s*([A-Za-z0-9_@.\-]+)(\s*[},])/', ':"$1"$2', $brutoCorrigido) ?? $brutoCorrigido;
+            $tentativa = json_decode($brutoCorrigido, true, 32);
+            if (is_array($tentativa)) {
+                $dadosJson = $tentativa;
             }
         }
 
-        error_log('[AuthController] raw length=' . strlen((string)$conteudoBruto) . ' content=' . substr((string)$conteudoBruto, 0, 200));
-        error_log('[AuthController] _POST=' . json_encode($_POST));
-        error_log('[AuthController] content-type=' . ($_SERVER['CONTENT_TYPE'] ?? ''));
-
+        // Fallback: form-urlencoded
         $dadosForm = [];
-        if (empty($dadosJson) && is_string($conteudoBruto) && trim($conteudoBruto) !== '') {
+        if (empty($dadosJson) && strlen($conteudoBruto) < 4096 && trim($conteudoBruto) !== '') {
             parse_str($conteudoBruto, $dadosForm);
             if (!is_array($dadosForm)) {
                 $dadosForm = [];
             }
         }
 
-        return array_merge($_POST, $dadosForm, $dadosJson);
+        if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
+            error_log('[AuthController] raw length=' . strlen($conteudoBruto) . ' content=' . substr($conteudoBruto, 0, 200));
+            error_log('[AuthController] _POST=' . json_encode($_POST));
+            error_log('[AuthController] content-type=' . ($_SERVER['CONTENT_TYPE'] ?? ''));
+        }
+
+        // Sanitiza: garante que os valores do merge são escalares ou arrays simples
+        $merged = array_merge($_POST, $dadosForm, $dadosJson);
+
+        // Converte valores não-escalares para string vazia (evita TypeError em campos de texto)
+        array_walk($merged, function (&$v) {
+            if (!is_scalar($v) && $v !== null) {
+                $v = '';
+            }
+        });
+
+        return $merged;
     }
 
     private function tokenDoCookie(): ?string
@@ -667,6 +732,20 @@ class AuthController
     private function debugAtivo(): bool
     {
         return $this->boolEnv($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?? 'false');
+    }
+
+    /**
+     * Garante tempo mínimo de resposta para mitigar timing attacks.
+     * @param float $startTime microtime(true) do início da requisição
+     * @param int   $minMs     tempo mínimo em milissegundos
+     */
+    private function enforceMinResponseTime(float $startTime, int $minMs = 200): void
+    {
+        $elapsed = (microtime(true) - $startTime) * 1000;
+        $remaining = $minMs - $elapsed;
+        if ($remaining > 0) {
+            usleep((int)($remaining * 1000));
+        }
     }
 
     private function buscarUsuarioPorLogin(string $login)

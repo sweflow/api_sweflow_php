@@ -139,7 +139,16 @@ class Router implements RouterInterface
 
         $instance = $definition;
         if (is_string($definition)) {
-            $instance = $this->container->make($definition);
+            // Se há args, tenta instanciar passando-os ao construtor
+            if (!empty($args) && class_exists($definition)) {
+                try {
+                    $instance = new $definition(...array_values($args));
+                } catch (\Throwable) {
+                    $instance = $this->container->make($definition);
+                }
+            } else {
+                $instance = $this->container->make($definition);
+            }
         }
 
         if ($instance instanceof MiddlewareInterface) {

@@ -6,7 +6,7 @@ use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Src\Modules\Usuario\Entities\Usuario;
-use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
+use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Ramsey\Uuid\Uuid;
 use DateTimeImmutable;
@@ -14,7 +14,7 @@ use DateTimeImmutable;
 class AuthService
 {
     public function __construct(
-        private UsuarioRepositoryInterface $usuarios,
+        private UserRepositoryInterface $usuarios,
         private ?RefreshTokenRepository $refreshTokens = null
     )
     {
@@ -33,10 +33,6 @@ class AuthService
 
         if (!$usuario->isAtivo()) {
             throw new DomainException('Usuário desativado.', 403);
-        }
-
-        if ($usuario->getNivelAcesso() !== 'admin_system') {
-            throw new DomainException('Apenas usuários com nível admin_system podem acessar.', 403);
         }
 
         return $usuario;

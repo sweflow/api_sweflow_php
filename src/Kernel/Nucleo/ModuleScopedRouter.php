@@ -50,13 +50,11 @@ class ModuleScopedRouter implements RouterInterface
     public function add(string $method, string $uri, $handler, array $middlewares = []): void
     {
         $this->router->add($method, $uri, $handler, $this->withGuard($middlewares));
-        // Guarda a rota no provider associado (se possível) ou expõe um evento.
-        // Como não temos evento, vamos adicionar um método getter para as rotas do módulo
-        // mas o ModuleScopedRouter é efêmero.
-        // Vamos adicionar um array público de rotas registradas NESTA instância.
+        // Guarda os middlewares ORIGINAIS (sem o guard interno do módulo)
+        // para que o describe() avalie corretamente quais rotas são públicas/privadas
         $this->registeredRoutes[] = [
-            'method' => $method,
-            'uri' => $uri,
+            'method'      => $method,
+            'uri'         => $uri,
             'middlewares' => $middlewares,
         ];
     }

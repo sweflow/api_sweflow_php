@@ -3,11 +3,12 @@
 namespace Src\Modules\Usuario\Repositories;
 
 use PDO;
+use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use Src\Kernel\Utils\RelogioTimeZone;
 use Src\Modules\Usuario\Repositories\UsuarioAbstractRepository;
 
-class UsuarioRepository extends UsuarioAbstractRepository
+class UsuarioRepository extends UsuarioAbstractRepository implements UserRepositoryInterface
 {
     public function __construct(PDO $pdo)
     {

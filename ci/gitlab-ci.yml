@@ -1,0 +1,44 @@
+stages:
+  - security
+
+variables:
+  APP_URL: "http://localhost:3005"
+  DB_HOST: "postgres"
+  DB_NOME: "sweflow_db"
+  DB_USUARIO: "admin"
+  DB_SENHA: "123456"
+
+security-check:
+  stage: security
+  image: php:8.2-cli
+  services:
+    - name: postgres:15
+      alias: postgres
+      variables:
+        POSTGRES_DB: sweflow_db
+        POSTGRES_USER: admin
+        POSTGRES_PASSWORD: "123456"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq curl libpq-dev
+    - docker-php-ext-install pdo pdo_pgsql
+    - curl -sS https://getcomposer.org/installer | php
+    - php composer.phar install --no-dev --optimize-autoloader
+    - cp EXEMPLO.env .env
+    - sed -i "s/DB_HOST=.*/DB_HOST=postgres/" .env
+    - sed -i "s/APP_ENV=.*/APP_ENV=testing/" .env
+    - sed -i "s/APP_DEBUG=.*/APP_DEBUG=false/" .env
+  script:
+    - php sweflow migrate --seed
+    - php -S localhost:3005 index.php &
+    - sleep 3
+    - php tests/SecurityTest.php http://localhost:3005
+  artifacts:
+    when: always
+    paths:
+      - storage/logs/
+    expire_in: 7 days
+  only:
+    - main
+    - master
+    - develop
+    - merge_requests

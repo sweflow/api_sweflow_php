@@ -4,8 +4,9 @@ namespace Src\Modules\Auth\Repositories;
 
 use DateTimeImmutable;
 use PDO;
+use Src\Kernel\Contracts\TokenBlacklistInterface;
 
-class AccessTokenBlacklistRepository
+class AccessTokenBlacklistRepository implements TokenBlacklistInterface
 {
     private PDO $pdo;
     private string $table = 'revoked_access_tokens';

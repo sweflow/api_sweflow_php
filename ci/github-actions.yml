@@ -1,0 +1,73 @@
+name: Security Check
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  security:
+    name: OWASP API Security Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: sweflow_db
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: "123456"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: pdo, pdo_pgsql, curl, json, mbstring
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Copy .env
+        run: |
+          cp EXEMPLO.env .env
+          sed -i 's/DB_HOST=.*/DB_HOST=localhost/' .env
+          sed -i 's/DB_NOME=.*/DB_NOME=sweflow_db/' .env
+          sed -i 's/DB_USUARIO=.*/DB_USUARIO=admin/' .env
+          sed -i 's/DB_SENHA=.*/DB_SENHA=123456/' .env
+          sed -i 's/APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
+
+      - name: Run migrations
+        run: php sweflow migrate --seed
+
+      - name: Start server
+        run: php -S localhost:3005 index.php &
+        env:
+          APP_URL: http://localhost:3005
+
+      - name: Wait for server
+        run: sleep 3
+
+      - name: Run security tests
+        run: php tests/SecurityTest.php http://localhost:3005
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-test-results
+          path: storage/logs/
+          if-no-files-found: ignore

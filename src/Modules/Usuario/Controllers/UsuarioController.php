@@ -4,6 +4,7 @@ namespace Src\Modules\Usuario\Controllers;
 
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
 use Src\Modules\Usuario\Entities\Usuario;
+use Src\Kernel\Database\PdoFactory;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Contracts\EmailSenderInterface;
 use Src\Kernel\Utils\ImageProcessor;
@@ -25,7 +26,9 @@ class UsuarioController
     {
         try {
             $data = $request->body ?? [];
-            error_log('DEBUG UsuarioController->criar $request->body: ' . print_r($data, true));
+            if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
+                error_log('DEBUG UsuarioController->criar $request->body: ' . print_r($data, true));
+            }
             // Validação de campos obrigatórios
             foreach (['nome_completo', 'username', 'email', 'senha'] as $campo) {
                 if (empty($data[$campo])) {
@@ -34,6 +37,20 @@ class UsuarioController
                         'message' => "Campo obrigatório não informado: $campo"
                     ], 400);
                 }
+            }
+            // Validação de e-mail
+            if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'E-mail inválido.'
+                ], 400);
+            }
+            // Validação de senha mínima
+            if (strlen((string)$data['senha']) < 8) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'A senha deve ter no mínimo 8 caracteres.'
+                ], 400);
             }
             // Validação de unicidade antes de criar o objeto
             if ($this->service->emailExiste($data['email'])) {
@@ -57,7 +74,7 @@ class UsuarioController
                 $data['url_avatar'] ?? null,
                 $data['url_capa'] ?? null,
                 $data['biografia'] ?? null,
-                $data['nivel_acesso'] ?? 'usuario',
+                'usuario', // nivel_acesso sempre 'usuario' no registro público — nunca aceitar do cliente
                 false,
                 'Não verificado'
             );
@@ -221,6 +238,8 @@ class UsuarioController
                 $data['url_capa'] = $data['cover_url'];
                 unset($data['cover_url']);
             }
+            // Campos que o usuário NÃO pode alterar no próprio perfil
+            unset($data['nivel_acesso'], $data['ativo'], $data['email_verificado'], $data['status_verificacao']);
             $this->service->atualizar($authUser->getUuid()->toString(), $data);
 
             // Retornar usuário atualizado
@@ -386,6 +405,171 @@ class UsuarioController
 
         } catch (Throwable $e) {
             return Response::json(['status' => 'error', 'message' => 'Erro ao processar upload', 'details' => $e->getMessage()], 500);
+        }
+    }
+
+    public function perfil($request): Response
+    {
+        $authUser = $request->attribute('auth_user');
+        if (!$authUser) {
+            return Response::json(['status' => 'error', 'message' => 'Não autenticado'], 401);
+        }
+
+        try {
+            $uuid = $authUser->getUuid()->toString();
+            $usuario = $this->service->buscarPorUuid($uuid);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Usuário não encontrado'], 404);
+            }
+            return Response::json([
+                'status' => 'success',
+                'usuario' => [
+                    'uuid' => $usuario->getUuid()->toString(),
+                    'nome_completo' => $usuario->getNomeCompleto(),
+                    'username' => $usuario->getUsername(),
+                    'email' => $usuario->getEmail(),
+                    'nivel_acesso' => $usuario->getNivelAcesso(),
+                    'ativo' => $usuario->isAtivo(),
+                    'criado_em' => $usuario->getCriadoEm()->format('c'),
+                    'url_avatar' => $usuario->getUrlAvatar(),
+                    'url_capa' => $usuario->getUrlCapa(),
+                    'biografia' => $usuario->getBiografia(),
+                    'status_verificacao' => $usuario->getStatusVerificacao(),
+                    'verificado_email' => $usuario->getStatusVerificacao() === 'verificado' || $usuario->isEmailVerificado(),
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao obter perfil'], 500);
+        }
+    }
+
+    public function alterarEmail($request): Response
+    {
+        $authUser = $request->attribute('auth_user');
+        if (!$authUser) {
+            return Response::json(['status' => 'error', 'message' => 'Não autenticado'], 401);
+        }
+
+        $body = $request->body ?? [];
+        $novoEmail = trim((string)($body['novo_email'] ?? $body['email'] ?? ''));
+        if ($novoEmail === '' || !filter_var($novoEmail, FILTER_VALIDATE_EMAIL)) {
+            return Response::json(['status' => 'error', 'message' => 'E-mail inválido.'], 400);
+        }
+
+        $uuid = $authUser->getUuid()->toString();
+        try {
+            $usuario = $this->service->buscarPorUuid($uuid);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Usuário não encontrado'], 404);
+            }
+            if (strtolower($usuario->getEmail()) === strtolower($novoEmail)) {
+                return Response::json(['status' => 'success', 'message' => 'E-mail já está atualizado.']);
+            }
+            if ($this->service->emailExiste($novoEmail)) {
+                return Response::json(['status' => 'error', 'message' => 'E-mail já cadastrado.'], 409);
+            }
+            if (!$this->mailer()) {
+                return Response::json(['status' => 'error', 'message' => 'Serviço de e-mail não disponível'], 503);
+            }
+
+            $this->service->atualizar($uuid, [
+                'email' => $novoEmail,
+                'status_verificacao' => 'pendente',
+            ]);
+            $this->service->marcarEmailComoVerificado($uuid, false);
+
+            $token = bin2hex(random_bytes(32));
+            $this->service->salvarTokenVerificacaoEmail($uuid, $token);
+            $link = $this->montarLinkVerificacao($token);
+            $this->mailer()->sendConfirmation($novoEmail, $usuario->getNomeCompleto(), $link, $_ENV['APP_LOGO_URL'] ?? null);
+
+            return Response::json(['status' => 'success', 'message' => 'Confirme o novo e-mail para concluir a alteração.']);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao alterar e-mail'], 500);
+        }
+    }
+
+    public function enviarVerificacaoEmail($request, string $uuid): Response
+    {
+        try {
+            $usuario = $this->service->buscarPorUuid($uuid);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Usuário não encontrado'], 404);
+            }
+            if ($usuario->isEmailVerificado() || strtolower($usuario->getStatusVerificacao()) === 'verificado') {
+                return Response::json(['status' => 'success', 'message' => 'E-mail já verificado.'], 200);
+            }
+            if (!$this->mailer()) {
+                return Response::json(['status' => 'error', 'message' => 'Serviço de e-mail não disponível'], 503);
+            }
+
+            $token = bin2hex(random_bytes(32));
+            $this->service->salvarTokenVerificacaoEmail($uuid, $token);
+            $link = $this->montarLinkVerificacao($token);
+            $this->mailer()->sendConfirmation($usuario->getEmail(), $usuario->getNomeCompleto(), $link, $_ENV['APP_LOGO_URL'] ?? null);
+
+            return Response::json(['status' => 'success', 'message' => 'E-mail de verificação enviado.']);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao enviar e-mail de verificação'], 500);
+        }
+    }
+
+    public function enviarVerificacaoEmailPorEmail($request): Response
+    {
+        try {
+            $email = $request->getQueryParam('email');
+            $email = is_string($email) ? trim($email) : '';
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return Response::json(['status' => 'error', 'message' => 'E-mail inválido ou não informado.'], 400);
+            }
+            $usuario = $this->service->buscarPorEmail($email);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'E-mail não encontrado.'], 404);
+            }
+            return $this->enviarVerificacaoEmail($request, $usuario->getUuid()->toString());
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao enviar e-mail de verificação'], 500);
+        }
+    }
+
+    public function verificarEmail($request, string $token): Response
+    {
+        try {
+            $usuario = $this->service->buscarPorTokenVerificacaoEmail($token);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'Token inválido'], 400);
+            }
+            $this->service->marcarEmailComoVerificado($usuario->getUuid()->toString());
+            return Response::json([
+                'status' => 'success',
+                'message' => 'E-mail verificado com sucesso!',
+                'uuid' => $usuario->getUuid()->toString()
+            ]);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao verificar e-mail'], 500);
+        }
+    }
+
+    public function verificarEmailStatus($request): Response
+    {
+        try {
+            $email = $request->getQueryParam('email');
+            $email = is_string($email) ? trim($email) : '';
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return Response::json(['status' => 'error', 'message' => 'E-mail inválido ou não informado.'], 400);
+            }
+            $usuario = $this->service->buscarPorEmail($email);
+            if (!$usuario) {
+                return Response::json(['status' => 'error', 'message' => 'E-mail não encontrado.'], 404);
+            }
+            return Response::json([
+                'status' => 'success',
+                'email' => $usuario->getEmail(),
+                'verificado_email' => $usuario->isEmailVerificado(),
+                'status_verificacao' => $usuario->getStatusVerificacao(),
+            ]);
+        } catch (\Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro ao verificar status do e-mail'], 500);
         }
     }
 
@@ -578,7 +762,18 @@ class UsuarioController
                     'message' => 'Usuário não encontrado'
                 ], 404);
             }
+            $urlsImagensPublicacoes = [];
+            try {
+                if (class_exists(PublicacaoRepository::class)) {
+                    $pdo = PdoFactory::fromEnv();
+                    $pubRepo = new PublicacaoRepository($pdo);
+                    $urlsImagensPublicacoes = $pubRepo->buscarImagensPorAutor($uuid);
+                }
+            } catch (\Throwable $e) {
+                $urlsImagensPublicacoes = [];
+            }
             $this->service->deletar($uuid);
+            $this->removerArquivosUsuario($usuario->getUrlAvatar(), $usuario->getUrlCapa(), $uuid, $urlsImagensPublicacoes);
             return Response::json([
                 'status' => 'success',
                 'message' => 'Usuário excluído com sucesso'
@@ -611,8 +806,18 @@ class UsuarioController
                     'message' => 'Usuário não encontrado'
                 ], 404);
             }
-
+            $urlsImagensPublicacoes = [];
+            try {
+                if (class_exists(PublicacaoRepository::class)) {
+                    $pdo = PdoFactory::fromEnv();
+                    $pubRepo = new PublicacaoRepository($pdo);
+                    $urlsImagensPublicacoes = $pubRepo->buscarImagensPorAutor($uuidToDelete);
+                }
+            } catch (\Throwable $e) {
+                $urlsImagensPublicacoes = [];
+            }
             $this->service->deletar($uuidToDelete);
+            $this->removerArquivosUsuario($usuario->getUrlAvatar(), $usuario->getUrlCapa(), $uuidToDelete, $urlsImagensPublicacoes);
             return Response::json([
                 'status' => 'success',
                 'message' => 'Usuário excluído com sucesso'

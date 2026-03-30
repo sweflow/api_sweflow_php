@@ -6,13 +6,13 @@ use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
-use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 
 class AuthCookieMiddleware implements MiddlewareInterface
 {
-    public function __construct(private UsuarioRepositoryInterface $usuarios)
+    public function __construct(private UserRepositoryInterface $usuarios)
     {
     }
 

@@ -6,16 +6,16 @@ use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Contracts\TokenBlacklistInterface;
+use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
-use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
-use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 
 class AuthHybridMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private UsuarioRepositoryInterface $usuarios,
-        private AccessTokenBlacklistRepository $blacklistRepo
+        private UserRepositoryInterface $usuarios,
+        private TokenBlacklistInterface $blacklistRepo
     ) {
     }
 

@@ -92,7 +92,6 @@ class SimpleModuleProvider implements ModuleProviderInterface
         $found = false;
         foreach ($candidates as $f) {
             if (file_exists($f)) {
-                $container = null; 
                 require $f;
                 $found = true;
             }
@@ -105,16 +104,39 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function describe(): array
     {
+        // Middlewares que indicam autenticação obrigatória (rota privada)
+        $authMiddlewares = [
+            'AuthHybridMiddleware',
+            'AuthCookieMiddleware',
+            'AdminOnlyMiddleware',
+            'RouteProtectionMiddleware',
+            'OptionalAuthHybridMiddleware',
+        ];
+
         return [
-            'name' => $this->name,
+            'name'        => $this->name,
             'description' => $this->metadata['description'] ?? '',
-            'version' => $this->metadata['version'] ?? '1.0.0',
-            'routes' => array_map(function ($route) {
+            'version'     => $this->metadata['version'] ?? '1.0.0',
+            'routes'      => array_map(function ($route) use ($authMiddlewares) {
+                $isProtected = false;
+                foreach ($route['middlewares'] ?? [] as $mw) {
+                    // Normaliza: pode ser string, array ['definition'=>...], ou closure
+                    $def = is_array($mw) ? ($mw['definition'] ?? '') : $mw;
+                    if (!is_string($def)) continue;
+                    // Compara pelo nome curto da classe
+                    $shortName = class_exists($def)
+                        ? (new \ReflectionClass($def))->getShortName()
+                        : basename(str_replace('\\', '/', $def));
+                    if (in_array($shortName, $authMiddlewares, true)) {
+                        $isProtected = true;
+                        break;
+                    }
+                }
                 return [
-                    'method' => strtoupper($route['method'] ?? 'GET'),
-                    'uri' => $route['uri'] ?? '',
-                    'protected' => !empty($route['middlewares']),
-                    'tipo' => !empty($route['middlewares']) ? 'privada' : 'pública',
+                    'method'    => strtoupper($route['method'] ?? 'GET'),
+                    'uri'       => $route['uri'] ?? '',
+                    'protected' => $isProtected,
+                    'tipo'      => $isProtected ? 'privada' : 'pública',
                 ];
             }, $this->routes),
         ];

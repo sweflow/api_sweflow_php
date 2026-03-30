@@ -75,10 +75,11 @@ class Response
     private static function securityHeaders(): array
     {
         $headers = [
-            'X-Content-Type-Options' => 'nosniff',
-            'X-Frame-Options' => 'DENY',
-            'Referrer-Policy' => 'strict-origin-when-cross-origin',
-            'Permissions-Policy' => 'geolocation=(), microphone=(), camera=()'
+            'X-Content-Type-Options'  => 'nosniff',
+            'X-Frame-Options'         => 'DENY',
+            'Referrer-Policy'         => 'strict-origin-when-cross-origin',
+            'Permissions-Policy'      => 'geolocation=(), microphone=(), camera=()',
+            'Content-Security-Policy' => "default-src 'none'; frame-ancestors 'none'",
         ];
 
         $appUrl = $_ENV['APP_URL'] ?? '';
@@ -104,6 +105,24 @@ class Response
     {
         $this->headers[$name] = $value;
         return $this;
+    }
+
+    /** Retorna nova instância com header adicionado (imutável). */
+    public function withHeader(string $name, string $value): self
+    {
+        $clone = clone $this;
+        $clone->headers[$name] = $value;
+        return $clone;
+    }
+
+    /** Retorna nova instância com múltiplos headers adicionados (imutável). */
+    public function withHeaders(array $headers): self
+    {
+        $clone = clone $this;
+        foreach ($headers as $name => $value) {
+            $clone->headers[$name] = $value;
+        }
+        return $clone;
     }
 
     public function setBody($body): self

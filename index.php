@@ -8,15 +8,20 @@ use Src\Kernel\Database\PdoFactory;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Middlewares\AdminOnlyMiddleware;
 use Src\Kernel\Middlewares\AuthHybridMiddleware;
-use Src\Modules\Usuario\Repositories\UsuarioRepository;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
 use Src\Kernel\Nucleo\Application;
 use Src\Kernel\Nucleo\Container;
 use Src\Kernel\Nucleo\ModuleLoader;
 use Src\Kernel\Nucleo\PluginManager;
+use Src\Kernel\Support\AuditLogger;
 use Src\Kernel\Support\DB\PluginMigrator;
 use Src\Kernel\Nucleo\Router;
 
 require __DIR__ . '/vendor/autoload.php';
+
+// Suprime headers que expõem tecnologia do servidor
+header_remove('X-Powered-By');
+@ini_set('expose_php', '0');
 
 // Serve arquivos estáticos diretamente de /public
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -145,6 +150,29 @@ try {
 $manager = new PluginManager($migrator, __DIR__ . '/storage');
 $container->bind(PluginManager::class, $manager, true);
 
+// Registra AuditLogger como singleton
+$container->bind(AuditLogger::class, static function () use ($container) {
+    try {
+        return new AuditLogger($container->make(\PDO::class));
+    } catch (\Throwable) {
+        return new AuditLogger(null);
+    }
+}, true);
+
+// Registra implementações dos contratos do Kernel.
+// Estes bindings conectam o kernel aos módulos — único lugar onde isso acontece.
+// O desenvolvedor de módulos não precisa tocar aqui.
+$container->bind(
+    \Src\Kernel\Contracts\UserRepositoryInterface::class,
+    \Src\Modules\Usuario\Repositories\UsuarioRepository::class,
+    true
+);
+$container->bind(
+    \Src\Kernel\Contracts\TokenBlacklistInterface::class,
+    \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
+    true
+);
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -162,8 +190,6 @@ $router->get('/dashboard', [DashboardController::class, 'index'], [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
-
-// Marketplace page (dashboard UI)
 $router->get('/modules/marketplace', [\Src\Kernel\Controllers\MarketplacePageController::class, 'index'], [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
@@ -484,5 +510,4 @@ $router->post('/api/modules/toggle', function ($request) use ($modules) {
     AdminOnlyMiddleware::class,
 ]);
 
-$application = new Application($container, $router, $modules);
-$application->run();
+$app->run();
