@@ -1,0 +1,105 @@
+version: "3.9"
+
+# ============================================================
+# Sweflow API — Docker Compose
+#
+# Serviços disponíveis:
+#   postgres  — PostgreSQL 15 (padrão do projeto)
+#   mysql     — MySQL 8.0 (alternativo)
+#   adminer   — Interface web para gerenciar ambos os bancos
+#
+# Uso rápido:
+#   docker compose up -d postgres          # só PostgreSQL
+#   docker compose up -d mysql             # só MySQL
+#   docker compose up -d postgres adminer  # PostgreSQL + UI
+#   docker compose up -d                   # tudo
+#
+# Acesso Adminer: http://localhost:8080
+# ============================================================
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: sweflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NOME:-sweflow_db}
+      POSTGRES_USER:     ${DB_USUARIO:-admin}
+      POSTGRES_PASSWORD: ${DB_SENHA:-123456}
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Executa o schema inicial ao criar o container pela primeira vez
+      - ./src/Kernel/Database/sweflow_db_2026-03-02_013709.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./src/Kernel/Database/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO:-admin} -d ${DB_NOME:-sweflow_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sweflow_net
+
+  # ── MySQL ────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: sweflow_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE:      ${DB_NOME:-sweflow_db}
+      MYSQL_USER:          ${DB_USUARIO:-admin}
+      MYSQL_PASSWORD:      ${DB_SENHA:-123456}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_sweflow_2024}
+      TZ:                  ${APP_TIMEZONE:-America/Bahia}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --innodb-buffer-pool-size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "${DB_USUARIO:-admin}", "-p${DB_SENHA:-123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - sweflow_net
+
+  # ── Adminer (UI para ambos os bancos) ───────────────────
+  adminer:
+    image: adminer:4-standalone
+    container_name: sweflow_adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN:         pepa-linha
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sweflow_net
+
+# ── Volumes persistentes ─────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  mysql_data:
+    driver: local
+
+# ── Rede interna ─────────────────────────────────────────
+networks:
+  sweflow_net:
+    driver: bridge

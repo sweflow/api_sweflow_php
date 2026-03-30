@@ -1,5 +1,14 @@
 # Ignore diretórios:
 /vendor/
+/storage/ratelimit/
+/storage/modules_cache.php
 
 # Ignore arquivos:
 .env
+.env.local
+.env.production
+
+# Docker — dados locais (não commitar)
+.env.docker.local
+docker/postgres/data/
+docker/mysql/data/
