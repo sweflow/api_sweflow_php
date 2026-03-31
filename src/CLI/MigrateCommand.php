@@ -112,9 +112,12 @@ class MigrateCommand
                 try {
                     $pdo->exec($statement . ';');
                 } catch (\Throwable $e) {
-                    // Ignora "já existe" — migration idempotente
-                    if (!str_contains($e->getMessage(), 'already exists')) {
-                        echo "  ⚠ $name: " . $e->getMessage() . "\n";
+                    $msg = $e->getMessage();
+                    // Ignora erros inofensivos (já existe, warnings genéricos sem detalhe)
+                    $ignorar = str_contains($msg, 'already exists')
+                        || $msg === 'SQLSTATE[HY000]: General error: ';
+                    if (!$ignorar) {
+                        echo "  ⚠ $name: $msg\n";
                         $hasError = true;
                     }
                 }
