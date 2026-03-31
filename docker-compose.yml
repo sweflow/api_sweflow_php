@@ -29,7 +29,6 @@ services:
       POSTGRES_USER:     ${DB_USUARIO:-admin}
       POSTGRES_PASSWORD: ${DB_SENHA:-123456}
       PGDATA:            /var/lib/postgresql/data/pgdata
-    ports:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Executa o schema inicial ao criar o container pela primeira vez
@@ -55,7 +54,6 @@ services:
       MYSQL_PASSWORD:      ${DB_SENHA:-123456}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_sweflow_2024}
       TZ:                  ${APP_TIMEZONE:-America/Bahia}
-    ports:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
