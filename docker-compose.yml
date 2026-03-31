@@ -24,6 +24,8 @@ services:
     image: postgres:15-alpine
     container_name: sweflow_postgres
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB:       ${DB_NOME:-sweflow_db}
       POSTGRES_USER:     ${DB_USUARIO:-admin}
@@ -48,6 +50,8 @@ services:
     image: mysql:8.0
     container_name: sweflow_mysql
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
     environment:
       MYSQL_DATABASE:      ${DB_NOME:-sweflow_db}
       MYSQL_USER:          ${DB_USUARIO:-admin}
