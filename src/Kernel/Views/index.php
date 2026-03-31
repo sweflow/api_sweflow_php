@@ -23,7 +23,6 @@
                     <li><a href="#login" id="open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="nav-login-text" style="visibility:hidden">Login</span></a></li>
                     <li><a href="#status"><i class="fa-solid fa-server"></i> Status</a></li>
                     <li><a href="#modulos"><i class="fa-solid fa-layer-group"></i> Módulos</a></li>
-                    <li><a href="#rotas"><i class="fa-solid fa-route"></i> Rotas</a></li>
                 </ul>
             </nav>
         </aside>
@@ -48,10 +47,10 @@
                     <li>Carregando...</li>
                 </ul>
             </section>
-            <section id="db-status">
-                <h2><i class="fa-solid fa-database"></i> Status do Banco de Dados</h2>
+            <section id="db-status" style="margin-top:4px">
+                <h2 style="margin-bottom:6px"><i class="fa-solid fa-database"></i> Status do Banco de Dados</h2>
                 <div id="db-status-content" class="db-status"> 
-                    <i class="fa-solid fa-database" style="color:gray"></i> <span style="color:gray">Carregando...</span>
+                    <i class="fa-solid fa-circle-notch fa-spin" style="color:gray"></i> <span style="color:gray">Verificando...</span>
                 </div>
             </section>
             <section id="modulos">
@@ -60,11 +59,6 @@
                     <li>Carregando...</li>
                 </ul>
             </section>
-            <section id="rotas">
-                <h2><i class="fa-solid fa-route"></i> Rotas dos Módulos</h2>
-                <div id="routes-list">Carregando...</div>
-            </section>
-
             <div class="modal-overlay" id="login-modal" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
                     <div class="modal-header">
@@ -108,12 +102,20 @@
                 function renderStatus(data) {
                     const status = data.status || {};
                     if (!statusList) return;
-                    statusList.innerHTML = `
-                        <li><strong>Host:</strong> ${status.host ?? '-'}</li>
-                        <li><strong>Porta:</strong> ${status.port ?? '-'}</li>
-                        <li><strong>Ambiente:</strong> ${status.env ?? '-'}</li>
-                        <li><strong>Debug:</strong> ${status.debug ?? '-'}</li>
-                    `;
+                    const isAuthed = localStorage.getItem('hasAuthSession') === '1';
+                    if (isAuthed) {
+                        statusList.innerHTML = `
+                            <li><strong>Host:</strong> ${status.host ?? '-'}</li>
+                            <li><strong>Porta:</strong> ${status.port ?? '-'}</li>
+                            <li><strong>Ambiente:</strong> ${status.env ?? '-'}</li>
+                            <li><strong>Debug:</strong> ${status.debug ?? '-'}</li>
+                        `;
+                    } else {
+                        const ok = status.env !== undefined;
+                        const cor = ok ? 'green' : 'red';
+                        const txt = ok ? 'Funcionando' : 'Indisponível';
+                        statusList.innerHTML = `<li><i class="fa-solid fa-circle" style="color:${cor}"></i> <strong style="color:${cor}">${txt}</strong></li>`;
+                    }
                 }
 
                 function renderModules(data) {
@@ -131,27 +133,22 @@
                         html += `<h3>${mod.name ?? mod.nome}</h3>`;
                         html += `<table class="routes-table"><thead><tr><th>Método</th><th>URI</th><th>Tipo</th></tr></thead><tbody>`;
                         (mod.routes || []).forEach(route => {
-                            const tipo = route.tipo === 'pública' ? '<span class=public><i class=fa-solid fa-unlock></i> Pública</span>' : '<span class=private><i class=fa-solid fa-lock></i> Privada</span>';
+                            const tipo = route.tipo === 'pública'
+                                ? '<span class=public><i class=fa-solid fa-unlock></i> Pública</span>'
+                                : '<span class=private><i class=fa-solid fa-lock></i> Privada</span>';
                             html += `<tr><td>${route.method}</td><td>${route.uri}</td><td>${tipo}</td></tr>`;
                         });
                         html += `</tbody></table>`;
                     });
-                    if (routesList) {
-                        routesList.innerHTML = html;
-                    }
+                    if (routesList) routesList.innerHTML = html;
                 }
 
-                function renderDbStatus(data) {
+                function renderDbStatus(conectado) {
                     if (!dbStatusContent) return;
-                    const conectado = !!data.conectado;
-                    const database = data.database || {};
-                    const iconColor = conectado ? 'green' : 'red';
-                    const texto = conectado ? 'Conectado' : 'Desconectado';
-                    let html = `<i class="fa-solid fa-database" style="color:${iconColor}"></i> <span style="color:${iconColor}">${texto}</span>`;
-                    if (data.erro) {
-                        html += `<div class="alert error"><strong>Erro:</strong> ${data.erro}</div>`;
-                    }
-                    dbStatusContent.innerHTML = html;
+                    const cor = conectado ? '#22c55e' : '#ef4444';
+                    const icon = conectado ? 'fa-circle-check' : 'fa-circle-xmark';
+                    const txt = conectado ? 'Conectado' : 'Desconectado';
+                    dbStatusContent.innerHTML = `<i class="fa-solid ${icon}" style="color:${cor};font-size:1.1em;vertical-align:middle"></i> <span style="color:${cor};vertical-align:middle">${txt}</span>`;
                 }
 
                 function updateData() {
@@ -162,14 +159,16 @@
                             renderModules(data);
                             renderRoutes(data);
                         })
-                        .catch(() => {});
+                        .catch(() => {
+                            if (statusList) statusList.innerHTML = '<li><i class="fa-solid fa-circle" style="color:red"></i> <strong style="color:red">Indisponível</strong></li>';
+                        });
                 }
 
                 function updateDbStatus() {
                     fetch('/api/db-status')
                         .then(r => r.json())
-                        .then(data => renderDbStatus(data))
-                        .catch(() => {});
+                        .then(data => renderDbStatus(!!data.conectado))
+                        .catch(() => renderDbStatus(false));
                 }
 
                 function revealLoginLabels() {
@@ -493,6 +492,7 @@
                                 feedback.classList.add('success');
                             }
                             try { localStorage.setItem(SESSION_FLAG, '1'); } catch (_) {}
+                            updateData(); // re-renderiza status com dados completos
                             setTimeout(() => {
                                 window.location.href = '/dashboard';
                             }, 600);
@@ -529,8 +529,8 @@
                 setupLogin();
                 checkSession();
 
-                setInterval(updateData, 3000);
-                setInterval(updateDbStatus, 3000);
+                setInterval(updateData, 30000);
+                setInterval(updateDbStatus, 30000);
             };
             </script>
         </main>

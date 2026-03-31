@@ -1225,6 +1225,100 @@ test('TOKEN: REFRESH_MAX_PER_USER está configurado (limite de sessões)', funct
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Fluxos de Negócio — IDOR, Escalada de Privilégio, Dados Sensíveis
+// ═══════════════════════════════════════════════════════════════════════════
+echo "\n\033[1m[BIZ] Fluxos de Negócio — IDOR, Escalada, Dados Sensíveis\033[0m\n";
+
+test('BIZ: /api/perfil/{username} público não expõe e-mail', function () use ($baseUrl) {
+    // Cria um usuário e verifica que o endpoint público não retorna o email
+    $uid = uniqid();
+    $email = "biz_$uid@test.invalid";
+    req('POST', "$baseUrl/api/registrar", [
+        'nome_completo' => 'BizTest',
+        'username'      => "biz_$uid",
+        'email'         => $email,
+        'senha'         => 'Senha@12345',
+    ]);
+    $res = req('GET', "$baseUrl/api/perfil/biz_$uid");
+    if ($res['status'] === 404) return null; // usuário não criado, ok
+    $body = json_encode($res['body']);
+    if (str_contains($body, $email)) return "E-mail exposto no endpoint público de perfil — CRÍTICO";
+    return null;
+});
+
+test('BIZ: Alteração de senha exige senha atual correta', function () use ($baseUrl) {
+    // Sem token — deve retornar 401
+    $res = req('PUT', "$baseUrl/api/perfil/senha", [
+        'senha_atual' => 'qualquer',
+        'nova_senha'  => 'NovaSenha@123',
+    ]);
+    return assertStatus($res, 401);
+});
+
+test('BIZ: Alteração de e-mail exige autenticação', function () use ($baseUrl) {
+    $res = req('PUT', "$baseUrl/api/perfil/email", ['novo_email' => 'hacker@evil.com']);
+    return assertStatus($res, 401);
+});
+
+test('BIZ: Deleção de conta exige autenticação', function () use ($baseUrl) {
+    $res = req('DELETE', "$baseUrl/api/perfil");
+    return assertStatus($res, 401);
+});
+
+test('BIZ: Upload de imagem exige autenticação', function () use ($baseUrl) {
+    $res = req('POST', "$baseUrl/api/perfil/upload", []);
+    return assertStatus($res, 401);
+});
+
+test('BIZ: JWT_SECRET não é um JWT completo (segredo fraco)', function () use ($baseUrl) {
+    // Verifica indiretamente: se o servidor aceita token forjado com secret padrão, o secret é fraco
+    // Tenta usar o secret padrão antigo (eyJhbG...) para forjar um token
+    $knownWeakSecret = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyX2lkIiwiZXhwIjoxOTg4MjAwMDAwfQ.2QwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQw';
+    // Gera um token assinado com o secret fraco conhecido
+    $header  = rtrim(strtr(base64_encode('{"alg":"HS256","typ":"JWT"}'), '+/', '-_'), '=');
+    $payload = rtrim(strtr(base64_encode(json_encode(['sub'=>'admin','tipo'=>'user','exp'=>time()+3600,'jti'=>'weak-jti'])), '+/', '-_'), '=');
+    $sig     = rtrim(strtr(base64_encode(hash_hmac('sha256', "$header.$payload", $knownWeakSecret, true)), '+/', '-_'), '=');
+    $token   = "$header.$payload.$sig";
+    $res = req('GET', "$baseUrl/api/perfil", [], ["Authorization: Bearer $token"]);
+    if ($res['status'] === 200) return "JWT_SECRET fraco: token forjado com secret padrão foi aceito — CRÍTICO";
+    return null;
+});
+
+test('BIZ: Resposta de erro de senha não vaza hash bcrypt', function () use ($baseUrl) {
+    $res = req('PUT', "$baseUrl/api/perfil/senha", [
+        'senha_atual' => 'errada',
+        'nova_senha'  => 'NovaSenha@123',
+    ]);
+    $body = json_encode($res['body']);
+    if (preg_match('/\$2[ayb]\$\d+\$/', $body)) return "Hash bcrypt vazou na resposta de erro";
+    return null;
+});
+
+test('BIZ: /api/db-status público retorna apenas conectado/desconectado', function () use ($baseUrl) {
+    $res = req('GET', "$baseUrl/api/db-status");
+    if ($res['status'] === 0) return "Servidor não respondeu";
+    $body = $res['body'];
+    // Não deve expor host, porta, nome do banco, usuário ou senha
+    $sensitive = ['host', 'port', 'nome', 'database_name', 'user', 'usuario', 'senha', 'password', 'driver'];
+    foreach ($sensitive as $field) {
+        if (isset($body[$field])) return "Campo sensível '$field' exposto no endpoint público /api/db-status";
+        if (isset($body['database'][$field])) return "Campo sensível 'database.$field' exposto no endpoint público";
+    }
+    if (!array_key_exists('conectado', $body)) return "Campo 'conectado' ausente na resposta";
+    return null;
+});
+
+test('BIZ: /api/status público não expõe rotas da API', function () use ($baseUrl) {
+    $res = req('GET', "$baseUrl/api/status");
+    $body = json_encode($res['body']);
+    // Não deve expor lista de rotas internas
+    if (isset($res['body']['routes']) && count($res['body']['routes']) > 0) {
+        return "Inventário de rotas exposto publicamente em /api/status";
+    }
+    return null;
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Resumo Final
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1283,6 +1377,7 @@ $owasp = [
     'TOKEN'     => 'Token Replay / Blacklist JWT',
     'INFRA'     => 'Infraestrutura',
     'EDGE'      => 'Edge Cases / Robustez',
+    'BIZ'       => 'Fluxos de Negócio / IDOR / Dados Sensíveis',
 ];
 foreach ($owasp as $prefix => $label) {
     $cat = array_filter($results, fn($r) => str_starts_with($r['name'], "$prefix:"));

@@ -219,8 +219,7 @@ class UsuarioController
         } catch (Throwable $e) {
             return Response::json([
                 'status' => 'error',
-                'message' => 'Erro interno no servidor',
-                'details' => $e->getMessage()
+                'message' => 'Erro interno no servidor'
             ], 500);
         }
     }
@@ -650,18 +649,18 @@ class UsuarioController
                 ], 404);
             }
 
-            // Retorna apenas informações públicas do perfil
+            // Retorna apenas informações públicas do perfil — sem email
             return Response::json([
                 'status' => 'success',
                 'usuario' => [
-                    'uuid' => $usuario->getUuid()->toString(),
-                    'nome_completo' => $usuario->getNomeCompleto(),
-                    'username' => $usuario->getUsername(),
-                    'ativo' => $usuario->isAtivo(),
-                    'criado_em' => $usuario->getCriadoEm()->format('c'),
-                    'url_avatar' => $usuario->getUrlAvatar(),
-                    'url_capa' => $usuario->getUrlCapa(),
-                    'biografia' => $usuario->getBiografia(),
+                    'uuid'               => $usuario->getUuid()->toString(),
+                    'nome_completo'      => $usuario->getNomeCompleto(),
+                    'username'           => $usuario->getUsername(),
+                    'ativo'              => $usuario->isAtivo(),
+                    'criado_em'          => $usuario->getCriadoEm()->format('c'),
+                    'url_avatar'         => $usuario->getUrlAvatar(),
+                    'url_capa'           => $usuario->getUrlCapa(),
+                    'biografia'          => $usuario->getBiografia(),
                     'status_verificacao' => $usuario->getStatusVerificacao(),
                 ]
             ]);

@@ -746,7 +746,10 @@ window.onload = function () {
             dbConnection.className = conectado ? 'metric-value success' : 'metric-value danger';
         }
         if (dbMeta) {
-            dbMeta.textContent = db.conectado ? 'Conectado' : 'Desconectado';
+            const driver = db.database?.driver ?? null;
+            dbMeta.textContent = db.conectado
+                ? (driver ? `Driver: ${driver}` : 'Conexão ativa')
+                : 'Verifique se o banco está rodando';
         }
 
         if (serverStatus) {
@@ -754,7 +757,7 @@ window.onload = function () {
             serverStatus.className = 'metric-value success';
         }
         if (serverMeta) {
-            const meta = `${status.host ?? '-'}:${status.port ?? '-'} • env=${status.env ?? '-'} • debug=${status.debug ?? '-'}`;
+            const meta = `env=${status.env ?? '-'} • debug=${status.debug ?? '-'}`;
             serverMeta.textContent = meta;
         }
 
@@ -875,7 +878,7 @@ window.onload = function () {
     }
 
     function fetchMetrics() {
-        fetch('/api/dashboard/metrics')
+        fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
             .then(async (res) => {
                 if (handleUnauthorized(res.status)) return null;
                 const body = await res.json();
@@ -893,14 +896,28 @@ window.onload = function () {
     }
 
 
-    fetchMetrics();
-    loadCapabilities();
-    fetchModulesState();
-    fetchAuthPolicy();
-    setInterval(() => {
-        fetchMetrics();
-        fetchModulesState();
-    }, 3000);
+    // Inicialização: verifica sessão via API antes de carregar o resto
+    fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
+        .then(async (res) => {
+            if (handleUnauthorized(res.status)) return null; // redireciona para / se 401/403
+            const body = await res.json();
+            if (!res.ok) return null;
+            return body;
+        })
+        .then(data => {
+            if (!data) return;
+            renderMetrics(data);
+            // Só carrega o resto após confirmar que a sessão é válida
+            loadCapabilities();
+            fetchModulesState();
+            fetchAuthPolicy();
+            // Polling a cada 30s
+            setInterval(() => {
+                fetchMetrics();
+                fetchModulesState();
+            }, 30000);
+        })
+        .catch(() => {});
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);

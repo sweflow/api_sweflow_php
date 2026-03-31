@@ -24,6 +24,58 @@ require __DIR__ . '/vendor/autoload.php';
 header_remove('X-Powered-By');
 @ini_set('expose_php', '0');
 
+// ── Carrega .env antes de qualquer validação ──────────────────────────────
+if (file_exists(__DIR__ . '/.env')) {
+    $dotenv = Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+}
+
+// ── Validação de segredos críticos em produção ────────────────────────────
+// Impede boot com segredos fracos, padrão ou ausentes
+(static function (): void {
+    $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
+    if (!$isProduction) {
+        return;
+    }
+
+    $weakPatterns = [
+        '/^eyJ/', // JWT completo usado como secret (não é um segredo, é um token)
+        '/^(secret|password|changeme|12345|admin|test|example)/i',
+    ];
+
+    $secrets = [
+        'JWT_SECRET'     => $_ENV['JWT_SECRET']     ?? '',
+        'JWT_API_SECRET' => $_ENV['JWT_API_SECRET']  ?? '',
+    ];
+
+    foreach ($secrets as $name => $value) {
+        if (strlen($value) < 32) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => "Configuração inválida: $name deve ter ao menos 32 caracteres."]);
+            exit(1);
+        }
+        foreach ($weakPatterns as $pattern) {
+            if (preg_match($pattern, $value)) {
+                http_response_code(500);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => "Configuração inválida: $name contém um valor inseguro."]);
+                exit(1);
+            }
+        }
+    }
+
+    $dbPass = $_ENV['DB_SENHA'] ?? $_ENV['DB_PASSWORD'] ?? '';
+    $dbHost = $_ENV['DB_HOST'] ?? 'localhost';
+    $isLocalDb = in_array($dbHost, ['localhost', '127.0.0.1', '::1'], true);
+    if (!$isLocalDb && strlen($dbPass) < 16) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Configuração inválida: DB_SENHA deve ter ao menos 16 caracteres em produção com banco remoto.']);
+        exit(1);
+    }
+})();
+
 // Serve arquivos estáticos diretamente de /public
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $publicPath = __DIR__ . '/public' . $uri;
@@ -50,11 +102,6 @@ if ($uri !== '/' && is_file($publicPath)) {
     header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
     readfile($publicPath);
     exit;
-}
-
-if (file_exists(__DIR__ . '/.env')) {
-    $dotenv = Dotenv::createImmutable(__DIR__);
-    $dotenv->load();
 }
 
 function isDbConnectionError(\Throwable $e): bool
@@ -373,8 +420,9 @@ $router->get('/robots.txt', function () use ($router) {
 
 $router->get('/api/status', function () use ($modules, $router) {
     $status = [
-        'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
-        'env' => $_ENV['APP_ENV'] ?? 'local',
+        'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
+        'port' => $_SERVER['SERVER_PORT'] ?? '-',
+        'env'  => $_ENV['APP_ENV'] ?? 'local',
         'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
     ];
 
@@ -397,25 +445,25 @@ $router->get('/api/status', function () use ($modules, $router) {
 });
 
 $router->get('/api/db-status', function () use ($container) {
-    $driverEnv = strtolower($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql');
-    $driverEnv = $driverEnv === 'postgresql' ? 'pgsql' : $driverEnv;
+    // Rota pública — retorna apenas conectado/desconectado, sem detalhes de infra
+    try {
+        $pdo = $container->make(\PDO::class);
+        $pdo->query('SELECT 1');
+        return Response::json(['conectado' => true]);
+    } catch (\Throwable $e) {
+        return Response::json(['conectado' => false], 503);
+    }
+});
 
+$router->get('/api/db-status/details', function () use ($container) {
+    // Rota protegida — retorna driver para admins
     try {
         $pdo = $container->make(\PDO::class);
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-        $probe = $driver === 'pgsql' ? 'SELECT 1' : 'SELECT 1';
-        $pdo->query($probe);
-
-        return Response::json([
-            'conectado' => true,
-            'database' => [
-                'driver' => $driver,
-            ],
-        ]);
+        $pdo->query('SELECT 1');
+        return Response::json(['conectado' => true, 'database' => ['driver' => $driver]]);
     } catch (\Throwable $e) {
-        return Response::json([
-            'conectado' => false,
-        ], 500);
+        return Response::json(['conectado' => false], 503);
     }
 }, [
     AuthHybridMiddleware::class,
@@ -424,7 +472,7 @@ $router->get('/api/db-status', function () use ($container) {
 
 $router->get('/api/dashboard/metrics', function () use ($container, $modules, $router) {
     $status = [
-        'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
+        'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
         'env' => $_ENV['APP_ENV'] ?? 'local',
         'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
     ];
@@ -432,7 +480,7 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules, $r
     $moduleList = [];
     foreach ($modules->providers() as $name => $provider) {
         $desc = $provider->describe();
-        unset($desc['routes']);
+        // Rota protegida por admin — inclui routes para o dashboard exibir
         $moduleList[] = array_merge(['name' => $name, 'enabled' => $modules->isEnabled($name)], $desc);
     }
 
