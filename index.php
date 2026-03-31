@@ -42,7 +42,12 @@ if ($uri !== '/' && is_file($publicPath)) {
         'woff' => 'font/woff',
         'ttf' => 'font/ttf',
     ][$ext] ?? 'application/octet-stream';
+    header_remove('X-Powered-By');
     header('Content-Type: ' . $mime);
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
     readfile($publicPath);
     exit;
 }
@@ -94,6 +99,9 @@ function renderDbConnectionError(string $uri): void
         if (!headers_sent()) {
             http_response_code(503);
             header('Content-Type: application/json; charset=utf-8');
+            header('X-Content-Type-Options: nosniff');
+            header('X-Frame-Options: DENY');
+            header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
         }
         echo json_encode([
             'status' => 'error',
@@ -124,6 +132,9 @@ function renderDbConnectionError(string $uri): void
     if (!headers_sent()) {
         http_response_code(503);
         header('Content-Type: text/html; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+        header('Content-Security-Policy: default-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; frame-ancestors \'none\'');
     }
     echo $html;
     exit;

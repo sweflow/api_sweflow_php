@@ -36,7 +36,7 @@ class Response
 
     public static function html(string $html, int $status = 200): self
     {
-        $securityHeaders = self::securityHeaders();
+        $securityHeaders = self::securityHeaders(false);
         return new self(
             $html,
             $status,
@@ -72,14 +72,20 @@ class Response
         return array_values(array_filter($origins));
     }
 
-    private static function securityHeaders(): array
+    private static function securityHeaders(bool $isApi = true): array
     {
+        $csp = $isApi
+            // API JSON: bloqueia tudo — não há assets a carregar
+            ? "default-src 'none'; frame-ancestors 'none'"
+            // Páginas HTML: permite assets do próprio domínio
+            : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
         $headers = [
             'X-Content-Type-Options'  => 'nosniff',
             'X-Frame-Options'         => 'DENY',
             'Referrer-Policy'         => 'strict-origin-when-cross-origin',
             'Permissions-Policy'      => 'geolocation=(), microphone=(), camera=()',
-            'Content-Security-Policy' => "default-src 'none'; frame-ancestors 'none'",
+            'Content-Security-Policy' => $csp,
         ];
 
         $appUrl = $_ENV['APP_URL'] ?? '';
