@@ -8,6 +8,7 @@ use Src\Kernel\Database\PdoFactory;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Middlewares\AdminOnlyMiddleware;
 use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AuthPageMiddleware;
 use Src\Kernel\Middlewares\RateLimitMiddleware;
 use Src\Kernel\Nucleo\Application;
 use Src\Kernel\Nucleo\Container;
@@ -153,7 +154,35 @@ $container->bind(PluginManager::class, $manager, true);
 // Registra AuditLogger como singleton
 $container->bind(AuditLogger::class, static function () use ($container) {
     try {
-        return new AuditLogger($container->make(\PDO::class));
+        $pdo = $container->make(\PDO::class);
+        // Auto-cria a tabela audit_logs se não existir (evita erro em produção sem migration)
+        try {
+            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+            if ($driver === 'pgsql') {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+                    id BIGSERIAL PRIMARY KEY,
+                    evento VARCHAR(100) NOT NULL,
+                    usuario_uuid UUID NULL,
+                    contexto JSONB NOT NULL DEFAULT '{}',
+                    ip VARCHAR(45) NOT NULL DEFAULT '',
+                    user_agent VARCHAR(512) NOT NULL DEFAULT '',
+                    endpoint VARCHAR(255) NOT NULL DEFAULT '',
+                    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )");
+            } else {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    evento VARCHAR(100) NOT NULL,
+                    usuario_uuid CHAR(36) NULL,
+                    contexto JSON NOT NULL,
+                    ip VARCHAR(45) NOT NULL DEFAULT '',
+                    user_agent VARCHAR(512) NOT NULL DEFAULT '',
+                    endpoint VARCHAR(255) NOT NULL DEFAULT '',
+                    criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            }
+        } catch (\Throwable) {}
+        return new AuditLogger($pdo);
     } catch (\Throwable) {
         return new AuditLogger(null);
     }
@@ -187,11 +216,11 @@ $app->boot();
 $router->get('/', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/index.php', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/dashboard', [DashboardController::class, 'index'], [
-    AuthHybridMiddleware::class,
+    AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
 $router->get('/modules/marketplace', [\Src\Kernel\Controllers\MarketplacePageController::class, 'index'], [
-    AuthHybridMiddleware::class,
+    AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
 
@@ -329,6 +358,28 @@ $router->get('/robots.txt', function () use ($router) {
 
     $body = implode("\n", $lines);
     return new Response($body, 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+});
+
+// Endpoint de diagnóstico de autenticação (remover após resolver o problema)
+$router->get('/api/debug/auth', function () {
+    $appUrl  = $_ENV['APP_URL'] ?? '';
+    $isHttps = strncmp($appUrl, 'https://', 8) === 0
+        || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
+    return Response::json([
+        'cookie_auth_token_present' => isset($_COOKIE['auth_token']),
+        'cookie_auth_token_length'  => strlen($_COOKIE['auth_token'] ?? ''),
+        'bearer_present'            => str_starts_with($_SERVER['HTTP_AUTHORIZATION'] ?? '', 'Bearer '),
+        'https_detected'            => $isHttps,
+        'app_url'                   => $appUrl,
+        'x_forwarded_proto'         => $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? null,
+        'server_https'              => $_SERVER['HTTPS'] ?? null,
+        'cookie_secure_env'         => $_ENV['COOKIE_SECURE'] ?? null,
+        'cookie_samesite_env'       => $_ENV['COOKIE_SAMESITE'] ?? null,
+        'jwt_issuer'                => $_ENV['JWT_ISSUER'] ?? null,
+        'all_cookies'               => array_keys($_COOKIE),
+    ]);
 });
 
 $router->get('/api/status', function () use ($modules, $router) {

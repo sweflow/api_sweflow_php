@@ -92,13 +92,15 @@ class AuthHybridMiddleware implements MiddlewareInterface
             throw new DomainException('Token sem jti.', 401);
         }
 
+        // Valida iss e aud apenas se configurados E se o token os contém
+        // Tokens emitidos antes de configurar JWT_ISSUER/JWT_AUDIENCE continuam válidos
         $iss = $_ENV['JWT_ISSUER'] ?? getenv('JWT_ISSUER') ?? null;
-        if ($iss && (!isset($payload->iss) || $payload->iss !== $iss)) {
+        if ($iss && isset($payload->iss) && $payload->iss !== $iss) {
             throw new DomainException('Emissor do token inválido.', 401);
         }
 
         $aud = $_ENV['JWT_AUDIENCE'] ?? getenv('JWT_AUDIENCE') ?? null;
-        if ($aud && (!isset($payload->aud) || $payload->aud !== $aud)) {
+        if ($aud && isset($payload->aud) && $payload->aud !== $aud) {
             throw new DomainException('Audiência do token inválida.', 401);
         }
     }

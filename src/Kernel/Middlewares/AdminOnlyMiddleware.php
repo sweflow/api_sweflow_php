@@ -13,15 +13,22 @@ class AdminOnlyMiddleware implements MiddlewareInterface
         $payload = $request->attribute('auth_payload');
         $usuario = $request->attribute('auth_user');
 
+        // Detecta se é rota de página (não API) para redirecionar em vez de retornar JSON
+        $isPage = !str_starts_with($request->getUri(), '/api/');
+
         if ($payload === null || $usuario === null) {
-            return Response::json(['error' => 'Autenticação obrigatória.'], 401);
+            return $isPage
+                ? new Response('', 302, ['Location' => '/'])
+                : Response::json(['error' => 'Autenticação obrigatória.'], 401);
         }
 
         $nivel = $payload->nivel_acesso ?? null;
         $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
 
         if ($nivel !== 'admin_system' || $nivelUsuario !== 'admin_system') {
-            return Response::json(['error' => 'Acesso restrito a admin_system.'], 403);
+            return $isPage
+                ? new Response('', 302, ['Location' => '/'])
+                : Response::json(['error' => 'Acesso restrito a admin_system.'], 403);
         }
 
         $result = $next($request);

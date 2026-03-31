@@ -616,26 +616,27 @@ class AuthController
 
     private function definirCookieAuth(string $token, int $expiraEm): void
     {
-        $envSecure = $this->boolEnv($_ENV['COOKIE_SECURE'] ?? getenv('COOKIE_SECURE') ?? 'false');
+        $envSecure  = $this->boolEnv($_ENV['COOKIE_SECURE'] ?? getenv('COOKIE_SECURE') ?? 'false');
         $envSameSite = $this->resolverSameSite($_ENV['COOKIE_SAMESITE'] ?? getenv('COOKIE_SAMESITE') ?? 'Lax');
-        $domain = trim($_ENV['COOKIE_DOMAIN'] ?? getenv('COOKIE_DOMAIN') ?? '');
+        $domain     = trim($_ENV['COOKIE_DOMAIN'] ?? getenv('COOKIE_DOMAIN') ?? '');
 
-        $appUrl = $_ENV['APP_URL'] ?? getenv('APP_URL') ?? '';
-        $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: '';
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-            || strtolower($scheme) === 'https';
+        // Detecta HTTPS por qualquer uma das fontes disponíveis
+        $appUrl  = $_ENV['APP_URL'] ?? getenv('APP_URL') ?? '';
+        $isHttps = strncmp($appUrl, 'https://', 8) === 0                                          // APP_URL começa com https
+            || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')                          // PHP nativo
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')                            // Nginx/proxy
+            || (($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '') === 'on')                                 // Alguns proxies
+            || (($_SERVER['REQUEST_SCHEME'] ?? '') === 'https');                                    // Apache mod_rewrite
 
-        // Em ambiente http local, não use cookie Secure; força SameSite Lax para enviar o cookie.
-        $secure = $envSecure && $isHttps;
+        $secure   = $envSecure && $isHttps;
         $sameSite = (!$secure && $envSameSite === 'None') ? 'Lax' : $envSameSite;
 
         $opcoes = [
-            'expires' => $expiraEm,
-            'path' => '/',
-            'secure' => $secure,
+            'expires'  => $expiraEm,
+            'path'     => '/',
+            'secure'   => $secure,
             'httponly' => true,
-            'samesite' => $sameSite
+            'samesite' => $sameSite,
         ];
 
         if ($domain !== '') {
