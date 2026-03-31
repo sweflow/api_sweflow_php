@@ -360,32 +360,9 @@ $router->get('/robots.txt', function () use ($router) {
     return new Response($body, 200, ['Content-Type' => 'text/plain; charset=utf-8']);
 });
 
-// Endpoint de diagnóstico de autenticação (remover após resolver o problema)
-$router->get('/api/debug/auth', function () {
-    $appUrl  = $_ENV['APP_URL'] ?? '';
-    $isHttps = strncmp($appUrl, 'https://', 8) === 0
-        || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-
-    return Response::json([
-        'cookie_auth_token_present' => isset($_COOKIE['auth_token']),
-        'cookie_auth_token_length'  => strlen($_COOKIE['auth_token'] ?? ''),
-        'bearer_present'            => str_starts_with($_SERVER['HTTP_AUTHORIZATION'] ?? '', 'Bearer '),
-        'https_detected'            => $isHttps,
-        'app_url'                   => $appUrl,
-        'x_forwarded_proto'         => $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? null,
-        'server_https'              => $_SERVER['HTTPS'] ?? null,
-        'cookie_secure_env'         => $_ENV['COOKIE_SECURE'] ?? null,
-        'cookie_samesite_env'       => $_ENV['COOKIE_SAMESITE'] ?? null,
-        'jwt_issuer'                => $_ENV['JWT_ISSUER'] ?? null,
-        'all_cookies'               => array_keys($_COOKIE),
-    ]);
-});
-
 $router->get('/api/status', function () use ($modules, $router) {
     $status = [
         'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
-        'port' => $_SERVER['SERVER_PORT'] ?? '80',
         'env' => $_ENV['APP_ENV'] ?? 'local',
         'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
     ];
@@ -394,77 +371,49 @@ $router->get('/api/status', function () use ($modules, $router) {
     foreach ($modules->providers() as $name => $provider) {
         $enabled = $modules->isEnabled($name);
         $desc = $provider->describe();
-        $routes = $enabled ? ($desc['routes'] ?? []) : [];
-        // Não removemos as rotas de desc aqui, pois precisamos delas na lista de módulos
-        // O front-end espera que cada módulo tenha sua lista de 'routes' para exibir na tabela "Rotas dos Módulos"
-
+        // Remove routes from public status to avoid API inventory exposure
+        unset($desc['routes']);
         $moduleList[] = array_merge(
             ['name' => $name, 'enabled' => $enabled],
-            $desc // desc já contém 'routes'
+            $desc
         );
     }
 
     return Response::json([
         'status' => $status,
         'modules' => $moduleList,
-        // O front-end usa 'modules' para exibir as rotas agrupadas por módulo
-        // O campo 'routes' abaixo é redundante ou usado para outra coisa, mas vamos manter
-        'routes' => array_values(array_map(
-            fn($route) => [
-                'method' => $route['method'],
-                'uri' => $route['uri'],
-            ],
-            $router->all()
-        )),
     ]);
 });
 
 $router->get('/api/db-status', function () use ($container) {
     $driverEnv = strtolower($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql');
     $driverEnv = $driverEnv === 'postgresql' ? 'pgsql' : $driverEnv;
-    $host = $_ENV['DB_HOST'] ?? '';
-    $name = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
-    $port = $_ENV['DB_PORT'] ?? ($driverEnv === 'pgsql' ? '5432' : '3306');
 
     try {
         $pdo = $container->make(\PDO::class);
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $probe = $driver === 'pgsql' ? 'SELECT 1' : 'SELECT 1';
         $pdo->query($probe);
-        $dbName = null;
-        try {
-            $dbName = $pdo->query($driver === 'pgsql' ? 'select current_database()' : 'select database()')->fetchColumn();
-        } catch (\Throwable $inner) {
-            $dbName = $name;
-        }
 
         return Response::json([
             'conectado' => true,
             'database' => [
                 'driver' => $driver,
-                'host' => $host,
-                'port' => $port,
-                'nome' => $dbName ?: $name,
             ],
         ]);
     } catch (\Throwable $e) {
         return Response::json([
             'conectado' => false,
-            'database' => [
-                'driver' => $driverEnv,
-                'host' => $host,
-                'port' => $port,
-                'nome' => $name,
-            ],
-            'erro' => $e->getMessage(),
         ], 500);
     }
-});
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
 
 $router->get('/api/dashboard/metrics', function () use ($container, $modules, $router) {
     $status = [
         'host' => $_SERVER['SERVER_NAME'] ?? 'localhost',
-        'port' => $_SERVER['SERVER_PORT'] ?? '80',
         'env' => $_ENV['APP_ENV'] ?? 'local',
         'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
     ];
@@ -472,54 +421,37 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules, $r
     $moduleList = [];
     foreach ($modules->providers() as $name => $provider) {
         $desc = $provider->describe();
+        unset($desc['routes']);
         $moduleList[] = array_merge(['name' => $name, 'enabled' => $modules->isEnabled($name)], $desc);
     }
 
     $dbStatus = [
         'conectado' => false,
         'database' => null,
-        'erro' => null,
     ];
 
     try {
         $pdo = $container->make(\PDO::class);
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-        $host = $_ENV['DB_HOST'] ?? '';
-        $name = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
-        $port = $_ENV['DB_PORT'] ?? ($driver === 'pgsql' ? '5432' : '3306');
-        $probe = $driver === 'pgsql' ? 'SELECT 1' : 'SELECT 1';
-        $pdo->query($probe);
-        $dbName = $pdo->query($driver === 'pgsql' ? 'select current_database()' : 'select database()')->fetchColumn();
+        $pdo->query('SELECT 1');
 
         $dbStatus['conectado'] = true;
-        $dbStatus['database'] = [
-            'driver' => $driver,
-            'host' => $host,
-            'port' => $port,
-            'nome' => $dbName ?: $name,
-        ];
+        $dbStatus['database'] = ['driver' => $driver];
     } catch (\Throwable $e) {
-        $dbStatus['erro'] = $e->getMessage();
+        $dbStatus['conectado'] = false;
     }
 
-    $usuarios = ['total' => null, 'erro' => null];
+    $usuarios = ['total' => null];
     try {
         $repo = $container->make(\Src\Modules\Usuario\Repositories\UsuarioRepository::class);
         $usuarios['total'] = $repo->contar();
     } catch (\Throwable $e) {
-        $usuarios['erro'] = $e->getMessage();
+        // silently fail
     }
 
     return Response::json([
         'status' => $status,
         'modules' => $moduleList,
-        'routes' => array_map(
-            fn($route) => [
-                'method' => $route['method'],
-                'uri' => $route['uri'],
-            ],
-            $router->all()
-        ),
         'database' => $dbStatus,
         'usuarios' => $usuarios,
     ]);

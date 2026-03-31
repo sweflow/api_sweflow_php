@@ -144,6 +144,14 @@ class UsuarioController
     {
         try {
             $data = $request->body ?? [];
+
+            // Apenas admin_system pode alterar nivel_acesso
+            $authUser = $request->attribute('auth_user');
+            $userRole = ($authUser && method_exists($authUser, 'getNivelAcesso')) ? $authUser->getNivelAcesso() : '';
+            if (isset($data['nivel_acesso']) && $userRole !== 'admin_system') {
+                unset($data['nivel_acesso']);
+            }
+
             $this->service->atualizar($uuid, $data);
             return Response::json([
                 'status' => 'success',
@@ -152,14 +160,14 @@ class UsuarioController
         } catch (DomainException $e) {
             return Response::json([
                 'status' => 'error',
-                'message' => $e->getMessage(),
-                'details' => $e->getMessage()
+                'message' => $e->getMessage()
             ], $e->getCode() === 500 ? 500 : 400);
         } catch (Throwable $e) {
+            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
             return Response::json([
                 'status' => 'error',
                 'message' => 'Erro interno no servidor',
-                'details' => $e->getMessage()
+                'details' => $debug ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -267,14 +275,14 @@ class UsuarioController
         } catch (DomainException $e) {
             return Response::json([
                 'status' => 'error',
-                'message' => $e->getMessage(),
-                'details' => $e->getMessage()
+                'message' => $e->getMessage()
             ], $e->getCode() === 500 ? 500 : 400);
         } catch (Throwable $e) {
+            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
             return Response::json([
                 'status' => 'error',
                 'message' => 'Erro interno no servidor',
-                'details' => $e->getMessage()
+                'details' => $debug ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -404,7 +412,8 @@ class UsuarioController
             return Response::json(['status' => 'success', 'url' => $absoluteUrl]);
 
         } catch (Throwable $e) {
-            return Response::json(['status' => 'error', 'message' => 'Erro ao processar upload', 'details' => $e->getMessage()], 500);
+            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
+            return Response::json(['status' => 'error', 'message' => 'Erro ao processar upload', 'details' => $debug ? $e->getMessage() : null], 500);
         }
     }
 
@@ -894,63 +903,30 @@ class UsuarioController
      */
     public function desativar($request): Response
     {
-        $isSuperAdmin = $request->attribute('is_super_admin', false);
         $authUser = $request->attribute('auth_user');
-        $userRole = $request->attribute('nivel_acesso', '');
-        $isSystemAdmin = $userRole === 'admin_system';
+        $isSystemAdmin = $authUser && method_exists($authUser, 'getNivelAcesso') && $authUser->getNivelAcesso() === 'admin_system';
         $uuid = $request->param('uuid');
 
-        if ($isSuperAdmin || $isSystemAdmin) {
-            if (!$uuid) {
-                return Response::json(['error' => 'UUID não informado'], 400);
-            }
-            try {
-                $this->service->desativar($uuid);
-                return Response::json([
-                    'status' => 'success',
-                    'message' => 'Usuário desativado com sucesso (super admin)'
-                ]);
-            } catch (DomainException $e) {
-                return Response::json([
-                    'status' => 'error',
-                    'message' => $e->getMessage()
-                ], 404);
-            }
+        if (!$authUser || !$isSystemAdmin) {
+            return Response::json(['error' => 'Acesso restrito a administradores.'], 403);
         }
 
-        // Permitir desativação sem autenticação
-        // Se não for super admin ou system admin, desativa pelo uuid da rota
-        if ($uuid) {
-            try {
-                $usuario = $this->service->buscarPorUuid($uuid);
-                if (!$usuario) {
-                    return Response::json([
-                        'status' => 'error',
-                        'message' => 'Usuário não encontrado'
-                    ], 404);
-                }
-                if (!$usuario->isAtivo()) {
-                    return Response::json([
-                        'status' => 'info',
-                        'message' => 'Usuário já está desativado.'
-                    ]);
-                }
-                $this->service->desativar($uuid);
-                return Response::json([
-                    'status' => 'success',
-                    'message' => 'Usuário desativado com sucesso'
-                ]);
-            } catch (DomainException $e) {
-                return Response::json([
-                    'status' => 'error',
-                    'message' => $e->getMessage()
-                ], 404);
-            }
+        if (!$uuid) {
+            return Response::json(['error' => 'UUID não informado'], 400);
         }
-        return Response::json([
-            'status' => 'error',
-            'message' => 'UUID não informado'
-        ], 400);
+
+        try {
+            $this->service->desativar($uuid);
+            return Response::json([
+                'status' => 'success',
+                'message' => 'Usuário desativado com sucesso'
+            ]);
+        } catch (DomainException $e) {
+            return Response::json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 404);
+        }
     }
 
     /**
@@ -958,63 +934,30 @@ class UsuarioController
      */
     public function ativar($request): Response
     {
-        $isSuperAdmin = $request->attribute('is_super_admin', false);
         $authUser = $request->attribute('auth_user');
-        $userRole = $request->attribute('nivel_acesso', '');
-        $isSystemAdmin = $userRole === 'admin_system';
+        $isSystemAdmin = $authUser && method_exists($authUser, 'getNivelAcesso') && $authUser->getNivelAcesso() === 'admin_system';
         $uuid = $request->param('uuid');
 
-        if ($isSuperAdmin || $isSystemAdmin) {
-            if (!$uuid) {
-                return Response::json(['error' => 'UUID não informado'], 400);
-            }
-            try {
-                $this->service->ativar($uuid);
-                return Response::json([
-                    'status' => 'success',
-                    'message' => 'Usuário ativado com sucesso (super admin)'
-                ]);
-            } catch (DomainException $e) {
-                return Response::json([
-                    'status' => 'error',
-                    'message' => $e->getMessage()
-                ], 404);
-            }
+        if (!$authUser || !$isSystemAdmin) {
+            return Response::json(['error' => 'Acesso restrito a administradores.'], 403);
         }
 
-        // Permitir ativação sem autenticação
-        // Se não for super admin ou system admin, ativa pelo uuid da rota
-        if ($uuid) {
-            try {
-                $usuario = $this->service->buscarPorUuid($uuid);
-                if (!$usuario) {
-                    return Response::json([
-                        'status' => 'error',
-                        'message' => 'Usuário não encontrado'
-                    ], 404);
-                }
-                if ($usuario->isAtivo()) {
-                    return Response::json([
-                        'status' => 'info',
-                        'message' => 'Usuário já está ativado.'
-                    ]);
-                }
-                $this->service->ativar($uuid);
-                return Response::json([
-                    'status' => 'success',
-                    'message' => 'Usuário ativado com sucesso'
-                ]);
-            } catch (DomainException $e) {
-                return Response::json([
-                    'status' => 'error',
-                    'message' => $e->getMessage()
-                ], 404);
-            }
+        if (!$uuid) {
+            return Response::json(['error' => 'UUID não informado'], 400);
         }
-        return Response::json([
-            'status' => 'error',
-            'message' => 'UUID não informado'
-        ], 400);
+
+        try {
+            $this->service->ativar($uuid);
+            return Response::json([
+                'status' => 'success',
+                'message' => 'Usuário ativado com sucesso'
+            ]);
+        } catch (DomainException $e) {
+            return Response::json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 404);
+        }
     }
 
     private function politicaVerificacaoAtiva(): bool

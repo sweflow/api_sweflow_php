@@ -65,7 +65,10 @@ test: ## Roda os testes de segurança
 
 # ── Setup completo ───────────────────────────────────────
 
-setup: ## Setup completo: sobe banco, instala deps, migra
+install-env: ## Instala tudo no Ubuntu e roda setup automatico (requer sudo)
+	@sudo bash install.sh
+
+setup: ## Setup completo: sobe banco, instala deps, migra e sobe servidor
 	@echo "▶ Subindo PostgreSQL..."
 	$(COMPOSE) up -d postgres
 	@echo "▶ Aguardando banco ficar pronto..."

@@ -166,11 +166,14 @@ class AuditLogger
 
     private function resolveIp(): string
     {
-        foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $h) {
-            $val = $_SERVER[$h] ?? '';
-            if ($val !== '') {
-                $ip = trim(explode(',', $val)[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+        $trustProxy = strtolower(trim($_ENV['TRUST_PROXY'] ?? getenv('TRUST_PROXY') ?: 'false'));
+        if (in_array($trustProxy, ['1', 'true', 'yes'], true)) {
+            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $h) {
+                $val = $_SERVER[$h] ?? '';
+                if ($val !== '') {
+                    $ip = trim(explode(',', $val)[0]);
+                    if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+                }
             }
         }
         return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';

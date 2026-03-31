@@ -116,14 +116,17 @@ class RateLimitMiddleware implements MiddlewareInterface
 
     private function resolveIp(): string
     {
-        // Suporta proxy reverso (Nginx/Cloudflare)
-        foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $header) {
-            $val = $_SERVER[$header] ?? '';
-            if ($val !== '') {
-                // X-Forwarded-For pode ter múltiplos IPs — pega o primeiro (cliente original)
-                $ip = trim(explode(',', $val)[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                    return $ip;
+        // Só confia em headers de proxy se TRUST_PROXY estiver habilitado no .env
+        $trustProxy = strtolower(trim($_ENV['TRUST_PROXY'] ?? getenv('TRUST_PROXY') ?: 'false'));
+        if (in_array($trustProxy, ['1', 'true', 'yes'], true)) {
+            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $header) {
+                $val = $_SERVER[$header] ?? '';
+                if ($val !== '') {
+                    // X-Forwarded-For pode ter múltiplos IPs — pega o primeiro (cliente original)
+                    $ip = trim(explode(',', $val)[0]);
+                    if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                        return $ip;
+                    }
                 }
             }
         }

@@ -86,7 +86,12 @@ class AuthPageMiddleware implements MiddlewareInterface
 
     private function redirecionar(): Response
     {
-        // Redireciona para a home — o JS abre o modal de login automaticamente
+        // Clientes que aceitam JSON (APIs, testes) recebem 401
+        $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
+        if (str_contains($accept, 'application/json') || $accept === '') {
+            return Response::json(['error' => 'Não autenticado.'], 401);
+        }
+        // Browsers recebem redirect para a home — o JS abre o modal de login
         return new Response('', 302, ['Location' => '/']);
     }
 }

@@ -36,17 +36,18 @@ class SetupCommand
             $this->clearScreen();
             echo "Sweflow Setup\n";
             echo "==============================\n";
-            echo "1) Preparar .env (copiar EXEMPLO.env -> .env)\n";
-            echo "2) Criar banco automaticamente (Docker)\n";
-            echo "3) Rodar migrations (módulos + plugins)\n";
-            echo "4) Rodar seeders (módulos + plugins)\n";
-            echo "5) Subir servidor PHP (php -S)\n";
-            echo "6) Subir servidor com PM2\n";
-            echo "7) Validar conexão com banco\n";
-            echo "8) Executar tudo automaticamente (recomendado)\n";
-            echo "9) Gerar JWT_SECRET e JWT_API_SECRET (se estiverem vazios)\n";
-            echo "10) Gerar token JWT de API (JWT_API_SECRET)\n";
-            echo "0) Sair\n";
+            echo "1)  Preparar .env (copiar EXEMPLO.env -> .env)\n";
+            echo "2)  Subir banco via docker-compose (recomendado)\n";
+            echo "3)  Criar banco via docker run (container avulso)\n";
+            echo "4)  Rodar migrations (módulos + plugins)\n";
+            echo "5)  Rodar seeders (módulos + plugins)\n";
+            echo "6)  Subir servidor PHP (php -S)\n";
+            echo "7)  Subir servidor com PM2\n";
+            echo "8)  Validar conexão com banco\n";
+            echo "9)  Executar tudo automaticamente (recomendado)\n";
+            echo "10) Gerar JWT_SECRET e JWT_API_SECRET (se estiverem vazios)\n";
+            echo "11) Gerar token JWT de API (JWT_API_SECRET)\n";
+            echo "0)  Sair\n";
             echo "==============================\n";
             $choice = $this->prompt("Escolha uma opção");
 
@@ -56,36 +57,40 @@ class SetupCommand
                     $this->pause();
                     break;
                 case '2':
-                    $this->createDatabaseDockerInteractive();
+                    $this->startDatabaseDockerCompose();
                     $this->pause();
                     break;
                 case '3':
-                    $this->migrateAll();
+                    $this->createDatabaseDockerInteractive();
                     $this->pause();
                     break;
                 case '4':
-                    $this->seedAll();
+                    $this->migrateAll();
                     $this->pause();
                     break;
                 case '5':
+                    $this->seedAll();
+                    $this->pause();
+                    break;
+                case '6':
                     $this->startPhpServer();
                     return;
-                case '6':
+                case '7':
                     $this->startPm2();
                     return;
-                case '7':
+                case '8':
                     $this->checkDbConnection();
                     $this->pause();
                     break;
-                case '8':
+                case '9':
                     $this->runAuto([]);
                     $this->pause();
                     break;
-                case '9':
+                case '10':
                     $this->ensureJwtSecrets('if-empty');
                     $this->pause();
                     break;
-                case '10':
+                case '11':
                     $this->printApiJwtToken();
                     $this->pause();
                     break;
@@ -109,8 +114,10 @@ class SetupCommand
             $this->reloadEnv();
         }
 
-        $dbMode = strtolower((string)($flags['db-mode'] ?? 'docker'));
-        if ($dbMode === 'docker') {
+        $dbMode = strtolower((string)($flags['db-mode'] ?? 'compose'));
+        if ($dbMode === 'compose') {
+            $this->startDatabaseDockerCompose();
+        } elseif ($dbMode === 'docker') {
             $this->createDatabaseDockerFromEnv();
         }
 
@@ -138,14 +145,67 @@ class SetupCommand
         echo "  php sweflow setup --auto        # executa pipeline automático\n";
         echo "\n";
         echo "Flags (modo --auto):\n";
-        echo "  --db-mode=docker|skip           # padrão: docker\n";
+        echo "  --db-mode=compose|docker|skip   # padrão: compose\n";
         echo "  --server=php|pm2                # padrão: php\n";
         echo "  --jwt=if-empty|skip             # padrão: if-empty\n";
         echo "  --api-token=generate|skip       # padrão: skip\n";
         echo "\n";
-        echo "Pré-requisitos do modo docker:\n";
-        echo "  - docker instalado e rodando\n";
+        echo "Pré-requisitos:\n";
+        echo "  - docker + docker compose instalados e rodando\n";
         echo "  - .env configurado com DB_CONEXAO/DB_HOST/DB_PORT/DB_NOME/DB_USUARIO/DB_SENHA\n";
+        echo "  - Para instalar dependências: sudo bash scripts/install-ubuntu.sh\n";
+    }
+
+    /**
+     * Sobe o banco via docker-compose.yml (opção recomendada).
+     * Detecta o driver no .env e sobe apenas o serviço correspondente.
+     */
+    private function startDatabaseDockerCompose(): void
+    {
+        $this->ensureEnvFile(false);
+        $this->reloadEnv();
+
+        $root = dirname(__DIR__, 2);
+        $composePath = $root . '/docker-compose.yml';
+
+        if (!is_file($composePath)) {
+            echo "✖ docker-compose.yml não encontrado em {$root}\n";
+            return;
+        }
+
+        if (!$this->commandExists('docker')) {
+            echo "✖ Docker não encontrado. Execute: sudo bash scripts/install-ubuntu.sh\n";
+            return;
+        }
+
+        $driver = strtolower((string)($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'postgresql'));
+        $driver = $driver === 'pgsql' ? 'postgresql' : $driver;
+
+        // Pergunta qual banco subir se não for automático
+        $service = match ($driver) {
+            'mysql'      => 'mysql',
+            'postgresql' => 'postgres',
+            default      => 'postgres',
+        };
+
+        echo "Subindo serviço '{$service}' via docker-compose...\n";
+
+        $cmd = "docker compose -f " . escapeshellarg($composePath) . " up -d " . escapeshellarg($service);
+        $this->runSystem($cmd);
+
+        // Aguarda healthcheck
+        echo "Aguardando banco ficar pronto";
+        $maxWait = 30;
+        for ($i = 0; $i < $maxWait; $i++) {
+            sleep(1);
+            echo ".";
+            $status = shell_exec("docker compose -f " . escapeshellarg($composePath) . " ps --format json 2>/dev/null");
+            if ($status && str_contains($status, '"healthy"')) {
+                echo "\n✔ Banco pronto\n";
+                return;
+            }
+        }
+        echo "\n⚠ Banco pode ainda estar iniciando. Verifique com: docker compose ps\n";
     }
 
     private function ensureEnvFile(bool $echoInfo = true): void
