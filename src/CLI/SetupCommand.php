@@ -260,13 +260,67 @@ class SetupCommand
     {
         $this->reloadEnv();
         $pdo = PdoFactory::fromEnv();
-        $runner = new Migrator($pdo, dirname(__DIR__, 2));
-        $pluginRunner = new PluginMigrator($pdo, dirname(__DIR__, 2));
-        echo "Rodando migrations (módulos)...\n";
+        $root = dirname(__DIR__, 2);
+        $runner = new Migrator($pdo, $root);
+        $pluginRunner = new PluginMigrator($pdo, $root);
+
+        echo "Rodando migrations (módulos em src/Modules/)...\n";
         $runner->migrate();
-        echo "Rodando migrations (plugins)...\n";
+
+        echo "Rodando migrations (plugins em vendor/sweflow/)...\n";
         $pluginRunner->migrateAll();
+
+        echo "Rodando migrations do kernel (tabelas de segurança)...\n";
+        $this->runKernelMigrations($pdo);
+
         echo "✔ Migrations finalizadas\n";
+    }
+
+    /**
+     * Executa os arquivos .sql em src/Kernel/Database/migrations/
+     * (audit_logs, login_attempts, etc.)
+     */
+    private function runKernelMigrations(\PDO $pdo): void
+    {
+        $dir = dirname(__DIR__) . '/Kernel/Database/migrations';
+        if (!is_dir($dir)) return;
+
+        $files = glob($dir . '/*.sql') ?: [];
+        sort($files, SORT_NATURAL);
+
+        foreach ($files as $file) {
+            $name = basename($file);
+
+            // Verifica se já foi executada
+            try {
+                $stmt = $pdo->prepare("SELECT 1 FROM migrations WHERE migration = :m LIMIT 1");
+                $stmt->execute([':m' => 'kernel/' . $name]);
+                if ($stmt->fetchColumn()) continue;
+            } catch (\Throwable) {}
+
+            $sql = file_get_contents($file);
+            if ($sql === false) continue;
+
+            // Executa cada statement separadamente
+            foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
+                if ($statement === '') continue;
+                try {
+                    $pdo->exec($statement . ';');
+                } catch (\Throwable $e) {
+                    if (!str_contains($e->getMessage(), 'already exists')) {
+                        echo "  ⚠ " . $e->getMessage() . "\n";
+                    }
+                }
+            }
+
+            // Marca como executada
+            try {
+                $ins = $pdo->prepare("INSERT INTO migrations (module, migration) VALUES ('kernel', :m)");
+                $ins->execute([':m' => 'kernel/' . $name]);
+            } catch (\Throwable) {}
+
+            echo "  ✔ kernel/$name\n";
+        }
     }
 
     private function seedAll(): void

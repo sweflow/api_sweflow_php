@@ -8,19 +8,9 @@
     },
     "autoload": {
         "psr-4": {
-            "Src\\": "src/",
-            "Src\\Modules\\": "src/Modules/"
+            "Src\\": "src/"
         }
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "plugins/sweflow-module-*",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "minimum-stability": "dev",
     "prefer-stable": true
 }
