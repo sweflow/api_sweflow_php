@@ -622,7 +622,9 @@ class AuthController
 
         $appUrl = $_ENV['APP_URL'] ?? getenv('APP_URL') ?? '';
         $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: '';
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower($scheme) === 'https';
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            || strtolower($scheme) === 'https';
 
         // Em ambiente http local, não use cookie Secure; força SameSite Lax para enviar o cookie.
         $secure = $envSecure && $isHttps;
