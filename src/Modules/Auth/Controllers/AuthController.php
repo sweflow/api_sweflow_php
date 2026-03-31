@@ -619,6 +619,8 @@ class AuthController
         $envSecure  = $this->boolEnv($_ENV['COOKIE_SECURE'] ?? getenv('COOKIE_SECURE') ?? 'false');
         $envSameSite = $this->resolverSameSite($_ENV['COOKIE_SAMESITE'] ?? getenv('COOKIE_SAMESITE') ?? 'Lax');
         $domain     = trim($_ENV['COOKIE_DOMAIN'] ?? getenv('COOKIE_DOMAIN') ?? '');
+        // Remove protocolo caso COOKIE_DOMAIN tenha sido configurado com https:// ou http://
+        $domain = preg_replace('#^https?://#', '', $domain);
 
         // Detecta HTTPS por qualquer uma das fontes disponíveis
         $appUrl  = $_ENV['APP_URL'] ?? getenv('APP_URL') ?? '';
