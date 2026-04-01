@@ -1,6 +1,10 @@
 <?php
 namespace Src\CLI;
 
+use Src\Kernel\Database\PdoFactory;
+use Src\Kernel\Support\DB\PluginMigrator;
+use Src\Kernel\Nucleo\PluginManager;
+
 class CommandRunner
 {
     public function run(array $argv): void
@@ -35,79 +39,71 @@ class CommandRunner
 
     private function dispatch(string $command, array $argv): void
     {
-        switch ($command) {
-            case 'setup':
-                (new SetupCommand())->handle($argv);
-                break;
-            case 'migrate':
-                exit((new MigrateCommand())->run(array_slice($argv, 2)));
-            case 'make:module':
-                $name = $argv[2] ?? null;
-                if (!$name) { echo "Informe o nome do módulo\n"; return; }
-                (new MakeModuleCommand())->handle($name);
-                break;
-            case 'make:plugin':
-                $name = $argv[2] ?? null;
-                if (!$name) { echo "Informe o nome do plugin\n"; return; }
-                $opts = [];
-                $argvCount = count($argv);
-                for ($i = 3; $i < $argvCount; $i++) {
-                    $arg = $argv[$i] ?? '';
-                    if (str_starts_with($arg, '--')) {
-                        $kv = explode('=', substr($arg, 2), 2);
-                        $k = $kv[0] ?? '';
-                        $v = $kv[1] ?? '';
-                        if ($k !== '') {
-                            $opts[$k] = $v;
-                        }
-                    }
-                }
-                (new MakePluginCommand())->handle($name, $opts);
-                break;
-            case 'plugin:inspect':
-                (new PluginInspectCommand())->handle();
-                break;
-            case 'plugin:migrate':
-                (new PluginMigrateCommand())->handle();
-                break;
-            case 'plugin:rollback':
-                $name = $argv[2] ?? null;
-                (new PluginRollbackCommand())->handle($name);
-                break;
-            case 'plugin:validate':
-                (new PluginValidateCommand())->handle();
-                break;
-            case 'plugin:install':
-                $name = $argv[2] ?? null;
-                if (!$name) { echo "Informe o nome do plugin (ex.: email)\n"; return; }
-                (new PluginInstallCommand())->handle($name);
-                break;
-            case 'plugin:enable':
-            case 'plugin:disable':
-            case 'plugin:uninstall':
-                $action = $command;
-                $name = $argv[2] ?? null;
-                if (!$name) { echo "Informe o nome do plugin\n"; return; }
-                $pdo = \Src\Kernel\Database\PdoFactory::fromEnv();
-                $migrator = new \Src\Kernel\Support\DB\PluginMigrator($pdo, dirname(__DIR__, 2));
-                $manager = new \Src\Kernel\Nucleo\PluginManager($migrator, dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage');
-                if ($action === 'plugin:enable') $manager->enable($name);
-                if ($action === 'plugin:disable') $manager->disable($name);
-                if ($action === 'plugin:uninstall') $manager->uninstall($name);
-                echo "✔ $action $name\n";
-                break;
-            case 'capability:list':
-                $cap = $argv[2] ?? null;
-                (new CapabilityListCommand())->handle($cap);
-                break;
-            case 'plugin:provider:set':
-                $cap = $argv[2] ?? null;
-                $name = $argv[3] ?? null;
-                if (!$cap || !$name) { echo "Uso: plugin:provider:set <capability> <plugin>\n"; return; }
-                (new PluginProviderSetCommand())->handle($cap, $name);
-                break;
-            default:
-                echo "Comando não encontrado\n";
+        match (true) {
+            $command === 'setup'              => (new SetupCommand())->handle($argv),
+            $command === 'migrate'            => exit((new MigrateCommand())->run(array_slice($argv, 2))),
+            $command === 'make:module'        => $this->handleMakeModule($argv),
+            $command === 'make:plugin'        => $this->handleMakePlugin($argv),
+            $command === 'plugin:inspect'     => (new PluginInspectCommand())->handle(),
+            $command === 'plugin:migrate'     => (new PluginMigrateCommand())->handle(),
+            $command === 'plugin:rollback'    => (new PluginRollbackCommand())->handle($argv[2] ?? null),
+            $command === 'plugin:validate'    => (new PluginValidateCommand())->handle(),
+            $command === 'plugin:install'     => $this->handlePluginInstall($argv),
+            in_array($command, ['plugin:enable', 'plugin:disable', 'plugin:uninstall'], true)
+                                              => $this->handlePluginLifecycle($command, $argv),
+            $command === 'capability:list'    => (new CapabilityListCommand())->handle($argv[2] ?? null),
+            $command === 'plugin:provider:set'=> $this->handleProviderSet($argv),
+            default                           => print("Comando não encontrado\n"),
+        };
+    }
+
+    private function handleMakeModule(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) { echo "Informe o nome do módulo\n"; return; }
+        (new MakeModuleCommand())->handle($name);
+    }
+
+    private function handleMakePlugin(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) { echo "Informe o nome do plugin\n"; return; }
+        $opts = [];
+        for ($i = 3, $c = count($argv); $i < $c; $i++) {
+            $arg = $argv[$i] ?? '';
+            if (str_starts_with($arg, '--') && str_contains($arg, '=')) {
+                [$k, $v] = explode('=', substr($arg, 2), 2);
+                if ($k !== '') $opts[$k] = $v;
+            }
         }
+        (new MakePluginCommand())->handle($name, $opts);
+    }
+
+    private function handlePluginInstall(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) { echo "Informe o nome do plugin (ex.: email)\n"; return; }
+        (new PluginInstallCommand())->handle($name);
+    }
+
+    private function handlePluginLifecycle(string $action, array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) { echo "Informe o nome do plugin\n"; return; }
+        $pdo      = PdoFactory::fromEnv();
+        $migrator = new PluginMigrator($pdo, dirname(__DIR__, 2));
+        $manager  = new PluginManager($migrator, dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage');
+        if ($action === 'plugin:enable')    $manager->enable($name);
+        if ($action === 'plugin:disable')   $manager->disable($name);
+        if ($action === 'plugin:uninstall') $manager->uninstall($name);
+        echo "✔ $action $name\n";
+    }
+
+    private function handleProviderSet(array $argv): void
+    {
+        $cap  = $argv[2] ?? null;
+        $name = $argv[3] ?? null;
+        if (!$cap || !$name) { echo "Uso: plugin:provider:set <capability> <plugin>\n"; return; }
+        (new PluginProviderSetCommand())->handle($cap, $name);
     }
 }

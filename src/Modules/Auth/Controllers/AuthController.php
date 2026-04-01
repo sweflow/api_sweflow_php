@@ -648,8 +648,8 @@ class AuthController
 
         if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
             error_log('[AuthController] raw length=' . strlen($conteudoBruto) . ' content=' . substr($conteudoBruto, 0, 200));
-            error_log('[AuthController] _POST=' . json_encode($_POST));
-            error_log('[AuthController] content-type=' . ($_SERVER['CONTENT_TYPE'] ?? ''));
+            error_log('[AuthController] _POST keys=' . implode(',', array_keys($_POST)));
+            error_log('[AuthController] content-type=' . htmlspecialchars($_SERVER['CONTENT_TYPE'] ?? '', ENT_QUOTES, 'UTF-8'));
         }
 
         // Sanitiza: garante que os valores do merge são escalares ou arrays simples
@@ -749,7 +749,7 @@ class AuthController
         $caminho = $this->caminhoPoliticaVerificacaoEmail();
         $diretorio = dirname($caminho);
         if (!is_dir($diretorio)) {
-            if (!@mkdir($diretorio, 0775, true) && !is_dir($diretorio)) {
+            if (!@mkdir($diretorio, 0755, true) && !is_dir($diretorio)) {
                 throw new DomainException('Não foi possível criar diretório de política.');
             }
         }
@@ -794,7 +794,7 @@ class AuthController
         $path = $this->caminhoThrottleRecuperacao();
         $dir = dirname($path);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0775, true);
+            @mkdir($dir, 0755, true);
         }
 
         $data = [];

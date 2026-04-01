@@ -9,7 +9,7 @@ class CapabilityResolver
     {
         $this->file = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'capabilities_registry.json';
         if (!is_dir(dirname($this->file))) {
-            @mkdir(dirname($this->file), 0777, true);
+            @mkdir(dirname($this->file), 0755, true);
         }
         if (!is_file($this->file)) {
             @file_put_contents($this->file, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));

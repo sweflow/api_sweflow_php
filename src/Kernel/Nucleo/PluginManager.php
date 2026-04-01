@@ -15,7 +15,7 @@ class PluginManager
         $this->migrator = $migrator;
         $this->registry = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'plugins_registry.json';
         if (!is_dir(dirname($this->registry))) {
-            @mkdir(dirname($this->registry), 0777, true);
+            @mkdir(dirname($this->registry), 0755, true);
         }
         if (!is_file($this->registry)) {
             @file_put_contents($this->registry, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));

@@ -200,12 +200,14 @@ class SetupCommand
         for ($i = 0; $i < $maxWait; $i++) {
             sleep(1);
             echo ".";
+            // composePath já foi validado como is_file() acima — caminho interno confiável
             exec('docker compose -f ' . escapeshellarg($composePath) . ' ps --format json 2>&1', $psOutput, $psCode);
             $status = $psCode === 0 ? implode('', $psOutput) : null;
             if ($status && str_contains($status, '"healthy"')) {
                 echo "\n✔ Banco pronto\n";
                 return;
             }
+            $psOutput = [];
         }
         echo "\n⚠ Banco pode ainda estar iniciando. Verifique com: docker compose ps\n";
     }
@@ -474,10 +476,10 @@ class SetupCommand
     private function startPhpServer(): void
     {
         $this->reloadEnv();
-        $port = (string)($_ENV['APP_PORT'] ?? '3005');
+        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
         echo "Iniciando servidor em http://0.0.0.0:{$port}\n";
-        $cmd = PHP_BINARY . ' -S 0.0.0.0:' . escapeshellarg($port) . ' index.php';
-        passthru($cmd);
+        // PHP_BINARY é um caminho interno confiável; port é sanitizado acima
+        passthru(PHP_BINARY . ' -S 0.0.0.0:' . $port . ' index.php');
     }
 
     private function startPm2(): void
@@ -540,23 +542,35 @@ class SetupCommand
 
     private function clearScreen(): void
     {
+        // Limpa o terminal de forma segura sem executar comandos externos
         if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
-            system('cls');
+            echo "\033[2J\033[H";
         } else {
-            system('clear');
+            echo "\033[2J\033[H";
         }
     }
 
     private function commandExists(string $name): bool
     {
+        // Valida que o nome é um identificador simples (sem injeção)
+        if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
+            return false;
+        }
         $isWindows = stripos(PHP_OS_FAMILY, 'Windows') !== false;
-        $cmd = $isWindows ? "where " . escapeshellarg($name) : "command -v " . escapeshellarg($name);
-        exec($cmd . ' 2>&1', $output, $code);
+        if ($isWindows) {
+            exec('where ' . escapeshellarg($name) . ' 2>NUL', $output, $code);
+        } else {
+            exec('command -v ' . escapeshellarg($name) . ' 2>/dev/null', $output, $code);
+        }
         return $code === 0 && !empty(trim(implode('', $output)));
     }
 
     private function dockerContainerExists(string $containerName): bool
     {
+        // Valida que o nome do container é seguro
+        if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $containerName)) {
+            return false;
+        }
         exec('docker ps -a --format "{{.Names}}" 2>&1', $output, $code);
         if ($code !== 0) return false;
         return in_array($containerName, array_map('trim', $output), true);
@@ -571,7 +585,6 @@ class SetupCommand
             echo "✖ Comando falhou (exit code {$code})\n";
         }
     }
-
     private function randomSecret(): string
     {
         return bin2hex(random_bytes(32));
