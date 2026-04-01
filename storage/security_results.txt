@@ -1,0 +1,230 @@
+﻿php : PHP Warning:  Module "zip" is already loaded in Unknown on line 0
+No linha:1 caractere:103
++ ... t cleared"; php tests/SecurityTest.php http://localhost:3005 2>&1 | O ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PHP Warning:  M...known on line 0:Stri 
+   ng) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Warning: Module "zip" is already loaded in Unknown on line 0
+
+[1;36mÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù[0m
+[1;36mÔòæ   SWEFLOW API ÔÇö OWASP API Security Top 10 (2023)         Ôòæ[0m
+[1;36mÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ[0m
+Base URL: [1mhttp://localhost:3005[0m
+
+[32mServidor acess├¡vel (HTTP 200)[0m
+
+[1m[API1] BOLA ÔÇö Broken Object Level Authorization (IDOR)[0m
+[32m  Ô£ô[0m BOLA: GET /api/usuario/{uuid} sem token retorna 401/403
+[32m  Ô£ô[0m BOLA: PUT /api/usuario/atualizar/{uuid} sem token retorna 401/403
+[32m  Ô£ô[0m BOLA: DELETE /api/usuario/deletar/{uuid} sem token retorna 401/403
+[32m  Ô£ô[0m BOLA: PATCH /api/usuario/{uuid}/ativar sem token retorna 401/403
+[32m  Ô£ô[0m BOLA: PATCH /api/usuario/{uuid}/desativar sem token retorna 401/403
+[32m  Ô£ô[0m BOLA: UUID sequencial/previs├¡vel n├úo retorna dados sem auth
+[32m  Ô£ô[0m BOLA: /api/perfil sem token retorna 401
+[32m  Ô£ô[0m BOLA: PUT /api/perfil sem token retorna 401
+[32m  Ô£ô[0m BOLA: DELETE /api/perfil sem token retorna 401
+
+[1m[API2] Broken Authentication[0m
+[32m  Ô£ô[0m AUTH: Login com credenciais vazias retorna 400/401
+[32m  Ô£ô[0m AUTH: Login com usu├írio inexistente retorna 401
+[32m  Ô£ô[0m AUTH: Login com senha errada retorna 401
+[32m  Ô£ô[0m AUTH: Mensagem de erro n├úo revela exist├¬ncia do usu├írio
+[32m  Ô£ô[0m AUTH: Token JWT malformado retorna 401
+[32m  Ô£ô[0m AUTH: Token JWT com assinatura incorreta retorna 401
+[32m  Ô£ô[0m AUTH: Token JWT expirado retorna 401
+[32m  Ô£ô[0m AUTH: Token vazio retorna 401
+[32m  Ô£ô[0m AUTH: Authorization Basic (n├úo Bearer) retorna 401
+[32m  Ô£ô[0m AUTH: Token "none" algorithm n├úo ├® aceito
+[32m  Ô£ô[0m AUTH: Token com payload adulterado (nivel_acesso elevado) retorna 401
+[32m  Ô£ô[0m AUTH: Refresh token inv├ílido retorna 401/400
+[32m  Ô£ô[0m AUTH: Refresh token vazio retorna 400
+
+[1m[API3] Mass Assignment / Broken Object Property Level Auth[0m
+[32m  Ô£ô[0m MASS: Registro com nivel_acesso=admin_system n├úo eleva privil├®gio
+[32m  Ô£ô[0m MASS: Registro com ativo=true n├úo bypassa desativa├º├úo
+[32m  Ô£ô[0m MASS: Campos __proto__ e constructor n├úo causam prototype pollution
+[32m  Ô£ô[0m MASS: PUT /api/perfil n├úo aceita eleva├º├úo de nivel_acesso sem auth
+
+[1m[API4] Unrestricted Resource Consumption[0m
+[32m  Ô£ô[0m RESOURCE: Payload JSON > 1MB n├úo causa crash (500)
+[32m  Ô£ô[0m RESOURCE: Payload JSON > 5MB n├úo causa crash
+[32m  Ô£ô[0m RESOURCE: 10 requisi├º├Áes r├ípidas ao login n├úo causam crash
+[32m  Ô£ô[0m RESOURCE: 10 requisi├º├Áes r├ípidas ao registro n├úo causam crash
+[32m  Ô£ô[0m RESOURCE: Nested JSON profundo n├úo causa stack overflow
+[32m  Ô£ô[0m RESOURCE: Array com 10.000 elementos n├úo causa crash
+
+[1m[API5] Broken Function Level Authorization (BFLA)[0m
+[32m  Ô£ô[0m BFLA: GET /api/usuarios (admin) sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: GET /api/system/modules (admin) sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: POST /api/system/modules/toggle sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: POST /api/system/modules/install sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: POST /api/system/modules/uninstall sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: GET /api/capabilities sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: POST /api/capabilities/provider sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: GET /api/dashboard/metrics sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: GET /api/modules/state sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: POST /api/modules/toggle sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: GET /dashboard sem token retorna 401/403
+[32m  Ô£ô[0m BFLA: GET /modules/marketplace sem token retorna 401/403
+
+[1m[API6] Unrestricted Access to Sensitive Business Flows[0m
+[32m  Ô£ô[0m FLOW: Recupera├º├úo de senha com e-mail inexistente retorna 200 (anti-enumera├º├úo)
+[32m  Ô£ô[0m FLOW: Recupera├º├úo de senha com e-mail inv├ílido retorna 400
+[32m  Ô£ô[0m FLOW: Token de recupera├º├úo inv├ílido retorna 400
+[32m  Ô£ô[0m FLOW: Reset de senha com nova senha curta retorna 400
+[32m  Ô£ô[0m FLOW: Verifica├º├úo de e-mail com token inv├ílido retorna 400
+[32m  Ô£ô[0m FLOW: Verifica├º├úo de e-mail sem token retorna 400
+[32m  Ô£ô[0m FLOW: Registro com campos obrigat├│rios ausentes retorna 400/422
+[32m  Ô£ô[0m FLOW: Registro com e-mail inv├ílido retorna 400
+[32m  Ô£ô[0m FLOW: Registro com senha < 8 chars retorna 400
+
+[1m[API7] Server-Side Request Forgery (SSRF)[0m
+[32m  Ô£ô[0m SSRF: URL interna em campo de avatar n├úo causa requisi├º├úo interna
+[32m  Ô£ô[0m SSRF: URL file:// em campo de avatar n├úo ├® processada
+[32m  Ô£ô[0m SSRF: URL dict:// n├úo ├® processada
+
+[1m[API8] Security Misconfiguration[0m
+[32m  Ô£ô[0m MISCONFIG: X-Content-Type-Options: nosniff presente
+[32m  Ô£ô[0m MISCONFIG: X-Frame-Options presente
+[32m  Ô£ô[0m MISCONFIG: Referrer-Policy presente
+[32m  Ô£ô[0m MISCONFIG: Permissions-Policy presente
+[32m  Ô£ô[0m MISCONFIG: Content-Type ├® application/json nas respostas de API
+[32m  Ô£ô[0m MISCONFIG: X-Powered-By n├úo exp├Áe vers├úo do PHP
+[32m  Ô£ô[0m MISCONFIG: Erro 500 n├úo exp├Áe stack trace
+[32m  Ô£ô[0m MISCONFIG: Erro n├úo exp├Áe caminhos absolutos do servidor
+[32m  Ô£ô[0m MISCONFIG: Erro n├úo exp├Áe nome de classes internas do framework
+[32m  Ô£ô[0m MISCONFIG: CORS n├úo retorna wildcard (*) em rota autenticada
+[32m  Ô£ô[0m MISCONFIG: OPTIONS n├úo causa erro 500
+[32m  Ô£ô[0m MISCONFIG: Rota inexistente retorna 404 com JSON
+[32m  Ô£ô[0m MISCONFIG: Verbose error ÔÇö resposta n├úo cont├®m "password" ou "senha" em texto claro
+
+[1m[API9] Improper Inventory Management[0m
+[32m  Ô£ô[0m INVENTORY: /swagger.json n├úo est├í exposto publicamente
+[32m  Ô£ô[0m INVENTORY: /swagger-ui n├úo est├í exposto
+[32m  Ô£ô[0m INVENTORY: /openapi.json n├úo est├í exposto
+[32m  Ô£ô[0m INVENTORY: /api/v1 (vers├úo antiga) n├úo est├í exposta
+[32m  Ô£ô[0m INVENTORY: /api/v2 n├úo est├í exposta
+[32m  Ô£ô[0m INVENTORY: /.env n├úo est├í acess├¡vel via HTTP
+[32m  Ô£ô[0m INVENTORY: /composer.json n├úo exp├Áe depend├¬ncias
+[32m  Ô£ô[0m INVENTORY: /phpinfo n├úo est├í exposto
+[32m  Ô£ô[0m INVENTORY: /api/debug n├úo est├í exposto
+[32m  Ô£ô[0m INVENTORY: /api/status n├úo exp├Áe informa├º├Áes sens├¡veis de infra
+
+[1m[API10] Unsafe Consumption of APIs[0m
+[32m  Ô£ô[0m UNSAFE: Dados de terceiros com XSS n├úo s├úo executados na resposta
+[32m  Ô£ô[0m UNSAFE: Dados com null bytes n├úo causam crash
+[32m  Ô£ô[0m UNSAFE: Dados com caracteres Unicode especiais n├úo causam crash
+[32m  Ô£ô[0m UNSAFE: Dados com CRLF injection n├úo causam header injection
+
+[1m[INJ] Inje├º├úo (SQL, XSS, Command, Path Traversal)[0m
+[32m  Ô£ô[0m SQL: Nenhum payload SQL no login causa 500 ou login bem-sucedido
+[32m  Ô£ô[0m SQL: SQL injection no campo de recupera├º├úo de senha n├úo causa 500
+[32m  Ô£ô[0m SQL: SQL injection no UUID de rota n├úo causa 500
+[32m  Ô£ô[0m PATH: Path traversal em par├ómetros de rota n├úo exp├Áe arquivos
+[32m  Ô£ô[0m CMD: Command injection em campos de texto n├úo ├® executado
+
+[1m[VERB] HTTP Verb Tampering[0m
+[32m  Ô£ô[0m VERB: TRACE n├úo est├í habilitado
+[32m  Ô£ô[0m VERB: DELETE em /api/status retorna 404 (n├úo 200/500)
+[32m  Ô£ô[0m VERB: PUT em /api/login retorna 404 (n├úo 200/500)
+[32m  Ô£ô[0m VERB: PATCH em /api/status retorna 404 (n├úo 200/500)
+
+[1m[CRYPTO] Broken Cryptography[0m
+[32m  Ô£ô[0m CRYPTO: Resposta de login n├úo exp├Áe hash de senha
+[32m  Ô£ô[0m CRYPTO: JWT usa HS256 (n├úo algoritmo fraco)
+[32m  Ô£ô[0m CRYPTO: JWT com alg:RS256 forjado n├úo ├® aceito
+
+[1m[INFRA] Infraestrutura e M├│dulos Essenciais[0m
+[32m  Ô£ô[0m INFRA: GET /api/status retorna 200
+[32m  Ô£ô[0m INFRA: GET /api/db-status responde (n├úo crash)
+[32m  Ô£ô[0m INFRA: GET /sitemap.xml retorna 200 com XML
+[32m  Ô£ô[0m INFRA: GET /robots.txt retorna 200
+[32m  Ô£ô[0m INFRA: robots.txt bloqueia /api/
+[32m  Ô£ô[0m INFRA: M├│dulos Auth e Usuario presentes e habilitados
+[32m  Ô£ô[0m INFRA: M├│dulos essenciais n├úo podem ser desabilitados via API sem auth
+
+[1m[EDGE] Payloads Malformados e Edge Cases[0m
+[32m  Ô£ô[0m EDGE: JSON malformado retorna 400/401, n├úo 500
+[32m  Ô£ô[0m EDGE: Body vazio retorna 400/401, n├úo 500
+[32m  Ô£ô[0m EDGE: Body com apenas espa├ºos retorna 400/401, n├úo 500
+[32m  Ô£ô[0m EDGE: Content-Type errado (text/plain) n├úo causa 500
+[32m  Ô£ô[0m EDGE: Array no lugar de string em campo login n├úo causa 500
+[32m  Ô£ô[0m EDGE: null em todos os campos n├úo causa 500
+[32m  Ô£ô[0m EDGE: N├║mero muito grande em campo num├®rico n├úo causa 500
+[32m  Ô£ô[0m EDGE: Boolean em campo de texto n├úo causa 500
+
+[1m[RATE] Rate Limiting ÔÇö Anti Brute Force[0m
+[32m  Ô£ô[0m RATE: Headers X-RateLimit-* presentes no login
+[32m  Ô£ô[0m RATE: X-RateLimit-Remaining decrementa a cada requisi├º├úo
+[32m  Ô£ô[0m RATE: Ap├│s 11 tentativas de login, retorna 429
+[32m  Ô£ô[0m RATE: Resposta 429 tem Retry-After header
+[32m  Ô£ô[0m RATE: Recupera├º├úo de senha tem rate limiting
+
+[1m[TIMING] Prote├º├úo contra Timing Attacks[0m
+[32m  Ô£ô[0m TIMING: Login com usu├írio inexistente leva >= 150ms
+[32m  Ô£ô[0m TIMING: Login com senha errada leva >= 150ms
+[32m  Ô£ô[0m TIMING: Diferen├ºa de tempo entre usu├írio existente e inexistente < 200ms
+
+[1m[CSP] Content-Security-Policy e Headers Avan├ºados[0m
+[32m  Ô£ô[0m CSP: Content-Security-Policy presente nas respostas
+[32m  Ô£ô[0m CSP: CSP cont├®m frame-ancestors para prevenir clickjacking
+[32m  Ô£ô[0m CSP: X-Frame-Options: DENY presente
+
+[1m[AUDIT] Auditoria e Logging[0m
+[32m  Ô£ô[0m AUDIT: Login n├úo exp├Áe dados internos de auditoria na resposta
+[32m  Ô£ô[0m AUDIT: Falha de login n├úo exp├Áe detalhes internos de log
+
+[1m[TOKEN] Token Replay e Blacklist JWT[0m
+[32m  Ô£ô[0m TOKEN: Token com assinatura inv├ílida retorna 401 (blacklist check)
+[32m  Ô£ô[0m TOKEN: Refresh token com jti inv├ílido retorna 401
+[32m  Ô£ô[0m TOKEN: REFRESH_MAX_PER_USER est├í configurado (limite de sess├Áes)
+
+[1m[BIZ] Fluxos de Neg├│cio ÔÇö IDOR, Escalada, Dados Sens├¡veis[0m
+[32m  Ô£ô[0m BIZ: /api/perfil/{username} p├║blico n├úo exp├Áe e-mail
+[32m  Ô£ô[0m BIZ: Altera├º├úo de senha exige senha atual correta
+[32m  Ô£ô[0m BIZ: Altera├º├úo de e-mail exige autentica├º├úo
+[32m  Ô£ô[0m BIZ: Dele├º├úo de conta exige autentica├º├úo
+[32m  Ô£ô[0m BIZ: Upload de imagem exige autentica├º├úo
+[32m  Ô£ô[0m BIZ: JWT_SECRET n├úo ├® um JWT completo (segredo fraco)
+[32m  Ô£ô[0m BIZ: Resposta de erro de senha n├úo vaza hash bcrypt
+[32m  Ô£ô[0m BIZ: /api/db-status p├║blico retorna apenas conectado/desconectado
+[32m  Ô£ô[0m BIZ: /api/status p├║blico n├úo exp├Áe rotas da API
+
+[1;36mÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù[0m
+[1;36mÔòæ                    RESULTADO FINAL                       Ôòæ[0m
+[1;36mÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ[0m
+  [32mÔ£ô Passou:   135[0m
+  [31mÔ£ù Falhou:     0[0m
+  [33mÔèÿ Ignorado:   0[0m
+  Taxa de sucesso: [1m100.0%[0m (135/135)
+
+[1m  COBERTURA POR CATEGORIA:[0m
+  [32mÔ£ô[0m  API1:2026 ÔÇö BOLA / IDOR                  9/9
+  [32mÔ£ô[0m  API2:2026 ÔÇö Broken Authentication        13/13
+  [32mÔ£ô[0m  API3:2026 ÔÇö Mass Assignment              4/4
+  [32mÔ£ô[0m  API4:2026 ÔÇö Resource Consumption         6/6
+  [32mÔ£ô[0m  API5:2026 ÔÇö Broken Function Level Auth   12/12
+  [32mÔ£ô[0m  API6:2026 ÔÇö Sensitive Business Flows     9/9
+  [32mÔ£ô[0m  API7:2026 ÔÇö SSRF                         3/3
+  [32mÔ£ô[0m  API8:2026 ÔÇö Security Misconfiguration    13/13
+  [32mÔ£ô[0m  API9:2026 ÔÇö Inventory Management         10/10
+  [32mÔ£ô[0m  API10:2026 ÔÇö Unsafe API Consumption      4/4
+  [32mÔ£ô[0m  Inje├º├úo SQL                              3/3
+  [32mÔ£ô[0m  Path Traversal                             1/1
+  [32mÔ£ô[0m  Command Injection                          1/1
+  [32mÔ£ô[0m  HTTP Verb Tampering                        4/4
+  [32mÔ£ô[0m  Broken Cryptography                        3/3
+  [32mÔ£ô[0m  Rate Limiting / Anti Brute Force           5/5
+  [32mÔ£ô[0m  Timing Attack Protection                   3/3
+  [32mÔ£ô[0m  Content-Security-Policy                    3/3
+  [32mÔ£ô[0m  Auditoria e Logging                        2/2
+  [32mÔ£ô[0m  Token Replay / Blacklist JWT               3/3
+  [32mÔ£ô[0m  Infraestrutura                             7/7
+  [32mÔ£ô[0m  Edge Cases / Robustez                      8/8
+  [32mÔ£ô[0m  Fluxos de Neg├│cio / IDOR / Dados Sens├¡veis 9/9
+
+[1;32m  Ô£ô TODOS OS TESTES PASSARAM ÔÇö API SEGURA[0m
+

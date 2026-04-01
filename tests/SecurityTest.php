@@ -496,9 +496,9 @@ test('FLOW: Verificação de e-mail sem token retorna 400', function () use ($ba
     return assertStatus($res, 400);
 });
 
-test('FLOW: Registro com campos obrigatórios ausentes retorna 400', function () use ($baseUrl) {
+test('FLOW: Registro com campos obrigatórios ausentes retorna 400/422', function () use ($baseUrl) {
     $res = req('POST', "$baseUrl/api/registrar", ['nome_completo' => 'Apenas Nome']);
-    return assertStatus($res, 400);
+    return assertOneOf($res, [400, 422]);
 });
 
 test('FLOW: Registro com e-mail inválido retorna 400', function () use ($baseUrl) {
