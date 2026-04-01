@@ -441,30 +441,71 @@ class AuthController
 
     public function emailVerificationPolicy(): Response
     {
+        $status = 200;
+        $responseData = ['status' => 'success'];
+
         try {
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $body = $this->corpoDaRequisicao();
-                $enabled = filter_var($body['require_verification'] ?? $body['enabled'] ?? $body['value'] ?? false, FILTER_VALIDATE_BOOLEAN);
-                
-                // Prioridade para ação de verificar usuário se os dados estiverem presentes
-                if (!empty($body['user_id']) || !empty($body['email'])) {
-                    $targetUser = null;
-                    if (!empty($body['user_id'])) {
-                        $targetUser = $this->repositorio()->buscarPorUuid($body['user_id']);
-                    } elseif (!empty($body['email'])) {
-                        $targetUser = $this->repositorio()->buscarPorEmail($body['email']);
-                    }
-                    
-                    if ($targetUser) {
-                        // Verifica se o campo 'verified' foi passado explicitamente.
-                        // Se não for passado, assume TRUE.
-                        // Se for passado "false" (string) ou false (bool), filter_var deve tratar.
-                        // O problema pode ser que filter_var com FILTER_VALIDATE_BOOLEAN retorna false se a chave não existir?
-                        // Não, ?? true garante true.
-                        // Mas se o usuário enviar "require_verification": false, ele quer DESATIVAR a verificação global?
-                        // Ou quer DESATIVAR o status do usuário?
-                        // O usuário está enviando: { "email": "...", "require_verification": false }
-                        // "require_verification" é o nome do campo da POLICY global.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                throw new DomainException('Método não suportado.', 405);
+            }
+
+            $body = $this->corpoDaRequisicao();
+            $enabled = filter_var($body['require_verification'] ?? $body['enabled'] ?? $body['value'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+            // Prioridade para ação de verificar usuário se os dados estiverem presentes
+            $targetUser = $this->getTargetUser($body);
+            if ($targetUser) {
+                // Verifica se o campo 'verified' foi passado explicitamente.
+                // Se não for passado, assume TRUE.
+                // Se for passado "false" (string) ou false (bool), filter_var deve tratar.
+                // O problema pode ser que filter_var com FILTER_VALIDATE_BOOLEAN retorna false se a chave não existir?
+                // Não, ?? true garante true.
+                // Mas se o usuário enviar "require_verification": false, ele quer DESATIVAR a verificação global?
+                // Ou quer DESATIVAR o status do usuário?
+                // O usuário está enviando: { "email": "...", "require_verification": false }
+                // "require_verification" é o nome do campo da POLICY global.
+                $responseData['message'] = $this->processUserVerification($targetUser, $body);
+            } else {
+                $this->updateGlobalPolicy($enabled);
+                $responseData['message'] = 'Policy global de verificação de e-mail ' . ($enabled ? 'ativada.' : 'desativada.');
+            }
+        } catch (DomainException $e) {
+            $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
+            $responseData = ['status' => 'error', 'message' => $e->getMessage()];
+        } catch (\Throwable $e) {
+            $status = 500;
+            $responseData = ['status' => 'error', 'message' => 'Falha ao verificar e-mail.'];
+        }
+
+        return Response::json($responseData, $status);
+    }
+
+    private function getTargetUser(array $body)
+    {
+        if (!empty($body['user_id'])) {
+            return $this->repositorio()->buscarPorUuid($body['user_id']);
+        }
+        if (!empty($body['email'])) {
+            return $this->repositorio()->buscarPorEmail($body['email']);
+        }
+        return null;
+    }
+
+    private function processUserVerification($user, array $body): string
+    {
+        $verified = filter_var($body['verified'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        if ($verified) {
+            $this->repositorio()->marcarEmailComoVerificado($user->getUuid()->toString());
+            return 'E-mail verificado com sucesso.';
+        }
+        $this->repositorio()->desmarcarEmailComoVerificado($user->getUuid()->toString());
+        return 'Verificação de e-mail removida.';
+    }
+
+    private function updateGlobalPolicy(bool $enabled): void
+    {
+        $this->repositorio()->atualizarPolicyVerificacaoEmail($enabled);
+    }
                         // Para o usuário, eu usei o campo "verified" no código anterior: $body['verified']
                         
                         // Ah! O usuário está enviando "require_verification": false no JSON, mas o código espera "verified".
