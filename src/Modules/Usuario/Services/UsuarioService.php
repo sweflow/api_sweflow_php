@@ -228,26 +228,58 @@ class UsuarioService implements UsuarioServiceInterface
 
     private function deletarDadosRelacionados(string $uuid): void
     {
+        // Módulo Comunidade é opcional — usa reflexão para evitar referências estáticas
+        // a classes que podem não existir, eliminando falsos positivos de análise estática.
+        $repoClass = 'Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository';
+        if (!class_exists($repoClass)) {
+            return;
+        }
+
         try {
-            if (!class_exists(\Src\Modules\Comunidade\Repositories\PublicacaoRepository::class)) {
-                return;
+            $pdo = PdoFactory::fromEnv();
+
+            $repos = [
+                'Src\\Modules\\Comunidade\\Repositories\\NotificationRepository'      => [$pdo],
+                'Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository'        => [$pdo],
+                'Src\\Modules\\Comunidade\\Repositories\\CurtidaComentarioRepository' => [$pdo],
+            ];
+
+            $instances = [];
+            foreach ($repos as $class => $args) {
+                if (class_exists($class)) {
+                    $instances[$class] = new $class(...$args);
+                }
             }
 
-            $pdo = PdoFactory::fromEnv();
-            $publicacoes = new \Src\Modules\Comunidade\Repositories\PublicacaoRepository($pdo);
-            $notifications = new \Src\Modules\Comunidade\Repositories\NotificationRepository($pdo);
-            $followers = new \Src\Modules\Comunidade\Repositories\FollowerRepository($pdo, $notifications);
-            $curtidasComentario = new \Src\Modules\Comunidade\Repositories\CurtidaComentarioRepository($pdo);
-            $comentarios = new \Src\Modules\Comunidade\Repositories\ComentarioRepository($pdo, $publicacoes, $curtidasComentario);
-            $curtidas = new \Src\Modules\Comunidade\Repositories\CurtidaRepository($pdo, $publicacoes);
+            $notifications      = $instances['Src\\Modules\\Comunidade\\Repositories\\NotificationRepository'] ?? null;
+            $publicacoes        = $instances['Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository'] ?? null;
+            $curtidasComentario = $instances['Src\\Modules\\Comunidade\\Repositories\\CurtidaComentarioRepository'] ?? null;
 
-            $notifications->deletarPorUsuario($uuid);
-            $followers->deletarPorUsuario($uuid);
-            $curtidasComentario->deletarPorUsuario($uuid);
-            $comentarios->deletarPorUsuario($uuid);
-            $curtidas->deletarPorUsuario($uuid);
-            $publicacoes->deletarPorAutor($uuid);
-        } catch (\Throwable $e) {
+            $followerClass = 'Src\\Modules\\Comunidade\\Repositories\\FollowerRepository';
+            $followers = (class_exists($followerClass) && $notifications)
+                ? new $followerClass($pdo, $notifications)
+                : null;
+
+            $comentarioClass = 'Src\\Modules\\Comunidade\\Repositories\\ComentarioRepository';
+            $comentarios = (class_exists($comentarioClass) && $publicacoes && $curtidasComentario)
+                ? new $comentarioClass($pdo, $publicacoes, $curtidasComentario)
+                : null;
+
+            $curtidaClass = 'Src\\Modules\\Comunidade\\Repositories\\CurtidaRepository';
+            $curtidas = (class_exists($curtidaClass) && $publicacoes)
+                ? new $curtidaClass($pdo, $publicacoes)
+                : null;
+
+            foreach ([$notifications, $followers, $curtidasComentario, $comentarios, $curtidas] as $repo) {
+                if ($repo && method_exists($repo, 'deletarPorUsuario')) {
+                    $repo->deletarPorUsuario($uuid);
+                }
+            }
+            if ($publicacoes && method_exists($publicacoes, 'deletarPorAutor')) {
+                $publicacoes->deletarPorAutor($uuid);
+            }
+        } catch (\Throwable) {
+            // Módulo Comunidade indisponível — ignora silenciosamente
         }
     }
 

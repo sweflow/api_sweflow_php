@@ -12,6 +12,9 @@ interface UserRepositoryInterface
     public function buscarPorEmail(string $email): ?object;
     public function buscarPorUsername(string $username): ?object;
 
+    /** Persiste (insere ou atualiza) um usuário. */
+    public function salvar(object $usuario): void;
+
     /** Marca ou desmarca o e-mail como verificado. */
     public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void;
 

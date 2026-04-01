@@ -27,7 +27,8 @@ class PluginInspectCommand
             $provides = [];
             $requires = [];
             if (is_file($pluginJson)) {
-                $data = json_decode(@file_get_contents($pluginJson), true) ?: [];
+                $content = file_get_contents($pluginJson);
+                $data = $content !== false ? (json_decode($content, true) ?: []) : [];
                 $name = $data['name'] ?? $dir;
                 $provides = array_values(array_filter((array)($data['provides'] ?? [])));
                 $requires = array_values(array_filter((array)($data['requires'] ?? [])));
@@ -56,7 +57,8 @@ class PluginInspectCommand
             $provides = [];
             $requires = [];
             if (is_file($pluginJson)) {
-                $data = json_decode(@file_get_contents($pluginJson), true) ?: [];
+                $content = file_get_contents($pluginJson);
+                $data = $content !== false ? (json_decode($content, true) ?: []) : [];
                 $name = $data['name'] ?? $pkg;
                 $provides = array_values(array_filter((array)($data['provides'] ?? [])));
                 $requires = array_values(array_filter((array)($data['requires'] ?? [])));

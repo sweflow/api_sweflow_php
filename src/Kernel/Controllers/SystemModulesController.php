@@ -397,7 +397,10 @@ class SystemModulesController
             return;
         }
 
-        @set_time_limit(300);
+        $prevLimit = (int) ini_get('max_execution_time');
+        if (ini_set('max_execution_time', '300') === false) {
+            error_log('[Marketplace] Could not extend max_execution_time');
+        }
 
         $cmd = array_merge(
             [$composer, 'require'],
@@ -504,7 +507,7 @@ class SystemModulesController
         }
         try {
             $context = stream_context_create(['http' => ['timeout' => 6, 'user_agent' => 'SweflowAPI/1.0']]);
-            $json = @file_get_contents("https://packagist.org/packages/{$package}.json", false, $context);
+            $json = file_get_contents("https://packagist.org/packages/{$package}.json", false, $context);
             if (!$json) return null;
             $data = json_decode($json, true);
             return $data['package']['repository'] ?? null;
@@ -558,9 +561,10 @@ class SystemModulesController
         $root     = dirname(__DIR__, 3);
         $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
 
-        // Give composer enough time — web requests default to 30s which is too short
         $prevLimit = (int) ini_get('max_execution_time');
-        @set_time_limit(300);
+        if (ini_set('max_execution_time', '300') === false) {
+            error_log('[Marketplace] Could not extend max_execution_time');
+        }
 
         $proc = new Process([
             $composer, 'require', $package,
@@ -572,7 +576,7 @@ class SystemModulesController
         $ok = $proc->run();
 
         if ($prevLimit > 0) {
-            @set_time_limit($prevLimit);
+            ini_set('max_execution_time', (string) $prevLimit);
         }
 
         if (!$ok) {
