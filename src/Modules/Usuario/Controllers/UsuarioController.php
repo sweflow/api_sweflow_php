@@ -266,6 +266,9 @@ class UsuarioController
                     'ativo' => $updated->isAtivo(),
                     'criado_em' => $updated->getCriadoEm()->format('c'),
                     'url_avatar' => $updated->getUrlAvatar(),
+                ],
+            ]);
+
     /**
      * POST /api/perfil/upload
      * Recebe multipart/form-data: file (imagem) e type ('avatar'|'cover')
@@ -514,9 +517,14 @@ class UsuarioController
                     'nome_completo' => $usuario->getNomeCompleto(),
                     'username' => $usuario->getUsername(),
                     'email' => $usuario->getEmail(),
-                    'nivel_acesso' => $usuario->getNivelAcesso(),
-                    'ativo' => $usuario->isAtivo(),
-                    'criado_em' => $usuario->getCriadoEm()->format('c'),
+                ]
+            ]);
+
+        } catch (Throwable $e) {
+            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
+            return Response::json(['status' => 'error', 'message' => 'Erro ao processar perfil', 'details' => $debug ? $e->getMessage() : null], 500);
+        }
+    }
                     'url_avatar' => $usuario->getUrlAvatar(),
                     'url_capa' => $usuario->getUrlCapa(),
                     'biografia' => $usuario->getBiografia(),

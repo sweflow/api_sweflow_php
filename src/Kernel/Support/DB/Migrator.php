@@ -60,6 +60,7 @@ class Migrator
             } else {
                 echo "Rollback sem down, removendo registro\n";
             }
+    }
     private function discoverModules(): array
     {
         $modules = [];

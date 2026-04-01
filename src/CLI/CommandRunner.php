@@ -37,28 +37,54 @@ class CommandRunner
     {
         switch ($command) {
             case 'setup':
-                (new SetupCommand())->handle($argv);
+                $this->dispatchSetup($argv);
                 break;
             case 'migrate':
-                exit((new MigrateCommand())->run(array_slice($argv, 2)));
+                $this->dispatchMigrate($argv);
+                break;
             case 'make:module':
-                $name = $argv[2] ?? null;
-                if (!$name) {
-                    echo "Informe o nome do módulo\n";
-                    return;
-                }
-                (new MakeModuleCommand())->handle($name);
+                $this->dispatchMakeModule($argv);
                 break;
             case 'make:plugin':
-                $name = $argv[2] ?? null;
-                if (!$name) {
-                    echo "Informe o nome do plugin\n";
-                    return;
-                }
-                $opts = [];
-                $argvCount = count($argv);
-                for ($i = 3; $i < $argvCount; $i++) {
-                    $arg = $argv[$i] ?? '';
+                $this->dispatchMakePlugin($argv);
+                break;
+            default:
+                $this->printHelp();
+                break;
+        }
+    }
+
+    private function dispatchSetup(array $argv): void
+    {
+        (new SetupCommand())->handle($argv);
+    }
+
+    private function dispatchMigrate(array $argv): void
+    {
+        exit((new MigrateCommand())->run(array_slice($argv, 2)));
+    }
+
+    private function dispatchMakeModule(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) {
+            echo "Informe o nome do módulo\n";
+            return;
+        }
+        (new MakeModuleCommand())->handle($name);
+    }
+
+    private function dispatchMakePlugin(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) {
+            echo "Informe o nome do plugin\n";
+            return;
+        }
+        $opts = [];
+        $argvCount = count($argv);
+        for ($i = 3; $i < $argvCount; $i++) {
+            $arg = $argv[$i] ?? '';
                     if (str_starts_with($arg, '--')) {
                         $kv = explode('=', substr($arg, 2), 2);
                         $k = $kv[0] ?? '';
@@ -68,25 +94,26 @@ class CommandRunner
                         }
                     }
                 }
-                (new MakePluginCommand())->handle($name, $opts);
+                (new \Src\CLI\MakePluginCommand())->handle($name, $opts);
                 break;
             case 'plugin:inspect':
-                (new PluginInspectCommand())->handle();
+                (new \Src\CLI\PluginInspectCommand())->handle();
                 break;
             case 'plugin:migrate':
-                (new PluginMigrateCommand())->handle();
+                (new \Src\CLI\PluginMigrateCommand())->handle();
                 break;
             case 'plugin:rollback':
                 $name = $argv[2] ?? null;
-                (new PluginRollbackCommand())->handle($name);
+                (new \Src\CLI\PluginRollbackCommand())->handle($name);
                 break;
             case 'plugin:validate':
-                (new PluginValidateCommand())->handle();
+                $name = $argv[2] ?? null;
+                (new \Src\CLI\PluginValidateCommand())->handle($name);
                 break;
             case 'plugin:install':
                 $name = $argv[2] ?? null;
                 if (!$name) { echo "Informe o nome do plugin (ex.: email)\n"; return; }
-                (new PluginInstallCommand())->handle($name);
+                (new \Src\CLI\PluginInstallCommand())->handle($name);
                 break;
             case 'plugin:enable':
             case 'plugin:disable':
@@ -104,13 +131,13 @@ class CommandRunner
                 break;
             case 'capability:list':
                 $cap = $argv[2] ?? null;
-                (new CapabilityListCommand())->handle($cap);
+                (new \Src\CLI\CapabilityListCommand())->handle($cap);
                 break;
             case 'plugin:provider:set':
                 $cap = $argv[2] ?? null;
                 $name = $argv[3] ?? null;
                 if (!$cap || !$name) { echo "Uso: plugin:provider:set <capability> <plugin>\n"; return; }
-                (new PluginProviderSetCommand())->handle($cap, $name);
+                (new \Src\CLI\PluginProviderSetCommand())->handle($cap, $name);
                 break;
             default:
                 echo "Comando não encontrado\n";

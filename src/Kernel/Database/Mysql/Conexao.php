@@ -122,38 +122,6 @@ class Conexao
 
         throw new PDOException($mensagem, $codigo, $e);
     }
-            case 1045: // Access denied
-            case 1044: // Access denied for user to database
-                throw new DatabasePermissionException($mensagem, $codigo, $e);
-            case 1049: // Unknown database
-            case 1046: // No database selected
-                throw new DatabaseConfigException($mensagem, $codigo, $e);
-            case 2002: // Connection refused
-            case 2003: // Can't connect to MySQL server
-            case 2006: // MySQL server has gone away
-                throw new DatabaseConnectionException($mensagem, $codigo, $e);
-            case 1062: // Duplicate entry (integrity)
-            case 1451: // Cannot delete or update a parent row: a foreign key constraint fails
-            case 1452: // Cannot add or update a child row: a foreign key constraint fails
-                throw new DatabaseIntegrityException($mensagem, $codigo, $e);
-            case 1205: // Lock wait timeout exceeded
-            case 1213: // Deadlock found
-                throw new DatabaseTimeoutException($mensagem, $codigo, $e);
-            case 1064: // SQL syntax error
-            case 1146: // Table doesn't exist
-            case 1054: // Unknown column
-            case 1364: // Field doesn't have a default value
-                throw new DatabaseQueryException($mensagem, $codigo, $e);
-            case 1194: // Table is crashed
-            case 1195: // Table is crashed and last repair failed
-                throw new DatabaseDriverException($mensagem, $codigo, $e);
-            case 1200: // Transaction rollback
-            case 1201: // Transaction commit
-                throw new DatabaseTransactionException($mensagem, $codigo, $e);
-            default:
-                throw new DatabaseException($mensagem, $codigo, $e);
-        }
-    }
 
     /**
      * Obtém uma conexão com o banco de dados

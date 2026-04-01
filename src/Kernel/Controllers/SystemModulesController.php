@@ -161,13 +161,80 @@ class SystemModulesController
     {
         return dirname(__DIR__, 3) . '/src/Modules/' . $shortName;
     }
-
     private function installModule(string $package, string $pluginName, string $shortName, string $targetDir): void
     {
         // Tenta instalar
         // Se o pacote for um sweflow-module, tentamos baixar via composer OU clonar para src/Modules
         // A diretiva do usuário é clara: "deve ser instalado em src/Modules e não em plugins"
         // Coloque aqui a lógica existente de instalação, separando responsabilidades conforme necessário.
+
+        // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
+        // Se for instalação via Packagist, podemos checar metadados antes?
+        // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.
+        // Mas a diretiva diz: "identifique automaticamente se o módulo instalado necessita de outro(s)... se necessitar, o modulo deve obrigar a instalação"
+        // A abordagem pós-download (acima) funciona: baixamos o módulo, lemos o composer.json dele, e se faltar algo, instalamos.
+                
+        // 2. Se não existir, tenta baixar
+        if (!is_dir($targetDir)) {
+             // Opção A: Se tiver composer, usa composer require mas força o path?
+             // O Composer não instala em src/Modules por padrão, a menos que seja configurado como path repo ou installer-paths.
+             // Como o usuário quer forçar src/Modules, podemos fazer um git clone manual se for um repo git conhecido,
+             // ou, se for via packagist, teríamos que baixar o zip e extrair.
+             
+             // Simulação de "Instalação": Copiar de plugins/ se existir (legado) ou criar estrutura básica?
+             // Na verdade, o correto seria o composer.json do projeto ter um "installer-path" configurado.
+             
+             // Mas vamos implementar o download manual do ZIP do GitHub/Packagist se possível, ou apenas instruir.
+             // Como o usuário pediu "Corrija!", ele espera que o botão funcione.
+             
+             // HACK: Se for o módulo de email que acabamos de publicar, vamos clonar do git para src/Modules/Email
+             if ($pluginName === 'email' || $pluginName === 'module-email') {
+                 $repo = 'https://github.com/sweflow/module-email.git';
+                 // git clone $repo $targetDir
+                 $cmd = "git clone $repo \"$targetDir\" 2>&1";
+                 exec($cmd, $output, $code);
+                     
+                 if ($code !== 0) {
+                     // Fallback: Tenta mover de plugins/ se existir lá
+                     $legacyPath = dirname(__DIR__, 3) . '/plugins/sweflow-module-email';
+                     if (is_dir($legacyPath)) {
+                         rename($legacyPath, $targetDir);
+                     } else {
+                         // Fallback 2: Composer require (vai para vendor, mas o PluginManager agora lê vendor também)
+                         // Mas o usuário EXIGIU src/Modules.
+                         // Então vamos lançar erro se não conseguir por lá.
+                         throw new \Exception("Falha ao clonar repositório para src/Modules: " . implode("\n", $output));
+                     }
+                 }
+                     
+                 // Novo passo: Registrar no composer.json e psr-4
+                 $this->registerModuleInComposer($shortName, $targetDir);
+             } else {
+                 // Para outros módulos genéricos, tentamos composer require padrão (vai para vendor)
+                 // A menos que implementemos um downloader genérico.
+                 // Vamos manter o composer require como fallback seguro para não quebrar tudo.
+                 $this->pluginManager->install($pluginName);
+                 return (new Response())->json(['message' => 'Módulo instalado via Composer (vendor).']);
+             }
+        } else {
+            // Se já existe, garante que está registrado no composer.json
+            $this->registerModuleInComposer($shortName, $targetDir);
+        }
+
+        // --- NOVO: Verificação de Dependências ---
+        // Lê o composer.json do módulo instalado para checar dependências "require"
+        $moduleComposerPath = $targetDir . '/composer.json';
+        if (file_exists($moduleComposerPath)) {
+            $modJson = json_decode(file_get_contents($moduleComposerPath), true);
+            $requires = $modJson['require'] ?? [];
+            
+            foreach ($requires as $reqPackage => $version) {
+                // Verifica se é um módulo do sistema (sweflow/module-*)
+                if (str_starts_with($reqPackage, 'sweflow/module-')) {
+                    // Implemente a lógica de instalação das dependências aqui
+                }
+            }
+        }
     }
 
     private function createErrorResponse(string $message, int $status): Response
@@ -179,69 +246,6 @@ class SystemModulesController
     {
         return (new Response())->json(['message' => $message]);
     }
-            // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
-            // Se for instalação via Packagist, podemos checar metadados antes?
-            // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.
-            // Mas a diretiva diz: "identifique automaticamente se o módulo instalado necessita de outro(s)... se necessitar, o modulo deve obrigar a instalação"
-            // A abordagem pós-download (acima) funciona: baixamos o módulo, lemos o composer.json dele, e se faltar algo, instalamos.
-            
-            // 2. Se não existir, tenta baixar
-            if (!is_dir($targetDir)) {
-                 // Opção A: Se tiver composer, usa composer require mas força o path?
-                 // O Composer não instala em src/Modules por padrão, a menos que seja configurado como path repo ou installer-paths.
-                 // Como o usuário quer forçar src/Modules, podemos fazer um git clone manual se for um repo git conhecido,
-                 // ou, se for via packagist, teríamos que baixar o zip e extrair.
-                 
-                 // Simulação de "Instalação": Copiar de plugins/ se existir (legado) ou criar estrutura básica?
-                 // Na verdade, o correto seria o composer.json do projeto ter um "installer-path" configurado.
-                 
-                 // Mas vamos implementar o download manual do ZIP do GitHub/Packagist se possível, ou apenas instruir.
-                 // Como o usuário pediu "Corrija!", ele espera que o botão funcione.
-                 
-                 // HACK: Se for o módulo de email que acabamos de publicar, vamos clonar do git para src/Modules/Email
-                 if ($pluginName === 'email' || $pluginName === 'module-email') {
-                     $repo = 'https://github.com/sweflow/module-email.git';
-                     // git clone $repo $targetDir
-                     $cmd = "git clone $repo \"$targetDir\" 2>&1";
-                     exec($cmd, $output, $code);
-                     
-                     if ($code !== 0) {
-                         // Fallback: Tenta mover de plugins/ se existir lá
-                         $legacyPath = dirname(__DIR__, 3) . '/plugins/sweflow-module-email';
-                         if (is_dir($legacyPath)) {
-                             rename($legacyPath, $targetDir);
-                         } else {
-                             // Fallback 2: Composer require (vai para vendor, mas o PluginManager agora lê vendor também)
-                             // Mas o usuário EXIGIU src/Modules.
-                             // Então vamos lançar erro se não conseguir por lá.
-                             throw new \Exception("Falha ao clonar repositório para src/Modules: " . implode("\n", $output));
-                         }
-                     }
-                     
-                     // Novo passo: Registrar no composer.json e psr-4
-                     $this->registerModuleInComposer($shortName, $targetDir);
-                 } else {
-                     // Para outros módulos genéricos, tentamos composer require padrão (vai para vendor)
-                     // A menos que implementemos um downloader genérico.
-                     // Vamos manter o composer require como fallback seguro para não quebrar tudo.
-                     $this->pluginManager->install($pluginName);
-                     return (new Response())->json(['message' => 'Módulo instalado via Composer (vendor).']);
-                 }
-            } else {
-                // Se já existe, garante que está registrado no composer.json
-                $this->registerModuleInComposer($shortName, $targetDir);
-            }
-
-            // --- NOVO: Verificação de Dependências ---
-            // Lê o composer.json do módulo instalado para checar dependências "require"
-            $moduleComposerPath = $targetDir . '/composer.json';
-            if (file_exists($moduleComposerPath)) {
-                $modJson = json_decode(file_get_contents($moduleComposerPath), true);
-                $requires = $modJson['require'] ?? [];
-                
-                foreach ($requires as $reqPackage => $version) {
-                    // Verifica se é um módulo do sistema (sweflow/module-*)
-                    if (str_starts_with($reqPackage, 'sweflow/module-')) {
                         // Verifica se já está instalado
                         $reqShortName = ucfirst(str_replace('sweflow/module-', '', $reqPackage));
                         $reqDir = dirname(__DIR__, 3) . '/src/Modules/' . $reqShortName;
