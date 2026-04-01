@@ -206,34 +206,6 @@ class SystemModulesController
         }
     }
 
-    private function removeLocalCloneDir(string $pluginName): void
-    {
-        $root = dirname(__DIR__, 3);
-        $simpleName = str_replace(['sweflow-module-', 'module-'], '', strtolower($pluginName));
-
-        // Possible local clone directory names
-        $candidates = [
-            $root . DIRECTORY_SEPARATOR . 'module-' . $simpleName,
-            $root . DIRECTORY_SEPARATOR . $simpleName,
-        ];
-
-        foreach ($candidates as $dir) {
-            if (!is_dir($dir)) {
-                continue;
-            }
-            // Safety: must contain composer.json with matching package name
-            $composerFile = $dir . DIRECTORY_SEPARATOR . 'composer.json';
-            if (!is_file($composerFile)) {
-                continue;
-            }
-            $meta = json_decode((string) file_get_contents($composerFile), true) ?? [];
-            $name = $meta['name'] ?? '';
-            if (!str_contains($name, $simpleName)) {
-                continue;
-            }
-            $this->pluginManager->deleteDirectoryPublic($dir);
-        }
-    }
 
     private function tryComposerRemove(string $package): void
     {
@@ -610,32 +582,6 @@ class SystemModulesController
         return $ok;
     }
 
-    private function createStubModule(string $targetDir, string $shortName, string $package): void
-    {
-        if (!mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
-            throw new \RuntimeException("Não foi possível criar o diretório do módulo: {$targetDir}");
-        }
-
-        // Minimal composer.json so the module is discoverable
-        $composerData = [
-            'name'        => $package,
-            'description' => "Módulo {$shortName}",
-            'type'        => 'library',
-            'autoload'    => ['psr-4' => ["Src\\Modules\\{$shortName}\\" => 'src/']],
-            'extra'       => ['sweflow' => ['providers' => []]],
-        ];
-        file_put_contents(
-            $targetDir . '/composer.json',
-            json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-        );
-
-        // Minimal Routes directory so the module loads without errors
-        $routesDir = $targetDir . '/Routes';
-        if (!is_dir($routesDir)) {
-            mkdir($routesDir, 0755, true);
-        }
-        file_put_contents($routesDir . '/web.php', "<?php\n// Rotas do módulo {$shortName}\n");
-    }
 
     private function incrementDownload(string $package): void
     {
@@ -664,59 +610,73 @@ class SystemModulesController
         if (!file_exists($composerPath)) {
             return;
         }
-
         $json = json_decode((string) file_get_contents($composerPath), true);
         if (!is_array($json)) {
             return;
         }
 
-        $changed = false;
         $pkgLower = 'sweflow/module-' . strtolower($moduleName);
         $pkgFull  = $packageName ?: $pkgLower;
+        $changed  = false;
 
-        // Remove from require
+        $changed = $this->removeComposerRequire($json, $pkgFull, $pkgLower) || $changed;
+        $changed = $this->removeComposerAutoload($json, $moduleName) || $changed;
+        $changed = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
+
+        if ($changed) {
+            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        }
+    }
+
+    private function removeComposerRequire(array &$json, string $pkgFull, string $pkgLower): bool
+    {
+        $changed = false;
         foreach ([$pkgFull, $pkgLower] as $pkg) {
             if (isset($json['require'][$pkg])) {
                 unset($json['require'][$pkg]);
                 $changed = true;
             }
         }
+        return $changed;
+    }
 
-        // Remove from autoload psr-4
-        if (isset($json['autoload']['psr-4'])) {
-            foreach ($json['autoload']['psr-4'] as $ns => $path) {
-                $path = str_replace('\\', '/', $path);
-                if (str_contains($path, "src/Modules/{$moduleName}/")) {
-                    unset($json['autoload']['psr-4'][$ns]);
-                    $changed = true;
-                }
-            }
+    private function removeComposerAutoload(array &$json, string $moduleName): bool
+    {
+        $changed = false;
+        if (!isset($json['autoload']['psr-4'])) {
+            return false;
         }
-
-        // Remove path repository entries pointing to this module
-        if (isset($json['repositories']) && is_array($json['repositories'])) {
-            $simpleName = strtolower($moduleName);
-            $filtered = array_values(array_filter($json['repositories'], function ($repo) use ($simpleName, $pkgFull) {
-                if (($repo['type'] ?? '') !== 'path') {
-                    return true; // keep non-path repos
-                }
-                $url = str_replace('\\', '/', $repo['url'] ?? '');
-                // Remove if the path contains the module name
-                return !str_contains(strtolower($url), $simpleName)
-                    && !str_contains(strtolower($url), str_replace('sweflow/', '', strtolower($pkgFull)));
-            }));
-            if (count($filtered) !== count($json['repositories'])) {
-                $json['repositories'] = $filtered ?: null;
-                if (empty($json['repositories'])) {
-                    unset($json['repositories']);
-                }
+        foreach ($json['autoload']['psr-4'] as $ns => $path) {
+            if (str_contains(str_replace('\\', '/', $path), "src/Modules/{$moduleName}/")) {
+                unset($json['autoload']['psr-4'][$ns]);
                 $changed = true;
             }
         }
+        return $changed;
+    }
 
-        if ($changed) {
-            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    private function removeComposerRepositories(array &$json, string $moduleName, string $pkgFull): bool
+    {
+        if (!isset($json['repositories']) || !is_array($json['repositories'])) {
+            return false;
         }
+        $simpleName = strtolower($moduleName);
+        $pkgSimple  = strtolower(str_replace('sweflow/', '', $pkgFull));
+        $before     = count($json['repositories']);
+        $json['repositories'] = array_values(array_filter(
+            $json['repositories'],
+            function ($repo) use ($simpleName, $pkgSimple) {
+                if (($repo['type'] ?? '') !== 'path') {
+                    return true;
+                }
+                $url = strtolower(str_replace('\\', '/', $repo['url'] ?? ''));
+                return !str_contains($url, $simpleName) && !str_contains($url, $pkgSimple);
+            }
+        ));
+        if (empty($json['repositories'])) {
+            unset($json['repositories']);
+        }
+        return count($json['repositories'] ?? []) !== $before;
     }
     
     private function removeModuleFromCapabilities(string $moduleName): void

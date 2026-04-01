@@ -13,7 +13,6 @@ class SimpleModuleProvider implements ModuleProviderInterface
 {
     private string $name;
     private string $path;
-    private array $bindings = [];
     private array $routes = [];
     private array $metadata = [];
 

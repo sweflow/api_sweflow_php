@@ -34,85 +34,66 @@ class SetupCommand
     {
         while (true) {
             $this->clearScreen();
-            echo "Sweflow Setup\n";
-            echo "==============================\n";
-            echo "1)  Preparar .env (copiar EXEMPLO.env -> .env)\n";
-            echo "2)  Subir banco via docker-compose (recomendado)\n";
-            echo "3)  Criar banco via docker run (container avulso)\n";
-            echo "4)  Rodar migrations (módulos + plugins)\n";
-            echo "5)  Rodar seeders (módulos + plugins)\n";
-            echo "6)  Subir servidor PHP em background (nohup)\n";
-            echo "7)  Subir servidor com PM2 (instala se necessário)\n";
-            echo "8)  Validar conexão com banco\n";
-            echo "9)  Executar tudo automaticamente (recomendado)\n";
-            echo "10) Gerar JWT_SECRET e JWT_API_SECRET (se estiverem vazios)\n";
-            echo "11) Gerar token JWT de API (JWT_API_SECRET)\n";
-            echo "12) Parar servidor (php -S / PM2)\n";
-            echo "13) Reiniciar servidor\n";
-            echo "0)  Sair\n";
-            echo "==============================\n";
+            $this->printMenuOptions();
             $choice = $this->prompt("Escolha uma opção");
-
-            switch ($choice) {
-                case '1':
-                    $this->ensureEnvFile();
-                    $this->pause();
-                    break;
-                case '2':
-                    $this->startDatabaseDockerCompose();
-                    $this->pause();
-                    break;
-                case '3':
-                    $this->createDatabaseDockerInteractive();
-                    $this->pause();
-                    break;
-                case '4':
-                    $this->migrateAll();
-                    $this->pause();
-                    break;
-                case '5':
-                    $this->seedAll();
-                    $this->pause();
-                    break;
-                case '6':
-                    $this->startPhpServerBackground();
-                    $this->pause();
-                    break;
-                case '7':
-                    $this->startPm2();
-                    $this->pause();
-                    break;
-                case '8':
-                    $this->checkDbConnection();
-                    $this->pause();
-                    break;
-                case '9':
-                    $this->runAuto([]);
-                    $this->pause();
-                    break;
-                case '10':
-                    $this->ensureJwtSecrets('if-empty');
-                    $this->pause();
-                    break;
-                case '11':
-                    $this->printApiJwtToken();
-                    $this->pause();
-                    break;
-                case '12':
-                    $this->stopServer();
-                    $this->pause();
-                    break;
-                case '13':
-                    $this->restartServer();
-                    $this->pause();
-                    break;
-                case '0':
-                    return;
-                default:
-                    echo "Opção inválida.\n";
-                    $this->pause();
+            if (!$this->handleMenuChoice($choice)) {
+                return;
             }
         }
+    }
+
+    private function printMenuOptions(): void
+    {
+        echo "Sweflow Setup\n";
+        echo "==============================\n";
+        echo "1)  Preparar .env (copiar EXEMPLO.env -> .env)\n";
+        echo "2)  Subir banco via docker-compose (recomendado)\n";
+        echo "3)  Criar banco via docker run (container avulso)\n";
+        echo "4)  Rodar migrations (módulos + plugins)\n";
+        echo "5)  Rodar seeders (módulos + plugins)\n";
+        echo "6)  Subir servidor PHP em background (nohup)\n";
+        echo "7)  Subir servidor com PM2 (instala se necessário)\n";
+        echo "8)  Validar conexão com banco\n";
+        echo "9)  Executar tudo automaticamente (recomendado)\n";
+        echo "10) Gerar JWT_SECRET e JWT_API_SECRET (se estiverem vazios)\n";
+        echo "11) Gerar token JWT de API (JWT_API_SECRET)\n";
+        echo "12) Parar servidor (php -S / PM2)\n";
+        echo "13) Reiniciar servidor\n";
+        echo "0)  Sair\n";
+        echo "==============================\n";
+    }
+
+    /** Returns false when the user chooses to exit. */
+    private function handleMenuChoice(string $choice): bool
+    {
+        $actions = [
+            '1'  => fn() => $this->ensureEnvFile(),
+            '2'  => fn() => $this->startDatabaseDockerCompose(),
+            '3'  => fn() => $this->createDatabaseDockerInteractive(),
+            '4'  => fn() => $this->migrateAll(),
+            '5'  => fn() => $this->seedAll(),
+            '6'  => fn() => $this->startPhpServerBackground(),
+            '7'  => fn() => $this->startPm2(),
+            '8'  => fn() => $this->checkDbConnection(),
+            '9'  => fn() => $this->runAuto([]),
+            '10' => fn() => $this->ensureJwtSecrets('if-empty'),
+            '11' => fn() => $this->printApiJwtToken(),
+            '12' => fn() => $this->stopServer(),
+            '13' => fn() => $this->restartServer(),
+        ];
+
+        if ($choice === '0') {
+            return false;
+        }
+
+        if (isset($actions[$choice])) {
+            ($actions[$choice])();
+        } else {
+            echo "Opção inválida.\n";
+        }
+
+        $this->pause();
+        return true;
     }
 
     private function runAuto(array $flags): void
@@ -493,25 +474,42 @@ class SetupCommand
     private function startPhpServerBackground(): void
     {
         $this->reloadEnv();
-        $root = dirname(__DIR__, 2);
-        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $root    = dirname(__DIR__, 2);
+        $port    = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
         $logFile = $root . '/storage/server.log';
         $pidFile = $root . '/storage/server.pid';
 
-        // Para instância anterior se existir
         $this->stopPhpServer($pidFile);
 
-        $cmd = PHP_BINARY . ' -S 0.0.0.0:' . $port . ' ' . escapeshellarg($root . '/index.php')
-             . ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+        // Usa proc_open com array de argumentos — sem interpolação de shell
+        $descriptors = [
+            0 => ['file', '/dev/null', 'r'],
+            1 => ['file', $logFile, 'a'],
+            2 => ['file', $logFile, 'a'],
+        ];
+        $proc = proc_open(
+            [PHP_BINARY, '-S', '0.0.0.0:' . $port, $root . '/index.php'],
+            $descriptors,
+            $pipes,
+            $root
+        );
 
-        $pid = trim((string) shell_exec($cmd));
+        if (!is_resource($proc)) {
+            echo "✖ Não foi possível iniciar o servidor em background.\n";
+            return;
+        }
+
+        $status = proc_get_status($proc);
+        $pid    = (string) ($status['pid'] ?? '');
+        proc_close($proc);
+
         if ($pid !== '' && is_numeric($pid)) {
             file_put_contents($pidFile, $pid);
             echo "✔ Servidor iniciado em background (PID {$pid}) em http://0.0.0.0:{$port}\n";
             echo "  Logs: {$logFile}\n";
             echo "  Para parar: opção 12 do menu\n";
         } else {
-            echo "✖ Não foi possível iniciar o servidor em background.\n";
+            echo "✖ Não foi possível obter o PID do servidor.\n";
         }
     }
 

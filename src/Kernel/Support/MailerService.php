@@ -37,7 +37,7 @@ class MailerService implements EmailSenderInterface
             $mail->SMTPDebug = SMTP::DEBUG_SERVER;
             // Never output to stdout — always log to error_log
             $mail->Debugoutput = static function (string $str, int $level): void {
-                error_log('[MAILER][' . $level . '] ' . trim($str));
+                error_log('[MAILER][' . $level . '] ' . trim(strip_tags($str)));
             };
         }
 
