@@ -270,6 +270,20 @@ $container->bind(
     true
 );
 
+// Registra MailerService se MAILER_HOST estiver configurado
+$container->bind(
+    \Src\Kernel\Contracts\EmailSenderInterface::class,
+    static function () {
+        $host = trim((string) ($_ENV['MAILER_HOST'] ?? ''));
+        $user = trim((string) ($_ENV['MAILER_USERNAME'] ?? ''));
+        if ($host === '' || $user === '') {
+            return null;
+        }
+        return new \Src\Kernel\Support\MailerService();
+    },
+    true
+);
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -322,6 +336,34 @@ $router->get('/api/capabilities', [\Src\Kernel\Controllers\CapabilitiesControlle
     AdminOnlyMiddleware::class,
 ]);
 $router->post('/api/capabilities/provider', [\Src\Kernel\Controllers\CapabilitiesController::class, 'set'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// E-mail customizado (dashboard)
+$router->post('/api/email/custom', function ($request) use ($container) {
+    try {
+        $mailer = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+        if (!$mailer) {
+            return Response::json(['error' => 'Módulo de e-mail não configurado. Preencha MAILER_HOST e MAILER_USERNAME no .env.'], 503);
+        }
+
+        $body       = $request->body ?? [];
+        $recipients = $body['recipients'] ?? [];
+        $subject    = trim((string) ($body['subject'] ?? ''));
+        $html       = trim((string) ($body['html'] ?? ''));
+        $logoUrl    = trim((string) ($body['logo_url'] ?? '')) ?: null;
+
+        if (empty($recipients) || $subject === '' || $html === '') {
+            return Response::json(['error' => 'Destinatários, assunto e conteúdo são obrigatórios.'], 422);
+        }
+
+        $mailer->sendCustom($recipients, $subject, $html, $logoUrl);
+        return Response::json(['message' => 'E-mail enviado com sucesso.']);
+    } catch (\Throwable $e) {
+        return Response::json(['error' => $e->getMessage()], 500);
+    }
+}, [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
