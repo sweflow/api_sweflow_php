@@ -23,7 +23,8 @@ return function (PDO $pdo): void {
     $stmt = $pdo->prepare("SELECT 1 FROM usuarios WHERE email = :email LIMIT 1");
     $stmt->execute([':email' => $email]);
     if ($stmt->fetchColumn()) {
-        echo "  ⊘ Admin já existe: $email\n";
+        echo "  ⊘ Admin já existe: $email
+";
         return;
     }
 
@@ -44,17 +45,18 @@ return function (PDO $pdo): void {
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
     if ($driver === 'pgsql') {
-        $stmt = $pdo->prepare("
+        $stmt = $pdo->prepare(""
             INSERT INTO usuarios
                 (uuid, nome_completo, username, email, senha_hash,
                  nivel_acesso, ativo, verificado_email, status_verificacao, criado_em)
             VALUES
                 (:uuid, :nome, :username, :email, :hash,
                  'admin_system', TRUE, TRUE, 'verificado', NOW())
-        ");
+        ""
+        );
     } else {
         // MySQL — BOOLEAN como 1
-        $stmt = $pdo->prepare("
+        $stmt = $pdo->prepare(""
             INSERT INTO usuarios
                 (uuid, nome_completo, username, email, senha_hash,
                  nivel_acesso, ativo, verificado_email, status_verificacao, criado_em)
