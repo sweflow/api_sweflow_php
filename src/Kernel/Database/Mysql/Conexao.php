@@ -66,20 +66,15 @@ class Conexao
     private static function criarConexao(): PDO
     {
         try {
-            $host = $_ENV['DB_HOST'] ?? 'localhost';
-            $port = $_ENV['DB_PORT'] ?? 3306;
-            $database = $_ENV['DB_NOME'] ?? '';
-            $username = $_ENV['DB_USUARIO'] ?? '';
-            $password = $_ENV['DB_SENHA'] ?? '';
-            $charset = $_ENV['DB_CHARSET'] ?? 'utf8mb4';
+            // Cast to string and restrict to safe characters to prevent DSN injection
+            $host     = preg_replace('/[^a-zA-Z0-9.\-_]/', '', (string) ($_ENV['DB_HOST'] ?? 'localhost'));
+            $port     = (int) ($_ENV['DB_PORT'] ?? 3306);
+            $database = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string) ($_ENV['DB_NOME'] ?? ''));
+            $username = (string) ($_ENV['DB_USUARIO'] ?? '');
+            $password = (string) ($_ENV['DB_SENHA'] ?? '');
+            $charset  = preg_replace('/[^a-zA-Z0-9_]/', '', (string) ($_ENV['DB_CHARSET'] ?? 'utf8mb4'));
 
-            $dsn = sprintf(
-                'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-                $host,
-                $port,
-                $database,
-                $charset
-            );
+            $dsn = "mysql:host={$host};port={$port};dbname={$database};charset={$charset}";
 
             $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -91,11 +86,6 @@ class Conexao
         } catch (PDOException $e) {
             throw self::resolverExcecao($e);
         }
-    }
-
-    private static function tratarErroCustomizada(PDOException $e): never
-    {
-        throw self::resolverExcecao($e);
     }
 
     private static function resolverExcecao(PDOException $e): DatabaseException
