@@ -36,86 +36,95 @@ class ModuleLoader
         }
 
         $root = dirname(__DIR__, 3);
+        $this->discoverVendorModules($root);
+        $this->discoverStorageModules($root);
+        $this->discoverComposerProviders($root);
 
-        // vendor/sweflow/*/src/Modules/*
-        $sweflowVendor = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
-        if (is_dir($sweflowVendor)) {
-            foreach (scandir($sweflowVendor) as $pkg) {
-                if ($pkg === '.' || $pkg === '..') continue;
-                $pkgDir = $sweflowVendor . DIRECTORY_SEPARATOR . $pkg;
-                if (!is_dir($pkgDir)) continue;
-                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
-                if (!is_dir($vModules)) continue;
-                foreach (scandir($vModules) as $module) {
-                    if ($module === '.' || $module === '..') continue;
-                    $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
-                    if (!is_dir($moduleDir)) continue;
-                    $this->registerSimple($module, $moduleDir);
-                }
-            }
-        }
-
-        // storage/modules/*/src/Modules/*
-        $storageModules = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules';
-        if (is_dir($storageModules)) {
-            foreach (scandir($storageModules) as $pkg) {
-                if ($pkg === '.' || $pkg === '..') continue;
-                $pkgDir = $storageModules . DIRECTORY_SEPARATOR . $pkg;
-                if (!is_dir($pkgDir)) continue;
-                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
-                if (!is_dir($vModules)) continue;
-                foreach (scandir($vModules) as $module) {
-                    if ($module === '.' || $module === '..') continue;
-                    $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
-                    if (!is_dir($moduleDir)) continue;
-                    $this->registerSimple($module, $moduleDir);
-                }
-            }
-        }
-
-        // extra.sweflow.providers from composer installed.json
-        $installedPath = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
-        if (is_file($installedPath)) {
-            $json = @file_get_contents($installedPath);
-            $data = $json ? json_decode($json, true) : null;
-            $packages = [];
-            if (is_array($data)) {
-                if (isset($data['packages']) && is_array($data['packages'])) {
-                    $packages = $data['packages'];
-                } elseif (isset($data[0]) || empty($data)) {
-                    $packages = $data;
-                }
-            }
-            foreach ($packages as $pkg) {
-                $extra = $pkg['extra'] ?? null;
-                $sweflow = is_array($extra) ? ($extra['sweflow'] ?? null) : null;
-                $providers = is_array($sweflow) ? ($sweflow['providers'] ?? []) : [];
-                if (!is_array($providers)) continue;
-                foreach ($providers as $providerClass) {
-                    if (!is_string($providerClass) || !class_exists($providerClass)) {
-                        continue;
-                    }
-                    try {
-                        $provider = $this->container->make($providerClass);
-                        if ($provider instanceof ModuleProviderInterface) {
-                            $name = (new \ReflectionClass($provider))->getShortName();
-                            $this->providers[$name] = $provider;
-                            if (!array_key_exists($name, $this->enabled)) {
-                                $this->enabled[$name] = true;
-                            }
-                        }
-                    } catch (\Throwable $e) {
-                        // ignore bad providers
-                    }
-                }
-            }
-        }
-
-        // Sync and cache
         $this->enabled = array_intersect_key($this->enabled, $this->providers);
         $this->persistState();
         if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
             $this->cacheModules();
+        }
+    }
+
+    private function discoverVendorModules(string $root): void
+    {
+        $sweflowVendor = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
+        $this->discoverPackageModules($sweflowVendor);
+    }
+
+    private function discoverStorageModules(string $root): void
+    {
+        $storageModules = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules';
+        $this->discoverPackageModules($storageModules);
+    }
+
+    private function discoverPackageModules(string $packagesRoot): void
+    {
+        if (!is_dir($packagesRoot)) {
+            return;
+        }
+        foreach (scandir($packagesRoot) as $pkg) {
+            if ($pkg === '.' || $pkg === '..') continue;
+            $vModules = $packagesRoot . DIRECTORY_SEPARATOR . $pkg . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
+            if (!is_dir($vModules)) continue;
+            foreach (scandir($vModules) as $module) {
+                if ($module === '.' || $module === '..') continue;
+                $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
+                if (is_dir($moduleDir)) {
+                    $this->registerSimple($module, $moduleDir);
+                }
+            }
+        }
+    }
+
+    private function discoverComposerProviders(string $root): void
+    {
+        $installedPath = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+        if (!is_file($installedPath)) {
+            return;
+        }
+        $packages = $this->loadInstalledPackages($installedPath);
+        foreach ($packages as $pkg) {
+            $this->registerComposerPackageProviders($pkg);
+        }
+    }
+
+    private function loadInstalledPackages(string $installedPath): array
+    {
+        $json = @file_get_contents($installedPath);
+        if (!$json) return [];
+        $data = json_decode($json, true);
+        if (!is_array($data)) return [];
+        if (isset($data['packages']) && is_array($data['packages'])) {
+            return $data['packages'];
+        }
+        return $data;
+    }
+
+    private function registerComposerPackageProviders(array $pkg): void
+    {
+        $extra    = $pkg['extra'] ?? null;
+        $sweflow  = is_array($extra) ? ($extra['sweflow'] ?? null) : null;
+        $providers = is_array($sweflow) ? ($sweflow['providers'] ?? []) : [];
+        if (!is_array($providers)) return;
+
+        foreach ($providers as $providerClass) {
+            if (!is_string($providerClass) || !class_exists($providerClass)) {
+                continue;
+            }
+            try {
+                $provider = $this->container->make($providerClass);
+                if ($provider instanceof ModuleProviderInterface) {
+                    $name = (new \ReflectionClass($provider))->getShortName();
+                    $this->providers[$name] = $provider;
+                    if (!array_key_exists($name, $this->enabled)) {
+                        $this->enabled[$name] = true;
+                    }
+                }
+            } catch (\Throwable) {
+                // ignore bad providers
+            }
         }
     }
 

@@ -504,7 +504,18 @@ class AuthController
 
     private function updateGlobalPolicy(bool $enabled): void
     {
-        $this->repositorio()->atualizarPolicyVerificacaoEmail($enabled);
+        $caminho = $this->caminhoPoliticaVerificacaoEmail();
+        $diretorio = dirname($caminho);
+        if (!is_dir($diretorio)) {
+            if (!@mkdir($diretorio, 0755, true) && !is_dir($diretorio)) {
+                throw new DomainException('Não foi possível criar diretório de política.');
+            }
+        }
+        $payload = ['require_verification' => $enabled];
+        $gravado = @file_put_contents($caminho, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        if ($gravado === false) {
+            throw new DomainException('Não foi possível salvar a política de verificação.');
+        }
     }
 
     private function servico(): AuthService
@@ -743,21 +754,6 @@ class AuthController
         return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
     }
 
-    private function salvarPoliticaVerificacaoEmail(bool $enabled): void
-    {
-        $caminho = $this->caminhoPoliticaVerificacaoEmail();
-        $diretorio = dirname($caminho);
-        if (!is_dir($diretorio)) {
-            if (!@mkdir($diretorio, 0755, true) && !is_dir($diretorio)) {
-                throw new DomainException('Não foi possível criar diretório de política.');
-            }
-        }
-        $payload = ['require_verification' => $enabled];
-        $gravado = @file_put_contents($caminho, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        if ($gravado === false) {
-            throw new DomainException('Não foi possível salvar a política de verificação.');
-        }
-    }
 
     private function caminhoThrottleRecuperacao(): string
     {
