@@ -312,6 +312,20 @@
         </div>
     </div>
 
+    <!-- Modal de erro genérico -->
+    <div class="modal-overlay" id="error-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-circle-exclamation"></i> <span id="error-modal-title">Erro</span></h2>
+                <button class="modal-close" id="error-modal-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p id="error-modal-message"></p>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button class="btn primary" id="error-modal-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/assets/dashboard.js?v=<?= time() ?>"></script>
 </body>
 </html>

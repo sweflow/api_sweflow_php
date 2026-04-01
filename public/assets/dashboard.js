@@ -95,7 +95,7 @@ window.onload = function () {
 
     function showProtectedModal(moduleName) {
         if (!protectedModal) {
-            alert(`O módulo "${moduleName}" é essencial e não pode ser desabilitado.`);
+            showErrorModal(`O módulo "${moduleName}" é essencial e não pode ser desabilitado.`, 'Módulo essencial');
             return;
         }
         protectedModalName.textContent = moduleName;
@@ -121,13 +121,34 @@ window.onload = function () {
         requestAnimationFrame(() => protectedModal.classList.add('show'));
     }
 
+    // ── Reusable error modal (replaces all alert() calls) ────────────────
+    function showErrorModal(message, title = 'Erro') {
+        const modal   = document.getElementById('error-modal');
+        const titleEl = document.getElementById('error-modal-title');
+        const msgEl   = document.getElementById('error-modal-message');
+        const okBtn   = document.getElementById('error-modal-ok');
+        const closeBtn = document.getElementById('error-modal-close');
+
+        if (!modal) { console.error(message); return; }
+
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl)   msgEl.textContent   = message;
+
+        const close = () => { modal.classList.remove('show'); modal.style.zIndex = ''; };
+        if (okBtn)    okBtn.onclick    = close;
+        if (closeBtn) closeBtn.onclick = close;
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+        modal.style.zIndex = '3000';
+        requestAnimationFrame(() => modal.classList.add('show'));
+    }
+
     function showEmailDisabledModal() {
         const modal    = document.getElementById('email-disabled-modal');
         const okBtn    = document.getElementById('email-disabled-ok');
         const closeBtn = document.getElementById('email-disabled-close');
 
         if (!modal) {
-            alert('O módulo de E-mail está desabilitado. Habilite em "Funcionalidades" para usar os envios.');
+            showErrorModal('O módulo de E-mail está desabilitado. Habilite em "Funcionalidades" para usar os envios.', 'Módulo desabilitado');
             return;
         }
 
@@ -229,24 +250,22 @@ window.onload = function () {
             showProtectedModal(name);
             return;
         }
-        
-        // Optimistic UI update could go here, but for now we rely on re-fetch
         try {
-            // Check current state from DOM or cache if needed, but endpoint handles toggle
             const res = await fetch('/api/modules/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ module: name }) // StatusController expects 'module', not 'name'
+                // API expects { name, enabled } — NOT { module }
+                body: JSON.stringify({ name, enabled: !(moduleState[name] ?? true) })
             });
             const data = await res.json();
             if (data.enabled !== undefined) {
-                fetchMetrics(); // Refresh UI
-                fetchModulesState(); // Refresh toggles list
+                fetchMetrics();
+                fetchModulesState();
             } else {
-                alert('Erro ao alterar status: ' + (data.error || 'Desconhecido'));
+                showErrorModal(data.error || 'Erro desconhecido ao alterar status.', 'Erro ao alterar módulo');
             }
         } catch (e) {
-            alert('Erro de conexão.');
+            showErrorModal('Erro de conexão ao tentar alterar o módulo.', 'Erro de conexão');
         }
     };
 
@@ -312,12 +331,12 @@ window.onload = function () {
                             body: JSON.stringify({ capability: cap, plugin })
                         });
                         if (!res.ok) {
-                            alert('Falha ao definir provedor.');
+                            showErrorModal(body.error || body.message || 'Falha ao definir provedor.', 'Erro');
                         } else {
                             await loadCapabilities();
                         }
                     } catch (e) {
-                        alert('Erro ao definir provedor.');
+                        showErrorModal('Erro ao definir provedor de capacidade.', 'Erro');
                     } finally {
                         sel.disabled = false;
                     }
@@ -724,7 +743,7 @@ window.onload = function () {
                     fetchMetrics();
                 } catch (err) {
                     e.target.checked = !enabled; // rollback
-                    alert(err.message);
+                    showErrorModal(err.message || 'Erro ao atualizar módulo.', 'Erro');
                 }
             });
         });
@@ -867,7 +886,7 @@ window.onload = function () {
     async function persistAuthPolicy(enabled) {
         if (!authVerifyToggle) return;
         if (!emailModuleEnabled && enabled) {
-            alert('Ative o módulo de E-mail para exigir verificação por e-mail.');
+            showErrorModal('Ative o módulo de E-mail para exigir verificação por e-mail.', 'Módulo desabilitado');
             updateAuthVerifyUI(authRequireEmailVerification, false);
             authVerifyToggle.checked = false;
             return;
@@ -886,7 +905,7 @@ window.onload = function () {
         } catch (err) {
             updateAuthVerifyUI(authRequireEmailVerification, false);
             if (authVerifyToggle) authVerifyToggle.checked = authRequireEmailVerification;
-            alert(err.message);
+            showErrorModal(err.message || 'Erro ao salvar política de verificação.', 'Erro');
         }
     }
 
@@ -1156,7 +1175,7 @@ window.onload = function () {
                 if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
                 openEmailModal();
             } catch (err) {
-                alert(err.message);
+                showErrorModal(err.message || 'Erro ao carregar dados do e-mail.', 'Erro');
             }
         });
     }
@@ -1179,7 +1198,7 @@ window.onload = function () {
                 closeEmailDetail();
                 loadEmailHistory();
             } catch (err) {
-                alert(err.message);
+                showErrorModal(err.message || 'Erro ao excluir registro.', 'Erro');
             } finally {
                 deleteConfirm.disabled = false;
             }
