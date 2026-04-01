@@ -105,8 +105,17 @@ if ($uri !== '/' && is_file($publicPath)) {
     header('Content-Type: ' . $mime);
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
+    header('X-XSS-Protection: 1; mode=block');
     header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
     header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
+    $appUrl = $_ENV['APP_URL'] ?? '';
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+        || strncmp($appUrl, 'https://', 8) === 0;
+    if ($isHttps) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+    }
     if (ob_get_level() > 0) ob_end_clean();
     readfile($publicPath);
     exit;
@@ -482,6 +491,37 @@ $router->post('/api/email/history/{id}/resend', function ($request, string $id) 
         return Response::json(['error' => $e->getMessage()], 500);
     }
 }, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+// Verificação de disponibilidade de username/email em tempo real
+$router->get('/api/usuarios/check-username', function ($request) use ($container) {
+    $username = trim(strtolower((string) ($request->query['username'] ?? '')));
+    $excludeUuid = trim((string) ($request->query['exclude'] ?? ''));
+    if ($username === '') {
+        return Response::json(['available' => false, 'error' => 'Username obrigatório.'], 422);
+    }
+    try {
+        $repo = $container->make(\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class);
+        $exists = $repo->usernameExiste($username, $excludeUuid ?: null);
+        return Response::json(['available' => !$exists]);
+    } catch (\Throwable $e) {
+        return Response::json(['available' => false, 'error' => $e->getMessage()], 500);
+    }
+}, [\Src\Kernel\Middlewares\AuthHybridMiddleware::class, \Src\Kernel\Middlewares\AdminOnlyMiddleware::class]);
+
+$router->get('/api/usuarios/check-email', function ($request) use ($container) {
+    $email = trim((string) ($request->query['email'] ?? ''));
+    $excludeUuid = trim((string) ($request->query['exclude'] ?? ''));
+    if ($email === '') {
+        return Response::json(['available' => false, 'error' => 'E-mail obrigatório.'], 422);
+    }
+    try {
+        $repo = $container->make(\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class);
+        $exists = $repo->emailExiste($email, $excludeUuid ?: null);
+        return Response::json(['available' => !$exists]);
+    } catch (\Throwable $e) {
+        return Response::json(['available' => false, 'error' => $e->getMessage()], 500);
+    }
+}, [\Src\Kernel\Middlewares\AuthHybridMiddleware::class, \Src\Kernel\Middlewares\AdminOnlyMiddleware::class]);
 
 function isPrivateRoute(array $route): bool {
     $private = [

@@ -35,6 +35,11 @@
                     <li><a href="/modules/marketplace"><i class="fa-solid fa-store"></i> Marketplace</a></li>
 
                     <li class="nav-divider"></li>
+                    <li class="nav-section-label">Conta</li>
+                    <li><a href="#" id="open-meu-perfil"><i class="fa-solid fa-circle-user"></i> Meu perfil</a></li>
+                    <li><a href="#" id="open-criar-usuario"><i class="fa-solid fa-user-plus"></i> Novo usuário</a></li>
+
+                    <li class="nav-divider"></li>
                     <li><a href="#" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Sair</a></li>
                 </ul>
             </nav>
@@ -309,6 +314,170 @@
                 <button class="btn ghost" id="email-delete-cancel">Cancelar</button>
                 <button class="btn" style="background:#e74c3c;color:#fff;" id="email-delete-confirm">Excluir</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Meu Perfil (visualização) ──────────────────────────────────── -->
+    <div class="modal-overlay" id="meu-perfil-modal">
+        <div class="modal" style="max-width:520px;width:95vw;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-circle-user"></i> Meu perfil</h2>
+                <button class="modal-close" id="meu-perfil-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="meu-perfil-body" style="display:flex;flex-direction:column;gap:14px;">
+                <p style="color:#888;text-align:center;">Carregando...</p>
+            </div>
+            <div class="form-actions" style="justify-content:flex-end;margin-top:16px;gap:8px;">
+                <button class="btn ghost" id="meu-perfil-alterar-senha"><i class="fa-solid fa-key"></i> Alterar senha</button>
+                <button class="btn primary" id="meu-perfil-editar"><i class="fa-solid fa-pen"></i> Editar dados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Editar Perfil ───────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="editar-perfil-modal">
+        <div class="modal" style="max-width:560px;width:95vw;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-pen"></i> Editar dados</h2>
+                <button class="modal-close" id="editar-perfil-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="editar-perfil-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;">
+                <div class="input-group">
+                    <label for="ep-nome">Nome completo</label>
+                    <input type="text" id="ep-nome" placeholder="Seu nome completo" />
+                </div>
+                <div class="input-group">
+                    <label for="ep-username">Username</label>
+                    <input type="text" id="ep-username" placeholder="seu.username" autocomplete="off" />
+                    <small id="ep-username-feedback" class="hint"></small>
+                </div>
+                <div class="input-group">
+                    <label for="ep-email">E-mail</label>
+                    <input type="email" id="ep-email" placeholder="email@exemplo.com" />
+                    <small id="ep-email-feedback" class="hint"></small>
+                    <small class="hint">Para alterar o e-mail, informe sua senha atual abaixo.</small>
+                </div>
+                <div class="input-group" id="ep-senha-email-group" style="display:none;">
+                    <label for="ep-senha-email">Senha atual (para confirmar troca de e-mail)</label>
+                    <input type="password" id="ep-senha-email" placeholder="Senha atual" autocomplete="current-password" />
+                </div>
+                <div class="input-group">
+                    <label for="ep-avatar">URL do avatar</label>
+                    <input type="url" id="ep-avatar" placeholder="https://..." />
+                    <div id="ep-avatar-preview" style="margin-top:6px;display:none;">
+                        <img id="ep-avatar-img" src="" alt="Preview avatar" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #e0e0e0;" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="ep-capa">URL da capa</label>
+                    <input type="url" id="ep-capa" placeholder="https://..." />
+                    <div id="ep-capa-preview" style="margin-top:6px;display:none;">
+                        <img id="ep-capa-img" src="" alt="Preview capa" style="width:100%;max-height:80px;object-fit:cover;border-radius:8px;border:2px solid #e0e0e0;" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="ep-bio">Biografia</label>
+                    <textarea id="ep-bio" rows="3" placeholder="Fale um pouco sobre você..." style="padding:10px;border:1px solid #d5daf2;border-radius:10px;font-size:1rem;resize:vertical;"></textarea>
+                </div>
+                <div id="ep-feedback" class="login-feedback" aria-live="polite"></div>
+                <div class="form-actions" style="justify-content:flex-end;">
+                    <button type="button" class="btn ghost" id="editar-perfil-cancel">Cancelar</button>
+                    <button type="submit" class="btn primary" id="editar-perfil-save"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Alterar Senha ───────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="alterar-senha-modal">
+        <div class="modal" style="max-width:460px;width:95vw;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-key"></i> Alterar senha</h2>
+                <button class="modal-close" id="alterar-senha-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="alterar-senha-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;">
+                <div class="input-group">
+                    <label for="as-atual">Senha atual</label>
+                    <input type="password" id="as-atual" placeholder="Senha atual" autocomplete="current-password" />
+                </div>
+                <div class="input-group">
+                    <label for="as-nova">Nova senha</label>
+                    <input type="password" id="as-nova" placeholder="Nova senha" autocomplete="new-password" />
+                </div>
+                <div class="input-group">
+                    <label for="as-confirmar">Confirmar nova senha</label>
+                    <input type="password" id="as-confirmar" placeholder="Confirmar nova senha" autocomplete="new-password" />
+                </div>
+                <div id="as-regras" class="senha-regras">
+                    <div class="regra" id="r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
+                    <div class="regra" id="r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
+                    <div class="regra" id="r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
+                    <div class="regra" id="r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
+                    <div class="regra" id="r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
+                    <div class="regra" id="r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
+                </div>
+                <div id="as-feedback" class="login-feedback" aria-live="polite"></div>
+                <div class="form-actions" style="justify-content:flex-end;">
+                    <button type="button" class="btn ghost" id="alterar-senha-cancel">Cancelar</button>
+                    <button type="submit" class="btn primary" id="alterar-senha-save" disabled><i class="fa-solid fa-key"></i> Alterar senha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Criar Usuário ───────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="criar-usuario-modal">
+        <div class="modal" style="max-width:560px;width:95vw;max-height:90vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-user-plus"></i> Novo usuário</h2>
+                <button class="modal-close" id="criar-usuario-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="criar-usuario-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;">
+                <div class="input-group">
+                    <label for="cu-nome">Nome completo <span style="color:#e74c3c;">*</span></label>
+                    <input type="text" id="cu-nome" placeholder="Nome completo" required />
+                </div>
+                <div class="input-group">
+                    <label for="cu-username">Username <span style="color:#e74c3c;">*</span></label>
+                    <input type="text" id="cu-username" placeholder="usuario.exemplo" autocomplete="off" required />
+                    <small id="cu-username-feedback" class="hint"></small>
+                </div>
+                <div class="input-group">
+                    <label for="cu-email">E-mail <span style="color:#e74c3c;">*</span></label>
+                    <input type="email" id="cu-email" placeholder="email@exemplo.com" required />
+                    <small id="cu-email-feedback" class="hint"></small>
+                </div>
+                <div class="input-group">
+                    <label for="cu-nivel">Nível de acesso</label>
+                    <select id="cu-nivel" style="padding:10px;border:1px solid #d5daf2;border-radius:10px;font-size:1rem;background:#fff;">
+                        <option value="usuario">Usuário</option>
+                        <option value="moderador">Moderador</option>
+                        <option value="admin">Admin</option>
+                        <option value="admin_system">Admin System</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="cu-senha">Senha <span style="color:#e74c3c;">*</span></label>
+                    <input type="password" id="cu-senha" placeholder="Senha segura" autocomplete="new-password" required />
+                </div>
+                <div class="input-group">
+                    <label for="cu-confirmar">Confirmar senha <span style="color:#e74c3c;">*</span></label>
+                    <input type="password" id="cu-confirmar" placeholder="Confirmar senha" autocomplete="new-password" required />
+                </div>
+                <div id="cu-regras" class="senha-regras">
+                    <div class="regra" id="cu-r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
+                    <div class="regra" id="cu-r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
+                    <div class="regra" id="cu-r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
+                    <div class="regra" id="cu-r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
+                    <div class="regra" id="cu-r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
+                    <div class="regra" id="cu-r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
+                </div>
+                <div id="cu-feedback" class="login-feedback" aria-live="polite"></div>
+                <div class="form-actions" style="justify-content:flex-end;">
+                    <button type="button" class="btn ghost" id="criar-usuario-cancel">Cancelar</button>
+                    <button type="submit" class="btn primary" id="criar-usuario-save" disabled><i class="fa-solid fa-user-plus"></i> Criar usuário</button>
+                </div>
+            </form>
         </div>
     </div>
 

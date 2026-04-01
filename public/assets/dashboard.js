@@ -1298,4 +1298,513 @@ window.onload = function () {
             if (ev.key === 'Escape') hideImagePopover();
         });
     }
+
+    // ── Meu Perfil / Editar / Alterar Senha / Criar Usuário ──────────────
+
+    let perfilAtual = null; // cache do usuário logado
+
+    function openModal(id) {
+        const m = document.getElementById(id);
+        if (m) { m.style.zIndex = '3000'; requestAnimationFrame(() => m.classList.add('show')); }
+    }
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        if (m) { m.classList.remove('show'); m.style.zIndex = ''; }
+    }
+
+    // ── Helpers de validação ─────────────────────────────────────────────
+
+    function validarSenhaRegras(senha, confirmar, prefix) {
+        const rules = {
+            len:     senha.length >= 8,
+            upper:   /[A-Z]/.test(senha),
+            lower:   /[a-z]/.test(senha),
+            num:     /[0-9]/.test(senha),
+            special: /[^a-zA-Z0-9]/.test(senha),
+            match:   senha !== '' && senha === confirmar,
+        };
+        Object.entries(rules).forEach(([k, ok]) => {
+            const el = document.getElementById(`${prefix}-r-${k}`);
+            if (!el) return;
+            el.classList.toggle('ok', ok);
+            const icon = el.querySelector('i');
+            if (icon) {
+                icon.className = ok ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark';
+            }
+        });
+        return Object.values(rules).every(Boolean);
+    }
+
+    function validarUsername(val) {
+        // Força lowercase
+        const v = val.toLowerCase();
+        if (v.length < 3) return { ok: false, msg: 'Mínimo 3 caracteres.' };
+        if (/^[._]/.test(v)) return { ok: false, msg: 'Não pode iniciar com caractere especial.' };
+        if (!/^[a-z0-9._]+$/.test(v)) return { ok: false, msg: 'Apenas letras minúsculas, números, ponto ou underline.' };
+        const specials = (v.match(/[._]/g) || []).length;
+        if (specials > 1) return { ok: false, msg: 'Apenas 1 caractere especial (. ou _) permitido.' };
+        return { ok: true, msg: '' };
+    }
+
+    function forcarUsernameInput(input) {
+        input.addEventListener('input', () => {
+            const pos = input.selectionStart;
+            // Remove maiúsculas e caracteres inválidos
+            const clean = input.value.toLowerCase().replace(/[^a-z0-9._]/g, '');
+            if (clean !== input.value) {
+                input.value = clean;
+                try { input.setSelectionRange(pos, pos); } catch (_) {}
+            }
+        });
+    }
+
+    let usernameCheckTimer = null;
+    let emailCheckTimer = null;
+
+    function setupUsernameCheck(inputId, feedbackId, excludeUuid = '') {
+        const input = document.getElementById(inputId);
+        const fb    = document.getElementById(feedbackId);
+        if (!input || !fb) return;
+        forcarUsernameInput(input);
+        input.addEventListener('input', () => {
+            clearTimeout(usernameCheckTimer);
+            const val = input.value.trim();
+            const v = validarUsername(val);
+            if (!v.ok) {
+                fb.textContent = val === '' ? '' : v.msg;
+                fb.className = val === '' ? 'hint' : 'hint error';
+                input.classList.remove('input-ok', 'input-error');
+                return;
+            }
+            fb.textContent = 'Verificando...';
+            fb.className = 'hint warn';
+            usernameCheckTimer = setTimeout(async () => {
+                try {
+                    const url = `/api/usuarios/check-username?username=${encodeURIComponent(val)}${excludeUuid ? '&exclude=' + excludeUuid : ''}`;
+                    const res = await fetch(url, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (data.available) {
+                        fb.textContent = '✔ Disponível';
+                        fb.className = 'hint ok';
+                        input.classList.add('input-ok');
+                        input.classList.remove('input-error');
+                    } else {
+                        fb.textContent = '✖ Username já em uso.';
+                        fb.className = 'hint error';
+                        input.classList.add('input-error');
+                        input.classList.remove('input-ok');
+                    }
+                } catch { fb.textContent = ''; fb.className = 'hint'; }
+            }, 500);
+        });
+    }
+
+    function setupEmailCheck(inputId, feedbackId, excludeUuid = '') {
+        const input = document.getElementById(inputId);
+        const fb    = document.getElementById(feedbackId);
+        if (!input || !fb) return;
+        input.addEventListener('input', () => {
+            clearTimeout(emailCheckTimer);
+            const val = input.value.trim();
+            if (!val || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                fb.textContent = val ? 'E-mail inválido.' : '';
+                fb.className = val ? 'hint error' : 'hint';
+                input.classList.remove('input-ok', 'input-error');
+                return;
+            }
+            fb.textContent = 'Verificando...';
+            fb.className = 'hint warn';
+            emailCheckTimer = setTimeout(async () => {
+                try {
+                    const url = `/api/usuarios/check-email?email=${encodeURIComponent(val)}${excludeUuid ? '&exclude=' + excludeUuid : ''}`;
+                    const res = await fetch(url, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (data.available) {
+                        fb.textContent = '✔ Disponível';
+                        fb.className = 'hint ok';
+                        input.classList.add('input-ok');
+                        input.classList.remove('input-error');
+                    } else {
+                        fb.textContent = '✖ E-mail já cadastrado.';
+                        fb.className = 'hint error';
+                        input.classList.add('input-error');
+                        input.classList.remove('input-ok');
+                    }
+                } catch { fb.textContent = ''; fb.className = 'hint'; }
+            }, 500);
+        });
+    }
+
+    // ── Meu Perfil ───────────────────────────────────────────────────────
+
+    async function carregarMeuPerfil() {
+        const body = document.getElementById('meu-perfil-body');
+        if (!body) return;
+        body.innerHTML = '<p style="color:#888;text-align:center;">Carregando...</p>';
+        try {
+            const res = await fetch('/api/perfil', { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Erro ao carregar perfil.');
+            perfilAtual = data.usuario;
+            renderMeuPerfil(perfilAtual);
+        } catch (e) {
+            body.innerHTML = `<p style="color:#e74c3c;text-align:center;">${e.message}</p>`;
+        }
+    }
+
+    function renderMeuPerfil(u) {
+        const body = document.getElementById('meu-perfil-body');
+        if (!body || !u) return;
+        const avatarHtml = u.url_avatar
+            ? `<img class="perfil-avatar" src="${u.url_avatar}" alt="Avatar" onerror="this.style.display='none'" />`
+            : `<div class="perfil-avatar-placeholder"><i class="fa-solid fa-user"></i></div>`;
+        const capaHtml = u.url_capa
+            ? `<img class="perfil-capa" src="${u.url_capa}" alt="Capa" onerror="this.style.display='none'" />`
+            : '';
+        const nivelClass = u.nivel_acesso || 'usuario';
+        const nivelLabel = { usuario: 'Usuário', moderador: 'Moderador', admin: 'Admin', admin_system: 'Admin System' }[nivelClass] || nivelClass;
+
+        body.innerHTML = `
+            ${capaHtml}
+            <div class="perfil-header">
+                ${avatarHtml}
+                <div>
+                    <div style="font-size:1.2rem;font-weight:800;color:#1e2235;">${u.nome_completo || '--'}</div>
+                    <div style="color:#888;font-size:.9rem;">@${u.username || '--'}</div>
+                    <span class="nivel-badge ${nivelClass}">${nivelLabel}</span>
+                </div>
+            </div>
+            <div class="perfil-grid">
+                <div class="perfil-field"><label>E-mail</label><span>${u.email || '--'}</span></div>
+                <div class="perfil-field"><label>Status</label><span>${u.ativo ? '✔ Ativo' : '✖ Inativo'}</span></div>
+                <div class="perfil-field"><label>E-mail verificado</label><span>${u.verificado_email ? '✔ Sim' : '✖ Não'}</span></div>
+                <div class="perfil-field"><label>Membro desde</label><span>${u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '--'}</span></div>
+            </div>
+            ${u.biografia ? `<div class="perfil-field"><label>Biografia</label><span>${u.biografia}</span></div>` : ''}
+        `;
+    }
+
+    // ── Editar Perfil ────────────────────────────────────────────────────
+
+    function abrirEditarPerfil() {
+        if (!perfilAtual) return;
+        const u = perfilAtual;
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+        setVal('ep-nome', u.nome_completo);
+        setVal('ep-username', u.username);
+        setVal('ep-email', u.email);
+        setVal('ep-avatar', u.url_avatar || '');
+        setVal('ep-capa', u.url_capa || '');
+        setVal('ep-bio', u.biografia || '');
+
+        // Preview avatar/capa
+        atualizarPreview('ep-avatar', 'ep-avatar-preview', 'ep-avatar-img');
+        atualizarPreview('ep-capa', 'ep-capa-preview', 'ep-capa-img');
+
+        // Feedback limpo
+        ['ep-username-feedback','ep-email-feedback','ep-feedback'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = ''; el.className = id === 'ep-feedback' ? 'login-feedback' : 'hint'; }
+        });
+        ['ep-username','ep-email'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('input-ok','input-error');
+        });
+
+        document.getElementById('ep-senha-email-group').style.display = 'none';
+        document.getElementById('ep-senha-email').value = '';
+
+        setupUsernameCheck('ep-username', 'ep-username-feedback', u.uuid);
+        setupEmailCheck('ep-email', 'ep-email-feedback', u.uuid);
+
+        // Mostrar campo de senha quando email muda
+        const emailInput = document.getElementById('ep-email');
+        const senhaGroup = document.getElementById('ep-senha-email-group');
+        emailInput.oninput = () => {
+            const changed = emailInput.value.trim() !== u.email;
+            senhaGroup.style.display = changed ? '' : 'none';
+        };
+
+        closeModal('meu-perfil-modal');
+        openModal('editar-perfil-modal');
+    }
+
+    function atualizarPreview(inputId, previewId, imgId) {
+        const input   = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+        const img     = document.getElementById(imgId);
+        if (!input || !preview || !img) return;
+        const update = () => {
+            const url = input.value.trim();
+            if (url) {
+                img.src = url;
+                preview.style.display = '';
+            } else {
+                preview.style.display = 'none';
+            }
+        };
+        update();
+        input.addEventListener('input', update);
+    }
+
+    const editarPerfilForm = document.getElementById('editar-perfil-form');
+    if (editarPerfilForm) {
+        editarPerfilForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fb = document.getElementById('ep-feedback');
+            const btn = document.getElementById('editar-perfil-save');
+            if (!perfilAtual) return;
+
+            const nome     = document.getElementById('ep-nome').value.trim();
+            const username = document.getElementById('ep-username').value.trim();
+            const email    = document.getElementById('ep-email').value.trim();
+            const avatar   = document.getElementById('ep-avatar').value.trim();
+            const capa     = document.getElementById('ep-capa').value.trim();
+            const bio      = document.getElementById('ep-bio').value.trim();
+            const senhaEmail = document.getElementById('ep-senha-email').value;
+
+            // Validação username
+            const uv = validarUsername(username);
+            if (!uv.ok) {
+                fb.textContent = uv.msg; fb.className = 'login-feedback error'; return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+            fb.textContent = ''; fb.className = 'login-feedback';
+
+            try {
+                // Atualiza perfil (sem email)
+                const resP = await fetch('/api/perfil', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ nome_completo: nome, username, url_avatar: avatar, url_capa: capa, biografia: bio }),
+                });
+                const dataP = await resP.json();
+                if (!resP.ok) throw new Error(dataP.message || 'Erro ao salvar perfil.');
+
+                // Atualiza email se mudou
+                if (email !== perfilAtual.email) {
+                    if (!senhaEmail) throw new Error('Informe a senha atual para alterar o e-mail.');
+                    const resE = await fetch('/api/perfil/email', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ email, senha: senhaEmail }),
+                    });
+                    const dataE = await resE.json();
+                    if (!resE.ok) throw new Error(dataE.message || 'Erro ao alterar e-mail.');
+                }
+
+                fb.textContent = 'Dados salvos com sucesso.';
+                fb.className = 'login-feedback success';
+                setTimeout(async () => {
+                    closeModal('editar-perfil-modal');
+                    await carregarMeuPerfil();
+                    openModal('meu-perfil-modal');
+                }, 800);
+            } catch (err) {
+                fb.textContent = err.message;
+                fb.className = 'login-feedback error';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+            }
+        });
+    }
+
+    // ── Alterar Senha ────────────────────────────────────────────────────
+
+    const alterarSenhaForm = document.getElementById('alterar-senha-form');
+    const asSaveBtn = document.getElementById('alterar-senha-save');
+
+    function setupSenhaValidation(novaId, confirmarId, prefix, saveBtn) {
+        const nova      = document.getElementById(novaId);
+        const confirmar = document.getElementById(confirmarId);
+        if (!nova || !confirmar) return;
+        const check = () => {
+            const ok = validarSenhaRegras(nova.value, confirmar.value, prefix);
+            if (saveBtn) saveBtn.disabled = !ok;
+        };
+        nova.addEventListener('input', check);
+        confirmar.addEventListener('input', check);
+    }
+
+    setupSenhaValidation('as-nova', 'as-confirmar', 'as', asSaveBtn);
+
+    if (alterarSenhaForm) {
+        alterarSenhaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fb  = document.getElementById('as-feedback');
+            const btn = asSaveBtn;
+            const atual     = document.getElementById('as-atual').value;
+            const nova      = document.getElementById('as-nova').value;
+            const confirmar = document.getElementById('as-confirmar').value;
+
+            if (!validarSenhaRegras(nova, confirmar, 'as')) {
+                fb.textContent = 'Corrija os erros acima.'; fb.className = 'login-feedback error'; return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Alterando...';
+            fb.textContent = ''; fb.className = 'login-feedback';
+
+            try {
+                const res = await fetch('/api/perfil/senha', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ senha_atual: atual, nova_senha: nova }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Erro ao alterar senha.');
+                fb.textContent = 'Senha alterada com sucesso.';
+                fb.className = 'login-feedback success';
+                setTimeout(() => {
+                    closeModal('alterar-senha-modal');
+                    alterarSenhaForm.reset();
+                    validarSenhaRegras('', '', 'as');
+                    if (asSaveBtn) asSaveBtn.disabled = true;
+                }, 800);
+            } catch (err) {
+                fb.textContent = err.message;
+                fb.className = 'login-feedback error';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-key"></i> Alterar senha';
+            }
+        });
+    }
+
+    // ── Criar Usuário ────────────────────────────────────────────────────
+
+    const criarUsuarioForm = document.getElementById('criar-usuario-form');
+    const cuSaveBtn = document.getElementById('criar-usuario-save');
+
+    setupSenhaValidation('cu-senha', 'cu-confirmar', 'cu', cuSaveBtn);
+    setupUsernameCheck('cu-username', 'cu-username-feedback');
+    setupEmailCheck('cu-email', 'cu-email-feedback');
+
+    // Habilita botão só quando senha válida E username/email ok
+    function checkCriarBtn() {
+        const nova      = document.getElementById('cu-senha')?.value || '';
+        const confirmar = document.getElementById('cu-confirmar')?.value || '';
+        const uFb = document.getElementById('cu-username-feedback');
+        const eFb = document.getElementById('cu-email-feedback');
+        const senhaOk    = validarSenhaRegras(nova, confirmar, 'cu');
+        const usernameOk = uFb?.classList.contains('ok');
+        const emailOk    = eFb?.classList.contains('ok');
+        if (cuSaveBtn) cuSaveBtn.disabled = !(senhaOk && usernameOk && emailOk);
+    }
+
+    ['cu-senha','cu-confirmar','cu-username','cu-email'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', checkCriarBtn);
+    });
+
+    if (criarUsuarioForm) {
+        criarUsuarioForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fb  = document.getElementById('cu-feedback');
+            const btn = cuSaveBtn;
+            const nome     = document.getElementById('cu-nome').value.trim();
+            const username = document.getElementById('cu-username').value.trim();
+            const email    = document.getElementById('cu-email').value.trim();
+            const nivel    = document.getElementById('cu-nivel').value;
+            const senha    = document.getElementById('cu-senha').value;
+            const confirmar = document.getElementById('cu-confirmar').value;
+
+            if (!validarSenhaRegras(senha, confirmar, 'cu')) {
+                fb.textContent = 'Corrija os erros de senha.'; fb.className = 'login-feedback error'; return;
+            }
+            const uv = validarUsername(username);
+            if (!uv.ok) {
+                fb.textContent = uv.msg; fb.className = 'login-feedback error'; return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Criando...';
+            fb.textContent = ''; fb.className = 'login-feedback';
+
+            try {
+                const res = await fetch('/api/criar/usuario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ nome_completo: nome, username, email, senha, nivel_acesso: nivel }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Erro ao criar usuário.');
+                fb.textContent = 'Usuário criado com sucesso.';
+                fb.className = 'login-feedback success';
+                setTimeout(() => {
+                    closeModal('criar-usuario-modal');
+                    criarUsuarioForm.reset();
+                    validarSenhaRegras('', '', 'cu');
+                    if (cuSaveBtn) cuSaveBtn.disabled = true;
+                    ['cu-username-feedback','cu-email-feedback'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) { el.textContent = ''; el.className = 'hint'; }
+                    });
+                    ['cu-username','cu-email','cu-senha','cu-confirmar'].forEach(id => {
+                        document.getElementById(id)?.classList.remove('input-ok','input-error');
+                    });
+                }, 900);
+            } catch (err) {
+                fb.textContent = err.message;
+                fb.className = 'login-feedback error';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Criar usuário';
+            }
+        });
+    }
+
+    // ── Event listeners dos modais de perfil ─────────────────────────────
+
+    document.getElementById('open-meu-perfil')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        openModal('meu-perfil-modal');
+        await carregarMeuPerfil();
+    });
+
+    document.getElementById('open-criar-usuario')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal('criar-usuario-modal');
+        // Reset form
+        criarUsuarioForm?.reset();
+        validarSenhaRegras('', '', 'cu');
+        if (cuSaveBtn) cuSaveBtn.disabled = true;
+    });
+
+    document.getElementById('meu-perfil-close')?.addEventListener('click', () => closeModal('meu-perfil-modal'));
+    document.getElementById('meu-perfil-editar')?.addEventListener('click', abrirEditarPerfil);
+    document.getElementById('meu-perfil-alterar-senha')?.addEventListener('click', () => {
+        closeModal('meu-perfil-modal');
+        openModal('alterar-senha-modal');
+        document.getElementById('alterar-senha-form')?.reset();
+        validarSenhaRegras('', '', 'as');
+        if (asSaveBtn) asSaveBtn.disabled = true;
+    });
+
+    document.getElementById('editar-perfil-close')?.addEventListener('click', () => closeModal('editar-perfil-modal'));
+    document.getElementById('editar-perfil-cancel')?.addEventListener('click', () => closeModal('editar-perfil-modal'));
+    document.getElementById('alterar-senha-close')?.addEventListener('click', () => closeModal('alterar-senha-modal'));
+    document.getElementById('alterar-senha-cancel')?.addEventListener('click', () => closeModal('alterar-senha-modal'));
+    document.getElementById('criar-usuario-close')?.addEventListener('click', () => closeModal('criar-usuario-modal'));
+    document.getElementById('criar-usuario-cancel')?.addEventListener('click', () => closeModal('criar-usuario-modal'));
+
+    // Overlay click fecha
+    ['meu-perfil-modal','editar-perfil-modal','alterar-senha-modal','criar-usuario-modal'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', (e) => {
+            if (e.target.id === id) closeModal(id);
+        });
+    });
+
+    // Preview em tempo real no editar perfil
+    document.getElementById('ep-avatar')?.addEventListener('input', () =>
+        atualizarPreview('ep-avatar', 'ep-avatar-preview', 'ep-avatar-img'));
+    document.getElementById('ep-capa')?.addEventListener('input', () =>
+        atualizarPreview('ep-capa', 'ep-capa-preview', 'ep-capa-img'));
+
 };

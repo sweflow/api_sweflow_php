@@ -721,3 +721,110 @@ h1, h2, h3 {
         display: none;
     }
 }
+
+/* ── Perfil / Senha / Criar Usuário ─────────────────────────────────── */
+.perfil-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.perfil-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #e0e0e0;
+    background: #f4f4f4;
+    flex-shrink: 0;
+}
+.perfil-avatar-placeholder {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #232946, #7b61ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+.perfil-capa {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 4px;
+}
+.perfil-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.perfil-field label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.perfil-field span {
+    font-size: 1rem;
+    color: #1e2235;
+    word-break: break-all;
+}
+.perfil-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.nivel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    background: #e8f4fd;
+    color: #2980b9;
+}
+.nivel-badge.admin_system { background: #fdecea; color: #c0392b; }
+.nivel-badge.admin        { background: #fef9e7; color: #d68910; }
+.nivel-badge.moderador    { background: #eafaf1; color: #1e8449; }
+.nivel-badge.usuario      { background: #e8f4fd; color: #2980b9; }
+
+/* Regras de senha */
+.senha-regras {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #f8f9fc;
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid #e8eaf2;
+}
+.regra {
+    font-size: 0.88rem;
+    color: #e74c3c;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+}
+.regra.ok {
+    color: #27ae60;
+}
+.regra.ok i::before { content: "\f058"; } /* fa-circle-check */
+
+/* Username feedback inline */
+.hint.ok    { color: #27ae60; font-weight: 600; }
+.hint.error { color: #e74c3c; font-weight: 600; }
+.hint.warn  { color: #e67e22; font-weight: 600; }
+
+/* Input validation states */
+input.input-ok    { border-color: #27ae60 !important; }
+input.input-error { border-color: #e74c3c !important; }

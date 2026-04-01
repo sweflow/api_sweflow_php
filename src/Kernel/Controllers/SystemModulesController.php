@@ -136,7 +136,7 @@ class SystemModulesController
         $package = $body['package'] ?? null;
 
         if (!$package) {
-            return (new Response())->json(['message' => 'Pacote não informado'], 400);
+            return Response::json(['message' => 'Pacote não informado'], 400);
         }
 
         try {
@@ -165,9 +165,9 @@ class SystemModulesController
             // 5. Regenera autoload do composer
             $this->regenerateAutoload();
 
-            return (new Response())->json(['message' => 'Módulo removido com sucesso.']);
+            return Response::json(['message' => 'Módulo removido com sucesso.']);
         } catch (\Throwable $e) {
-            return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
+            return Response::json(['message' => 'Erro: ' . $e->getMessage()], 500);
         }
     }
 
@@ -347,12 +347,12 @@ class SystemModulesController
 
     private function createErrorResponse(string $message, int $status): Response
     {
-        return (new Response())->json(['message' => $message], $status);
+        return Response::json(['message' => $message], $status);
     }
 
     private function createSuccessResponse(string $message): Response
     {
-        return (new Response())->json(['message' => $message]);
+        return Response::json(['message' => $message]);
     }
 
     private function removeModuleFromComposer(string $moduleName): void
