@@ -6,6 +6,8 @@ use Firebase\JWT\JWT;
 use Src\Kernel\Database\PdoFactory;
 use Src\Kernel\Support\DB\Migrator;
 use Src\Kernel\Support\DB\PluginMigrator;
+use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\Process;
 
 class SetupCommand
 {
@@ -199,7 +201,9 @@ class SetupCommand
         for ($i = 0; $i < $maxWait; $i++) {
             sleep(1);
             echo ".";
-            $status = shell_exec("docker compose -f " . escapeshellarg($composePath) . " ps --format json 2>/dev/null");
+            $process = new Process(['docker', 'compose', '-f', $composePath, 'ps', '--format', 'json']);
+            $process->run();
+            $status = $process->isSuccessful() ? $process->getOutput() : null;
             if ($status && str_contains($status, '"healthy"')) {
                 echo "\n✔ Banco pronto\n";
                 return;
@@ -473,9 +477,14 @@ class SetupCommand
     {
         $this->reloadEnv();
         $port = (string)($_ENV['APP_PORT'] ?? '3005');
-        $cmd = PHP_BINARY . " -S 0.0.0.0:{$port} index.php";
         echo "Iniciando servidor em http://0.0.0.0:{$port}\n";
-        passthru($cmd);
+        $process = new Process([PHP_BINARY, '-S', "0.0.0.0:{$port}", 'index.php']);
+        try {
+            $process->mustRun();
+            echo $process->getOutput();
+        } catch (ProcessFailedException $exception) {
+            echo $exception->getMessage();
+        }
     }
 
     private function startPm2(): void
@@ -539,40 +548,56 @@ class SetupCommand
     private function clearScreen(): void
     {
         if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
-            system('cls');
+            try {
+                $process = new Process(['cmd', '/c', 'cls']);
+                $process->mustRun();
+                echo $process->getOutput();
+            } catch (ProcessFailedException $exception) {
+                echo $exception->getMessage();
+            }
             return;
         }
-        system('clear');
+        try {
+            $process = new Process(['clear']);
+            $process->mustRun();
+            echo $process->getOutput();
+        } catch (ProcessFailedException $exception) {
+            echo $exception->getMessage();
+        }
     }
 
     private function commandExists(string $name): bool
     {
-        $cmd = stripos(PHP_OS_FAMILY, 'Windows') !== false ? "where {$name}" : "command -v {$name}";
-        $out = [];
-        $code = 0;
-        @exec($cmd, $out, $code);
-        return $code === 0 && !empty($out);
+        $isWindows = stripos(PHP_OS_FAMILY, 'Windows') !== false;
+        $command = $isWindows ? ['where', $name] : ['command', '-v', $name];
+        $process = new Process($command);
+        $process->run();
+        return $process->isSuccessful() && !empty(trim($process->getOutput()));
     }
 
     private function dockerContainerExists(string $containerName): bool
     {
-        $out = [];
-        $code = 0;
-        @exec("docker ps -a --format \"{{.Names}}\"", $out, $code);
-        if ($code !== 0) {
+        try {
+            $process = new Process(['docker', 'ps', '-a', '--format', '{{.Names}}']);
+            $process->mustRun();
+            $output = $process->getOutput();
+        } catch (ProcessFailedException $exception) {
             return false;
         }
+        $out = preg_split('/\r\n|\n|\r/', trim($output));
         return in_array($containerName, array_map('trim', $out), true);
     }
 
     private function runSystem(string $cmd, ?string $maskedForOutput = null): void
     {
         $toPrint = $maskedForOutput ?? $cmd;
-        echo "\n$ {$toPrint}\n";
-        $code = 0;
-        passthru($cmd, $code);
-        if ($code !== 0) {
-            echo "✖ Comando falhou (exit code {$code})\n";
+        echo "\n$ {${toPrint}}\n";
+        $process = new Process(explode(' ', $cmd));
+        $process->run();
+        if ($process->isSuccessful()) {
+            echo $process->getOutput();
+        } else {
+            echo "✖ Comando falhou (exit code {$process->getExitCode()})\n";
         }
     }
 
