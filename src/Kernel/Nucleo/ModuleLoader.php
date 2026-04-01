@@ -13,8 +13,6 @@ class ModuleLoader
     private array $providers = [];
     /** @var array<string,bool> */
     private array $enabled = [];
-    /** @var string[] */
-    private array $protectedModules = ['Auth', 'Usuario'];
     private string $stateFile;
     private string $cacheFile;
 
