@@ -64,19 +64,56 @@ class PluginMigrator
         $name = $plugin['name'];
         $version = $plugin['version'];
         $migrationsRoot = $plugin['path'] . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
-        if (is_dir($migrationsRoot)) {
-            $versions = $this->getAvailableVersions($migrationsRoot);
-            foreach ($versions as $ver) {
-                if ($this->compareVersions($ver, $version) > 0) {
-                    break;
+
+        if (!is_dir($migrationsRoot)) {
+            return;
+        }
+
+        // Versioned migrations: Migrations/v1.0.0/*.php
+        $versions = $this->getAvailableVersions($migrationsRoot);
+        foreach ($versions as $ver) {
+            if ($this->compareVersions($ver, $version) > 0) {
+                break;
+            }
+            $files = $this->getMigrationFilesForVersion($migrationsRoot, $ver);
+            sort($files, SORT_NATURAL);
+            foreach ($files as $file) {
+                $nameOnly = basename($file, '.php');
+                if ($this->isApplied($name, $ver, $nameOnly)) {
+                    continue;
                 }
-                $files = $this->getMigrationFilesForVersion($migrationsRoot, $ver);
-                foreach ($files as $migrationFile) {
-                    $callable = include $migrationFile;
-                    if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
-                        ($callable['up'])($this->pdo);
-                    }
+                $callable = include $file;
+                if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
+                    ($callable['up'])($this->pdo);
+                } elseif (is_callable($callable)) {
+                    $callable($this->pdo);
+                } else {
+                    continue;
                 }
+                $this->markApplied($name, $ver, $nameOnly);
+                echo "✔ plugin: {$name} {$ver} {$nameOnly}\n";
+            }
+        }
+
+        // Flat fallback: Migrations/*.php
+        $flat = glob($migrationsRoot . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        if ($flat) {
+            sort($flat, SORT_NATURAL);
+            foreach ($flat as $file) {
+                $nameOnly = basename($file, '.php');
+                if ($this->isApplied($name, $version, $nameOnly)) {
+                    continue;
+                }
+                $callable = include $file;
+                if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
+                    ($callable['up'])($this->pdo);
+                } elseif (is_callable($callable)) {
+                    $callable($this->pdo);
+                } else {
+                    continue;
+                }
+                $this->markApplied($name, $version, $nameOnly);
+                echo "✔ plugin: {$name} {$version} {$nameOnly}\n";
             }
         }
     }
@@ -100,47 +137,6 @@ class PluginMigrator
     private function getMigrationFilesForVersion(string $migrationsRoot, string $version): array
     {
         return glob($migrationsRoot . DIRECTORY_SEPARATOR . $version . DIRECTORY_SEPARATOR . '*.php') ?: [];
-    }
-            sort($files, SORT_NATURAL);
-            foreach ($files as $file) {
-                $nameOnly = basename($file, '.php');
-                if ($this->isApplied($name, $ver, $nameOnly)) {
-                    continue;
-                }
-                $callable = include $file;
-                if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
-                    ($callable['up'])($this->pdo);
-                } elseif (is_callable($callable)) {
-                    $callable($this->pdo);
-                } else {
-                    continue;
-                }
-                $this->markApplied($name, $ver, $nameOnly);
-                echo "✔ plugin: {$name} {$ver} {$nameOnly}\n";
-            }
-        }
-
-        // Flat fallback: src/Database/Migrations/*.php
-        $flat = glob($migrationsRoot . DIRECTORY_SEPARATOR . '*.php') ?: [];
-        if ($flat) {
-            sort($flat, SORT_NATURAL);
-            foreach ($flat as $file) {
-                $nameOnly = basename($file, '.php');
-                if ($this->isApplied($name, $version, $nameOnly)) {
-                    continue;
-                }
-                $callable = include $file;
-                if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
-                    ($callable['up'])($this->pdo);
-                } elseif (is_callable($callable)) {
-                    $callable($this->pdo);
-                } else {
-                    continue;
-                }
-                $this->markApplied($name, $version, $nameOnly);
-                echo "✔ plugin: {$name} {$version} {$nameOnly}\n";
-            }
-        }
     }
 
     private function seedPlugin(array $plugin): void

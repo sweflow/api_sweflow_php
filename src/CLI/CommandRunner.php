@@ -37,58 +37,22 @@ class CommandRunner
     {
         switch ($command) {
             case 'setup':
-                $this->handleSetup($argv);
+                (new SetupCommand())->handle($argv);
                 break;
             case 'migrate':
-                $this->handleMigrate($argv);
-                break;
+                exit((new MigrateCommand())->run(array_slice($argv, 2)));
             case 'make:module':
-                $this->handleMakeModule($argv);
+                $name = $argv[2] ?? null;
+                if (!$name) { echo "Informe o nome do módulo\n"; return; }
+                (new MakeModuleCommand())->handle($name);
                 break;
             case 'make:plugin':
-                $this->handleMakePlugin($argv);
-                break;
-            default:
-                $this->printHelp();
-                break;
-        }
-    }
-
-    private function handleSetup(array $argv): void
-    {
-        (new SetupCommand())->handle($argv);
-    }
-
-    private function handleMigrate(array $argv): void
-    {
-        exit((new MigrateCommand())->run(array_slice($argv, 2)));
-    }
-
-    private function handleMakeModule(array $argv): void
-    {
-        $name = $argv[2] ?? null;
-        if (!$name) {
-            echo "Informe o nome do módulo\n";
-            return;
-        }
-        (new MakeModuleCommand())->handle($name);
-    }
-
-    private function handleMakePlugin(array $argv): void
-    {
-        $name = $argv[2] ?? null;
-        if (!$name) {
-            echo "Informe o nome do plugin\n";
-            return;
-        }
-        $opts = [];
-        $argvCount = count($argv);
-        for ($i = 3; $i < $argvCount; $i++) {
-            $arg = $argv[$i] ?? '';
-            // existing plugin option parsing logic
-        }
-        (new MakePluginCommand())->handle($name, $opts);
-    }
+                $name = $argv[2] ?? null;
+                if (!$name) { echo "Informe o nome do plugin\n"; return; }
+                $opts = [];
+                $argvCount = count($argv);
+                for ($i = 3; $i < $argvCount; $i++) {
+                    $arg = $argv[$i] ?? '';
                     if (str_starts_with($arg, '--')) {
                         $kv = explode('=', substr($arg, 2), 2);
                         $k = $kv[0] ?? '';

@@ -717,6 +717,7 @@ window.onload = function () {
         });
 
         updateEmailCardState();
+        fetchAuthPolicy();
     }
 
     async function fetchModulesState() {
@@ -832,6 +833,10 @@ window.onload = function () {
 
     async function fetchAuthPolicy() {
         if (!authVerifyToggle) return;
+        if (!emailModuleEnabled) {
+            updateAuthVerifyUI(false, false);
+            return;
+        }
         updateAuthVerifyUI(authRequireEmailVerification, true);
         try {
             const res = await fetch('/api/auth/email-verification');
@@ -843,11 +848,6 @@ window.onload = function () {
         } catch (err) {
             authRequireEmailVerification = false;
             updateAuthVerifyUI(authRequireEmailVerification, false);
-            if (authVerifyTag) {
-                authVerifyTag.textContent = 'Falha ao carregar';
-                authVerifyTag.style.backgroundColor = '#fdeaea';
-                authVerifyTag.style.color = '#b3261e';
-            }
         }
     }
 
@@ -910,7 +910,6 @@ window.onload = function () {
             // Só carrega o resto após confirmar que a sessão é válida
             loadCapabilities();
             fetchModulesState();
-            fetchAuthPolicy();
             // Polling a cada 30s
             setInterval(() => {
                 fetchMetrics();

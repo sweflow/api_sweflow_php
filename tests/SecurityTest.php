@@ -1230,7 +1230,6 @@ test('TOKEN: REFRESH_MAX_PER_USER está configurado (limite de sessões)', funct
 echo "\n\033[1m[BIZ] Fluxos de Negócio — IDOR, Escalada, Dados Sensíveis\033[0m\n";
 
 test('BIZ: /api/perfil/{username} público não expõe e-mail', function () use ($baseUrl) {
-    // Cria um usuário e verifica que o endpoint público não retorna o email
     $uid = uniqid();
     $email = "biz_$uid@test.invalid";
     req('POST', "{$baseUrl}/api/registrar", [
@@ -1240,11 +1239,10 @@ test('BIZ: /api/perfil/{username} público não expõe e-mail', function () use 
         'senha'         => 'Senha@12345',
     ]);
     $res = req('GET', "{$baseUrl}/api/perfil/biz_$uid");
-    if ($res['status'] === 404) return null; // usuário não criado, ok
+    if ($res['status'] === 404) return null;
     $body = json_encode($res['body']);
     if (str_contains($body, $email)) return "E-mail exposto no endpoint público de perfil — CRÍTICO";
     return null;
-});
 });
 
 test('BIZ: Alteração de senha exige senha atual correta', function () use ($baseUrl) {

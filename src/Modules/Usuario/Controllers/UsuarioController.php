@@ -266,58 +266,16 @@ class UsuarioController
                     'ativo' => $updated->isAtivo(),
                     'criado_em' => $updated->getCriadoEm()->format('c'),
                     'url_avatar' => $updated->getUrlAvatar(),
-    /**
-     * POST /api/perfil/upload
-     * Recebe multipart/form-data: file (imagem) e type ('avatar'|'cover')
-     * Retorna { status: 'success', url: '/assets/...' }
-     */
-    public function uploadProfileImage($request): Response
-    {
-        $status = 'success';
-        $code = 200;
-        $response = [];
-
-        try {
-            $authUser = $request->attribute('auth_user');
-            $this->ensureAuthenticated($authUser);
-
-            $file = $this->getUploadedFile('file');
-            $this->validateUploadError($file);
-
-            $extension = $this->validateMimeType($file['type']);
-
-            $type = $this->extractType($request);
-
-            $filename = $this->generateFilename($authUser->getId(), $type, $extension);
-            $destination = $this->getDestinationPath($type, $filename);
-
-            $this->moveFile($file['tmp_name'], $destination);
-
-            $url = $this->getAssetUrl($type, $filename);
-
-            $response = ['status' => 'success', 'url' => $url];
-        } catch (\InvalidArgumentException $e) {
-            $status = 'error';
-            $code = 400;
-            $response = ['status' => $status, 'message' => $e->getMessage()];
+                    'url_capa' => $updated->getUrlCapa(),
+                    'biografia' => $updated->getBiografia(),
+                ]
+            ]);
         } catch (DomainException $e) {
-            $status = 'error';
-            $code = $e->getCode() === 500 ? 500 : 400;
-            $response = ['status' => $status, 'message' => $e->getMessage()];
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], 400);
         } catch (Throwable $e) {
-            $status = 'error';
-            $code = 500;
-            $message = 'Erro interno no servidor';
-            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
-            $response = ['status' => $status, 'message' => $message];
-            if ($debug) {
-                $response['details'] = $e->getMessage();
-            }
+            return Response::json(['status' => 'error', 'message' => 'Erro interno no servidor'], 500);
         }
-
-        return Response::json($response, $code);
     }
-
     private function ensureAuthenticated($authUser): void
     {
         if (!$authUser) {
@@ -390,109 +348,6 @@ class UsuarioController
         return sprintf('/assets/%s/%s', $path, $filename);
     }
 
-            // Use getimagesize como primeira tentativa
-            if (isset($file['tmp_name']) && !empty($file['tmp_name'])) {
-                $imgInfo = getimagesize($file['tmp_name']);
-            } else {
-                $imgInfo = false;
-            }
-            $mime = '';
-            if (is_array($imgInfo) && isset($imgInfo['mime'])) {
-                $mime = $imgInfo['mime'];
-            } else {
-                // SVG não é reconhecido por getimagesize, então verifica extensão e type
-                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                if ($ext === 'svg' && (isset($file['type']) && ($file['type'] === 'image/svg+xml' || $file['type'] === 'image/svg'))) {
-                    $mime = $file['type'];
-                } else {
-                    $mime = $file['type'] ?? '';
-                }
-            }
-
-            // Se o tipo MIME começar com 'image/', aceita a extensão original
-            if (str_starts_with($mime, 'image/')) {
-                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                if (!isset($allowed[$mime])) {
-                    $allowed[$mime] = '.' . $ext;
-                }
-            }
-
-            if (!isset($allowed[$mime])) {
-                return Response::json(['status' => 'error', 'message' => 'Tipo de arquivo não permitido'], 400);
-            }
-
-            if ($file['size'] > 5 * 1024 * 1024) {
-                return Response::json(['status' => 'error', 'message' => 'Arquivo muito grande. Máximo 5MB.'], 400);
-            }
-
-            $type = $_POST['type'] ?? 'avatar';
-            $userUuid = $authUser->getUuid()->toString();
-
-            $projectRoot = dirname(__DIR__, 3);
-            $publicDir = $projectRoot . '/public';
-
-            // Definir diretório baseado no tipo
-            if ($type === 'avatar') {
-                $targetDir = $publicDir . '/assets/images/userPerfil/' . $userUuid;
-                $urlBase = '/assets/images/userPerfil/' . $userUuid;
-            } else {
-                $targetDir = $publicDir . '/assets/images/userCapa/' . $userUuid;
-                $urlBase = '/assets/images/userCapa/' . $userUuid;
-            }
-
-            if (!is_dir($targetDir)) {
-                mkdir($targetDir, 0755, true);
-            }
-
-            $ext = $allowed[$mime];
-
-            // Remover todas as imagens anteriores do diretório do usuário
-            foreach (glob($targetDir . '/*') as $existingFile) {
-                if (is_file($existingFile)) {
-                    unlink($existingFile);
-                }
-            }
-
-            $filename = time() . '_' . bin2hex(random_bytes(6)) . $ext;
-            $destination = $targetDir . '/' . $filename;
-
-            $isVector = str_starts_with($mime, 'image/svg');
-            $isRaster = in_array($mime, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true);
-            $maxWidth = $type === 'avatar' ? 512 : 1600;
-            $maxHeight = $type === 'avatar' ? 512 : 900;
-
-            if ($isRaster) {
-                $saved = ImageProcessor::resizeAndSave($file['tmp_name'], $destination, $mime, $maxWidth, $maxHeight, 82);
-                if (!$saved) {
-                    return Response::json(['status' => 'error', 'message' => 'Falha ao processar imagem'], 500);
-                }
-            } else {
-                if (!move_uploaded_file($file['tmp_name'], $destination)) {
-                    return Response::json(['status' => 'error', 'message' => 'Falha ao salvar arquivo'], 500);
-                }
-            }
-
-            // URL publica absoluta baseada nas variáveis do .env
-            $apiBase = getenv('APP_URL')
-                ?: ($_ENV['APP_URL'] ?? '')
-                ?: ($_ENV['APP_URL_FRONTEND'] ?? '');
-
-            if (!$apiBase && isset($_SERVER['HTTP_HOST'])) {
-                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-                $apiBase = $scheme . $_SERVER['HTTP_HOST'];
-            }
-
-            $apiBase = rtrim($apiBase, '/');
-            $urlPath = $urlBase . '/' . $filename;
-            $absoluteUrl = $apiBase . '/public' . $urlPath;
-
-            return Response::json(['status' => 'success', 'url' => $absoluteUrl]);
-
-        } catch (Throwable $e) {
-            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
-            return Response::json(['status' => 'error', 'message' => 'Erro ao processar upload', 'details' => $debug ? $e->getMessage() : null], 500);
-        }
-    }
 
     public function perfil($request): Response
     {
@@ -730,97 +585,65 @@ class UsuarioController
             // Retorna apenas informações públicas do perfil — sem email
             return Response::json([
                 'status' => 'success',
+                'usuario' => [
+                    'uuid' => $usuario->getUuid()->toString(),
+                    'nome_completo' => $usuario->getNomeCompleto(),
+                    'username' => $usuario->getUsername(),
+                    'ativo' => $usuario->isAtivo(),
+                    'criado_em' => $usuario->getCriadoEm()->format('c'),
+                    'url_avatar' => $usuario->getUrlAvatar(),
+                    'url_capa' => $usuario->getUrlCapa(),
+                    'biografia' => $usuario->getBiografia(),
+                ]
+            ]);
+        } catch (DomainException $e) {
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], 404);
+        } catch (Throwable $e) {
+            return Response::json(['status' => 'error', 'message' => 'Erro interno no servidor'], 500);
+        }
+    }
+
     /**
      * GET /perfil/{username}
      */
     public function exibirPerfilHtml($request): Response
     {
-        $username     = $request->param('username');
-        $notFoundHtml = '<h1>Perfil não encontrado</h1>';
-
-        // Combine username check and lookup to reduce branching
+        $username = $request->param('username');
         $usuario = $username ? $this->service->buscarPorUsername($username) : null;
         if (!$usuario) {
-            return Response::html($notFoundHtml, 404);
+            return Response::html('<h1>Perfil não encontrado</h1>', 404);
         }
 
-        // Extract base URL determination into a smaller function
-        $getBaseUrl = function (): string {
-            $base = $_ENV['APP_URL'] ?? ($_ENV['APP_URL_FRONTEND'] ?? '');
-            if (!$base && isset($_SERVER['HTTP_HOST'])) {
-                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                $base   = $scheme . '://' . $_SERVER['HTTP_HOST'];
-            }
-            return rtrim($base, '/');
-        };
-
-        $baseUrl = $getBaseUrl();
-
-        // Simplify URL normalization logic in its own closure
-        $normalizeUrl = function (?string $url) use ($baseUrl): ?string {
-            if (!$url) {
-                return null;
-            }
-            if (
-                str_starts_with($url, 'http://')  \
-             || str_starts_with($url, 'https://') \
-             || str_starts_with($url, 'data:')
-            ) {
-                return $url;
-            }
-
-            return $baseUrl . '/' . ltrim($url, '/');
-        };
-            if ($baseUrl === '') {
-                return $url;
-            }
-            if (str_starts_with($url, '/')) {
-                return $baseUrl . $url;
-            }
-            return $baseUrl . '/' . $url;
+        $base = rtrim($_ENV['APP_URL'] ?? $_ENV['APP_URL_FRONTEND'] ?? '', '/');
+        if (!$base && isset($_SERVER['HTTP_HOST'])) {
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $base = $scheme . '://' . $_SERVER['HTTP_HOST'];
+        }
+        $normalizeUrl = function (?string $url) use ($base): ?string {
+            if (!$url) return null;
+            if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://') || str_starts_with($url, 'data:')) return $url;
+            return $base . '/' . ltrim($url, '/');
         };
 
         $nome = $usuario->getNomeCompleto() ?: $usuario->getUsername();
-        $titulo = $nome
-            ? $nome . ' (@' . $usuario->getUsername() . ') | Orkeep Comunidade'
-            : 'Perfil | Orkeep Comunidade';
-
-        $descricao = $usuario->getBiografia();
-        if (!$descricao) {
-            $descricao = 'Perfil de ' . $usuario->getUsername() . ' na Orkeep Comunidade.';
-        }
-
+        $titulo = $nome ? $nome . ' (@' . $usuario->getUsername() . ') | Orkeep Comunidade' : 'Perfil | Orkeep Comunidade';
+        $descricao = $usuario->getBiografia() ?: 'Perfil de ' . $usuario->getUsername() . ' na Orkeep Comunidade.';
         $imagem = $normalizeUrl($usuario->getUrlAvatar() ?: $usuario->getUrlCapa());
         $imagemTipo = null;
         if ($imagem) {
             $ext = strtolower(pathinfo(parse_url($imagem, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
-            $imagemTipo = match ($ext) {
-                'jpg', 'jpeg' => 'image/jpeg',
-                'png' => 'image/png',
-                'gif' => 'image/gif',
-                'webp' => 'image/webp',
-                default => null,
-            };
+            $imagemTipo = match ($ext) { 'jpg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp', default => null };
         }
-
-        $canonicalUrl = $normalizeUrl('/perfil/' . $usuario->getUsername());
-
         $dados = [
-            'titulo' => $titulo,
-            'descricao' => $descricao,
-            'imagem' => $imagem,
-            'imagem_tipo' => $imagemTipo,
-            'url' => $canonicalUrl,
-            'alt' => 'Foto de perfil',
+            'titulo' => $titulo, 'descricao' => $descricao, 'imagem' => $imagem,
+            'imagem_tipo' => $imagemTipo, 'url' => $normalizeUrl('/perfil/' . $usuario->getUsername()), 'alt' => 'Foto de perfil',
         ];
-
         ob_start();
         extract($dados);
         include __DIR__ . '/../../Templates/perfil.php';
         $html = ob_get_clean();
         return Response::html($html);
     }
-
     /**
      * DELETE /usuario/{uuid}
      */

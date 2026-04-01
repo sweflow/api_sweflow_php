@@ -13,7 +13,7 @@ class View
             header('Referrer-Policy: strict-origin-when-cross-origin');
             header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
             // CSP para páginas HTML com assets locais (JS/CSS/imagens do próprio domínio)
-            header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+            header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
 
             $appUrl = $_ENV['APP_URL'] ?? '';
             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')

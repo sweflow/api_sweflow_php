@@ -6,8 +6,7 @@ use Firebase\JWT\JWT;
 use Src\Kernel\Database\PdoFactory;
 use Src\Kernel\Support\DB\Migrator;
 use Src\Kernel\Support\DB\PluginMigrator;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-use Symfony\Component\Process\Process;
+
 
 class SetupCommand
 {
@@ -201,9 +200,8 @@ class SetupCommand
         for ($i = 0; $i < $maxWait; $i++) {
             sleep(1);
             echo ".";
-            $process = new Process(['docker', 'compose', '-f', $composePath, 'ps', '--format', 'json']);
-            $process->run();
-            $status = $process->isSuccessful() ? $process->getOutput() : null;
+            exec('docker compose -f ' . escapeshellarg($composePath) . ' ps --format json 2>&1', $psOutput, $psCode);
+            $status = $psCode === 0 ? implode('', $psOutput) : null;
             if ($status && str_contains($status, '"healthy"')) {
                 echo "\n✔ Banco pronto\n";
                 return;
@@ -478,13 +476,8 @@ class SetupCommand
         $this->reloadEnv();
         $port = (string)($_ENV['APP_PORT'] ?? '3005');
         echo "Iniciando servidor em http://0.0.0.0:{$port}\n";
-        $process = new Process([PHP_BINARY, '-S', "0.0.0.0:{$port}", 'index.php']);
-        try {
-            $process->mustRun();
-            echo $process->getOutput();
-        } catch (ProcessFailedException $exception) {
-            echo $exception->getMessage();
-        }
+        $cmd = PHP_BINARY . ' -S 0.0.0.0:' . escapeshellarg($port) . ' index.php';
+        passthru($cmd);
     }
 
     private function startPm2(): void
@@ -548,56 +541,34 @@ class SetupCommand
     private function clearScreen(): void
     {
         if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
-            try {
-                $process = new Process(['cmd', '/c', 'cls']);
-                $process->mustRun();
-                echo $process->getOutput();
-            } catch (ProcessFailedException $exception) {
-                echo $exception->getMessage();
-            }
-            return;
-        }
-        try {
-            $process = new Process(['clear']);
-            $process->mustRun();
-            echo $process->getOutput();
-        } catch (ProcessFailedException $exception) {
-            echo $exception->getMessage();
+            system('cls');
+        } else {
+            system('clear');
         }
     }
 
     private function commandExists(string $name): bool
     {
         $isWindows = stripos(PHP_OS_FAMILY, 'Windows') !== false;
-        $command = $isWindows ? ['where', $name] : ['command', '-v', $name];
-        $process = new Process($command);
-        $process->run();
-        return $process->isSuccessful() && !empty(trim($process->getOutput()));
+        $cmd = $isWindows ? "where " . escapeshellarg($name) : "command -v " . escapeshellarg($name);
+        exec($cmd . ' 2>&1', $output, $code);
+        return $code === 0 && !empty(trim(implode('', $output)));
     }
 
     private function dockerContainerExists(string $containerName): bool
     {
-        try {
-            $process = new Process(['docker', 'ps', '-a', '--format', '{{.Names}}']);
-            $process->mustRun();
-            $output = $process->getOutput();
-        } catch (ProcessFailedException $exception) {
-            return false;
-        }
-        $out = preg_split('/\r\n|\n|\r/', trim($output));
-        return in_array($containerName, array_map('trim', $out), true);
+        exec('docker ps -a --format "{{.Names}}" 2>&1', $output, $code);
+        if ($code !== 0) return false;
+        return in_array($containerName, array_map('trim', $output), true);
     }
 
     private function runSystem(string $cmd, ?string $maskedForOutput = null): void
     {
         $toPrint = $maskedForOutput ?? $cmd;
-        echo "\n$ {${toPrint}}\n";
-        $process = new Process(explode(' ', $cmd));
-        $process->run();
-        if ($process->isSuccessful()) {
-            echo $process->getOutput();
-        } else {
-            echo "✖ Comando falhou (exit code {$process->getExitCode()})\n";
+        echo "\n$ {$toPrint}\n";
+        passthru($cmd, $code);
+        if ($code !== 0) {
+            echo "✖ Comando falhou (exit code {$code})\n";
         }
     }
 

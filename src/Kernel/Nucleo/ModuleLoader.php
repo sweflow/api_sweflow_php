@@ -15,6 +15,8 @@ class ModuleLoader
     private array $enabled = [];
     private string $stateFile;
     private string $cacheFile;
+    /** @var string[] */
+    private array $protectedModules = [];
 
     public function __construct(ContainerInterface $container)
     {
@@ -31,6 +33,89 @@ class ModuleLoader
 
         if (is_dir($modulesPath)) {
             $this->discoverModulesDirectory($modulesPath);
+        }
+
+        $root = dirname(__DIR__, 3);
+
+        // vendor/sweflow/*/src/Modules/*
+        $sweflowVendor = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
+        if (is_dir($sweflowVendor)) {
+            foreach (scandir($sweflowVendor) as $pkg) {
+                if ($pkg === '.' || $pkg === '..') continue;
+                $pkgDir = $sweflowVendor . DIRECTORY_SEPARATOR . $pkg;
+                if (!is_dir($pkgDir)) continue;
+                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
+                if (!is_dir($vModules)) continue;
+                foreach (scandir($vModules) as $module) {
+                    if ($module === '.' || $module === '..') continue;
+                    $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
+                    if (!is_dir($moduleDir)) continue;
+                    $this->registerSimple($module, $moduleDir);
+                }
+            }
+        }
+
+        // storage/modules/*/src/Modules/*
+        $storageModules = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules';
+        if (is_dir($storageModules)) {
+            foreach (scandir($storageModules) as $pkg) {
+                if ($pkg === '.' || $pkg === '..') continue;
+                $pkgDir = $storageModules . DIRECTORY_SEPARATOR . $pkg;
+                if (!is_dir($pkgDir)) continue;
+                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
+                if (!is_dir($vModules)) continue;
+                foreach (scandir($vModules) as $module) {
+                    if ($module === '.' || $module === '..') continue;
+                    $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
+                    if (!is_dir($moduleDir)) continue;
+                    $this->registerSimple($module, $moduleDir);
+                }
+            }
+        }
+
+        // extra.sweflow.providers from composer installed.json
+        $installedPath = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+        if (is_file($installedPath)) {
+            $json = @file_get_contents($installedPath);
+            $data = $json ? json_decode($json, true) : null;
+            $packages = [];
+            if (is_array($data)) {
+                if (isset($data['packages']) && is_array($data['packages'])) {
+                    $packages = $data['packages'];
+                } elseif (isset($data[0]) || empty($data)) {
+                    $packages = $data;
+                }
+            }
+            foreach ($packages as $pkg) {
+                $extra = $pkg['extra'] ?? null;
+                $sweflow = is_array($extra) ? ($extra['sweflow'] ?? null) : null;
+                $providers = is_array($sweflow) ? ($sweflow['providers'] ?? []) : [];
+                if (!is_array($providers)) continue;
+                foreach ($providers as $providerClass) {
+                    if (!is_string($providerClass) || !class_exists($providerClass)) {
+                        continue;
+                    }
+                    try {
+                        $provider = $this->container->make($providerClass);
+                        if ($provider instanceof ModuleProviderInterface) {
+                            $name = (new \ReflectionClass($provider))->getShortName();
+                            $this->providers[$name] = $provider;
+                            if (!array_key_exists($name, $this->enabled)) {
+                                $this->enabled[$name] = true;
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        // ignore bad providers
+                    }
+                }
+            }
+        }
+
+        // Sync and cache
+        $this->enabled = array_intersect_key($this->enabled, $this->providers);
+        $this->persistState();
+        if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
+            $this->cacheModules();
         }
     }
 
@@ -82,132 +167,6 @@ class ModuleLoader
     {
         if (!array_key_exists($name, $this->enabled)) {
             $this->enabled[$name] = true;
-        }
-    }
-                // mas como está em src/Modules, o autoload PSR-4 "Src\Modules\" já pega.
-                // Precisamos instanciar o Provider correto.
-                
-                // 1. Tenta achar classe Provider via PSR-4 padrão: Src\Modules\{Module}\{Module}Provider
-                $providerClass = "Src\\Modules\\{$module}\\{$module}Provider"; 
-                
-                // Se o módulo tiver um composer.json com "extra.sweflow.providers", devemos honrar.
-                $composerJson = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
-                $loaded = false;
-                
-                if (file_exists($composerJson)) {
-                    $meta = json_decode(file_get_contents($composerJson), true);
-                    $providers = $meta['extra']['sweflow']['providers'] ?? [];
-                    if (!empty($providers)) {
-                        foreach ($providers as $pClass) {
-                            if (class_exists($pClass)) {
-                                try {
-                                    $providerInstance = $this->container->make($pClass);
-                                    if ($providerInstance instanceof ModuleProviderInterface) {
-                                        $this->providers[$module] = $providerInstance;
-                                        // Garante que o provider tem um nome associado, se possível
-                                        if (method_exists($providerInstance, 'setName') && empty($providerInstance->getName())) {
-                                            $providerInstance->setName($module);
-                                        }
-                                        
-                                        if (!array_key_exists($module, $this->enabled)) {
-                                            $this->enabled[$module] = true;
-                                        }
-                                        $loaded = true;
-                                        break; 
-                                    }
-                                } catch (\Throwable $e) {}
-                            }
-                        }
-                    }
-                }
-                
-                // Fallback para SimpleModuleProvider se não achou provider explícito
-                if (!$loaded) {
-                    $this->registerSimple($module, $moduleDir);
-                }
-            }
-        }
-
-        // vendor/sweflow/*/src/Modules/*
-        $root = dirname(__DIR__, 3);
-        $sweflowVendor = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
-        if (is_dir($sweflowVendor)) {
-            foreach (scandir($sweflowVendor) as $pkg) {
-                if ($pkg === '.' || $pkg === '..') continue;
-                $pkgDir = $sweflowVendor . DIRECTORY_SEPARATOR . $pkg;
-                if (!is_dir($pkgDir)) continue;
-                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
-                if (!is_dir($vModules)) continue;
-                foreach (scandir($vModules) as $module) {
-                    if ($module === '.' || $module === '..') continue;
-                    $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
-                    if (!is_dir($moduleDir)) continue;
-                    $this->registerSimple($module, $moduleDir);
-                }
-            }
-        }
-
-        // storage/modules/*/src/Modules/*
-        $storageModules = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules';
-        if (is_dir($storageModules)) {
-            foreach (scandir($storageModules) as $pkg) {
-                if ($pkg === '.' || $pkg === '..') continue;
-                $pkgDir = $storageModules . DIRECTORY_SEPARATOR . $pkg;
-                if (!is_dir($pkgDir)) continue;
-                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
-                if (!is_dir($vModules)) continue;
-                foreach (scandir($vModules) as $module) {
-                    if ($module === '.' || $module === '..') continue;
-                    $moduleDir = $vModules . DIRECTORY_SEPARATOR . $module;
-                    if (!is_dir($moduleDir)) continue;
-                    $this->registerSimple($module, $moduleDir);
-                }
-            }
-        }
-
-        // extra.sweflow.providers
-        $installedPath = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
-        if (is_file($installedPath)) {
-            $json = @file_get_contents($installedPath);
-            $data = $json ? json_decode($json, true) : null;
-            $packages = [];
-            if (is_array($data)) {
-                if (isset($data['packages']) && is_array($data['packages'])) {
-                    $packages = $data['packages'];
-                } elseif (isset($data[0]) || empty($data)) {
-                    $packages = $data;
-                }
-            }
-            foreach ($packages as $pkg) {
-                $extra = $pkg['extra'] ?? null;
-                $sweflow = is_array($extra) ? ($extra['sweflow'] ?? null) : null;
-                $providers = is_array($sweflow) ? ($sweflow['providers'] ?? []) : [];
-                if (!is_array($providers)) continue;
-                foreach ($providers as $providerClass) {
-                    if (!is_string($providerClass) || !class_exists($providerClass)) {
-                        continue;
-                    }
-                    try {
-                        $provider = $this->container->make($providerClass);
-                        if ($provider instanceof ModuleProviderInterface) {
-                            $name = (new \ReflectionClass($provider))->getShortName();
-                            $this->providers[$name] = $provider;
-                            if (!array_key_exists($name, $this->enabled)) {
-                                $this->enabled[$name] = true;
-                            }
-                        }
-                    } catch (\Throwable $e) {
-                        // ignore bad providers
-                    }
-                }
-            }
-        }
-
-        // Sync and cache
-        $this->enabled = array_intersect_key($this->enabled, $this->providers);
-        $this->persistState();
-        if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
-            $this->cacheModules();
         }
     }
 
