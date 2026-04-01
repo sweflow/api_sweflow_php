@@ -85,7 +85,10 @@ class PluginValidateCommand
 
     private function loadComposerMeta(string $composerPath): array
     {
-        $content = @file_get_contents($composerPath);
+        $content = file_get_contents($composerPath);
+        if ($content === false) {
+            return [];
+        }
         $meta = json_decode($content, true);
         return is_array($meta) ? $meta : [];
     }

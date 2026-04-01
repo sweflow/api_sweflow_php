@@ -89,15 +89,46 @@ class Conexao
 
             return new PDO($dsn, $username, $password, $options);
         } catch (PDOException $e) {
-            self::tratarErroCustomizada($e);
+            throw self::resolverExcecao($e);
         }
     }
 
     private static function tratarErroCustomizada(PDOException $e): never
     {
+        throw self::resolverExcecao($e);
+    }
+
+    private static function resolverExcecao(PDOException $e): DatabaseException
+    {
         $mensagem = self::getMensagemErro($e);
         $codigo = (int)$e->getCode();
-        self::lançarExceptionPorCodigo($codigo, $mensagem, $e);
+
+        if (in_array($codigo, [1045, 1044], true)) {
+            return new DatabasePermissionException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [1049, 1046], true)) {
+            return new DatabaseConfigException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [2002, 2003, 2006], true)) {
+            return new DatabaseConnectionException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [1062, 1451, 1452], true)) {
+            return new DatabaseIntegrityException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [1205, 1213], true)) {
+            return new DatabaseTimeoutException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [1064, 1146, 1054, 1364], true)) {
+            return new DatabaseQueryException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [1194, 1195], true)) {
+            return new DatabaseDriverException($mensagem, $codigo, $e);
+        }
+        if (in_array($codigo, [1200, 1201], true)) {
+            return new DatabaseTransactionException($mensagem, $codigo, $e);
+        }
+
+        return new DatabaseException($mensagem, $codigo, $e);
     }
 
     private static function getMensagemErro(PDOException $e): string
@@ -108,42 +139,7 @@ class Conexao
             : 'Erro ao conectar ao banco de dados. Contate o administrador.';
     }
 
-    private static function lançarExceptionPorCodigo(int $codigo, string $mensagem, PDOException $e): never
-    {
-        if (in_array($codigo, [1045, 1044], true)) {
-            throw new DatabasePermissionException($mensagem, $codigo, $e);
-        }
 
-        if (in_array($codigo, [1049, 1046], true)) {
-            throw new DatabaseConfigException($mensagem, $codigo, $e);
-        }
-
-        if (in_array($codigo, [2002, 2003, 2006], true)) {
-            throw new DatabaseConnectionException($mensagem, $codigo, $e);
-        }
-
-        if (in_array($codigo, [1062, 1451, 1452], true)) {
-            throw new DatabaseIntegrityException($mensagem, $codigo, $e);
-        }
-
-        if (in_array($codigo, [1205, 1213], true)) {
-            throw new DatabaseTimeoutException($mensagem, $codigo, $e);
-        }
-
-        if (in_array($codigo, [1064, 1146, 1054, 1364], true)) {
-            throw new DatabaseQueryException($mensagem, $codigo, $e);
-        }
-
-        if (in_array($codigo, [1194, 1195], true)) {
-            throw new DatabaseDriverException($mensagem, $codigo, $e);
-        }
-
-        if (in_array($codigo, [1200, 1201], true)) {
-            throw new DatabaseTransactionException($mensagem, $codigo, $e);
-        }
-
-        throw new DatabaseException($mensagem, $codigo, $e);
-    }
 
     /**
      * Obtém uma conexão com o banco de dados
@@ -191,7 +187,7 @@ class Conexao
             $stmt->execute($parametros);
             return $stmt;
         } catch (PDOException $e) {
-            self::tratarErroCustomizada($e);
+            throw self::resolverExcecao($e);
         }
     }
 
