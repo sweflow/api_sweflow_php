@@ -29,7 +29,4 @@ interface UserRepositoryInterface
 
     /** Busca usuário pelo token de verificação de e-mail. */
     public function buscarPorTokenVerificacaoEmail(string $token): ?object;
-
-    /** Persiste o usuário. */
-    public function salvar(object $usuario): void;
 }

@@ -1,5 +1,9 @@
 <?php
 
+// Inicia output buffering imediatamente para capturar qualquer output espúrio
+// (warnings de extensões, notices, etc.) antes de enviar headers/body JSON.
+ob_start();
+
 use Dotenv\Dotenv;
 use Src\Kernel\Contracts\ContainerInterface;
 use Src\Kernel\Contracts\RouterInterface;
@@ -22,7 +26,7 @@ require __DIR__ . '/vendor/autoload.php';
 
 // Suprime headers que expõem tecnologia do servidor
 header_remove('X-Powered-By');
-@ini_set('expose_php', '0');
+ini_set('expose_php', '0');
 
 // ── Carrega .env antes de qualquer validação ──────────────────────────────
 if (file_exists(__DIR__ . '/.env')) {
@@ -50,6 +54,7 @@ if (file_exists(__DIR__ . '/.env')) {
 
     foreach ($secrets as $name => $value) {
         if (strlen($value) < 32) {
+            if (ob_get_level() > 0) ob_end_clean();
             http_response_code(500);
             header('Content-Type: application/json');
             echo json_encode(['error' => "Configuração inválida: $name deve ter ao menos 32 caracteres."]);
@@ -57,6 +62,7 @@ if (file_exists(__DIR__ . '/.env')) {
         }
         foreach ($weakPatterns as $pattern) {
             if (preg_match($pattern, $value)) {
+                if (ob_get_level() > 0) ob_end_clean();
                 http_response_code(500);
                 header('Content-Type: application/json');
                 echo json_encode(['error' => "Configuração inválida: $name contém um valor inseguro."]);
@@ -69,6 +75,7 @@ if (file_exists(__DIR__ . '/.env')) {
     $dbHost = $_ENV['DB_HOST'] ?? 'localhost';
     $isLocalDb = in_array($dbHost, ['localhost', '127.0.0.1', '::1'], true);
     if (!$isLocalDb && strlen($dbPass) < 16) {
+        if (ob_get_level() > 0) ob_end_clean();
         http_response_code(500);
         header('Content-Type: application/json');
         echo json_encode(['error' => 'Configuração inválida: DB_SENHA deve ter ao menos 16 caracteres em produção com banco remoto.']);
@@ -100,6 +107,7 @@ if ($uri !== '/' && is_file($publicPath)) {
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
+    if (ob_get_level() > 0) ob_end_clean();
     readfile($publicPath);
     exit;
 }
@@ -150,6 +158,7 @@ function renderDbConnectionError(string $uri): void
             header('X-Frame-Options: DENY');
             header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
         }
+        if (ob_get_level() > 0) ob_end_clean();
         echo json_encode([
             'status' => 'error',
             'message' => 'Banco de dados indisponível. Tente novamente em instantes.',
@@ -183,6 +192,7 @@ function renderDbConnectionError(string $uri): void
         header('X-Frame-Options: DENY');
         header('Content-Security-Policy: default-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; frame-ancestors \'none\'');
     }
+    if (ob_get_level() > 0) ob_end_clean();
     echo $html;
     exit;
 }

@@ -688,3 +688,36 @@ h1, h2, h3 {
 .module-btn.toggle-off:hover {
     background: #d4efdf;
 }
+
+/* ── Sidebar: divisórias e labels de seção ── */
+.nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 8px 16px 10px;
+    border: none;
+    list-style: none;
+}
+
+.nav-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: rgba(255, 255, 255, 0.38);
+    padding: 0 24px;
+    margin-bottom: 4px !important;
+    pointer-events: none;
+    user-select: none;
+}
+
+.sidebar nav ul li.nav-section-label,
+.sidebar nav ul li.nav-divider {
+    margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+    .nav-divider,
+    .nav-section-label {
+        display: none;
+    }
+}

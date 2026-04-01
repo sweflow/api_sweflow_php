@@ -40,10 +40,7 @@ class Response
         return new self(
             $html,
             $status,
-            [
-                'Content-Type' => 'text/html; charset=utf-8'
-            ]
-            + $securityHeaders
+            ['Content-Type' => 'text/html; charset=utf-8'] + $securityHeaders
         );
     }
 
@@ -75,10 +72,8 @@ class Response
     private static function securityHeaders(bool $isApi = true): array
     {
         $csp = $isApi
-            // API JSON: bloqueia tudo — não há assets a carregar
             ? "default-src 'none'; frame-ancestors 'none'"
-            // Páginas HTML: permite assets do próprio domínio
-            : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+            : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
         $headers = [
             'X-Content-Type-Options'  => 'nosniff',
@@ -139,6 +134,11 @@ class Response
 
     public function Enviar(): void
     {
+        // Descarta qualquer output espúrio (warnings, notices) capturado pelo ob_start() do index.php
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         if (!headers_sent()) {
             http_response_code($this->status);
             foreach ($this->headers as $name => $value) {
@@ -152,7 +152,6 @@ class Response
             }
         }
 
-        // Always output the body, regardless of Content-Type header
         if (is_array($this->body) || is_object($this->body)) {
             echo json_encode($this->body, JSON_UNESCAPED_UNICODE);
         } else {

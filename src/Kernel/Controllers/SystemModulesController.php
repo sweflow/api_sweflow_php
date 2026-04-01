@@ -13,71 +13,118 @@ class SystemModulesController
 
     public function search(Request $request): Response
     {
-        $query = $request->query['q'] ?? '';
-        $page = (int)($request->query['page'] ?? 1);
-        $perPage = (int)($request->query['limit'] ?? 12);
-        
-        if ($page < 1) $page = 1;
-        if ($perPage < 1) $perPage = 12;
+        $query   = trim($request->query['q'] ?? '');
+        $page    = max(1, (int)($request->query['page'] ?? 1));
+        $perPage = max(1, (int)($request->query['limit'] ?? 12));
 
-        // 1. Busca plugins locais
-        $localPlugins = $this->scanLocalPlugins($query);
+        $localPlugins  = $this->scanLocalPlugins($query);
+        $remotePlugins = $this->searchPackagist($query);
 
-        // 2. Busca no Packagist
-        $remotePlugins = [];
-        // Se a busca estiver vazia, talvez não queiramos buscar TUDO no packagist, 
-        // mas vamos manter o padrão 'sweflow/module' se vazio.
-        $searchQuery = empty($query) ? 'sweflow/module' : $query;
-        $url = 'https://packagist.org/search.json?q=' . urlencode($searchQuery) . '&type=library'; 
-        
-        try {
-            $context = stream_context_create([
-                'http' => ['timeout' => 5]
-            ]);
-            $json = @file_get_contents($url, false, $context);
-            $remoteData = $json ? json_decode($json, true) : [];
-            $remotePlugins = $remoteData['results'] ?? [];
-        } catch (\Throwable $e) {
-            // Silently fail remote search
-        }
-
-        // 3. Merge: Prioriza locais, adiciona remotos se não duplicados
+        // Merge: locais têm prioridade
         $localNames = array_column($localPlugins, 'name');
         $merged = $localPlugins;
-        
         foreach ($remotePlugins as $remote) {
-            if (!in_array($remote['name'], $localNames)) {
+            if (!in_array($remote['name'], $localNames, true)) {
                 $merged[] = $remote;
             }
         }
 
-        // 4. Status de Instalação
+        // Marca status de instalação
         $installed = $this->pluginManager->read();
         foreach ($merged as &$pkg) {
-            $shortName = str_replace(['sweflow/module-', 'sweflow/', 'module-'], '', $pkg['name']);
-            if (isset($installed[$shortName])) {
-                $pkg['installed'] = true;
-                $pkg['enabled'] = $installed[$shortName]['enabled'] ?? false;
-            } else {
-                $pkg['installed'] = false;
-            }
+            $shortName = preg_replace('/^(sweflow\/module-|sweflow\/|module-)/', '', $pkg['name']);
+            $pkg['installed'] = isset($installed[$shortName]);
+            $pkg['enabled']   = $pkg['installed'] ? ($installed[$shortName]['enabled'] ?? false) : false;
         }
-        unset($pkg); // quebra referencia
+        unset($pkg);
 
-        // 5. Paginação Manual (já que mergeamos fontes diferentes)
         $total = count($merged);
-        $offset = ($page - 1) * $perPage;
-        $items = array_slice($merged, $offset, $perPage);
+        $items = array_slice($merged, ($page - 1) * $perPage, $perPage);
 
-        return (new Response())->json([
-            'results' => $items,
+        return Response::json([
+            'results'    => $items,
             'pagination' => [
-                'total' => $total,
-                'page' => $page,
-                'per_page' => $perPage,
-                'last_page' => ceil($total / $perPage)
-            ]
+                'total'     => $total,
+                'page'      => $page,
+                'per_page'  => $perPage,
+                'last_page' => (int)ceil($total / $perPage),
+            ],
         ]);
+    }
+
+    private function searchPackagist(string $query): array
+    {
+        // Busca pacotes do vendor "sweflow" no Packagist
+        // API: https://packagist.org/packages/list.json?vendor=sweflow
+        // Para busca textual: https://packagist.org/search.json?q=sweflow+module&type=library
+        try {
+            $context = stream_context_create(['http' => [
+                'timeout'       => 6,
+                'user_agent'    => 'SweflowAPI/1.0 (marketplace)',
+                'ignore_errors' => true,
+            ]]);
+
+            // Se query vazia ou genérica, lista todos do vendor sweflow
+            if ($query === '' || $query === 'sweflow/module' || $query === 'sweflow') {
+                $url  = 'https://packagist.org/packages/list.json?vendor=sweflow';
+                $json = file_get_contents($url, false, $context);
+                $data = $json ? json_decode($json, true) : [];
+                $names = $data['packageNames'] ?? [];
+
+                if (empty($names)) {
+                    return [];
+                }
+
+                // Busca detalhes de cada pacote (limitado a 20 para não sobrecarregar)
+                $results = [];
+                foreach (array_slice($names, 0, 20) as $name) {
+                    $detail = $this->fetchPackagistDetail($name, $context);
+                    if ($detail) $results[] = $detail;
+                }
+                return $results;
+            }
+
+            // Busca textual
+            $url  = 'https://packagist.org/search.json?q=' . urlencode($query) . '&vendor=sweflow&type=library';
+            $json = file_get_contents($url, false, $context);
+            $data = $json ? json_decode($json, true) : [];
+
+            return array_map(fn($r) => [
+                'name'        => $r['name'] ?? '',
+                'description' => $r['description'] ?? '',
+                'downloads'   => $r['downloads'] ?? 0,
+                'url'         => $r['url'] ?? '',
+                'repository'  => $r['repository'] ?? '',
+            ], $data['results'] ?? []);
+
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function fetchPackagistDetail(string $name, $context): ?array
+    {
+        try {
+            $url  = 'https://packagist.org/packages/' . $name . '.json';
+            $json = file_get_contents($url, false, $context);
+            $data = $json ? json_decode($json, true) : [];
+            $pkg  = $data['package'] ?? null;
+            if (!$pkg) return null;
+
+            $downloads = $pkg['downloads']['total'] ?? 0;
+            $desc      = $pkg['description'] ?? '';
+            $repo      = $pkg['repository'] ?? '';
+
+            return [
+                'name'        => $name,
+                'description' => $desc,
+                'downloads'   => $downloads,
+                'url'         => 'https://packagist.org/packages/' . $name,
+                'repository'  => $repo,
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function uninstall(Request $request): Response
@@ -179,116 +226,6 @@ class SystemModulesController
     {
         return (new Response())->json(['message' => $message]);
     }
-            // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
-            // Se for instalação via Packagist, podemos checar metadados antes?
-            // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.
-            // Mas a diretiva diz: "identifique automaticamente se o módulo instalado necessita de outro(s)... se necessitar, o modulo deve obrigar a instalação"
-            // A abordagem pós-download (acima) funciona: baixamos o módulo, lemos o composer.json dele, e se faltar algo, instalamos.
-            
-            // 2. Se não existir, tenta baixar
-            if (!is_dir($targetDir)) {
-                 // Opção A: Se tiver composer, usa composer require mas força o path?
-                 // O Composer não instala em src/Modules por padrão, a menos que seja configurado como path repo ou installer-paths.
-                 // Como o usuário quer forçar src/Modules, podemos fazer um git clone manual se for um repo git conhecido,
-                 // ou, se for via packagist, teríamos que baixar o zip e extrair.
-                 
-                 // Simulação de "Instalação": Copiar de plugins/ se existir (legado) ou criar estrutura básica?
-                 // Na verdade, o correto seria o composer.json do projeto ter um "installer-path" configurado.
-                 
-                 // Mas vamos implementar o download manual do ZIP do GitHub/Packagist se possível, ou apenas instruir.
-                 // Como o usuário pediu "Corrija!", ele espera que o botão funcione.
-                 
-                 // HACK: Se for o módulo de email que acabamos de publicar, vamos clonar do git para src/Modules/Email
-                 if ($pluginName === 'email' || $pluginName === 'module-email') {
-                     $repo = 'https://github.com/sweflow/module-email.git';
-                     // git clone $repo $targetDir
-                     $cmd = "git clone $repo \"$targetDir\" 2>&1";
-                     exec($cmd, $output, $code);
-                     
-                     if ($code !== 0) {
-                         // Fallback: Tenta mover de plugins/ se existir lá
-                         $legacyPath = dirname(__DIR__, 3) . '/plugins/sweflow-module-email';
-                         if (is_dir($legacyPath)) {
-                             rename($legacyPath, $targetDir);
-                         } else {
-                             // Fallback 2: Composer require (vai para vendor, mas o PluginManager agora lê vendor também)
-                             // Mas o usuário EXIGIU src/Modules.
-                             // Então vamos lançar erro se não conseguir por lá.
-                             throw new \Exception("Falha ao clonar repositório para src/Modules: " . implode("\n", $output));
-                         }
-                     }
-                     
-                     // Novo passo: Registrar no composer.json e psr-4
-                     $this->registerModuleInComposer($shortName, $targetDir);
-                 } else {
-                     // Para outros módulos genéricos, tentamos composer require padrão (vai para vendor)
-                     // A menos que implementemos um downloader genérico.
-                     // Vamos manter o composer require como fallback seguro para não quebrar tudo.
-                     $this->pluginManager->install($pluginName);
-                     return (new Response())->json(['message' => 'Módulo instalado via Composer (vendor).']);
-                 }
-            } else {
-                // Se já existe, garante que está registrado no composer.json
-                $this->registerModuleInComposer($shortName, $targetDir);
-            }
-
-            // --- NOVO: Verificação de Dependências ---
-            // Lê o composer.json do módulo instalado para checar dependências "require"
-            $moduleComposerPath = $targetDir . '/composer.json';
-            if (file_exists($moduleComposerPath)) {
-                $modJson = json_decode(file_get_contents($moduleComposerPath), true);
-                $requires = $modJson['require'] ?? [];
-                
-                foreach ($requires as $reqPackage => $version) {
-                    // Verifica se é um módulo do sistema (sweflow/module-*)
-                    if (str_starts_with($reqPackage, 'sweflow/module-')) {
-                        // Verifica se já está instalado
-                        $reqShortName = ucfirst(str_replace('sweflow/module-', '', $reqPackage));
-                        $reqDir = dirname(__DIR__, 3) . '/src/Modules/' . $reqShortName;
-                        
-                        if (!is_dir($reqDir)) {
-                            // Dependência faltando! Tenta instalar recursivamente?
-                            // Para evitar loop infinito ou complexidade, vamos apenas lançar erro ou tentar instalar.
-                            // A instrução diz: "o modulo deve obrigar a instalação dos módulos necessarios".
-                            // Vamos tentar instalar a dependência automaticamente.
-                            
-                            // Cria um novo request simulado para instalar a dependência
-                            $depRequest = new Request();
-                            $depRequest->body = ['package' => $reqPackage];
-                            
-                            $response = $this->install($depRequest);
-                            // O método getContent não existe na classe Response. 
-                            // O body está na propriedade privada, acessível via getBody().
-                            // Se for array/objeto, json_encode pode ser necessário ou acesso direto.
-                            
-                            $respBody = $response->getBody();
-                            // Se o corpo já for um array (Response::json constrói com array), usamos direto.
-                            // Se for string JSON, decodificamos.
-                            
-                            $respData = is_string($respBody) ? json_decode($respBody, true) : (array)$respBody;
-                            
-                            if (($response->getStatusCode() < 200 || $response->getStatusCode() >= 300)) {
-                                // Se falhar a instalação da dependência, aborta tudo?
-                                // Como já instalamos o módulo principal (git clone), ele vai ficar lá quebrado.
-                                // O ideal seria rollback, mas vamos lançar exceção avisando.
-                                throw new \Exception("Falha ao instalar dependência obrigatória '{$reqPackage}': " . ($respData['message'] ?? 'Erro desconhecido'));
-                            }
-                        }
-                    }
-                }
-            }
-            // -----------------------------------------
-
-            $this->pluginManager->install($pluginName);
-            
-            // Incrementa contador
-            $this->incrementDownload($package);
-            
-            return (new Response())->json(['message' => 'Módulo instalado com sucesso em src/Modules e registrado no composer.json']);
-        } catch (\Throwable $e) {
-            return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
-        }
-    }
 
     private function removeModuleFromComposer(string $moduleName): void
     {
@@ -329,10 +266,6 @@ class SystemModulesController
 
         if ($changed) {
             file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            // exec('composer dump-autoload'); // O PluginManager::uninstall já pode estar rodando isso ou cuidando disso
-            // Mas vamos garantir:
-            // Se possível rodar, rodamos. Se falhar (ambiente restrito), paciência.
-            @exec('composer dump-autoload');
         }
     }
     
@@ -345,7 +278,7 @@ class SystemModulesController
             return;
         }
         
-        $json = @file_get_contents($registryFile);
+        $json = file_get_contents($registryFile);
         $map = $json ? json_decode($json, true) : [];
         $changed = false;
         
