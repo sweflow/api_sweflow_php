@@ -12,6 +12,9 @@ class EmailHistory
     public function __construct(string $storageDir)
     {
         $this->file = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'email_history.json';
+        if (!is_dir($storageDir)) {
+            mkdir($storageDir, 0755, true);
+        }
     }
 
     public function save(array $entry): array
