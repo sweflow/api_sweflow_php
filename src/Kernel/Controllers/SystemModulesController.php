@@ -4,6 +4,7 @@ namespace Src\Kernel\Controllers;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Nucleo\PluginManager;
+use Src\CLI\Process;
 
 class SystemModulesController
 {
@@ -306,72 +307,6 @@ class SystemModulesController
         }
     }
 
-    private function registerModuleInComposer(string $moduleName, string $modulePath): void
-    {
-        $composerPath = dirname(__DIR__, 3) . '/composer.json';
-        if (!file_exists($composerPath)) {
-            return;
-        }
-
-        $content = file_get_contents($composerPath);
-        $json = json_decode($content, true);
-
-        if (!is_array($json)) {
-            return;
-        }
-
-        // 1. Adicionar ao "require"
-        // Como é um módulo local clonado, usamos "*" ou "dev-main" se quisermos simular, 
-        // mas na verdade se está em src/Modules, não precisamos do "require" se o autoload PSR-4 estiver configurado.
-        // O "require" serve para o composer instalar. Se já clonamos manualmente, o "require" pode ser redundante 
-        // ou causar conflito se apontar para packagist.
-        // Porem, se o modulo tem dependencias proprias, o composer precisa saber dele.
-        // A melhor pratica para "path repository" é adicionar no "repositories" e depois no "require".
-        
-        // Vamos focar no pedido principal: "inserir automaticamente o caminho no psr-4".
-        
-        // Tenta descobrir o namespace do módulo lendo o composer.json do módulo
-        $moduleComposerPath = $modulePath . '/composer.json';
-        $namespace = "SweflowModules\\{$moduleName}\\"; // Default fallback
-        
-        if (file_exists($moduleComposerPath)) {
-            $modJson = json_decode(file_get_contents($moduleComposerPath), true);
-            if (isset($modJson['autoload']['psr-4'])) {
-                // Pega o primeiro namespace definido
-                $namespace = array_key_first($modJson['autoload']['psr-4']);
-                $srcPath = reset($modJson['autoload']['psr-4']); // ex: "src/"
-                
-                // Ajusta o path relativo para o composer.json raiz
-                // src/Modules/Email/src/
-                $relativePath = "src/Modules/{$moduleName}/" . $srcPath;
-                $relativePath = rtrim($relativePath, '/'); // remove trailing slash se tiver
-                $relativePath .= '/'; // garante um slash no final
-            } else {
-                // Fallback structure
-                $relativePath = "src/Modules/{$moduleName}/src/";
-            }
-        } else {
-            // Assume estrutura padrão
-            $relativePath = "src/Modules/{$moduleName}/src/";
-        }
-
-        // 2. Adicionar ao autoload psr-4
-        if (!isset($json['autoload']['psr-4'])) {
-            $json['autoload']['psr-4'] = [];
-        }
-
-        // Verifica se já existe
-        if (!isset($json['autoload']['psr-4'][$namespace])) {
-            $json['autoload']['psr-4'][$namespace] = $relativePath;
-            
-            // Salva e roda dump-autoload
-            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            
-            // Tenta rodar composer dump-autoload
-            // Assume que 'composer' está no PATH
-            exec('composer dump-autoload');
-        }
-    }
 
     private function scanLocalPlugins(string $query): array
     {
@@ -427,22 +362,6 @@ class SystemModulesController
         return $stats[$moduleName] ?? 0;
     }
 
-    private function incrementDownload(string $moduleName): void
-    {
-        // Normalize name
-        if (str_starts_with($moduleName, 'sweflow/module-')) {
-            $moduleName = 'sweflow/module-' . str_replace('sweflow/module-', '', $moduleName);
-        } elseif (!str_contains($moduleName, '/')) {
-            $moduleName = 'sweflow/module-' . strtolower($moduleName);
-        }
-
-        $stats = $this->loadStats();
-        if (!isset($stats[$moduleName])) {
-            $stats[$moduleName] = 0;
-        }
-        $stats[$moduleName]++;
-        $this->saveStats($stats);
-    }
 
     private function decrementDownload(string $moduleName): void
     {
