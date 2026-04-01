@@ -3,15 +3,15 @@
 
 namespace Src\Database\Mysql;
 
-use src\Database\Exceptions\DatabaseException;
-use src\Database\Exceptions\DatabaseConnectionException;
-use src\Database\Exceptions\DatabaseConfigException;
-use src\Database\Exceptions\DatabaseDriverException;
-use src\Database\Exceptions\DatabaseIntegrityException;
-use src\Database\Exceptions\DatabasePermissionException;
-use src\Database\Exceptions\DatabaseQueryException;
-use src\Database\Exceptions\DatabaseTimeoutException;
-use src\Database\Exceptions\DatabaseTransactionException;
+use Src\Database\Exceptions\DatabaseException;
+use Src\Database\Exceptions\DatabaseConnectionException;
+use Src\Database\Exceptions\DatabaseConfigException;
+use Src\Database\Exceptions\DatabaseDriverException;
+use Src\Database\Exceptions\DatabaseIntegrityException;
+use Src\Database\Exceptions\DatabasePermissionException;
+use Src\Database\Exceptions\DatabaseQueryException;
+use Src\Database\Exceptions\DatabaseTimeoutException;
+use Src\Database\Exceptions\DatabaseTransactionException;
 
 use PDO;
 use PDOException;
@@ -85,47 +85,57 @@ class Conexao
             );
 
             // Opções de conexão para segurança e performance
-    /**
-     * Trata erros de conexão
-     * Este método sempre lança uma exceção e nunca retorna normalmente
-     *
-     * @param PDOException $e
-     * @throws PDOException
-     * @return never
-     */
     private static function tratarErroCustomizada(PDOException $e): never
     {
-        $debug = getenv('APP_DEBUG') === 'true';
-        $mensagem = $debug
-            ? $e->getMessage()
-            : 'Erro ao conectar ao banco de dados. Contate o administrador.';
+        $mensagem = self::getMensagemErro($e);
         $codigo = (int)$e->getCode();
 
-        $exceptionClass = self::getExceptionClassForCode($codigo);
-        throw new $exceptionClass($mensagem, $codigo, $e);
+        // Mapeamento de códigos de erro MySQL para Exceptions customizadas
+        self::lançarExceptionPorCodigo($codigo, $mensagem, $e);
     }
 
-    private static function getExceptionClassForCode(int $codigo): string
+    private static function getMensagemErro(PDOException $e): string
     {
-        $permissionErrors = [1045, 1044];
-        $configErrors = [1049, 1046];
-        $connectionErrors = [2002, 2003, 2006];
-        $integrityErrors = [1062, 1451, 1452];
+        $debug = getenv('APP_DEBUG') === 'true';
+        return $debug 
+            ? $e->getMessage()
+            : 'Erro ao conectar ao banco de dados. Contate o administrador.';
+    }
 
-        $exceptionClass = PDOException::class;
-
-        if (in_array($codigo, $permissionErrors, true)) {
-            $exceptionClass = DatabasePermissionException::class;
-        } elseif (in_array($codigo, $configErrors, true)) {
-            $exceptionClass = DatabaseConfigException::class;
-        } elseif (in_array($codigo, $connectionErrors, true)) {
-            $exceptionClass = DatabaseConnectionException::class;
-        } elseif (in_array($codigo, $integrityErrors, true)) {
-            $exceptionClass = DatabaseIntegrityException::class;
+    private static function lançarExceptionPorCodigo(int $codigo, string $mensagem, PDOException $e): never
+    {
+        if (in_array($codigo, [1045, 1044], true)) {
+            throw new DatabasePermissionException($mensagem, $codigo, $e);
         }
 
-        return $exceptionClass;
+        if (in_array($codigo, [1049, 1046], true)) {
+            throw new DatabaseConfigException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [2002, 2003, 2006], true)) {
+            throw new DatabaseConnectionException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [1062, 1451, 1452], true)) {
+            throw new DatabaseIntegrityException($mensagem, $codigo, $e);
+        }
+
+        throw new PDOException($mensagem, $codigo, $e);
     }
+            case 1045: // Access denied
+            case 1044: // Access denied for user to database
+                throw new DatabasePermissionException($mensagem, $codigo, $e);
+            case 1049: // Unknown database
+            case 1046: // No database selected
+                throw new DatabaseConfigException($mensagem, $codigo, $e);
+            case 2002: // Connection refused
+            case 2003: // Can't connect to MySQL server
+            case 2006: // MySQL server has gone away
+                throw new DatabaseConnectionException($mensagem, $codigo, $e);
+            case 1062: // Duplicate entry (integrity)
+            case 1451: // Cannot delete or update a parent row: a foreign key constraint fails
+            case 1452: // Cannot add or update a child row: a foreign key constraint fails
+                throw new DatabaseIntegrityException($mensagem, $codigo, $e);
             case 1205: // Lock wait timeout exceeded
             case 1213: // Deadlock found
                 throw new DatabaseTimeoutException($mensagem, $codigo, $e);

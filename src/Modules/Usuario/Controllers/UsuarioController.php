@@ -266,28 +266,6 @@ class UsuarioController
                     'ativo' => $updated->isAtivo(),
                     'criado_em' => $updated->getCriadoEm()->format('c'),
                     'url_avatar' => $updated->getUrlAvatar(),
-                    'url_capa' => $updated->getUrlCapa(),
-                    'biografia' => $updated->getBiografia(),
-                    'status_verificacao' => $updated->getStatusVerificacao(),
-                ]
-            ]);
-        } catch (DomainException $e) {
-            return Response::json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], $e->getCode() === 500 ? 500 : 400);
-        } catch (Throwable $e) {
-            $debug = ((
-                $_ENV['APP_DEBUG'] ?? 'false'
-            ) === 'true');
-            return Response::json([
-                'status' => 'error',
-                'message' => 'Erro interno no servidor',
-                'details' => $debug ? $e->getMessage() : null
-            ], 500);
-        }
-    }
-
     /**
      * POST /api/perfil/upload
      * Recebe multipart/form-data: file (imagem) e type ('avatar'|'cover')
@@ -295,49 +273,76 @@ class UsuarioController
      */
     public function uploadProfileImage($request): Response
     {
-        $status = 200;
-        $data = ['status' => 'success'];
+        $status = 'success';
+        $code = 200;
+        $response = [];
 
         try {
             $authUser = $request->attribute('auth_user');
-            if (!$authUser) {
-                throw new DomainException('Não autenticado', 401);
-            }
+            $this->ensureAuthenticated($authUser);
 
-            if (empty($_FILES['file']) || !is_array($_FILES['file'])) {
-                throw new DomainException('Arquivo não fornecido', 400);
-            }
+            $file = $this->getUploadedFile('file');
+            $this->validateUploadError($file);
 
-            $file = $_FILES['file'];
-            if ($file['error'] !== UPLOAD_ERR_OK) {
-                throw new DomainException('Erro no upload do arquivo', 400);
-            }
+            $extension = $this->validateMimeType($file['type']);
 
-            $extension = $this->getImageExtension($file['type']);
+            $type = $this->extractType($request);
 
-            // Aceita qualquer imagem cujo tipo MIME comece com 'image/'
+            $filename = $this->generateFilename($authUser->getId(), $type, $extension);
+            $destination = $this->getDestinationPath($type, $filename);
 
+            $this->moveFile($file['tmp_name'], $destination);
+
+            $url = $this->getAssetUrl($type, $filename);
+
+            $response = ['status' => 'success', 'url' => $url];
+        } catch (\InvalidArgumentException $e) {
+            $status = 'error';
+            $code = 400;
+            $response = ['status' => $status, 'message' => $e->getMessage()];
         } catch (DomainException $e) {
-            $status = $e->getCode() === 0 ? 400 : $e->getCode();
-            $data = ['status' => 'error', 'message' => $e->getMessage()];
+            $status = 'error';
+            $code = $e->getCode() === 500 ? 500 : 400;
+            $response = ['status' => $status, 'message' => $e->getMessage()];
         } catch (Throwable $e) {
-            $status = 500;
-            $debug = ((
-                $_ENV['APP_DEBUG'] ?? 'false'
-            ) === 'true');
-            $data = [
-                'status' => 'error',
-                'message' => 'Erro interno no servidor',
-                'details' => $debug ? $e->getMessage() : null
-            ];
+            $status = 'error';
+            $code = 500;
+            $message = 'Erro interno no servidor';
+            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
+            $response = ['status' => $status, 'message' => $message];
+            if ($debug) {
+                $response['details'] = $e->getMessage();
+            }
         }
 
-        return Response::json($data, $status);
+        return Response::json($response, $code);
     }
 
-    private function getImageExtension(string $mime): ?string
+    private function ensureAuthenticated($authUser): void
     {
-        $mapping = [
+        if (!$authUser) {
+            throw new \InvalidArgumentException('Não autenticado');
+        }
+    }
+
+    private function getUploadedFile(string $key): array
+    {
+        if (empty($_FILES[$key]) || !is_array($_FILES[$key])) {
+            throw new \InvalidArgumentException('Arquivo não fornecido');
+        }
+        return $_FILES[$key];
+    }
+
+    private function validateUploadError(array $file): void
+    {
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            throw new \InvalidArgumentException('Erro no upload do arquivo');
+        }
+    }
+
+    private function validateMimeType(string $mimeType): string
+    {
+        $allowed = [
             'image/jpeg' => '.jpg',
             'image/jpg' => '.jpg',
             'image/png' => '.png',
@@ -345,11 +350,52 @@ class UsuarioController
             'image/svg+xml' => '.svg',
             'image/svg' => '.svg',
         ];
-        return $mapping[$mime] ?? null;
+        if (!isset($allowed[$mimeType])) {
+            throw new \InvalidArgumentException('Tipo de arquivo não suportado');
+        }
+        return $allowed[$mimeType];
+    }
+
+    private function extractType($request): string
+    {
+        $body = $request->getParsedBody();
+        $type = $body['type'] ?? '';
+        if (!in_array($type, ['avatar', 'cover'], true)) {
+            throw new \InvalidArgumentException('Tipo inválido');
+        }
+        return $type;
+    }
+
+    private function generateFilename(int $userId, string $type, string $extension): string
+    {
+        return sprintf('%d_%s_%s%s', $userId, $type, uniqid(), $extension);
+    }
+
+    private function getDestinationPath(string $type, string $filename): string
+    {
+        $directory = $type === 'avatar' ? 'avatars' : 'covers';
+        return sprintf('public/assets/%s/%s', $directory, $filename);
+    }
+
+    private function moveFile(string $source, string $destination): void
+    {
+        if (!move_uploaded_file($source, $destination)) {
+            throw new DomainException('Falha ao mover o arquivo');
+        }
+    }
+
+    private function getAssetUrl(string $type, string $filename): string
+    {
+        $path = $type === 'avatar' ? 'avatars' : 'covers';
+        return sprintf('/assets/%s/%s', $path, $filename);
     }
 
             // Use getimagesize como primeira tentativa
-            $imgInfo = @getimagesize($file['tmp_name']);
+            if (isset($file['tmp_name']) && !empty($file['tmp_name'])) {
+                $imgInfo = getimagesize($file['tmp_name']);
+            } else {
+                $imgInfo = false;
+            }
             $mime = '';
             if (is_array($imgInfo) && isset($imgInfo['mime'])) {
                 $mime = $imgInfo['mime'];
@@ -402,7 +448,9 @@ class UsuarioController
 
             // Remover todas as imagens anteriores do diretório do usuário
             foreach (glob($targetDir . '/*') as $existingFile) {
-                @unlink($existingFile);
+                if (is_file($existingFile)) {
+                    unlink($existingFile);
+                }
             }
 
             $filename = time() . '_' . bin2hex(random_bytes(6)) . $ext;
@@ -514,7 +562,7 @@ class UsuarioController
                 'email' => $novoEmail,
                 'status_verificacao' => 'pendente',
             ]);
-            $this->service->marcarEmailComoVerificado($uuid, false);
+            $this->service->marcarEmailComoVerificado($uuid);
 
             $token = bin2hex(random_bytes(32));
             $this->service->salvarTokenVerificacaoEmail($uuid, $token);
@@ -687,67 +735,42 @@ class UsuarioController
      */
     public function exibirPerfilHtml($request): Response
     {
-        [$username, $errorResponse] = $this->extractUsernameOrError($request);
-        if ($errorResponse) {
-            return $errorResponse;
-        }
+        $username     = $request->param('username');
+        $notFoundHtml = '<h1>Perfil não encontrado</h1>';
 
-        $usuario = $this->service->buscarPorUsername($username);
+        // Combine username check and lookup to reduce branching
+        $usuario = $username ? $this->service->buscarPorUsername($username) : null;
         if (!$usuario) {
-            return $this->createNotFoundHtmlResponse();
+            return Response::html($notFoundHtml, 404);
         }
 
-        $baseUrl   = $this->determineBaseUrl();
-        $avatarUrl = $this->normalizeUrl($usuario->getUrlAvatar(), $baseUrl);
-        $coverUrl  = $this->normalizeUrl($usuario->getUrlCapa(), $baseUrl);
+        // Extract base URL determination into a smaller function
+        $getBaseUrl = function (): string {
+            $base = $_ENV['APP_URL'] ?? ($_ENV['APP_URL_FRONTEND'] ?? '');
+            if (!$base && isset($_SERVER['HTTP_HOST'])) {
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $base   = $scheme . '://' . $_SERVER['HTTP_HOST'];
+            }
+            return rtrim($base, '/');
+        };
 
-        // ... lógica de renderização do perfil em HTML ...
-        return Response::html(
-            $this->renderProfileHtml($usuario, $avatarUrl, $coverUrl),
-            200
-        );
-    }
+        $baseUrl = $getBaseUrl();
 
-    private function extractUsernameOrError($request): array
-    {
-        $username = $request->param('username');
-        if (!$username) {
-            return [null, Response::html('<h1>Perfil não encontrado</h1>', 404)];
-        }
-        return [$username, null];
-    }
+        // Simplify URL normalization logic in its own closure
+        $normalizeUrl = function (?string $url) use ($baseUrl): ?string {
+            if (!$url) {
+                return null;
+            }
+            if (
+                str_starts_with($url, 'http://')  \
+             || str_starts_with($url, 'https://') \
+             || str_starts_with($url, 'data:')
+            ) {
+                return $url;
+            }
 
-    private function createNotFoundHtmlResponse(): Response
-    {
-        return Response::html('<h1>Perfil não encontrado</h1>', 404);
-    }
-
-    private function determineBaseUrl(): string
-    {
-        $baseUrl = $_ENV['APP_URL'] ?? ($_ENV['APP_URL_FRONTEND'] ?? '');
-        if (!$baseUrl && isset($_SERVER['HTTP_HOST'])) {
-            $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'];
-        }
-        return rtrim((string) $baseUrl, '/');
-    }
-
-    private function normalizeUrl(?string $url, string $baseUrl): ?string
-    {
-        if (!$url) {
-            return null;
-        }
-        if (preg_match('/^(http:\\/\\/|https:\\/\\/|data:)/', $url)) {
-            return $url;
-        }
-        return $baseUrl . '/' . ltrim($url, '/');
-    }
-
-    // Implementar este método com a lógica de template original
-    private function renderProfileHtml($usuario, ?string $avatarUrl, ?string $coverUrl): string
-    {
-        // ...
-    }
+            return $baseUrl . '/' . ltrim($url, '/');
+        };
             if ($baseUrl === '') {
                 return $url;
             }
@@ -898,7 +921,6 @@ class UsuarioController
         $this->removerDiretorio($publicDir . '/assets/images/userPerfil/' . $uuid);
         $this->removerDiretorio($publicDir . '/assets/images/userCapa/' . $uuid);
     }
-
     private function removerArquivoPorUrl(?string $url, string $publicDir, string $segmentoPermitido): void
     {
         if (!$url) {
@@ -923,7 +945,9 @@ class UsuarioController
 
         $filePath = $publicDir . $relativePath;
         if (is_file($filePath)) {
-            @unlink($filePath);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
         }
     }
 
@@ -935,11 +959,15 @@ class UsuarioController
 
         foreach (glob($dir . '/*') as $file) {
             if (is_file($file)) {
-                @unlink($file);
+                if (file_exists($file)) {
+                    unlink($file);
+                }
             }
         }
 
-        @rmdir($dir);
+        if (is_dir($dir)) {
+            rmdir($dir);
+        }
     }
 
     /**
@@ -1010,7 +1038,10 @@ class UsuarioController
         if (!file_exists($caminho)) {
             return false;
         }
-        $json = @file_get_contents($caminho);
+        if (!is_readable($caminho)) {
+            return false;
+        }
+        $json = file_get_contents($caminho);
         if ($json === false) {
             return false;
         }

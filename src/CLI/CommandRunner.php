@@ -5,62 +5,40 @@ class CommandRunner
 {
     public function run(array $argv): void
     {
-        $command = $this->getCommand($argv);
-        if (empty($command)) {
-            $this->displayHelp();
-        } else {
-            $this->executeCommand($command, $argv);
+        $command = $argv[1] ?? null;
+        if (!$command) {
+            $this->printHelp();
+            return;
         }
+        $this->dispatch($command, $argv);
     }
 
-    private function getCommand(array $argv): ?string
-    {
-        return $argv[1] ?? null;
-    }
-
-    private function displayHelp(): void
+    private function printHelp(): void
     {
         echo "Sweflow CLI\n";
         echo "Comandos disponíveis:\n";
-        $commands = [
-            "setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]",
-            "migrate [--seed] [--rollback]",
-            "make:module Nome",
-            "make:plugin Nome",
-            "plugin:inspect",
-            "plugin:migrate",
-            "plugin:rollback [plugin]",
-            "plugin:validate",
-            "plugin:install <plugin>",
-            "plugin:enable <plugin>",
-            "plugin:disable <plugin>",
-            "plugin:uninstall <plugin>",
-            "capability:list [capability]",
-            "plugin:provider:set <capability> <plugin>",
-        ];
-        foreach ($commands as $cmd) {
-            echo "  {$cmd}\n";
-        }
+        echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
+        echo "  migrate [--seed] [--rollback]\n";
+        echo "  make:module Nome\n";
+        echo "  make:plugin Nome\n";
+        echo "  plugin:inspect\n";
+        echo "  plugin:migrate\n";
+        echo "  plugin:rollback [plugin]\n";
+        echo "  plugin:validate\n";
+        echo "  plugin:install <plugin>\n";
+        echo "  plugin:enable <plugin>\n";
+        echo "  plugin:disable <plugin>\n";
+        echo "  plugin:uninstall <plugin>\n";
+        echo "  capability:list [capability]\n";
+        echo "  plugin:provider:set <capability> <plugin>\n";
     }
 
-    private function executeCommand(string $command, array $argv): void
+    private function dispatch(string $command, array $argv): void
     {
         switch ($command) {
             case 'setup':
                 (new SetupCommand())->handle($argv);
                 break;
-            default:
-                $this->handleUnknownCommand($command);
-                break;
-        }
-    }
-
-    private function handleUnknownCommand(string $command): void
-    {
-        echo "Comando desconhecido: {$command}\n";
-        $this->displayHelp();
-    }
-}
             case 'migrate':
                 exit((new MigrateCommand())->run(array_slice($argv, 2)));
             case 'make:module':

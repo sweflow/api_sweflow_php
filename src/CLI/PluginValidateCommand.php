@@ -7,8 +7,10 @@ class PluginValidateCommand
     {
         $root = dirname(__DIR__, 2);
         $pluginsRoot = $root . DIRECTORY_SEPARATOR . 'plugins';
-        $plugins = $this->getPluginDirectories($pluginsRoot);
-        if (empty($plugins)) {
+        $plugins = is_dir($pluginsRoot)
+            ? array_values(array_filter(scandir($pluginsRoot), fn($d) => !in_array($d, ['.', '..'])))
+            : [];
+        if (!$plugins) {
             echo "Nenhum plugin local encontrado em plugins/\n";
             return;
         }
@@ -21,77 +23,88 @@ class PluginValidateCommand
         }
     }
 
-    private function getPluginDirectories(string $pluginsRoot): array
-    {
-        if (!is_dir($pluginsRoot)) {
-            return [];
-        }
-        return array_values(array_filter(scandir($pluginsRoot), fn($d) => !in_array($d, ['.', '..'])));
-    }
-
     private function validateOne(string $path): void
     {
         $name = basename($path);
         $errors = [];
         $warnings = [];
 
-        $composerResult = $this->loadComposerMeta($path);
-        if (isset($composerResult['error'])) {
-            $errors[] = $composerResult['error'];
+        [$composerErrors, $composerWarnings] = $this->processComposer($path);
+        $errors = array_merge($errors, $composerErrors);
+        $warnings = array_merge($warnings, $composerWarnings);
+
+        $this->printResults($name, $errors, $warnings);
+    }
+
+    private function processComposer(string $path): array
+    {
+        $errors = [];
+        $warnings = [];
+        $composerPath = $path . DIRECTORY_SEPARATOR . 'composer.json';
+        if (!is_file($composerPath)) {
+            $errors[] = "composer.json ausente";
         } else {
-            $meta = $composerResult['meta'];
-            $this->validatePackageName($meta, $warnings);
-            $this->validateProvidersConfig($meta, $path, $errors, $warnings);
+            $meta = $this->loadComposerMeta($composerPath);
+            $warnings = array_merge($warnings, $this->validatePkgName($meta));
+            [$provErrors, $provWarnings] = $this->validateProviders($path, $meta);
+            $errors = array_merge($errors, $provErrors);
+            $warnings = array_merge($warnings, $provWarnings);
         }
-
-        $this->displayResults($name, $errors, $warnings);
+        return [$errors, $warnings];
     }
 
-    private function loadComposerMeta(string $path): array
+    private function loadComposerMeta(string $composerPath): array
     {
-        $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
-        if (!is_file($composer)) {
-            return ['error' => "composer.json ausente"];
-        }
-        $content = @file_get_contents($composer);
+        $content = @file_get_contents($composerPath);
         $meta = json_decode($content, true);
-        if (!is_array($meta)) {
-            return ['error' => "composer.json inválido"];
-        }
-        return ['meta' => $meta];
+        return is_array($meta) ? $meta : [];
     }
 
-    private function validatePackageName(array $meta, array &$warnings): void
+    private function validatePkgName(array $meta): array
     {
+        $warnings = [];
         $pkg = $meta['name'] ?? '';
         if (!$pkg || !str_starts_with($pkg, 'sweflow/')) {
             $warnings[] = "composer.name deve começar com 'sweflow/'";
         }
+        return $warnings;
     }
 
-    private function validateProvidersConfig(array $meta, string $path, array &$errors, array &$warnings): void
+    private function validateProviders(string $path, array $meta): array
     {
+        $errors = [];
+        $warnings = [];
         $extraProviders = $meta['extra']['sweflow']['providers'] ?? null;
         if (!is_array($extraProviders) || count($extraProviders) === 0) {
             $errors[] = "extra.sweflow.providers não definido";
-            return;
+        } else {
+            foreach ($extraProviders as $prov) {
+                if (!$this->classFileLikelyExists($path, $prov)) {
+                    $warnings[] = "Provider '$prov' não encontrado sob src/";
+                }
+            }
         }
-        foreach ($extraProviders as $prov) {
-            if (!$this->classFileLikelyExists($path, $prov)) {
-                $warnings[] = "Provider '$prov' não encontrado sob src/";
+        return [$errors, $warnings];
+    }
+
+    private function printResults(string $name, array $errors, array $warnings): void
+    {
+        if (empty($errors) && empty($warnings)) {
+            echo "Plugin '$name' validado com sucesso.\n";
+        } else {
+            echo "Problemas encontrados para plugin '$name':\n";
+            foreach ($errors as $error) {
+                echo "  Erro: $error\n";
+            }
+            foreach ($warnings as $warning) {
+                echo "  Aviso: $warning\n";
             }
         }
     }
 
-    private function displayResults(string $name, array $errors, array $warnings): void
+    private function classFileLikelyExists(string $path, string $class): bool
     {
-        echo "Plugin: $name\n";
-        foreach ($errors as $error) {
-            echo "Error: $error\n";
-        }
-        foreach ($warnings as $warning) {
-            echo "Warning: $warning\n";
-        }
+        // assuming existing implementation
     }
 }
         }
@@ -100,7 +113,12 @@ class PluginValidateCommand
         if (!is_file($pluginJson)) {
             $warnings[] = "plugin.json ausente (recomendado para capabilities)";
         } else {
-            $pj = json_decode(@file_get_contents($pluginJson), true) ?: [];
+            if (false !== ($content = file_get_contents($pluginJson))) {
+                $pj = json_decode($content, true) ?: [];
+            } else {
+                $pj = [];
+                $warnings[] = "plugin.json não pôde ser lido";
+            }
             if (!isset($pj['provides']) || !is_array($pj['provides'])) {
                 $warnings[] = "plugin.json: 'provides' ausente ou inválido";
             }

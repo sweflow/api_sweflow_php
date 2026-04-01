@@ -61,30 +61,27 @@ class PluginMigrator
 
     private function migratePlugin(array $plugin): void
     {
-        $migrationsRoot = $this->getMigrationsRootPath($plugin['path']);
-        $filesToMigrate = [];
-
-        if ($this->directoryExists($migrationsRoot)) {
-            $versions = $this->getVersionDirectories($migrationsRoot);
-            $filesToMigrate = $this->collectMigrationFiles($migrationsRoot, $versions, $plugin['version']);
+        $name = $plugin['name'];
+        $version = $plugin['version'];
+        $migrationsRoot = $plugin['path'] . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        if (is_dir($migrationsRoot)) {
+            $versions = $this->getAvailableVersions($migrationsRoot);
+            foreach ($versions as $ver) {
+                if ($this->compareVersions($ver, $version) > 0) {
+                    break;
+                }
+                $files = $this->getMigrationFilesForVersion($migrationsRoot, $ver);
+                foreach ($files as $migrationFile) {
+                    $callable = include $migrationFile;
+                    if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
+                        ($callable['up'])($this->pdo);
+                    }
+                }
+            }
         }
-
-        foreach ($filesToMigrate as $file) {
-            $this->runMigrationFile($file);
-        }
     }
 
-    private function getMigrationsRootPath(string $pluginPath): string
-    {
-        return $pluginPath . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
-    }
-
-    private function directoryExists(string $path): bool
-    {
-        return is_dir($path);
-    }
-
-    private function getVersionDirectories(string $migrationsRoot): array
+    private function getAvailableVersions(string $migrationsRoot): array
     {
         $versions = [];
         foreach (scandir($migrationsRoot) as $ver) {
@@ -100,30 +97,9 @@ class PluginMigrator
         return $versions;
     }
 
-    private function collectMigrationFiles(string $migrationsRoot, array $versions, string $maxVersion): array
+    private function getMigrationFilesForVersion(string $migrationsRoot, string $version): array
     {
-        $files = [];
-        foreach ($versions as $ver) {
-            if ($this->compareVersions($ver, $maxVersion) > 0) {
-                break;
-            }
-            $pattern = $migrationsRoot . DIRECTORY_SEPARATOR . $ver . DIRECTORY_SEPARATOR . '*.php';
-            $found = glob($pattern) ?: [];
-            $files = array_merge($files, $found);
-        }
-        return $files;
-    }
-
-    private function runMigrationFile(string $file): void
-    {
-        if (!is_file($file)) {
-            return;
-        }
-
-        $callable = include $file;
-        if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
-            $callable['up']($this->pdo);
-        }
+        return glob($migrationsRoot . DIRECTORY_SEPARATOR . $version . DIRECTORY_SEPARATOR . '*.php') ?: [];
     }
             sort($files, SORT_NATURAL);
             foreach ($files as $file) {
@@ -268,14 +244,22 @@ class PluginMigrator
         $version = '1.0.0';
         $name = basename($path);
         if (is_file($pluginJson)) {
-            $data = json_decode(@file_get_contents($pluginJson), true) ?: [];
+            if (is_readable($pluginJson)) {
+                $data = json_decode(file_get_contents($pluginJson), true) ?: [];
+            } else {
+                $data = [];
+            }
             $name = $data['name'] ?? $name;
             $version = $data['version'] ?? $version;
         } else {
             // Fallback: read composer.json name field
             $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
             if (is_file($composer)) {
-                $meta = json_decode(@file_get_contents($composer), true) ?: [];
+                if (is_readable($composer)) {
+                    $meta = json_decode(file_get_contents($composer), true) ?: [];
+                } else {
+                    $meta = [];
+                }
                 $name = $meta['name'] ?? $name;
             }
         }
