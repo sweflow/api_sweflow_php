@@ -46,7 +46,8 @@ class CommandRunner
                     return;
                 }
                 $opts = [];
-                for ($i = 3; $i < count($argv); $i++) {
+                $argvCount = count($argv);
+                for ($i = 3; $i < $argvCount; $i++) {
                     $arg = $argv[$i] ?? '';
                     if (str_starts_with($arg, '--')) {
                         $kv = explode('=', substr($arg, 2), 2);
