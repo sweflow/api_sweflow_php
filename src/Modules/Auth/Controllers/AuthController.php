@@ -445,36 +445,36 @@ class AuthController
         $responseData = ['status' => 'success'];
 
         try {
+            // GET — retorna a política atual
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $enabled = $this->carregarPoliticaVerificacaoEmail();
+                return Response::json([
+                    'status'               => 'success',
+                    'require_verification' => $enabled,
+                ]);
+            }
+
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 throw new DomainException('Método não suportado.', 405);
             }
 
-            $body = $this->corpoDaRequisicao();
+            $body    = $this->corpoDaRequisicao();
             $enabled = filter_var($body['require_verification'] ?? $body['enabled'] ?? $body['value'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-            // Prioridade para ação de verificar usuário se os dados estiverem presentes
             $targetUser = $this->getTargetUser($body);
             if ($targetUser) {
-                // Verifica se o campo 'verified' foi passado explicitamente.
-                // Se não for passado, assume TRUE.
-                // Se for passado "false" (string) ou false (bool), filter_var deve tratar.
-                // O problema pode ser que filter_var com FILTER_VALIDATE_BOOLEAN retorna false se a chave não existir?
-                // Não, ?? true garante true.
-                // Mas se o usuário enviar "require_verification": false, ele quer DESATIVAR a verificação global?
-                // Ou quer DESATIVAR o status do usuário?
-                // O usuário está enviando: { "email": "...", "require_verification": false }
-                // "require_verification" é o nome do campo da POLICY global.
                 $responseData['message'] = $this->processUserVerification($targetUser, $body);
             } else {
                 $this->updateGlobalPolicy($enabled);
                 $responseData['message'] = 'Policy global de verificação de e-mail ' . ($enabled ? 'ativada.' : 'desativada.');
+                $responseData['require_verification'] = $enabled;
             }
         } catch (DomainException $e) {
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
             $responseData = ['status' => 'error', 'message' => $e->getMessage()];
         } catch (\Throwable $e) {
             $status = 500;
-            $responseData = ['status' => 'error', 'message' => 'Falha ao verificar e-mail.'];
+            $responseData = ['status' => 'error', 'message' => 'Falha ao processar política de e-mail.'];
         }
 
         return Response::json($responseData, $status);
