@@ -61,30 +61,70 @@ class PluginMigrator
 
     private function migratePlugin(array $plugin): void
     {
-        $name = $plugin['name'];
-        $version = $plugin['version'];
-        $migrationsRoot = $plugin['path'] . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
-        if (!is_dir($migrationsRoot)) {
-            return;
+        $migrationsRoot = $this->getMigrationsRootPath($plugin['path']);
+        $filesToMigrate = [];
+
+        if ($this->directoryExists($migrationsRoot)) {
+            $versions = $this->getVersionDirectories($migrationsRoot);
+            $filesToMigrate = $this->collectMigrationFiles($migrationsRoot, $versions, $plugin['version']);
         }
 
-        // Versioned directories: src/Database/Migrations/<version>/*.php
+        foreach ($filesToMigrate as $file) {
+            $this->runMigrationFile($file);
+        }
+    }
+
+    private function getMigrationsRootPath(string $pluginPath): string
+    {
+        return $pluginPath . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+    }
+
+    private function directoryExists(string $path): bool
+    {
+        return is_dir($path);
+    }
+
+    private function getVersionDirectories(string $migrationsRoot): array
+    {
         $versions = [];
         foreach (scandir($migrationsRoot) as $ver) {
-            if ($ver === '.' || $ver === '..') continue;
+            if ($ver === '.' || $ver === '..') {
+                continue;
+            }
             $verDir = $migrationsRoot . DIRECTORY_SEPARATOR . $ver;
             if (is_dir($verDir)) {
                 $versions[] = $ver;
             }
         }
-        // sort versions semver-ish (string natural)
         natsort($versions);
+        return $versions;
+    }
+
+    private function collectMigrationFiles(string $migrationsRoot, array $versions, string $maxVersion): array
+    {
+        $files = [];
         foreach ($versions as $ver) {
-            if ($this->compareVersions($ver, $version) > 0) {
-                // Only run up to declared plugin version
+            if ($this->compareVersions($ver, $maxVersion) > 0) {
                 break;
             }
-            $files = glob($migrationsRoot . DIRECTORY_SEPARATOR . $ver . DIRECTORY_SEPARATOR . '*.php') ?: [];
+            $pattern = $migrationsRoot . DIRECTORY_SEPARATOR . $ver . DIRECTORY_SEPARATOR . '*.php';
+            $found = glob($pattern) ?: [];
+            $files = array_merge($files, $found);
+        }
+        return $files;
+    }
+
+    private function runMigrationFile(string $file): void
+    {
+        if (!is_file($file)) {
+            return;
+        }
+
+        $callable = include $file;
+        if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
+            $callable['up']($this->pdo);
+        }
+    }
             sort($files, SORT_NATURAL);
             foreach ($files as $file) {
                 $nameOnly = basename($file, '.php');

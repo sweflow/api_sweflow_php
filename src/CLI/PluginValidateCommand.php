@@ -7,16 +7,26 @@ class PluginValidateCommand
     {
         $root = dirname(__DIR__, 2);
         $pluginsRoot = $root . DIRECTORY_SEPARATOR . 'plugins';
-        $plugins = is_dir($pluginsRoot) ? array_values(array_filter(scandir($pluginsRoot), fn($d) => !in_array($d, ['.', '..']))) : [];
-        if (!$plugins) {
+        $plugins = $this->getPluginDirectories($pluginsRoot);
+        if (empty($plugins)) {
             echo "Nenhum plugin local encontrado em plugins/\n";
             return;
         }
         foreach ($plugins as $dir) {
             $path = $pluginsRoot . DIRECTORY_SEPARATOR . $dir;
-            if (!is_dir($path)) continue;
+            if (!is_dir($path)) {
+                continue;
+            }
             $this->validateOne($path);
         }
+    }
+
+    private function getPluginDirectories(string $pluginsRoot): array
+    {
+        if (!is_dir($pluginsRoot)) {
+            return [];
+        }
+        return array_values(array_filter(scandir($pluginsRoot), fn($d) => !in_array($d, ['.', '..'])));
     }
 
     private function validateOne(string $path): void
@@ -25,26 +35,65 @@ class PluginValidateCommand
         $errors = [];
         $warnings = [];
 
+        $composerResult = $this->loadComposerMeta($path);
+        if (isset($composerResult['error'])) {
+            $errors[] = $composerResult['error'];
+        } else {
+            $meta = $composerResult['meta'];
+            $this->validatePackageName($meta, $warnings);
+            $this->validateProvidersConfig($meta, $path, $errors, $warnings);
+        }
+
+        $this->displayResults($name, $errors, $warnings);
+    }
+
+    private function loadComposerMeta(string $path): array
+    {
         $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
         if (!is_file($composer)) {
-            $errors[] = "composer.json ausente";
-        } else {
-            $meta = json_decode(@file_get_contents($composer), true) ?: [];
-            $pkg = $meta['name'] ?? '';
-            if (!$pkg || !str_starts_with($pkg, 'sweflow/')) {
-                $warnings[] = "composer.name deve começar com 'sweflow/'";
+            return ['error' => "composer.json ausente"];
+        }
+        $content = @file_get_contents($composer);
+        $meta = json_decode($content, true);
+        if (!is_array($meta)) {
+            return ['error' => "composer.json inválido"];
+        }
+        return ['meta' => $meta];
+    }
+
+    private function validatePackageName(array $meta, array &$warnings): void
+    {
+        $pkg = $meta['name'] ?? '';
+        if (!$pkg || !str_starts_with($pkg, 'sweflow/')) {
+            $warnings[] = "composer.name deve começar com 'sweflow/'";
+        }
+    }
+
+    private function validateProvidersConfig(array $meta, string $path, array &$errors, array &$warnings): void
+    {
+        $extraProviders = $meta['extra']['sweflow']['providers'] ?? null;
+        if (!is_array($extraProviders) || count($extraProviders) === 0) {
+            $errors[] = "extra.sweflow.providers não definido";
+            return;
+        }
+        foreach ($extraProviders as $prov) {
+            if (!$this->classFileLikelyExists($path, $prov)) {
+                $warnings[] = "Provider '$prov' não encontrado sob src/";
             }
-            $extraProviders = $meta['extra']['sweflow']['providers'] ?? null;
-            if (!is_array($extraProviders) || count($extraProviders) === 0) {
-                $errors[] = "extra.sweflow.providers não definido";
-            } else {
-                foreach ($extraProviders as $prov) {
-                    $ok = $this->classFileLikelyExists($path, $prov);
-                    if (!$ok) {
-                        $warnings[] = "Provider '$prov' não encontrado sob src/";
-                    }
-                }
-            }
+        }
+    }
+
+    private function displayResults(string $name, array $errors, array $warnings): void
+    {
+        echo "Plugin: $name\n";
+        foreach ($errors as $error) {
+            echo "Error: $error\n";
+        }
+        foreach ($warnings as $warning) {
+            echo "Warning: $warning\n";
+        }
+    }
+}
         }
 
         $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';

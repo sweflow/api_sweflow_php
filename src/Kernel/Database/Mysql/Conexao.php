@@ -85,23 +85,6 @@ class Conexao
             );
 
             // Opções de conexão para segurança e performance
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_PERSISTENT => false, // Conexão não persistente por segurança
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES '{$charset}' COLLATE '{$collation}'",
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false, // Ajustar conforme necessário
-            ];
-
-            // Criação da instância PDO
-            $pdo = new PDO($dsn, $username, $password, $options);
-            return $pdo;
-        } catch (PDOException $e) {
-            self::tratarErroCustomizada($e);
-        }
-    }
-
     /**
      * Trata erros de conexão
      * Este método sempre lança uma exceção e nunca retorna normalmente
@@ -113,29 +96,36 @@ class Conexao
     private static function tratarErroCustomizada(PDOException $e): never
     {
         $debug = getenv('APP_DEBUG') === 'true';
-        $mensagem = $debug 
+        $mensagem = $debug
             ? $e->getMessage()
             : 'Erro ao conectar ao banco de dados. Contate o administrador.';
         $codigo = (int)$e->getCode();
 
-        // Mapeamento de códigos de erro MySQL para Exceptions customizadas
-        // https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
-        // https://mariadb.com/kb/en/mariadb-error-codes/
-        switch ($codigo) {
-            case 1045: // Access denied
-            case 1044: // Access denied for user to database
-                throw new DatabasePermissionException($mensagem, $codigo, $e);
-            case 1049: // Unknown database
-            case 1046: // No database selected
-                throw new DatabaseConfigException($mensagem, $codigo, $e);
-            case 2002: // Connection refused
-            case 2003: // Can't connect to MySQL server
-            case 2006: // MySQL server has gone away
-                throw new DatabaseConnectionException($mensagem, $codigo, $e);
-            case 1062: // Duplicate entry (integrity)
-            case 1451: // Cannot delete or update a parent row: a foreign key constraint fails
-            case 1452: // Cannot add or update a child row: a foreign key constraint fails
-                throw new DatabaseIntegrityException($mensagem, $codigo, $e);
+        $exceptionClass = self::getExceptionClassForCode($codigo);
+        throw new $exceptionClass($mensagem, $codigo, $e);
+    }
+
+    private static function getExceptionClassForCode(int $codigo): string
+    {
+        $permissionErrors = [1045, 1044];
+        $configErrors = [1049, 1046];
+        $connectionErrors = [2002, 2003, 2006];
+        $integrityErrors = [1062, 1451, 1452];
+
+        $exceptionClass = PDOException::class;
+
+        if (in_array($codigo, $permissionErrors, true)) {
+            $exceptionClass = DatabasePermissionException::class;
+        } elseif (in_array($codigo, $configErrors, true)) {
+            $exceptionClass = DatabaseConfigException::class;
+        } elseif (in_array($codigo, $connectionErrors, true)) {
+            $exceptionClass = DatabaseConnectionException::class;
+        } elseif (in_array($codigo, $integrityErrors, true)) {
+            $exceptionClass = DatabaseIntegrityException::class;
+        }
+
+        return $exceptionClass;
+    }
             case 1205: // Lock wait timeout exceeded
             case 1213: // Deadlock found
                 throw new DatabaseTimeoutException($mensagem, $codigo, $e);
