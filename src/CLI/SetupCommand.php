@@ -7,7 +7,6 @@ use Src\Kernel\Database\PdoFactory;
 use Src\Kernel\Support\DB\Migrator;
 use Src\Kernel\Support\DB\PluginMigrator;
 
-
 class SetupCommand
 {
     public function handle(array $argv = []): void
@@ -191,8 +190,7 @@ class SetupCommand
 
         echo "Subindo serviço '{$service}' via docker-compose...\n";
 
-        $cmd = "docker compose -f " . escapeshellarg($composePath) . " up -d " . escapeshellarg($service);
-        $this->runSystem($cmd);
+        $this->runProcess(['docker', 'compose', '-f', $composePath, 'up', '-d', $service]);
 
         // Aguarda healthcheck
         echo "Aguardando banco ficar pronto";
@@ -200,14 +198,12 @@ class SetupCommand
         for ($i = 0; $i < $maxWait; $i++) {
             sleep(1);
             echo ".";
-            // composePath já foi validado como is_file() acima — caminho interno confiável
-            exec('docker compose -f ' . escapeshellarg($composePath) . ' ps --format json 2>&1', $psOutput, $psCode);
-            $status = $psCode === 0 ? implode('', $psOutput) : null;
-            if ($status && str_contains($status, '"healthy"')) {
+            $proc = new Process(['docker', 'compose', '-f', $composePath, 'ps', '--format', 'json']);
+            $proc->run();
+            if ($proc->isSuccessful() && str_contains($proc->getOutput(), '"healthy"')) {
                 echo "\n✔ Banco pronto\n";
                 return;
             }
-            $psOutput = [];
         }
         echo "\n⚠ Banco pode ainda estar iniciando. Verifique com: docker compose ps\n";
     }
@@ -296,27 +292,25 @@ class SetupCommand
         }
 
         if ($driver === 'mysql') {
-            $cmd = "docker run -d --name {$container} " .
-                "-e MYSQL_ROOT_PASSWORD=\"" . $this->shellEscape($pass) . "\" " .
-                "-e MYSQL_DATABASE=\"" . $this->shellEscape($db) . "\" " .
-                "-e MYSQL_USER=\"" . $this->shellEscape($user) . "\" " .
-                "-e MYSQL_PASSWORD=\"" . $this->shellEscape($pass) . "\" " .
-                "-p {$port}:3306 mysql:8";
-
-            $masked = str_replace($pass, '******', $cmd);
-            $this->runSystem($cmd, $masked);
+            $this->runProcess([
+                'docker', 'run', '-d', '--name', $container,
+                '-e', 'MYSQL_ROOT_PASSWORD=' . $pass,
+                '-e', 'MYSQL_DATABASE=' . $db,
+                '-e', 'MYSQL_USER=' . $user,
+                '-e', 'MYSQL_PASSWORD=' . $pass,
+                '-p', $port . ':3306', 'mysql:8',
+            ], '***masked***');
             echo "Aguarde alguns segundos para o MySQL iniciar.\n";
             return;
         }
 
-        $cmd = "docker run -d --name {$container} " .
-            "-e POSTGRES_USER=\"" . $this->shellEscape($user) . "\" " .
-            "-e POSTGRES_PASSWORD=\"" . $this->shellEscape($pass) . "\" " .
-            "-e POSTGRES_DB=\"" . $this->shellEscape($db) . "\" " .
-            "-p {$port}:5432 postgres:16";
-
-        $masked = str_replace($pass, '******', $cmd);
-        $this->runSystem($cmd, $masked);
+        $this->runProcess([
+            'docker', 'run', '-d', '--name', $container,
+            '-e', 'POSTGRES_USER=' . $user,
+            '-e', 'POSTGRES_PASSWORD=' . $pass,
+            '-e', 'POSTGRES_DB=' . $db,
+            '-p', $port . ':5432', 'postgres:16',
+        ], '***masked***');
         echo "Aguarde alguns segundos para o PostgreSQL iniciar.\n";
     }
 
@@ -478,23 +472,21 @@ class SetupCommand
         $this->reloadEnv();
         $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
         echo "Iniciando servidor em http://0.0.0.0:{$port}\n";
-        // PHP_BINARY é um caminho interno confiável; port é sanitizado acima
-        passthru(PHP_BINARY . ' -S 0.0.0.0:' . $port . ' index.php');
+        (new Process([PHP_BINARY, '-S', '0.0.0.0:' . $port, 'index.php']))->passthru();
     }
 
     private function startPm2(): void
     {
         $this->reloadEnv();
-        $port = (string)($_ENV['APP_PORT'] ?? '3005');
+        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
 
         if (!$this->commandExists('pm2')) {
             echo "✖ PM2 não encontrado. Instale: npm install -g pm2\n";
             return;
         }
 
-        $cmd = "pm2 start php --name sweflow-api -- -S 0.0.0.0:{$port} index.php";
-        $this->runSystem($cmd);
-        $this->runSystem("pm2 save");
+        $this->runProcess(['pm2', 'start', 'php', '--name', 'sweflow-api', '--', '-S', '0.0.0.0:' . $port, 'index.php']);
+        $this->runProcess(['pm2', 'save']);
         echo "✔ PM2 iniciado. Logs: pm2 logs sweflow-api\n";
     }
 
@@ -552,35 +544,36 @@ class SetupCommand
 
     private function commandExists(string $name): bool
     {
-        // Valida que o nome é um identificador simples (sem injeção)
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
             return false;
         }
         $isWindows = stripos(PHP_OS_FAMILY, 'Windows') !== false;
-        if ($isWindows) {
-            exec('where ' . escapeshellarg($name) . ' 2>NUL', $output, $code);
-        } else {
-            exec('command -v ' . escapeshellarg($name) . ' 2>/dev/null', $output, $code);
-        }
-        return $code === 0 && !empty(trim(implode('', $output)));
+        $cmd = $isWindows ? ['where', $name] : ['command', '-v', $name];
+        $proc = new Process($cmd);
+        $proc->run();
+        return $proc->isSuccessful() && trim($proc->getOutput()) !== '';
     }
 
     private function dockerContainerExists(string $containerName): bool
     {
-        // Valida que o nome do container é seguro
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $containerName)) {
             return false;
         }
-        exec('docker ps -a --format "{{.Names}}" 2>&1', $output, $code);
-        if ($code !== 0) return false;
-        return in_array($containerName, array_map('trim', $output), true);
+        $proc = new Process(['docker', 'ps', '-a', '--format', '{{.Names}}']);
+        $proc->run();
+        if (!$proc->isSuccessful()) return false;
+        $names = array_map('trim', explode("\n", trim($proc->getOutput())));
+        return in_array($containerName, $names, true);
     }
 
-    private function runSystem(string $cmd, ?string $maskedForOutput = null): void
+    /**
+     * Executa um processo com array de argumentos (sem shell) e exibe output em tempo real.
+     */
+    private function runProcess(array $command, ?string $maskedLabel = null): void
     {
-        $toPrint = $maskedForOutput ?? $cmd;
-        echo "\n$ {$toPrint}\n";
-        passthru($cmd, $code);
+        $label = $maskedLabel ?? implode(' ', $command);
+        echo "\n$ {$label}\n";
+        $code = (new Process($command))->passthru();
         if ($code !== 0) {
             echo "✖ Comando falhou (exit code {$code})\n";
         }
@@ -624,8 +617,4 @@ class SetupCommand
         file_put_contents($envPath, $new);
     }
 
-    private function shellEscape(string $value): string
-    {
-        return str_replace('"', '\"', $value);
-    }
 }

@@ -647,8 +647,7 @@ class AuthController
         }
 
         if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
-            error_log('[AuthController] raw length=' . strlen($conteudoBruto) . ' content=' . substr($conteudoBruto, 0, 200));
-            error_log('[AuthController] _POST keys=' . implode(',', array_keys($_POST)));
+            error_log('[AuthController] raw length=' . strlen($conteudoBruto));
             error_log('[AuthController] content-type=' . htmlspecialchars($_SERVER['CONTENT_TYPE'] ?? '', ENT_QUOTES, 'UTF-8'));
         }
 
