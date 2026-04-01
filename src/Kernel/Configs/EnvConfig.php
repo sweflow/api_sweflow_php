@@ -10,6 +10,7 @@ final class EnvConfig
 
     private function __construct()
     {
+        // Prevent instantiation.
     }
 
     public static function carregar(): void
