@@ -33,5 +33,5 @@ $router->post('/api/auth/refresh',[AuthController::class, 'refresh'], [$refreshR
 
 // Verificação de e-mail
 $router->get('/api/auth/email-verification',  [AuthController::class, 'emailVerificationPolicy'], $protected);
-$router->post('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $apiProtected);
+$router->post('/api/auth/email-verification', [AuthController::class, 'emailVerificationPolicy'], $protected);
 $router->get('/api/auth/verify-email',        [AuthController::class, 'verifyEmail']);
