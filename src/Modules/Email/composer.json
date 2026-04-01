@@ -1,0 +1,16 @@
+{
+    "name": "sweflow/module-email",
+    "description": "Módulo de disparo e histórico de e-mails",
+    "type": "library",
+    "version": "1.0.0",
+    "autoload": {
+        "psr-4": {
+            "Src\\Modules\\Email\\": "src/"
+        }
+    },
+    "extra": {
+        "sweflow": {
+            "providers": []
+        }
+    }
+}
