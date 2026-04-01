@@ -105,7 +105,7 @@ class SimpleModuleProvider implements ModuleProviderInterface
     public function describe(): array
     {
         // Middlewares que indicam autenticação obrigatória (rota privada)
-        $authMiddlewares = [
+        static $authMiddlewares = [
             'AuthHybridMiddleware',
             'AuthCookieMiddleware',
             'AdminOnlyMiddleware',
@@ -120,13 +120,12 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
-                    // Normaliza: pode ser string, array ['definition'=>...], ou closure
                     $def = is_array($mw) ? ($mw['definition'] ?? '') : $mw;
-                    if (!is_string($def)) continue;
-                    // Compara pelo nome curto da classe
-                    $shortName = class_exists($def)
-                        ? (new \ReflectionClass($def))->getShortName()
-                        : basename(str_replace('\\', '/', $def));
+                    if (!is_string($def) || $def === '') {
+                        continue;
+                    }
+                    // Use basename instead of ReflectionClass to avoid autoloading overhead
+                    $shortName = basename(str_replace('\\', '/', $def));
                     if (in_array($shortName, $authMiddlewares, true)) {
                         $isProtected = true;
                         break;

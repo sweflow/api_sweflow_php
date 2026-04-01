@@ -722,7 +722,7 @@ window.onload = function () {
 
     async function fetchModulesState() {
         try {
-            const res = await fetch('/api/modules/state');
+            const res = await fetch('/api/modules/state', { credentials: 'same-origin' });
             if (res.status === 401 || res.status === 403) {
                 window.location.href = '/';
                 return;
@@ -878,7 +878,7 @@ window.onload = function () {
     }
 
     function fetchMetrics() {
-        fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
+        return fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
             .then(async (res) => {
                 if (handleUnauthorized(res.status)) return null;
                 const body = await res.json();
@@ -904,15 +904,16 @@ window.onload = function () {
             if (!res.ok) return null;
             return body;
         })
-        .then(data => {
+        .then(async data => {
             if (!data) return;
             renderMetrics(data);
             // Só carrega o resto após confirmar que a sessão é válida
             loadCapabilities();
-            fetchModulesState();
-            // Polling a cada 30s
-            setInterval(() => {
-                fetchMetrics();
+            // Sequencial: aguarda metrics antes de disparar modules/state
+            await fetchModulesState();
+            // Polling a cada 30s — sequencial para evitar conexões simultâneas no php -S
+            setInterval(async () => {
+                await fetchMetrics();
                 fetchModulesState();
             }, 30000);
         })
