@@ -280,7 +280,10 @@
                 <h2><i class="fa-solid fa-clock-rotate-left"></i> Histórico de e-mails</h2>
                 <button class="modal-close" id="email-history-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div id="email-history-list" style="max-height:60vh;overflow-y:auto;">
+            <div style="padding:0 0 10px;">
+                <input type="search" id="email-history-search" placeholder="Buscar por assunto, destinatário, status..." style="width:100%;padding:10px 12px;border:1px solid #d5daf2;border-radius:10px;font-size:.95rem;box-sizing:border-box;" />
+            </div>
+            <div id="email-history-list" style="max-height:55vh;overflow-y:auto;">
                 <p style="color:#888;text-align:center;padding:24px;">Carregando...</p>
             </div>
         </div>

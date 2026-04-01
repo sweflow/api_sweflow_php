@@ -27,9 +27,10 @@ class PluginManager
         $state = $this->read();
         $state[$pluginName] = ['enabled' => true, 'installed_at' => date('c')];
         $this->write($state);
+        // Garante que o modules_state.json marca o módulo como habilitado (limpa false de desinstalação anterior)
+        $this->setModulesState($pluginName, true);
         $this->migrator->migrateAll();
         $this->callLifecycle($pluginName, 'onInstall');
-        // Set default providers for capabilities if not configured
         $this->ensureCapabilitiesDefault($pluginName);
     }
 
@@ -71,21 +72,35 @@ class PluginManager
         // 4. Remove from modules_state.json so ModuleLoader stops loading it
         $this->removeFromModulesState($pluginName);
 
-        // 5. Delete files IF it is a local plugin (inside plugins/ or src/Modules/)
+        // 5. Delete files — handles src/Modules/, plugins/, and vendor symlinks/junctions
         if ($path) {
-            $realPath = realpath($path);
-            if ($realPath !== false) {
-                $inPlugins = str_contains($realPath, 'plugins' . DIRECTORY_SEPARATOR);
-                $inModules = str_contains($realPath, 'src' . DIRECTORY_SEPARATOR . 'Modules' . DIRECTORY_SEPARATOR);
+            $realPath = realpath($path) ?: $path;
+            $inPlugins = str_contains($realPath, 'plugins' . DIRECTORY_SEPARATOR);
+            $inModules = str_contains($realPath, 'src' . DIRECTORY_SEPARATOR . 'Modules' . DIRECTORY_SEPARATOR);
+            $inVendor  = str_contains($realPath, 'vendor' . DIRECTORY_SEPARATOR);
 
-                if ($inPlugins || $inModules) {
-                    $base = basename($realPath);
-                    if (!in_array($base, ['src', 'Modules', 'plugins'], true)) {
-                        $this->deleteDirectory($realPath);
-                    }
-                }
+            $base = basename($realPath);
+            $safe = !in_array($base, ['src', 'Modules', 'plugins', 'vendor', 'sweflow'], true);
+
+            if ($safe && ($inPlugins || $inModules || $inVendor)) {
+                $this->deleteDirectory($path); // use original $path to handle junctions
             }
         }
+    }
+
+    private function setModulesState(string $pluginName, bool $enabled): void
+    {
+        $stateFile = dirname($this->registry) . DIRECTORY_SEPARATOR . 'modules_state.json';
+        $data = [];
+        if (is_file($stateFile)) {
+            $data = json_decode((string) file_get_contents($stateFile), true) ?? [];
+        }
+        // Remove todas as variantes antigas e grava com o nome canônico (ucfirst)
+        foreach ([ucfirst($pluginName), strtolower($pluginName), $pluginName] as $v) {
+            unset($data[$v]);
+        }
+        $data[ucfirst($pluginName)] = $enabled;
+        file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     private function removeFromModulesState(string $pluginName): void
@@ -99,7 +114,8 @@ class PluginManager
             return;
         }
 
-        // Try all name variants
+        // Marca como false (não remove a chave) para que o ModuleLoader
+        // não readicione o módulo automaticamente ao redescobrir via composer.
         $variants = [
             $pluginName,
             ucfirst($pluginName),
@@ -109,9 +125,15 @@ class PluginManager
         $changed = false;
         foreach ($variants as $v) {
             if (array_key_exists($v, $data)) {
-                unset($data[$v]);
+                $data[$v] = false;
                 $changed = true;
             }
+        }
+
+        // Se nenhuma variante existia, adiciona com false para bloquear redescoberta
+        if (!$changed) {
+            $data[ucfirst($pluginName)] = false;
+            $changed = true;
         }
 
         if ($changed) {
@@ -168,6 +190,12 @@ class PluginManager
         }
         
         return true;
+    }
+
+    /** Public wrapper so controllers can delete arbitrary directories safely. */
+    public function deleteDirectoryPublic(string $dir): bool
+    {
+        return $this->deleteDirectory($dir);
     }
 
     public function read(): array

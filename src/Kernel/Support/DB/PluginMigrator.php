@@ -18,6 +18,7 @@ class PluginMigrator
 
     public function migrateAll(): void
     {
+        $this->migrateKernel();
         foreach ($this->discoverPlugins() as $plugin) {
             $this->migratePlugin($plugin);
         }
@@ -57,6 +58,40 @@ class PluginMigrator
         }
         $this->deleteRow((int)$row['id']);
         echo "✔ rollback(plugin): {$row['plugin']} {$row['migration']}\n";
+    }
+
+    /**
+     * Roda as migrations SQL do kernel (src/Kernel/Database/migrations/*.sql).
+     * Cada arquivo é executado uma única vez, rastreado na tabela sweflow_plugin_migrations.
+     */
+    private function migrateKernel(): void
+    {
+        $dir = $this->projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR
+             . 'Kernel' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'migrations';
+
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        $files = glob($dir . DIRECTORY_SEPARATOR . '*.sql') ?: [];
+        sort($files, SORT_NATURAL);
+
+        foreach ($files as $file) {
+            $name = basename($file, '.sql');
+            if ($this->isApplied('kernel', '1.0.0', $name)) {
+                continue;
+            }
+            $sql = file_get_contents($file);
+            if ($sql === false || trim($sql) === '') {
+                continue;
+            }
+            try {
+                $this->pdo->exec($sql);
+                $this->markApplied('kernel', '1.0.0', $name);
+            } catch (\Throwable $e) {
+                error_log("[PluginMigrator] kernel migration '{$name}' failed: " . $e->getMessage());
+            }
+        }
     }
 
     private function migratePlugin(array $plugin): void
@@ -201,12 +236,15 @@ class PluginMigrator
     private function discoverPlugins(): array
     {
         $list = [];
-        // Local plugins
+        // Local plugins (legacy)
         $local = $this->projectRoot . DIRECTORY_SEPARATOR . 'plugins';
         $this->collectPluginsFrom($local, $list, 'plugins');
         // Vendor plugins
         $vendor = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
         $this->collectPluginsFrom($vendor, $list, 'vendor');
+        // src/Modules — módulos instalados no padrão nativo
+        $modules = $this->projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
+        $this->collectPluginsFrom($modules, $list, 'modules');
         return array_values($list);
     }
 

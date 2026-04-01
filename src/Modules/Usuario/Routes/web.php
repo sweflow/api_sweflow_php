@@ -14,6 +14,9 @@ $userProtected  = [AuthHybridMiddleware::class];
 $router->post('/api/criar/usuario', [UsuarioController::class, 'criar']);
 $router->post('/api/registrar', [UsuarioController::class, 'criar']);
 
+// Reenvio de e-mail de verificação (público, sem autenticação)
+$router->post('/api/auth/reenviar-verificacao', [UsuarioController::class, 'reenviarVerificacaoEmail']);
+
 // Gerenciamento de usuários (admin)
 $router->get('/api/usuarios', [UsuarioController::class, 'listar'], $adminProtected);
 $router->get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar'], $adminProtected);

@@ -52,7 +52,13 @@ class AuthController
 
             $usuario = $this->servico()->autenticar((string)$login, (string)$senha);
             if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
-                throw new DomainException('Você precisa confirmar seu e-mail antes de fazer login.', 403);
+                $this->enforceMinResponseTime($startTime, 200);
+                return Response::json([
+                    'status'             => 'error',
+                    'message'            => 'Você precisa confirmar seu e-mail antes de fazer login. Verifique sua caixa de entrada ou solicite um novo link.',
+                    'email_not_verified' => true,
+                    'email'              => $usuario->getEmail(),
+                ], 403);
             }
             $tokens = $this->servico()->emitirTokens($usuario);
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
@@ -123,7 +129,12 @@ class AuthController
 
             if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
                 $this->enforceMinResponseTime($startTime, 200);
-                throw new DomainException('Você precisa confirmar seu e-mail antes de fazer login.', 403);
+                return Response::json([
+                    'status'              => 'error',
+                    'message'             => 'Você precisa confirmar seu e-mail antes de fazer login. Verifique sua caixa de entrada ou solicite um novo link.',
+                    'email_not_verified'  => true,
+                    'email'               => $usuario->getEmail(),
+                ], 403);
             }
 
             $tokens = $this->servico()->emitirTokens($usuario);
@@ -744,49 +755,45 @@ class AuthController
         return is_array($dados) && (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
     }
 
-
-    private function caminhoThrottleRecuperacao(): string
-    {
-        return dirname(__DIR__, 4) . '/storage/password_reset_throttle.json';
-    }
-
     private function podeDispararEmailRecuperacao(string $email): bool
-        {
-            $path = $this->caminhoThrottleRecuperacao();
-            if (!is_file($path)) {
+    {
+        try {
+            $stmt = $this->pdo()->prepare(
+                "SELECT sent_at FROM email_throttle WHERE type = 'password_reset' AND email = :email"
+            );
+            $stmt->execute([':email' => strtolower(trim($email))]);
+            $row = $stmt->fetch();
+            if (!$row) {
                 return true;
             }
-            $json = file_get_contents($path);
-            if ($json === false) {
-                return true;
-            }
-            $data = json_decode($json, true);
-            if (!is_array($data)) {
-                return true;
-            }
-            return (time() - (int)($data[strtolower($email)] ?? 0)) >= 120;
+            return (time() - strtotime($row['sent_at'])) >= 120;
+        } catch (\Throwable) {
+            return true;
         }
-
+    }
 
     private function registrarDisparoEmailRecuperacao(string $email): void
     {
-        $path = $this->caminhoThrottleRecuperacao();
-        $dir = dirname($path);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
+        try {
+            $pdo    = $this->pdo();
+            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
-        $data = [];
-        $json = is_file($path) ? file_get_contents($path) : false;
-        if ($json !== false) {
-            $decoded = json_decode($json, true);
-            if (is_array($decoded)) {
-                $data = $decoded;
+            if ($driver === 'pgsql') {
+                $pdo->prepare(
+                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('password_reset', :email, NOW())
+                     ON CONFLICT (type, email) DO UPDATE SET sent_at = NOW()"
+                )->execute([':email' => strtolower(trim($email))]);
+                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < NOW() - INTERVAL '3600 seconds'");
+            } else {
+                $pdo->prepare(
+                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('password_reset', :email, NOW())
+                     ON DUPLICATE KEY UPDATE sent_at = NOW()"
+                )->execute([':email' => strtolower(trim($email))]);
+                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < DATE_SUB(NOW(), INTERVAL 3600 SECOND)");
             }
+        } catch (\Throwable $e) {
+            error_log('[AuthController] throttle record failed: ' . $e->getMessage());
         }
-
-        $data[strtolower($email)] = time();
-        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     private function mailer(): ?EmailSenderInterface

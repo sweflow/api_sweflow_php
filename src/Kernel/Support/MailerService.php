@@ -35,6 +35,10 @@ class MailerService implements EmailSenderInterface
 
         if (($_ENV['MAILER_DEBUG'] ?? 'false') === 'true') {
             $mail->SMTPDebug = SMTP::DEBUG_SERVER;
+            // Never output to stdout — always log to error_log
+            $mail->Debugoutput = static function (string $str, int $level): void {
+                error_log('[MAILER][' . $level . '] ' . trim($str));
+            };
         }
 
         return $mail;

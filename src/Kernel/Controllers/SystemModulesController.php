@@ -149,25 +149,89 @@ class SystemModulesController
 
             $shortName = ucfirst($pluginName);
 
-            // 1. Remove do composer.json e roda composer remove se necessário
-            $this->removeModuleFromComposer($shortName);
-            $this->tryComposerRemove($package);
-
-            // 2. Remove do PluginManager (registry + modules_state + arquivos)
+            // 1. Remove do PluginManager (registry + modules_state)
             $this->pluginManager->uninstall($pluginName);
 
-            // 3. Remove do capabilities
+            // 2. Remove do capabilities
             $this->removeModuleFromCapabilities($shortName);
 
-            // 4. Decrementa contador
+            // 3. Remove namespace e require do composer.json do projeto
+            $this->removeModuleFromComposer($shortName, $package);
+
+            // 4. Remove TODOS os diretórios do módulo (src/Modules/, vendor/, clone local)
+            $this->removeAllModuleDirectories($pluginName, $shortName);
+
+            // 5. Roda composer remove para limpar installed.json
+            $this->tryComposerRemove($package);
+
+            // 6. Decrementa contador
             $this->decrementDownload($package);
 
-            // 5. Regenera autoload do composer
+            // 7. Regenera autoload e limpa cache
             $this->regenerateAutoload();
 
             return Response::json(['message' => 'Módulo removido com sucesso.']);
         } catch (\Throwable $e) {
             return Response::json(['message' => 'Erro: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Remove todos os diretórios onde o módulo pode estar instalado.
+     */
+    private function removeAllModuleDirectories(string $pluginName, string $shortName): void
+    {
+        $root       = dirname(__DIR__, 3);
+        $simpleName = strtolower($pluginName);
+
+        $candidates = [
+            // src/Modules/Email
+            $root . '/src/Modules/' . $shortName,
+            // vendor/sweflow/module-email
+            $root . '/vendor/sweflow/module-' . $simpleName,
+            // vendor/sweflow/email
+            $root . '/vendor/sweflow/' . $simpleName,
+            // module-email/ (clone local na raiz)
+            $root . '/module-' . $simpleName,
+            // plugins/sweflow-module-email
+            $root . '/plugins/sweflow-module-' . $simpleName,
+            // plugins/email
+            $root . '/plugins/' . $simpleName,
+        ];
+
+        foreach ($candidates as $dir) {
+            if (is_dir($dir)) {
+                $this->pluginManager->deleteDirectoryPublic($dir);
+            }
+        }
+    }
+
+    private function removeLocalCloneDir(string $pluginName): void
+    {
+        $root = dirname(__DIR__, 3);
+        $simpleName = str_replace(['sweflow-module-', 'module-'], '', strtolower($pluginName));
+
+        // Possible local clone directory names
+        $candidates = [
+            $root . DIRECTORY_SEPARATOR . 'module-' . $simpleName,
+            $root . DIRECTORY_SEPARATOR . $simpleName,
+        ];
+
+        foreach ($candidates as $dir) {
+            if (!is_dir($dir)) {
+                continue;
+            }
+            // Safety: must contain composer.json with matching package name
+            $composerFile = $dir . DIRECTORY_SEPARATOR . 'composer.json';
+            if (!is_file($composerFile)) {
+                continue;
+            }
+            $meta = json_decode((string) file_get_contents($composerFile), true) ?? [];
+            $name = $meta['name'] ?? '';
+            if (!str_contains($name, $simpleName)) {
+                continue;
+            }
+            $this->pluginManager->deleteDirectoryPublic($dir);
         }
     }
 
@@ -215,14 +279,16 @@ class SystemModulesController
 
         try {
             $pluginName = $this->resolvePluginName($package);
-            $shortName = $this->getShortName($pluginName);
-            $targetDir = $this->getTargetDir($shortName);
+            $shortName  = $this->getShortName($pluginName);
+            $targetDir  = $this->getTargetDir($shortName);
 
             $this->installModule($package, $pluginName, $shortName, $targetDir);
 
             return $this->createSuccessResponse('Módulo instalado com sucesso');
+        } catch (\RuntimeException $e) {
+            return $this->createErrorResponse($e->getMessage(), 422);
         } catch (\Throwable $e) {
-            return $this->createErrorResponse('Erro: ' . $e->getMessage(), 500);
+            return $this->createErrorResponse('Erro ao instalar: ' . $e->getMessage(), 500);
         }
     }
 
@@ -254,25 +320,244 @@ class SystemModulesController
 
     private function installModule(string $package, string $pluginName, string $shortName, string $targetDir): void
     {
-        // 1. Try composer require (works when the package exists on packagist and composer is available)
-        if ($this->composerAvailable() && $this->tryComposerInstall($package)) {
-            // Composer installed it — register in PluginManager and we're done
+        // Módulo já instalado em src/Modules/ — apenas registra
+        if (is_dir($targetDir)) {
+            $this->installModuleDependencies($targetDir);
             $this->pluginManager->install($pluginName);
             $this->incrementDownload($package);
             return;
         }
 
-        // 2. Fallback: create a minimal stub module in src/Modules/<ShortName>
-        // This covers local/dev packages or when composer is not available
-        if (!is_dir($targetDir)) {
-            $this->createStubModule($targetDir, $shortName, $package);
+        // 1. Tenta baixar via composer download (sem adicionar ao require do projeto)
+        //    Usa git clone como estratégia principal para src/Modules/
+        $repoUrl = $this->resolvePackageRepo($package);
+
+        if ($repoUrl && $this->gitAvailable()) {
+            $this->gitCloneToModules($repoUrl, $targetDir);
+            $this->installModuleDependencies($targetDir);
+            $this->regenerateAutoload();
+            $this->pluginManager->install($pluginName);
+            $this->incrementDownload($package);
+            return;
         }
 
-        // 3. Register in PluginManager (updates plugins_registry.json, runs migrations)
-        $this->pluginManager->install($pluginName);
+        // 2. Fallback: composer require (instala em vendor/, mas funciona)
+        if ($this->composerAvailable()) {
+            if ($this->tryComposerInstall($package)) {
+                // Copia de vendor/ para src/Modules/ para seguir o padrão
+                $vendorPath = dirname(__DIR__, 3) . '/vendor/sweflow/module-' . strtolower($pluginName);
+                if (is_dir($vendorPath)) {
+                    $this->copyModuleToModules($vendorPath, $targetDir);
+                    // Remove do vendor após copiar
+                    $this->tryComposerRemove($package);
+                    $this->removeModuleFromComposer($shortName, $package);
+                }
+                $this->installModuleDependencies($targetDir);
+                $this->regenerateAutoload();
+                $this->pluginManager->install($pluginName);
+                $this->incrementDownload($package);
+                return;
+            }
+            throw new \RuntimeException(
+                "Falha ao instalar '{$package}'. " .
+                "Verifique se o pacote existe no Packagist e a conexão com a internet."
+            );
+        }
 
-        // 4. Update download counter
-        $this->incrementDownload($package);
+        throw new \RuntimeException(
+            "Não foi possível instalar '{$package}'. " .
+            "Instale o composer (https://getcomposer.org) ou git e tente novamente."
+        );
+    }
+
+    /**
+     * Lê o composer.json do módulo instalado em src/Modules/<Nome>/
+     * e instala as dependências PHP necessárias no projeto principal.
+     */
+    private function installModuleDependencies(string $moduleDir): void
+    {
+        $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
+        if (!is_file($composerFile)) {
+            return;
+        }
+
+        $meta = json_decode((string) file_get_contents($composerFile), true);
+        if (!is_array($meta)) {
+            return;
+        }
+
+        // Registra o namespace do módulo no autoload do projeto principal
+        $this->registerModuleAutoload($moduleDir, $meta);
+
+        $require = $meta['require'] ?? [];
+        if (empty($require)) {
+            return;
+        }
+
+        if (!$this->composerAvailable()) {
+            error_log("[Marketplace] Composer não disponível — dependências do módulo não instaladas.");
+            return;
+        }
+
+        $root     = dirname(__DIR__, 3);
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+
+        // Filtra dependências que não são do próprio projeto (php, ext-*, etc.)
+        $toInstall = [];
+        foreach ($require as $dep => $version) {
+            if ($dep === 'php' || str_starts_with($dep, 'ext-') || str_starts_with($dep, 'lib-')) {
+                continue;
+            }
+            // Verifica se já está instalado no projeto
+            $installedPath = $root . '/vendor/composer/installed.json';
+            if (is_file($installedPath)) {
+                $installed = json_decode((string) file_get_contents($installedPath), true) ?? [];
+                $packages  = $installed['packages'] ?? $installed;
+                $names     = array_column(is_array($packages) ? $packages : [], 'name');
+                if (in_array($dep, $names, true)) {
+                    continue; // já instalado
+                }
+            }
+            $toInstall[] = $dep . ':' . $version;
+        }
+
+        if (empty($toInstall)) {
+            return;
+        }
+
+        @set_time_limit(300);
+
+        $cmd = array_merge(
+            [$composer, 'require'],
+            $toInstall,
+            ['--no-interaction', '--no-scripts', '--working-dir=' . $root]
+        );
+
+        $proc = new Process($cmd);
+        if (!$proc->run()) {
+            error_log("[Marketplace] Falha ao instalar dependências do módulo: " . $proc->getOutput());
+            throw new \RuntimeException(
+                "Módulo instalado, mas falha ao instalar dependências: " . implode(', ', $toInstall) .
+                "\nErro: " . $proc->getOutput()
+            );
+        }
+    }
+
+    /**
+     * Registra o namespace PSR-4 do módulo no composer.json do projeto principal
+     * e regenera o autoload, para que classes do módulo sejam encontradas.
+     */
+    private function registerModuleAutoload(string $moduleDir, array $moduleMeta): void
+    {
+        $root         = dirname(__DIR__, 3);
+        $composerPath = $root . '/composer.json';
+        if (!is_file($composerPath)) {
+            return;
+        }
+
+        $psr4 = $moduleMeta['autoload']['psr-4'] ?? [];
+        if (empty($psr4)) {
+            return;
+        }
+
+        $projectComposer = json_decode((string) file_get_contents($composerPath), true);
+        if (!is_array($projectComposer)) {
+            return;
+        }
+
+        $changed = false;
+        $relBase = 'src/Modules/' . basename($moduleDir) . '/';
+
+        foreach ($psr4 as $namespace => $srcPath) {
+            // Normaliza o path relativo ao projeto
+            $relPath = $relBase . ltrim(str_replace(['\\', '/'], '/', $srcPath), '/');
+            $relPath = rtrim($relPath, '/') . '/';
+
+            $existing = $projectComposer['autoload']['psr-4'][$namespace] ?? null;
+            if ($existing !== $relPath) {
+                $projectComposer['autoload']['psr-4'][$namespace] = $relPath;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            file_put_contents(
+                $composerPath,
+                json_encode($projectComposer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
+            );
+            // Regenera autoload para que as classes sejam encontradas imediatamente
+            if ($this->composerAvailable()) {
+                $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+                $proc = new Process([$composer, 'dump-autoload', '--working-dir=' . $root]);
+                $proc->run();
+            }
+        }
+    }
+
+    /**
+     * Copia um módulo de vendor/ para src/Modules/ adaptando o namespace.
+     */
+    private function copyModuleToModules(string $sourceDir, string $targetDir): void
+    {
+        if (!is_dir($sourceDir)) {
+            return;
+        }
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($sourceDir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($items as $item) {
+            $relative = substr($item->getPathname(), strlen($sourceDir) + 1);
+            $dest     = $targetDir . DIRECTORY_SEPARATOR . $relative;
+
+            if ($item->isDir()) {
+                if (!is_dir($dest)) {
+                    mkdir($dest, 0755, true);
+                }
+            } else {
+                copy($item->getPathname(), $dest);
+            }
+        }
+    }
+
+    private function resolvePackageRepo(string $package): ?string
+    {
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return null;
+        }
+        try {
+            $context = stream_context_create(['http' => ['timeout' => 6, 'user_agent' => 'SweflowAPI/1.0']]);
+            $json = @file_get_contents("https://packagist.org/packages/{$package}.json", false, $context);
+            if (!$json) return null;
+            $data = json_decode($json, true);
+            return $data['package']['repository'] ?? null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function gitAvailable(): bool
+    {
+        $proc = new Process(['git', '--version']);
+        $proc->run();
+        return $proc->isSuccessful();
+    }
+
+    private function gitCloneToModules(string $repoUrl, string $targetDir): void
+    {
+        if (is_dir($targetDir)) {
+            return; // already exists
+        }
+        $proc = new Process(['git', 'clone', '--depth=1', $repoUrl, $targetDir]);
+        $proc->run();
+        if (!$proc->isSuccessful()) {
+            throw new \RuntimeException("Falha ao clonar repositório: {$repoUrl}");
+        }
     }
 
     private function composerAvailable(): bool
@@ -294,17 +579,35 @@ class SystemModulesController
 
     private function tryComposerInstall(string $package): bool
     {
-        // Validate package name to prevent command injection
         if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
             return false;
         }
 
-        $root = dirname(__DIR__, 3);
+        $root     = dirname(__DIR__, 3);
         $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
 
-        $proc = new Process([$composer, 'require', $package, '--no-interaction', '--no-scripts', '--working-dir=' . $root]);
-        $proc->run();
-        return $proc->isSuccessful();
+        // Give composer enough time — web requests default to 30s which is too short
+        $prevLimit = (int) ini_get('max_execution_time');
+        @set_time_limit(300);
+
+        $proc = new Process([
+            $composer, 'require', $package,
+            '--no-interaction',
+            '--no-scripts',
+            '--no-plugins',
+            '--working-dir=' . $root,
+        ]);
+        $ok = $proc->run();
+
+        if ($prevLimit > 0) {
+            @set_time_limit($prevLimit);
+        }
+
+        if (!$ok) {
+            error_log("[Marketplace] composer require {$package} failed: " . $proc->getOutput());
+        }
+
+        return $ok;
     }
 
     private function createStubModule(string $targetDir, string $shortName, string $package): void
@@ -355,45 +658,64 @@ class SystemModulesController
         return Response::json(['message' => $message]);
     }
 
-    private function removeModuleFromComposer(string $moduleName): void
+    private function removeModuleFromComposer(string $moduleName, string $packageName = ''): void
     {
         $composerPath = dirname(__DIR__, 3) . '/composer.json';
         if (!file_exists($composerPath)) {
             return;
         }
 
-        $content = file_get_contents($composerPath);
-        $json = json_decode($content, true);
-
+        $json = json_decode((string) file_get_contents($composerPath), true);
         if (!is_array($json)) {
             return;
         }
 
-        // Tenta remover o namespace do psr-4
         $changed = false;
+        $pkgLower = 'sweflow/module-' . strtolower($moduleName);
+        $pkgFull  = $packageName ?: $pkgLower;
+
+        // Remove from require
+        foreach ([$pkgFull, $pkgLower] as $pkg) {
+            if (isset($json['require'][$pkg])) {
+                unset($json['require'][$pkg]);
+                $changed = true;
+            }
+        }
+
+        // Remove from autoload psr-4
         if (isset($json['autoload']['psr-4'])) {
             foreach ($json['autoload']['psr-4'] as $ns => $path) {
-                // Normaliza path
                 $path = str_replace('\\', '/', $path);
-                // Procura por src/Modules/Email/
-                // O moduleName vem capitalizado (Ex: Email)
                 if (str_contains($path, "src/Modules/{$moduleName}/")) {
                     unset($json['autoload']['psr-4'][$ns]);
                     $changed = true;
                 }
             }
         }
-        
-        // Remove também do require, caso tenha sido adicionado lá (fallback antigo ou manual)
-        // O nome do pacote geralmente é sweflow/module-$moduleName (lowercase)
-        $packageName = 'sweflow/module-' . strtolower($moduleName);
-        if (isset($json['require'][$packageName])) {
-            unset($json['require'][$packageName]);
-            $changed = true;
+
+        // Remove path repository entries pointing to this module
+        if (isset($json['repositories']) && is_array($json['repositories'])) {
+            $simpleName = strtolower($moduleName);
+            $filtered = array_values(array_filter($json['repositories'], function ($repo) use ($simpleName, $pkgFull) {
+                if (($repo['type'] ?? '') !== 'path') {
+                    return true; // keep non-path repos
+                }
+                $url = str_replace('\\', '/', $repo['url'] ?? '');
+                // Remove if the path contains the module name
+                return !str_contains(strtolower($url), $simpleName)
+                    && !str_contains(strtolower($url), str_replace('sweflow/', '', strtolower($pkgFull)));
+            }));
+            if (count($filtered) !== count($json['repositories'])) {
+                $json['repositories'] = $filtered ?: null;
+                if (empty($json['repositories'])) {
+                    unset($json['repositories']);
+                }
+                $changed = true;
+            }
         }
 
         if ($changed) {
-            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
         }
     }
     

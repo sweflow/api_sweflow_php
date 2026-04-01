@@ -82,12 +82,7 @@ window.onload = function () {
             disableCancel.onclick = cancelHandler;
             disableClose.onclick = cancelHandler;
 
-            disableModal.addEventListener('click', function overlayClick(e) {
-                if (e.target === disableModal) {
-                    cancelHandler();
-                    disableModal.removeEventListener('click', overlayClick);
-                }
-            });
+            // No overlay click-to-close — only buttons close this modal
 
             requestAnimationFrame(() => disableModal.classList.add('show'));
         });
@@ -110,13 +105,7 @@ window.onload = function () {
 
         protectedModalOk.onclick = closeHandler;
         protectedModalClose.onclick = closeHandler;
-
-        protectedModal.addEventListener('click', function overlayClick(e) {
-            if (e.target === protectedModal) {
-                closeHandler();
-                protectedModal.removeEventListener('click', overlayClick);
-            }
-        });
+        // No overlay click-to-close
 
         requestAnimationFrame(() => protectedModal.classList.add('show'));
     }
@@ -137,7 +126,7 @@ window.onload = function () {
         const close = () => { modal.classList.remove('show'); modal.style.zIndex = ''; };
         if (okBtn)    okBtn.onclick    = close;
         if (closeBtn) closeBtn.onclick = close;
-        modal.onclick = (e) => { if (e.target === modal) close(); };
+        // No overlay click-to-close
         modal.style.zIndex = '3000';
         requestAnimationFrame(() => modal.classList.add('show'));
     }
@@ -162,7 +151,7 @@ window.onload = function () {
         if (closeBtn) closeBtn.onclick = close;
 
         // Overlay click
-        modal.onclick = (e) => { if (e.target === modal) close(); };
+        // No overlay click-to-close — only X button closes this modal
 
         // Elevate above any open modal (z-index 2000 → 3000)
         modal.style.zIndex = '3000';
@@ -652,7 +641,7 @@ window.onload = function () {
                 credentials: 'same-origin'
             });
             const body = await res.json();
-            if (res.status === 503) {
+            if (body.module_disabled) {
                 closeEmailModal();
                 showEmailDisabledModal();
                 return;
@@ -807,9 +796,11 @@ window.onload = function () {
     }
 
     function updateEmailCardState() {
-        emailModuleEnabled = Boolean(moduleState['Email']);
-        const statePill = document.getElementById('email-module-state');
+        const installed = 'Email' in moduleState;
+        emailModuleEnabled = installed && Boolean(moduleState['Email']);
+        const statePill        = document.getElementById('email-module-state');
         const openEmailModalBtn = document.getElementById('open-email-modal');
+        const openHistoryBtn   = document.getElementById('open-email-history');
         if (!statePill || !openEmailModalBtn) return;
 
         if (emailModuleEnabled) {
@@ -817,13 +808,29 @@ window.onload = function () {
             statePill.style.backgroundColor = '#e5f7ee';
             statePill.style.color = '#0f7b3b';
             openEmailModalBtn.classList.remove('disabled');
+            openEmailModalBtn.disabled = false;
             openEmailModalBtn.title = 'Enviar e-mail personalizado';
+            if (openHistoryBtn) {
+                openHistoryBtn.classList.remove('disabled');
+                openHistoryBtn.disabled = false;
+                openHistoryBtn.title = 'Ver histórico de e-mails';
+            }
         } else {
-            statePill.textContent = 'Desabilitado';
+            const label = installed ? 'Desabilitado' : 'Não instalado';
+            const tip   = installed
+                ? 'Módulo de E-mail desabilitado. Habilite em "Funcionalidades" para enviar.'
+                : 'Módulo de E-mail não instalado. Instale pelo Marketplace.';
+            statePill.textContent = label;
             statePill.style.backgroundColor = '#fdeaea';
             statePill.style.color = '#b3261e';
             openEmailModalBtn.classList.add('disabled');
-            openEmailModalBtn.title = 'Módulo de E-mail desabilitado. Habilite em "Funcionalidades" para enviar.';
+            openEmailModalBtn.disabled = true;
+            openEmailModalBtn.title = tip;
+            if (openHistoryBtn) {
+                openHistoryBtn.classList.add('disabled');
+                openHistoryBtn.disabled = true;
+                openHistoryBtn.title = tip;
+            }
         }
 
         updateAuthVerifyUI(authRequireEmailVerification, false);
@@ -985,20 +992,24 @@ window.onload = function () {
         return recipients.map(r => (typeof r === 'string' ? r : r.email || '')).filter(Boolean).join(', ');
     }
 
-    async function loadEmailHistory() {
+    async function loadEmailHistory(q = '') {
         if (!historyList) return;
         historyList.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Carregando...</p>';
         try {
-            const res = await fetch('/api/email/history', { credentials: 'same-origin' });
+            const url = '/api/email/history' + (q ? '?q=' + encodeURIComponent(q) : '');
+            const res = await fetch(url, { credentials: 'same-origin' });
             const data = await res.json();
             const items = data.items || [];
             if (!items.length) {
-                historyList.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Nenhum e-mail enviado ainda.</p>';
+                historyList.innerHTML = q
+                    ? '<p style="color:#888;text-align:center;padding:24px;">Nenhum resultado para "' + q + '".</p>'
+                    : '<p style="color:#888;text-align:center;padding:24px;">Nenhum e-mail enviado ainda.</p>';
                 return;
             }
             historyList.innerHTML = items.map(item => {
                 const statusColor = item.status === 'enviado' ? '#27ae60' : '#e74c3c';
                 const statusIcon  = item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle';
+                const errorHint   = item.error ? `<small style="color:#e74c3c;display:block;margin-top:2px;font-size:.8rem;">${item.error}</small>` : '';
                 return `
                 <div class="toggle-card" style="cursor:pointer;margin-bottom:8px;" data-id="${item.id}" role="button" tabindex="0">
                     <div class="toggle-info" style="flex:1;min-width:0;">
@@ -1006,6 +1017,7 @@ window.onload = function () {
                         <span class="toggle-tag" style="color:${statusColor};font-weight:600;">
                             <i class="fa-solid ${statusIcon}"></i> ${item.status}
                         </span>
+                        ${errorHint}
                         <small style="color:#888;">${fmtDate(item.created_at)}</small>
                     </div>
                     <i class="fa-solid fa-chevron-right" style="color:#bbb;margin-left:8px;"></i>
@@ -1082,6 +1094,12 @@ window.onload = function () {
     if (openHistoryBtn) {
         openHistoryBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            if (!emailModuleEnabled) {
+                showEmailDisabledModal();
+                return;
+            }
+            const searchEl = document.getElementById('email-history-search');
+            if (searchEl) searchEl.value = '';
             loadEmailHistory();
             if (historyModal) historyModal.classList.add('show');
         });
@@ -1091,15 +1109,27 @@ window.onload = function () {
         const btn = e.target.closest('#open-email-history');
         if (!btn) return;
         e.preventDefault();
+        if (!emailModuleEnabled) {
+            showEmailDisabledModal();
+            return;
+        }
+        const searchEl = document.getElementById('email-history-search');
+        if (searchEl) searchEl.value = '';
         loadEmailHistory();
         const modal = document.getElementById('email-history-modal');
         if (modal) modal.classList.add('show');
     });
-    if (historyClose) historyClose.addEventListener('click', () => historyModal?.classList.remove('show'));
-    if (historyModal) historyModal.addEventListener('click', e => { if (e.target === historyModal) historyModal.classList.remove('show'); });
 
+    // Search with debounce
+    let historySearchTimer = null;
+    document.getElementById('email-history-search')?.addEventListener('input', (e) => {
+        clearTimeout(historySearchTimer);
+        historySearchTimer = setTimeout(() => loadEmailHistory(e.target.value.trim()), 350);
+    });
+
+    if (historyClose) historyClose.addEventListener('click', () => historyModal?.classList.remove('show'));
+    // Overlay clicks do NOT close modals — only X button or Cancel closes them
     if (detailClose) detailClose.addEventListener('click', closeEmailDetail);
-    if (detailModal) detailModal.addEventListener('click', e => { if (e.target === detailModal) closeEmailDetail(); });
 
     if (detailResend) {
         detailResend.addEventListener('click', async () => {
@@ -1186,7 +1216,7 @@ window.onload = function () {
     if (detailDelete) detailDelete.addEventListener('click', openDeleteConfirm);
     if (deleteClose) deleteClose.addEventListener('click', closeDeleteConfirm);
     if (deleteCancel) deleteCancel.addEventListener('click', closeDeleteConfirm);
-    if (deleteModal) deleteModal.addEventListener('click', e => { if (e.target === deleteModal) closeDeleteConfirm(); });
+    // No overlay click-to-close for delete confirm
 
     if (deleteConfirm) {
         deleteConfirm.addEventListener('click', async () => {
@@ -1801,10 +1831,9 @@ window.onload = function () {
     document.getElementById('criar-usuario-cancel')?.addEventListener('click', () => closeModal('criar-usuario-modal'));
 
     // Overlay click fecha
+    // Profile modals — only X/Cancel buttons close them, no overlay click
     ['meu-perfil-modal','editar-perfil-modal','alterar-senha-modal','criar-usuario-modal'].forEach(id => {
-        document.getElementById(id)?.addEventListener('click', (e) => {
-            if (e.target.id === id) closeModal(id);
-        });
+        // Intentionally no overlay click handler
     });
 
     // Preview em tempo real no editar perfil

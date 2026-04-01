@@ -40,7 +40,22 @@ class ModuleLoader
         $this->discoverStorageModules($root);
         $this->discoverComposerProviders($root);
 
+        // Remove providers de módulos explicitamente desinstalados (state = false)
+        foreach ($this->providers as $name => $_) {
+            if (array_key_exists($name, $this->enabled) && $this->enabled[$name] === false) {
+                unset($this->providers[$name]);
+            }
+        }
+
         $this->enabled = array_intersect_key($this->enabled, $this->providers);
+
+        // Preserva entradas false no state (módulos desinstalados) mesmo que não estejam nos providers
+        foreach ($this->loadState() as $name => $val) {
+            if ($val === false) {
+                $this->enabled[$name] = false;
+            }
+        }
+
         $this->persistState();
         if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
             $this->cacheModules();
@@ -117,6 +132,12 @@ class ModuleLoader
                 $provider = $this->container->make($providerClass);
                 if ($provider instanceof ModuleProviderInterface) {
                     $name = method_exists($provider, 'getName') ? $provider->getName() : (new \ReflectionClass($provider))->getShortName();
+
+                    // Se o módulo foi explicitamente desinstalado (state = false), não registra
+                    if (array_key_exists($name, $this->enabled) && $this->enabled[$name] === false) {
+                        continue;
+                    }
+
                     // Composer providers always win over SimpleModuleProvider stubs
                     $this->providers[$name] = $provider;
                     if (!array_key_exists($name, $this->enabled)) {
@@ -167,6 +188,36 @@ class ModuleLoader
         $moduleDir = rtrim($modulesPath, '/\\') . DIRECTORY_SEPARATOR . $module;
         if (!is_dir($moduleDir)) {
             return;
+        }
+
+        // Se o módulo foi explicitamente desinstalado (state = false), não registra
+        if (array_key_exists($module, $this->enabled) && $this->enabled[$module] === false) {
+            return;
+        }
+
+        // Tenta carregar um provider real se o módulo tiver composer.json com extra.sweflow.providers
+        $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
+        if (is_file($composerFile)) {
+            $meta      = json_decode((string) file_get_contents($composerFile), true) ?? [];
+            $providers = $meta['extra']['sweflow']['providers'] ?? [];
+            if (is_array($providers)) {
+                foreach ($providers as $providerClass) {
+                    if (!is_string($providerClass) || !class_exists($providerClass)) {
+                        continue;
+                    }
+                    try {
+                        $provider = $this->container->make($providerClass);
+                        if ($provider instanceof ModuleProviderInterface) {
+                            $name = method_exists($provider, 'getName') ? $provider->getName() : $module;
+                            $this->providers[$name] = $provider;
+                            $this->setEnabledIfNotExist($name);
+                            return;
+                        }
+                    } catch (\Throwable) {
+                        // provider class exists but failed to instantiate — fall through to SimpleModuleProvider
+                    }
+                }
+            }
         }
 
         $this->providers[$module] = new SimpleModuleProvider($module, $moduleDir);
@@ -283,6 +334,10 @@ class ModuleLoader
 
     private function registerSimple(string $name, string $path): void
     {
+        // Se o módulo foi explicitamente desinstalado (state = false), não registra
+        if (array_key_exists($name, $this->enabled) && $this->enabled[$name] === false) {
+            return;
+        }
         if (!isset($this->providers[$name])) {
             $this->providers[$name] = new SimpleModuleProvider($name, $path);
             if (!array_key_exists($name, $this->enabled)) {

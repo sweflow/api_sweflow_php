@@ -479,6 +479,47 @@
 
                             const body = await response.json();
                             if (!response.ok) {
+                                // E-mail não verificado — mostra botão de reenvio, NÃO conta como tentativa
+                                if (response.status === 403 && body.email_not_verified) {
+                                    const userEmail = body.email || validation.normalized;
+                                    if (feedback) {
+                                        feedback.classList.add('error');
+                                        feedback.innerHTML = '';
+
+                                        const msg = document.createElement('span');
+                                        msg.textContent = body.message || 'Confirme seu e-mail antes de fazer login.';
+                                        feedback.appendChild(msg);
+
+                                        const br = document.createElement('br');
+                                        feedback.appendChild(br);
+
+                                        const resendBtn = document.createElement('button');
+                                        resendBtn.type = 'button';
+                                        resendBtn.textContent = 'Reenviar e-mail de confirmação';
+                                        resendBtn.style.cssText = 'margin-top:8px;padding:6px 14px;background:#2c2f55;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;';
+                                        resendBtn.addEventListener('click', async () => {
+                                            resendBtn.disabled = true;
+                                            resendBtn.textContent = 'Enviando...';
+                                            try {
+                                                const r = await fetch('/api/auth/reenviar-verificacao', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ email: userEmail })
+                                                });
+                                                const d = await r.json();
+                                                feedback.innerHTML = '';
+                                                feedback.textContent = d.message || 'E-mail de confirmação enviado. Verifique sua caixa de entrada.';
+                                                feedback.classList.remove('error');
+                                                feedback.classList.add('success');
+                                            } catch (_) {
+                                                resendBtn.disabled = false;
+                                                resendBtn.textContent = 'Reenviar e-mail de confirmação';
+                                            }
+                                        });
+                                        feedback.appendChild(resendBtn);
+                                    }
+                                    return; // não incrementa tentativas
+                                }
                                 const mensagem = body.message || body.error || body.erro || 'Falha ao autenticar.';
                                 throw new Error(mensagem);
                             }
