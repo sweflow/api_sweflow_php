@@ -494,26 +494,19 @@ class AuthController
     private function processUserVerification($user, array $body): string
     {
         $verified = filter_var($body['verified'] ?? true, FILTER_VALIDATE_BOOLEAN);
-        if ($verified) {
-            $this->repositorio()->marcarEmailComoVerificado($user->getUuid()->toString());
-            return 'E-mail verificado com sucesso.';
-        }
-        $this->repositorio()->desmarcarEmailComoVerificado($user->getUuid()->toString());
-        return 'Verificação de e-mail removida.';
+        $this->repositorio()->marcarEmailComoVerificado($user->getUuid()->toString(), $verified);
+        return $verified ? 'E-mail verificado com sucesso.' : 'Verificação de e-mail removida.';
     }
 
     private function updateGlobalPolicy(bool $enabled): void
     {
         $caminho = $this->caminhoPoliticaVerificacaoEmail();
         $diretorio = dirname($caminho);
-        if (!is_dir($diretorio)) {
-            if (!@mkdir($diretorio, 0755, true) && !is_dir($diretorio)) {
-                throw new DomainException('Não foi possível criar diretório de política.');
-            }
+        if (!is_dir($diretorio) && !mkdir($diretorio, 0755, true) && !is_dir($diretorio)) {
+            throw new DomainException('Não foi possível criar diretório de política.');
         }
-        $payload = ['require_verification' => $enabled];
-        $gravado = @file_put_contents($caminho, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        if ($gravado === false) {
+        $payload = json_encode(['require_verification' => $enabled], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (file_put_contents($caminho, $payload) === false) {
             throw new DomainException('Não foi possível salvar a política de verificação.');
         }
     }
@@ -743,15 +736,12 @@ class AuthController
         if (!file_exists($caminho)) {
             return false;
         }
-        $json = @file_get_contents($caminho);
+        $json = file_get_contents($caminho);
         if ($json === false) {
             return false;
         }
         $dados = json_decode($json, true);
-        if (!is_array($dados)) {
-            return false;
-        }
-        return (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
+        return is_array($dados) && (bool)($dados['require_verification'] ?? $dados['enabled'] ?? false);
     }
 
 
@@ -761,39 +751,33 @@ class AuthController
     }
 
     private function podeDispararEmailRecuperacao(string $email): bool
-    {
-        $path = $this->caminhoThrottleRecuperacao();
-        $window = 120; // segundos
-        $now = time();
-
-        if (!is_file($path)) {
-            return true;
+        {
+            $path = $this->caminhoThrottleRecuperacao();
+            if (!is_file($path)) {
+                return true;
+            }
+            $json = file_get_contents($path);
+            if ($json === false) {
+                return true;
+            }
+            $data = json_decode($json, true);
+            if (!is_array($data)) {
+                return true;
+            }
+            return (time() - (int)($data[strtolower($email)] ?? 0)) >= 120;
         }
 
-        $json = @file_get_contents($path);
-        if ($json === false) {
-            return true;
-        }
-
-        $data = json_decode($json, true);
-        if (!is_array($data)) {
-            return true;
-        }
-
-        $last = $data[strtolower($email)] ?? 0;
-        return ($now - (int)$last) >= $window;
-    }
 
     private function registrarDisparoEmailRecuperacao(string $email): void
     {
         $path = $this->caminhoThrottleRecuperacao();
         $dir = dirname($path);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
+            mkdir($dir, 0755, true);
         }
 
         $data = [];
-        $json = @file_get_contents($path);
+        $json = is_file($path) ? file_get_contents($path) : false;
         if ($json !== false) {
             $decoded = json_decode($json, true);
             if (is_array($decoded)) {
@@ -802,7 +786,7 @@ class AuthController
         }
 
         $data[strtolower($email)] = time();
-        @file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     private function mailer(): ?EmailSenderInterface
