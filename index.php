@@ -418,7 +418,7 @@ $router->get('/robots.txt', function () use ($router) {
     return new Response($body, 200, ['Content-Type' => 'text/plain; charset=utf-8']);
 });
 
-$router->get('/api/status', function () use ($modules, $router) {
+$router->get('/api/status', function () use ($modules) {
     $status = [
         'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
         'port' => $_SERVER['SERVER_PORT'] ?? '-',
@@ -470,7 +470,7 @@ $router->get('/api/db-status/details', function () use ($container) {
     AdminOnlyMiddleware::class,
 ]);
 
-$router->get('/api/dashboard/metrics', function () use ($container, $modules, $router) {
+$router->get('/api/dashboard/metrics', function () use ($container, $modules) {
     $status = [
         'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
         'env' => $_ENV['APP_ENV'] ?? 'local',

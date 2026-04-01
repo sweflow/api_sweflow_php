@@ -843,7 +843,7 @@ test('SQL: SQL injection no campo de recuperação de senha não causa 500', fun
     return null;
 });
 
-test('SQL: SQL injection no UUID de rota não causa 500', function () use ($baseUrl, $sqlPayloads) {
+test('SQL: SQL injection no UUID de rota não causa 500', function () use ($baseUrl) {
     foreach (["' OR 1=1 --", "1; DROP TABLE usuarios"] as $payload) {
         $encoded = urlencode($payload);
         $res = req('GET', "$baseUrl/api/usuario/$encoded");
@@ -1209,16 +1209,16 @@ test('TOKEN: Token com assinatura inválida retorna 401 (blacklist check)', func
         'jti' => 'revoked-jti-'.uniqid(), 'exp' => time() + 3600,
     ])), '+/', '-_'), '=');
     $s = rtrim(strtr(base64_encode('fake_sig'), '+/', '-_'), '=');
-    $res = req('GET', "$baseUrl/api/perfil", [], ["Authorization: Bearer $h.$p.$s"]);
+    $res = req('GET', "{$baseUrl}/api/perfil", [], ["Authorization: Bearer $h.$p.$s"]);
     return assertStatus($res, 401);
 });
 
 test('TOKEN: Refresh token com jti inválido retorna 401', function () use ($baseUrl) {
-    $res = req('POST', "$baseUrl/api/auth/refresh", ['refresh_token' => 'token.invalido.jti']);
+    $res = req('POST', "{$baseUrl}/api/auth/refresh", ['refresh_token' => 'token.invalido.jti']);
     return assertOneOf($res, [400, 401]);
 });
 
-test('TOKEN: REFRESH_MAX_PER_USER está configurado (limite de sessões)', function () use ($baseUrl) {
+test('TOKEN: REFRESH_MAX_PER_USER está configurado (limite de sessões)', function () {
     $maxPerUser = (int)(getenv('REFRESH_MAX_PER_USER') ?: 5);
     if ($maxPerUser > 0 && $maxPerUser <= 20) return null;
     return "REFRESH_MAX_PER_USER não configurado adequadamente: $maxPerUser";
@@ -1233,17 +1233,18 @@ test('BIZ: /api/perfil/{username} público não expõe e-mail', function () use 
     // Cria um usuário e verifica que o endpoint público não retorna o email
     $uid = uniqid();
     $email = "biz_$uid@test.invalid";
-    req('POST', "$baseUrl/api/registrar", [
+    req('POST', "{$baseUrl}/api/registrar", [
         'nome_completo' => 'BizTest',
         'username'      => "biz_$uid",
         'email'         => $email,
         'senha'         => 'Senha@12345',
     ]);
-    $res = req('GET', "$baseUrl/api/perfil/biz_$uid");
+    $res = req('GET', "{$baseUrl}/api/perfil/biz_$uid");
     if ($res['status'] === 404) return null; // usuário não criado, ok
     $body = json_encode($res['body']);
     if (str_contains($body, $email)) return "E-mail exposto no endpoint público de perfil — CRÍTICO";
     return null;
+});
 });
 
 test('BIZ: Alteração de senha exige senha atual correta', function () use ($baseUrl) {
