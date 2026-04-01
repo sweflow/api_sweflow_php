@@ -2,7 +2,7 @@
 
 namespace Src\Modules\Usuario\Repositories;
 
-use src\Modules\Usuario\Entities\Usuario;
+use Src\Modules\Usuario\Entities\Usuario;
 
 interface UsuarioRepositoryInterface
 {

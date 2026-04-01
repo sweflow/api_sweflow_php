@@ -7,7 +7,7 @@ use PDOException;
 use Src\Modules\Usuario\Entities\Usuario;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
-use src\Database\Exceptions\DatabaseQueryException;
+use Src\Kernel\Database\Exceptions\DatabaseQueryException;
 use InvalidArgumentException;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 

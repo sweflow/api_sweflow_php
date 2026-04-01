@@ -3,7 +3,7 @@
 namespace Src\Modules\Usuario\Services;
 
 // Removido import duplicado
-use src\Modules\Usuario\Entities\Usuario;
+use Src\Modules\Usuario\Entities\Usuario;
 
 interface UsuarioServiceInterface
 {
