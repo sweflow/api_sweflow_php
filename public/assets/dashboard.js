@@ -1619,6 +1619,8 @@ window.onload = function () {
     const alterarSenhaForm = document.getElementById('alterar-senha-form');
     const asSaveBtn = document.getElementById('alterar-senha-save');
 
+    setupSenhaValidation('as-nova', 'as-confirmar', 'as', asSaveBtn);
+
     function setupSenhaValidation(novaId, confirmarId, prefix, saveBtn) {
         const nova      = document.getElementById(novaId);
         const confirmar = document.getElementById(confirmarId);
@@ -1630,8 +1632,6 @@ window.onload = function () {
         nova.addEventListener('input', check);
         confirmar.addEventListener('input', check);
     }
-
-    setupSenhaValidation('as-nova', 'as-confirmar', 'as', asSaveBtn);
 
     if (alterarSenhaForm) {
         alterarSenhaForm.addEventListener('submit', async (e) => {
@@ -1775,6 +1775,7 @@ window.onload = function () {
         criarUsuarioForm?.reset();
         validarSenhaRegras('', '', 'cu');
         if (cuSaveBtn) cuSaveBtn.disabled = true;
+        setupSenhaValidation('cu-senha', 'cu-confirmar', 'cu', cuSaveBtn);
     });
 
     document.getElementById('meu-perfil-close')?.addEventListener('click', () => closeModal('meu-perfil-modal'));
@@ -1785,6 +1786,8 @@ window.onload = function () {
         document.getElementById('alterar-senha-form')?.reset();
         validarSenhaRegras('', '', 'as');
         if (asSaveBtn) asSaveBtn.disabled = true;
+        // Wire up real-time validation now that the modal is visible
+        setupSenhaValidation('as-nova', 'as-confirmar', 'as', asSaveBtn);
     });
 
     document.getElementById('editar-perfil-close')?.addEventListener('click', () => closeModal('editar-perfil-modal'));

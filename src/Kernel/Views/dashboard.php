@@ -409,12 +409,12 @@
                     <input type="password" id="as-confirmar" placeholder="Confirmar nova senha" autocomplete="new-password" />
                 </div>
                 <div id="as-regras" class="senha-regras">
-                    <div class="regra" id="r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
-                    <div class="regra" id="r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
-                    <div class="regra" id="r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
-                    <div class="regra" id="r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
-                    <div class="regra" id="r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
-                    <div class="regra" id="r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
+                    <div class="regra" id="as-r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
+                    <div class="regra" id="as-r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
+                    <div class="regra" id="as-r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
+                    <div class="regra" id="as-r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
+                    <div class="regra" id="as-r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
+                    <div class="regra" id="as-r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
                 </div>
                 <div id="as-feedback" class="login-feedback" aria-live="polite"></div>
                 <div class="form-actions" style="justify-content:flex-end;">
