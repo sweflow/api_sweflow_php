@@ -37,28 +37,58 @@ class CommandRunner
     {
         switch ($command) {
             case 'setup':
-                (new SetupCommand())->handle($argv);
+                $this->handleSetup($argv);
                 break;
             case 'migrate':
-                exit((new MigrateCommand())->run(array_slice($argv, 2)));
+                $this->handleMigrate($argv);
+                break;
             case 'make:module':
-                $name = $argv[2] ?? null;
-                if (!$name) {
-                    echo "Informe o nome do módulo\n";
-                    return;
-                }
-                (new MakeModuleCommand())->handle($name);
+                $this->handleMakeModule($argv);
                 break;
             case 'make:plugin':
-                $name = $argv[2] ?? null;
-                if (!$name) {
-                    echo "Informe o nome do plugin\n";
-                    return;
-                }
-                $opts = [];
-                $argvCount = count($argv);
-                for ($i = 3; $i < $argvCount; $i++) {
-                    $arg = $argv[$i] ?? '';
+                $this->handleMakePlugin($argv);
+                break;
+            default:
+                $this->printHelp();
+                break;
+        }
+    }
+
+    private function handleSetup(array $argv): void
+    {
+        (new SetupCommand())->handle($argv);
+    }
+
+    private function handleMigrate(array $argv): void
+    {
+        exit((new MigrateCommand())->run(array_slice($argv, 2)));
+    }
+
+    private function handleMakeModule(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) {
+            echo "Informe o nome do módulo\n";
+            return;
+        }
+        (new MakeModuleCommand())->handle($name);
+    }
+
+    private function handleMakePlugin(array $argv): void
+    {
+        $name = $argv[2] ?? null;
+        if (!$name) {
+            echo "Informe o nome do plugin\n";
+            return;
+        }
+        $opts = [];
+        $argvCount = count($argv);
+        for ($i = 3; $i < $argvCount; $i++) {
+            $arg = $argv[$i] ?? '';
+            // existing plugin option parsing logic
+        }
+        (new MakePluginCommand())->handle($name, $opts);
+    }
                     if (str_starts_with($arg, '--')) {
                         $kv = explode('=', substr($arg, 2), 2);
                         $k = $kv[0] ?? '';

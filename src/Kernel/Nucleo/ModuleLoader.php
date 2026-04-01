@@ -29,30 +29,63 @@ class ModuleLoader
 
     public function discover(string $modulesPath): void
     {
-        if (($_ENV['APP_ENV'] ?? 'local') === 'production' && is_file($this->cacheFile)) {
-            $cached = @include $this->cacheFile;
-            if (is_array($cached)) {
-                foreach ($cached as $name => $data) {
-                    if (isset($data['path']) && is_dir($data['path'])) {
-                        $this->providers[$name] = new SimpleModuleProvider($name, $data['path']);
-                        if (!array_key_exists($name, $this->enabled)) {
-                            $this->enabled[$name] = true;
-                        }
-                    }
-                }
-            }
+        $this->loadCachedProviders();
+
+        if (is_dir($modulesPath)) {
+            $this->discoverModulesDirectory($modulesPath);
+        }
+    }
+
+    private function loadCachedProviders(): void
+    {
+        if (($_ENV['APP_ENV'] ?? 'local') !== 'production' || !is_file($this->cacheFile)) {
+            return;
         }
 
-        // src/Modules/* (Nativo + Plugins instalados aqui)
-        // Agora todos os módulos ficam em src/Modules, sejam nativos ou instalados via dashboard.
-        if (is_dir($modulesPath)) {
-            foreach (scandir($modulesPath) as $module) {
-                if ($module === '.' || $module === '..') continue;
-                $moduleDir = rtrim($modulesPath, '/\\') . DIRECTORY_SEPARATOR . $module;
-                if (!is_dir($moduleDir)) continue;
-                
-                // Tenta carregar via SimpleModuleProvider (convenção)
-                // Se tiver composer.json com providers, o autoload do composer cuidaria se estivesse no vendor,
+        $cached = @include $this->cacheFile;
+        if (!is_array($cached)) {
+            return;
+        }
+
+        foreach ($cached as $name => $data) {
+            if (!isset($data['path']) || !is_dir($data['path'])) {
+                continue;
+            }
+
+            $this->providers[$name] = new SimpleModuleProvider($name, $data['path']);
+            $this->setEnabledIfNotExist($name);
+        }
+    }
+
+    private function discoverModulesDirectory(string $modulesPath): void
+    {
+        $modules = scandir($modulesPath);
+        foreach ($modules as $module) {
+            if ($module === '.' || $module === '..') {
+                continue;
+            }
+
+            $this->processModuleDirectory($modulesPath, $module);
+        }
+    }
+
+    private function processModuleDirectory(string $modulesPath, string $module): void
+    {
+        $moduleDir = rtrim($modulesPath, '/\\') . DIRECTORY_SEPARATOR . $module;
+        if (!is_dir($moduleDir)) {
+            return;
+        }
+
+        $this->providers[$module] = new SimpleModuleProvider($module, $moduleDir);
+        $this->setEnabledIfNotExist($module);
+    }
+
+    private function setEnabledIfNotExist(string $name): void
+    {
+        if (!array_key_exists($name, $this->enabled)) {
+            $this->enabled[$name] = true;
+        }
+    }
                 // mas como está em src/Modules, o autoload PSR-4 "Src\Modules\" já pega.
                 // Precisamos instanciar o Provider correto.
                 
