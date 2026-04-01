@@ -1,1 +1,6 @@
-[]
+{
+    "email": {
+        "enabled": true,
+        "installed_at": "2026-04-01T18:06:59+00:00"
+    }
+}

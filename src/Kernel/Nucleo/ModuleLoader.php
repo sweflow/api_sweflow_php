@@ -116,7 +116,8 @@ class ModuleLoader
             try {
                 $provider = $this->container->make($providerClass);
                 if ($provider instanceof ModuleProviderInterface) {
-                    $name = (new \ReflectionClass($provider))->getShortName();
+                    $name = method_exists($provider, 'getName') ? $provider->getName() : (new \ReflectionClass($provider))->getShortName();
+                    // Composer providers always win over SimpleModuleProvider stubs
                     $this->providers[$name] = $provider;
                     if (!array_key_exists($name, $this->enabled)) {
                         $this->enabled[$name] = true;
