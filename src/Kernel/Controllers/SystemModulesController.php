@@ -90,69 +90,57 @@ class SystemModulesController
         }
 
         try {
+            $pluginName = $package;
+            if (str_starts_with($package, 'sweflow/module-')) {
+                $pluginName = str_replace('sweflow/module-', '', $package);
+            } elseif (str_starts_with($package, 'sweflow/')) {
+                 $pluginName = str_replace('sweflow/', '', $package);
+            }
+
+            // Remove do composer.json antes de desinstalar
+            $shortName = ucfirst($pluginName);
+            $this->removeModuleFromComposer($shortName);
+
+            $this->pluginManager->uninstall($pluginName);
+            
+            // Remove do capabilities após o uninstall
+            $this->removeModuleFromCapabilities($shortName);
+            
+            // Decrementa contador
+            $this->decrementDownload($package);
+            
+            return (new Response())->json(['message' => 'Módulo removido com sucesso e composer.json atualizado']);
+        } catch (\Throwable $e) {
+            return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function install(Request $request): Response
     {
         $body = $request->body;
         $package = $body['package'] ?? null;
-        $status = 200;
-        $message = '';
 
         if (!$package) {
-            $message = 'Pacote não informado';
-            $status = 400;
-        } else {
-            try {
-                $pluginName = $this->extractPluginName($package);
-                $shortName = $this->getShortName($pluginName);
-                $targetDir = $this->getTargetDir($shortName);
+            return (new Response())->json(['message' => 'Pacote não informado'], 400);
+        }
 
-                $this->performInstallation($package, $pluginName, $targetDir);
-                $this->addModuleToComposer($shortName);
-
-                $this->pluginManager->install($pluginName);
-                $this->addModuleToCapabilities($shortName);
-                $this->incrementDownload($package);
-
-                $message = 'Módulo instalado com sucesso e composer.json atualizado';
-            } catch (\Throwable $e) {
-                $message = 'Erro: ' . $e->getMessage();
-                $status = 500;
+        try {
+            // Verifica se é instalação local (dev) ou remota
+            $pluginName = $package;
+            if (str_starts_with($package, 'sweflow/module-')) {
+                $pluginName = str_replace('sweflow/module-', '', $package);
+            } elseif (str_starts_with($package, 'sweflow/')) {
+                 $pluginName = str_replace('sweflow/', '', $package);
             }
-        }
 
-        return (new Response())->json(['message' => $message], $status);
-    }
-
-    private function extractPluginName(string $package): string
-    {
-        if (str_starts_with($package, 'sweflow/module-')) {
-            return str_replace('sweflow/module-', '', $package);
-        }
-        if (str_starts_with($package, 'sweflow/')) {
-            return str_replace('sweflow/', '', $package);
-        }
-
-        return $package;
-    }
-
-    private function getShortName(string $pluginName): string
-    {
-        return ucfirst($pluginName);
-    }
-
-    private function getTargetDir(string $shortName): string
-    {
-        return dirname(__DIR__, 3) . '/src/Modules/' . $shortName;
-    }
-
-    private function performInstallation(string $package, string $pluginName, string $targetDir): void
-    {
-        if (str_starts_with($package, 'sweflow/module-')) {
-            $this->cloneModule($package, $targetDir);
-        } else {
-            $this->requireModule($package);
-        }
-    }
+            // Tenta instalar
+            // Se o pacote for um sweflow-module, tentamos baixar via composer OU clonar para src/Modules
+            // A diretiva do usuário é clara: "deve ser instalado em src/Modules e não em plugins"
+            
+            // 1. Identifica nome curto do módulo (ex: Email)
+            $shortName = ucfirst($pluginName);
+            $targetDir = dirname(__DIR__, 3) . '/src/Modules/' . $shortName;
+            
             // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
             // Se for instalação via Packagist, podemos checar metadados antes?
             // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.

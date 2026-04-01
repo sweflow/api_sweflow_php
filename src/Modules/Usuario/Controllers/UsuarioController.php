@@ -277,9 +277,7 @@ class UsuarioController
                 'message' => $e->getMessage()
             ], $e->getCode() === 500 ? 500 : 400);
         } catch (Throwable $e) {
-            $debug = ((
-                $_ENV['APP_DEBUG'] ?? 'false'
-            ) === 'true');
+            $debug = (($_ENV['APP_DEBUG'] ?? 'false') === 'true');
             return Response::json([
                 'status' => 'error',
                 'message' => 'Erro interno no servidor',
@@ -295,58 +293,30 @@ class UsuarioController
      */
     public function uploadProfileImage($request): Response
     {
-        $status = 200;
-        $data = ['status' => 'success'];
-
         try {
             $authUser = $request->attribute('auth_user');
             if (!$authUser) {
-                throw new DomainException('Não autenticado', 401);
+                return Response::json(['status' => 'error', 'message' => 'Não autenticado'], 401);
             }
 
             if (empty($_FILES['file']) || !is_array($_FILES['file'])) {
-                throw new DomainException('Arquivo não fornecido', 400);
+                return Response::json(['status' => 'error', 'message' => 'Arquivo não fornecido'], 400);
             }
 
             $file = $_FILES['file'];
             if ($file['error'] !== UPLOAD_ERR_OK) {
-                throw new DomainException('Erro no upload do arquivo', 400);
+                return Response::json(['status' => 'error', 'message' => 'Erro no upload do arquivo'], 400);
             }
 
-            $extension = $this->getImageExtension($file['type']);
-
             // Aceita qualquer imagem cujo tipo MIME comece com 'image/'
-
-        } catch (DomainException $e) {
-            $status = $e->getCode() === 0 ? 400 : $e->getCode();
-            $data = ['status' => 'error', 'message' => $e->getMessage()];
-        } catch (Throwable $e) {
-            $status = 500;
-            $debug = ((
-                $_ENV['APP_DEBUG'] ?? 'false'
-            ) === 'true');
-            $data = [
-                'status' => 'error',
-                'message' => 'Erro interno no servidor',
-                'details' => $debug ? $e->getMessage() : null
+            $allowed = [
+                'image/jpeg' => '.jpg',
+                'image/jpg' => '.jpg',
+                'image/png' => '.png',
+                'image/webp' => '.webp',
+                'image/svg+xml' => '.svg',
+                'image/svg' => '.svg',
             ];
-        }
-
-        return Response::json($data, $status);
-    }
-
-    private function getImageExtension(string $mime): ?string
-    {
-        $mapping = [
-            'image/jpeg' => '.jpg',
-            'image/jpg' => '.jpg',
-            'image/png' => '.png',
-            'image/webp' => '.webp',
-            'image/svg+xml' => '.svg',
-            'image/svg' => '.svg',
-        ];
-        return $mapping[$mime] ?? null;
-    }
 
             // Use getimagesize como primeira tentativa
             $imgInfo = @getimagesize($file['tmp_name']);
@@ -682,72 +652,57 @@ class UsuarioController
             // Retorna apenas informações públicas do perfil — sem email
             return Response::json([
                 'status' => 'success',
+                'usuario' => [
+                    'uuid'               => $usuario->getUuid()->toString(),
+                    'nome_completo'      => $usuario->getNomeCompleto(),
+                    'username'           => $usuario->getUsername(),
+                    'ativo'              => $usuario->isAtivo(),
+                    'criado_em'          => $usuario->getCriadoEm()->format('c'),
+                    'url_avatar'         => $usuario->getUrlAvatar(),
+                    'url_capa'           => $usuario->getUrlCapa(),
+                    'biografia'          => $usuario->getBiografia(),
+                    'status_verificacao' => $usuario->getStatusVerificacao(),
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            $debug = getenv('APP_DEBUG') === 'true';
+            return Response::json([
+                'status' => 'error',
+                'message' => 'Erro ao buscar perfil',
+                'details' => $debug ? $e->getMessage() : 'Contate o suporte'
+            ], 500);
+        }
+    }
+
     /**
      * GET /perfil/{username}
      */
     public function exibirPerfilHtml($request): Response
     {
-        [$username, $errorResponse] = $this->extractUsernameOrError($request);
-        if ($errorResponse) {
-            return $errorResponse;
+        $username = $request->param('username');
+        if (!$username) {
+            return Response::html('<h1>Perfil não encontrado</h1>', 404);
         }
 
         $usuario = $this->service->buscarPorUsername($username);
         if (!$usuario) {
-            return $this->createNotFoundHtmlResponse();
+            return Response::html('<h1>Perfil não encontrado</h1>', 404);
         }
 
-        $baseUrl   = $this->determineBaseUrl();
-        $avatarUrl = $this->normalizeUrl($usuario->getUrlAvatar(), $baseUrl);
-        $coverUrl  = $this->normalizeUrl($usuario->getUrlCapa(), $baseUrl);
-
-        // ... lógica de renderização do perfil em HTML ...
-        return Response::html(
-            $this->renderProfileHtml($usuario, $avatarUrl, $coverUrl),
-            200
-        );
-    }
-
-    private function extractUsernameOrError($request): array
-    {
-        $username = $request->param('username');
-        if (!$username) {
-            return [null, Response::html('<h1>Perfil não encontrado</h1>', 404)];
-        }
-        return [$username, null];
-    }
-
-    private function createNotFoundHtmlResponse(): Response
-    {
-        return Response::html('<h1>Perfil não encontrado</h1>', 404);
-    }
-
-    private function determineBaseUrl(): string
-    {
         $baseUrl = $_ENV['APP_URL'] ?? ($_ENV['APP_URL_FRONTEND'] ?? '');
         if (!$baseUrl && isset($_SERVER['HTTP_HOST'])) {
-            $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'];
         }
-        return rtrim((string) $baseUrl, '/');
-    }
+        $baseUrl = rtrim((string) $baseUrl, '/');
 
-    private function normalizeUrl(?string $url, string $baseUrl): ?string
-    {
-        if (!$url) {
-            return null;
-        }
-        if (preg_match('/^(http:\\/\\/|https:\\/\\/|data:)/', $url)) {
-            return $url;
-        }
-        return $baseUrl . '/' . ltrim($url, '/');
-    }
-
-    // Implementar este método com a lógica de template original
-    private function renderProfileHtml($usuario, ?string $avatarUrl, ?string $coverUrl): string
-    {
-        // ...
-    }
+        $normalizeUrl = function (?string $url) use ($baseUrl): ?string {
+            if (!$url) {
+                return null;
+            }
+            if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://') || str_starts_with($url, 'data:')) {
+                return $url;
+            }
             if ($baseUrl === '') {
                 return $url;
             }
