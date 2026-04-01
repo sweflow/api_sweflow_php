@@ -60,6 +60,11 @@ class Migrator
             } else {
                 echo "Rollback sem down, removendo registro\n";
             }
+        }
+        $this->deleteMigration((int)$row['id']);
+        echo "✔ Rollback: {$row['migration']}\n";
+    }
+
     private function discoverModules(): array
     {
         $modules = [];
@@ -95,14 +100,6 @@ class Migrator
             }
         }
         return $items;
-    }
-                    if (is_dir($mPath)) {
-                        $list[] = $mPath;
-                    }
-                }
-            }
-        }
-        return $list;
     }
 
     private function moduleDir(string $moduleName): string

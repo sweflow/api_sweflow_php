@@ -33,6 +33,36 @@ class PluginValidateCommand
         $errors = array_merge($errors, $composerErrors);
         $warnings = array_merge($warnings, $composerWarnings);
 
+        $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
+        if (!is_file($pluginJson)) {
+            $warnings[] = "plugin.json ausente (recomendado para capabilities)";
+        } else {
+            if (false !== ($content = file_get_contents($pluginJson))) {
+                $pj = json_decode($content, true) ?: [];
+            } else {
+                $pj = [];
+                $warnings[] = "plugin.json não pôde ser lido";
+            }
+            if (!isset($pj['provides']) || !is_array($pj['provides'])) {
+                $warnings[] = "plugin.json: 'provides' ausente ou inválido";
+            }
+        }
+
+        $migrations = $path . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        if (!is_dir($migrations)) {
+            $warnings[] = "Migrations ausentes (src/Database/Migrations)";
+        }
+
+        $seeders = $path . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+        if (!is_dir($seeders)) {
+            $warnings[] = "Seeders ausentes (src/Database/Seeders)";
+        }
+
+        $routes = $path . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Routes' . DIRECTORY_SEPARATOR . 'routes.php';
+        if (!is_file($routes)) {
+            $warnings[] = "Routes ausentes (src/Routes/routes.php)";
+        }
+
         $this->printResults($name, $errors, $warnings);
     }
 
@@ -89,59 +119,11 @@ class PluginValidateCommand
 
     private function printResults(string $name, array $errors, array $warnings): void
     {
-        if (empty($errors) && empty($warnings)) {
-            echo "Plugin '$name' validado com sucesso.\n";
-        } else {
-            echo "Problemas encontrados para plugin '$name':\n";
-            foreach ($errors as $error) {
-                echo "  Erro: $error\n";
-            }
-            foreach ($warnings as $warning) {
-                echo "  Aviso: $warning\n";
-            }
-        }
-    }
-
-    private function classFileLikelyExists(string $path, string $class): bool
-    {
-        // assuming existing implementation
-    }
-}
-        }
-
-        $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
-        if (!is_file($pluginJson)) {
-            $warnings[] = "plugin.json ausente (recomendado para capabilities)";
-        } else {
-            if (false !== ($content = file_get_contents($pluginJson))) {
-                $pj = json_decode($content, true) ?: [];
-            } else {
-                $pj = [];
-                $warnings[] = "plugin.json não pôde ser lido";
-            }
-            if (!isset($pj['provides']) || !is_array($pj['provides'])) {
-                $warnings[] = "plugin.json: 'provides' ausente ou inválido";
-            }
-        }
-
-        $migrations = $path . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
-        if (!is_dir($migrations)) {
-            $warnings[] = "Migrations ausentes (src/Database/Migrations)";
-        }
-
-        $seeders = $path . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
-        if (!is_dir($seeders)) {
-            $warnings[] = "Seeders ausentes (src/Database/Seeders)";
-        }
-
-        $routes = $path . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Routes' . DIRECTORY_SEPARATOR . 'routes.php';
-        if (!is_file($routes)) {
-            $warnings[] = "Routes ausentes (src/Routes/routes.php)";
-        }
-
         echo "Validando: $name\n";
         if ($errors) {
-            foreach ($errors as $e) echo "  [ERRO] $e\n";
+            foreach ($errors as $e) {
+                echo "  [ERRO] $e\n";
+            }
         } else {
             echo "  Estrutura básica OK\n";
         }

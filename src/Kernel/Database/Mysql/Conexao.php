@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Src\Database\Mysql;
 
 use Src\Database\Exceptions\DatabaseException;
@@ -73,9 +72,7 @@ class Conexao
             $username = $_ENV['DB_USUARIO'] ?? '';
             $password = $_ENV['DB_SENHA'] ?? '';
             $charset = $_ENV['DB_CHARSET'] ?? 'utf8mb4';
-            $collation = $_ENV['DB_COLLATION'] ?? 'utf8mb4_unicode_ci';
 
-            // DSN (Data Source Name) para MySQL
             $dsn = sprintf(
                 'mysql:host=%s;port=%s;dbname=%s;charset=%s',
                 $host,
@@ -84,20 +81,29 @@ class Conexao
                 $charset
             );
 
-            // Opções de conexão para segurança e performance
+            $options = [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ];
+
+            return new PDO($dsn, $username, $password, $options);
+        } catch (PDOException $e) {
+            self::tratarErroCustomizada($e);
+        }
+    }
+
     private static function tratarErroCustomizada(PDOException $e): never
     {
         $mensagem = self::getMensagemErro($e);
         $codigo = (int)$e->getCode();
-
-        // Mapeamento de códigos de erro MySQL para Exceptions customizadas
         self::lançarExceptionPorCodigo($codigo, $mensagem, $e);
     }
 
     private static function getMensagemErro(PDOException $e): string
     {
         $debug = getenv('APP_DEBUG') === 'true';
-        return $debug 
+        return $debug
             ? $e->getMessage()
             : 'Erro ao conectar ao banco de dados. Contate o administrador.';
     }
@@ -120,39 +126,23 @@ class Conexao
             throw new DatabaseIntegrityException($mensagem, $codigo, $e);
         }
 
-        throw new PDOException($mensagem, $codigo, $e);
-    }
-            case 1045: // Access denied
-            case 1044: // Access denied for user to database
-                throw new DatabasePermissionException($mensagem, $codigo, $e);
-            case 1049: // Unknown database
-            case 1046: // No database selected
-                throw new DatabaseConfigException($mensagem, $codigo, $e);
-            case 2002: // Connection refused
-            case 2003: // Can't connect to MySQL server
-            case 2006: // MySQL server has gone away
-                throw new DatabaseConnectionException($mensagem, $codigo, $e);
-            case 1062: // Duplicate entry (integrity)
-            case 1451: // Cannot delete or update a parent row: a foreign key constraint fails
-            case 1452: // Cannot add or update a child row: a foreign key constraint fails
-                throw new DatabaseIntegrityException($mensagem, $codigo, $e);
-            case 1205: // Lock wait timeout exceeded
-            case 1213: // Deadlock found
-                throw new DatabaseTimeoutException($mensagem, $codigo, $e);
-            case 1064: // SQL syntax error
-            case 1146: // Table doesn't exist
-            case 1054: // Unknown column
-            case 1364: // Field doesn't have a default value
-                throw new DatabaseQueryException($mensagem, $codigo, $e);
-            case 1194: // Table is crashed
-            case 1195: // Table is crashed and last repair failed
-                throw new DatabaseDriverException($mensagem, $codigo, $e);
-            case 1200: // Transaction rollback
-            case 1201: // Transaction commit
-                throw new DatabaseTransactionException($mensagem, $codigo, $e);
-            default:
-                throw new DatabaseException($mensagem, $codigo, $e);
+        if (in_array($codigo, [1205, 1213], true)) {
+            throw new DatabaseTimeoutException($mensagem, $codigo, $e);
         }
+
+        if (in_array($codigo, [1064, 1146, 1054, 1364], true)) {
+            throw new DatabaseQueryException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [1194, 1195], true)) {
+            throw new DatabaseDriverException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [1200, 1201], true)) {
+            throw new DatabaseTransactionException($mensagem, $codigo, $e);
+        }
+
+        throw new DatabaseException($mensagem, $codigo, $e);
     }
 
     /**
@@ -201,7 +191,7 @@ class Conexao
             $stmt->execute($parametros);
             return $stmt;
         } catch (PDOException $e) {
-            self::tratarErroCustomizada($e); // Lança exceção customizada
+            self::tratarErroCustomizada($e);
         }
     }
 
