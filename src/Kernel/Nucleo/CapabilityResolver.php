@@ -9,10 +9,10 @@ class CapabilityResolver
     {
         $this->file = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'capabilities_registry.json';
         if (!is_dir(dirname($this->file))) {
-            @mkdir(dirname($this->file), 0755, true);
+            mkdir(dirname($this->file), 0755, true);
         }
         if (!is_file($this->file)) {
-            @file_put_contents($this->file, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            file_put_contents($this->file, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 
@@ -60,13 +60,13 @@ class CapabilityResolver
                 $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
                 
                 if (is_file($pluginJson)) {
-                    $pj = json_decode(@file_get_contents($pluginJson), true) ?: [];
+                    $pj = json_decode(file_get_contents($pluginJson), true) ?: [];
                     $provides = $pj['provides'] ?? [];
                 } else {
                     // Support composer.json (modern modules)
                     $composerJson = $path . DIRECTORY_SEPARATOR . 'composer.json';
                     if (is_file($composerJson)) {
-                        $cj = json_decode(@file_get_contents($composerJson), true) ?: [];
+                        $cj = json_decode(file_get_contents($composerJson), true) ?: [];
                         $provides = $cj['extra']['sweflow']['provides'] ?? [];
                     }
                 }
@@ -103,12 +103,12 @@ class CapabilityResolver
                 $provides = [];
                 $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
                 if (is_file($pluginJson)) {
-                    $pj = json_decode(@file_get_contents($pluginJson), true) ?: [];
+                    $pj = json_decode(file_get_contents($pluginJson), true) ?: [];
                     $provides = $pj['provides'] ?? [];
                 } else {
                     $composerJson = $path . DIRECTORY_SEPARATOR . 'composer.json';
                     if (is_file($composerJson)) {
-                        $cj = json_decode(@file_get_contents($composerJson), true) ?: [];
+                        $cj = json_decode(file_get_contents($composerJson), true) ?: [];
                         $provides = $cj['extra']['sweflow']['provides'] ?? [];
                     }
                 }
@@ -151,13 +151,13 @@ class CapabilityResolver
 
     private function read(): array
     {
-        $json = @file_get_contents($this->file);
+        $json = file_get_contents($this->file);
         $data = $json ? json_decode($json, true) : [];
         return is_array($data) ? $data : [];
     }
 
     private function write(array $map): void
     {
-        @file_put_contents($this->file, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($this->file, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 }

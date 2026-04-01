@@ -92,7 +92,7 @@ class ModuleLoader
 
     private function loadInstalledPackages(string $installedPath): array
     {
-        $json = @file_get_contents($installedPath);
+        $json = file_get_contents($installedPath);
         if (!$json) return [];
         $data = json_decode($json, true);
         if (!is_array($data)) return [];
@@ -299,13 +299,13 @@ class ModuleLoader
             }
         }
         $content = "<?php\nreturn " . var_export($data, true) . ";\n";
-        @file_put_contents($this->cacheFile, $content);
+        file_put_contents($this->cacheFile, $content);
     }
 
     private function loadState(): array
     {
         if (!is_file($this->stateFile)) return [];
-        $json = @file_get_contents($this->stateFile);
+        $json = file_get_contents($this->stateFile);
         if ($json === false) return [];
         $data = json_decode($json, true);
         if (!is_array($data)) return [];
@@ -319,9 +319,9 @@ class ModuleLoader
     {
         $dir = dirname($this->stateFile);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
+            mkdir($dir, 0755, true);
         }
-        @file_put_contents($this->stateFile, json_encode($this->enabled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($this->stateFile, json_encode($this->enabled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     private function storageDir(): string

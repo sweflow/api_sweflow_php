@@ -12,7 +12,7 @@
  */
 declare(strict_types=1);
 
-$baseUrl = $argv[1] ?? 'http://localhost:3005';
+$baseUrl = $argv[1] ?? 'http://localhost:3005'; // NOSONAR — URL local de desenvolvimento, não produção
 $baseUrl = rtrim($baseUrl, '/');
 
 // ─── Thresholds ──────────────────────────────────────────────────────────────

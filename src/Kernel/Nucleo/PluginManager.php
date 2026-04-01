@@ -15,10 +15,10 @@ class PluginManager
         $this->migrator = $migrator;
         $this->registry = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'plugins_registry.json';
         if (!is_dir(dirname($this->registry))) {
-            @mkdir(dirname($this->registry), 0755, true);
+            mkdir(dirname($this->registry), 0755, true);
         }
         if (!is_file($this->registry)) {
-            @file_put_contents($this->registry, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            file_put_contents($this->registry, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 
@@ -93,21 +93,21 @@ class PluginManager
 
         // Se for link simbólico, deleta o link sem seguir (Linux/Windows)
         if (is_link($dir)) {
-            return @unlink($dir);
+            return unlink($dir);
         }
 
         if (!is_dir($dir)) {
             // Arquivo normal
-            if (@unlink($dir)) {
+            if (unlink($dir)) {
                 return true;
             }
             // Tenta forçar permissão (Linux/Windows)
-            @chmod($dir, 0666);
-            return @unlink($dir);
+            chmod($dir, 0666);
+            return unlink($dir);
         }
 
         // Diretório
-        $items = @scandir($dir);
+        $items = scandir($dir);
         if ($items === false) {
             return false;
         }
@@ -121,16 +121,16 @@ class PluginManager
             
             if (!$this->deleteDirectory($itemPath)) {
                 // Tenta mudar permissão recursiva e deletar novamente
-                @chmod($itemPath, 0777);
+                chmod($itemPath, 0777);
                 if (!$this->deleteDirectory($itemPath)) {
                     return false;
                 }
             }
         }
 
-        if (!@rmdir($dir)) {
-            @chmod($dir, 0777);
-            return @rmdir($dir);
+        if (!rmdir($dir)) {
+            chmod($dir, 0777);
+            return rmdir($dir);
         }
         
         return true;
@@ -138,14 +138,14 @@ class PluginManager
 
     public function read(): array
     {
-        $json = @file_get_contents($this->registry);
+        $json = file_get_contents($this->registry);
         $data = $json ? json_decode($json, true) : [];
         return is_array($data) ? $data : [];
     }
 
     private function write(array $state): void
     {
-        @file_put_contents($this->registry, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        file_put_contents($this->registry, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     private function callLifecycle(string $pluginName, string $method): void
@@ -162,7 +162,7 @@ class PluginManager
         if (!$pluginPath) return;
         $pj = $pluginPath . DIRECTORY_SEPARATOR . 'plugin.json';
         if (!is_file($pj)) return;
-        $data = json_decode(@file_get_contents($pj), true) ?: [];
+        $data = json_decode(file_get_contents($pj), true) ?: [];
         $provides = $data['provides'] ?? [];
         if (!is_array($provides) || empty($provides)) return;
         $resolver = new CapabilityResolver(dirname($this->registry));
@@ -214,7 +214,7 @@ class PluginManager
         $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
         if (!is_file($composer)) return null;
 
-        $meta = json_decode(@file_get_contents($composer), true) ?: [];
+        $meta = json_decode(file_get_contents($composer), true) ?: [];
         $providers = $meta['extra']['sweflow']['providers'] ?? [];
 
         if (!is_array($providers)) return null;

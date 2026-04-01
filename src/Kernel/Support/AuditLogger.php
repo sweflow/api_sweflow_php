@@ -105,6 +105,17 @@ class AuditLogger
 
     private function enviarWebhook(string $url, string $tipo, array $dados): void
     {
+        // Valida que a URL é HTTPS e não aponta para endereços internos (SSRF prevention)
+        $parsed = parse_url($url);
+        if (!$parsed || ($parsed['scheme'] ?? '') !== 'https') {
+            return;
+        }
+        $host = $parsed['host'] ?? '';
+        // Bloqueia IPs privados, loopback e metadados de cloud
+        if ($this->isInternalHost($host)) {
+            return;
+        }
+
         try {
             $payload = json_encode(['alert' => $tipo, 'dados' => $dados, 'timestamp' => date('c')]);
             $ctx = stream_context_create([
@@ -116,10 +127,24 @@ class AuditLogger
                     'ignore_errors' => true,
                 ],
             ]);
-            @file_get_contents($url, false, $ctx);
+            file_get_contents($url, false, $ctx);
         } catch (\Throwable) {
             // Falha silenciosa
         }
+    }
+
+    private function isInternalHost(string $host): bool
+    {
+        // Bloqueia loopback, metadados AWS/GCP e ranges privados
+        $blocked = ['localhost', '169.254.169.254', 'metadata.google.internal'];
+        if (in_array(strtolower($host), $blocked, true)) {
+            return true;
+        }
+        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : (gethostbyname($host) ?: '');
+        if ($ip && !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return true;
+        }
+        return false;
     }
 
     private function persistir(

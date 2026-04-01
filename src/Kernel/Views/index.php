@@ -36,7 +36,7 @@
                     <?php endif; ?>
                     Sweflow API
                 </h1>
-                <p><?= $descricao ?></p>
+                <p><?= htmlspecialchars($descricao ?? '', ENT_QUOTES, 'UTF-8') ?></p>
                 <div class="cta-row">
                     <button class="btn primary login-btn" id="cta-open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="cta-login-text" style="visibility:hidden">Fazer login</span></button>
                 </div>

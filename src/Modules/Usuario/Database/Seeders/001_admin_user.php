@@ -32,7 +32,7 @@ return function (PDO $pdo): void {
     $stmt = $pdo->prepare("SELECT 1 FROM usuarios WHERE username = :username LIMIT 1");
     $stmt->execute([':username' => $username]);
     if ($stmt->fetchColumn()) {
-        $username = 'admin_' . substr(md5($email), 0, 6);
+        $username = 'admin_' . bin2hex(random_bytes(3));
     }
 
     $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
@@ -45,18 +45,16 @@ return function (PDO $pdo): void {
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
     if ($driver === 'pgsql') {
-        $stmt = $pdo->prepare(""
+        $stmt = $pdo->prepare("
             INSERT INTO usuarios
                 (uuid, nome_completo, username, email, senha_hash,
                  nivel_acesso, ativo, verificado_email, status_verificacao, criado_em)
             VALUES
                 (:uuid, :nome, :username, :email, :hash,
                  'admin_system', TRUE, TRUE, 'verificado', NOW())
-        ""
-        );
+        ");
     } else {
-        // MySQL — BOOLEAN como 1
-        $stmt = $pdo->prepare(""
+        $stmt = $pdo->prepare("
             INSERT INTO usuarios
                 (uuid, nome_completo, username, email, senha_hash,
                  nivel_acesso, ativo, verificado_email, status_verificacao, criado_em)

@@ -20,7 +20,7 @@
  */
 declare(strict_types=1);
 
-$baseUrl = $argv[1] ?? (getenv('APP_URL') ?: 'http://localhost:3005');
+$baseUrl = $argv[1] ?? (getenv('APP_URL') ?: 'http://localhost:3005'); // NOSONAR — URL local de desenvolvimento, não produção
 $baseUrl = rtrim($baseUrl, '/');
 
 $passed = 0; $failed = 0; $skipped = 0; $results = [];
@@ -528,8 +528,8 @@ test('SSRF: URL interna em campo de avatar não causa requisição interna', fun
         'username'      => 'ssrf_'.uniqid(),
         'email'         => 'ssrf_'.uniqid().'@test.invalid',
         'senha'         => 'Senha@12345',
-        'url_avatar'    => 'http://169.254.169.254/latest/meta-data/',
-        'url_capa'      => 'http://localhost/admin',
+        'url_avatar'    => 'http://169.254.169.254/latest/meta-data/', // NOSONAR — URL interna usada intencionalmente para testar proteção SSRF
+        'url_capa'      => 'http://localhost/admin', // NOSONAR — URL interna usada intencionalmente para testar proteção SSRF
     ]);
     // Não deve causar timeout ou erro 500 por tentar buscar a URL
     if ($res['status'] === 0) return "Servidor não respondeu — possível SSRF causando timeout";
@@ -543,7 +543,7 @@ test('SSRF: URL file:// em campo de avatar não é processada', function () use 
         'username'      => 'ssrf_file_'.uniqid(),
         'email'         => 'ssrf_file_'.uniqid().'@test.invalid',
         'senha'         => 'Senha@12345',
-        'url_avatar'    => 'file:///etc/passwd',
+        'url_avatar'    => 'file:///etc/passwd', // NOSONAR — protocolo inseguro usado intencionalmente para testar proteção SSRF
     ]);
     if ($res['status'] === 0) return "Servidor não respondeu — possível SSRF";
     if ($res['status'] === 500) return "file:// causou erro 500";
@@ -561,7 +561,7 @@ test('SSRF: URL dict:// não é processada', function () use ($baseUrl) {
         'username'      => 'ssrf_dict_'.uniqid(),
         'email'         => 'ssrf_dict_'.uniqid().'@test.invalid',
         'senha'         => 'Senha@12345',
-        'url_avatar'    => 'dict://localhost:11211/stat',
+        'url_avatar'    => 'dict://localhost:11211/stat', // NOSONAR — protocolo inseguro usado intencionalmente para testar proteção SSRF
     ]);
     if ($res['status'] === 500) return "dict:// causou erro 500";
     return null;
@@ -643,7 +643,7 @@ test('MISCONFIG: CORS não retorna wildcard (*) em rota autenticada', function (
 });
 
 test('MISCONFIG: OPTIONS não causa erro 500', function () use ($baseUrl) {
-    $res = req('OPTIONS', "$baseUrl/api/login", [], ['Origin: http://localhost:3000', 'Access-Control-Request-Method: POST']);
+    $res = req('OPTIONS', "$baseUrl/api/login", [], ['Origin: http://localhost:3000', 'Access-Control-Request-Method: POST']); // NOSONAR — valor de header de teste, não é uma requisição HTTP
     if ($res['status'] === 500) return "OPTIONS causou erro 500";
     return null;
 });

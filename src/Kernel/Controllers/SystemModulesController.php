@@ -55,9 +55,9 @@ class SystemModulesController
 
     private function searchPackagist(string $query): array
     {
-        // Busca pacotes do vendor "sweflow" no Packagist
-        // API: https://packagist.org/packages/list.json?vendor=sweflow
-        // Para busca textual: https://packagist.org/search.json?q=sweflow+module&type=library
+        // Apenas o domínio packagist.org é permitido — sem SSRF possível
+        $baseUrl = 'https://packagist.org';
+
         try {
             $context = stream_context_create(['http' => [
                 'timeout'       => 6,
@@ -65,28 +65,26 @@ class SystemModulesController
                 'ignore_errors' => true,
             ]]);
 
-            // Se query vazia ou genérica, lista todos do vendor sweflow
             if ($query === '' || $query === 'sweflow/module' || $query === 'sweflow') {
-                $url  = 'https://packagist.org/packages/list.json?vendor=sweflow';
+                $url  = $baseUrl . '/packages/list.json?vendor=sweflow';
                 $json = file_get_contents($url, false, $context);
                 $data = $json ? json_decode($json, true) : [];
-                $names = $data['packageNames'] ?? [];
+                $names = is_array($data) ? ($data['packageNames'] ?? []) : [];
 
                 if (empty($names)) {
                     return [];
                 }
 
-                // Busca detalhes de cada pacote (limitado a 20 para não sobrecarregar)
                 $results = [];
                 foreach (array_slice($names, 0, 20) as $name) {
-                    $detail = $this->fetchPackagistDetail($name, $context);
+                    $detail = $this->fetchPackagistDetail((string)$name, $context, $baseUrl);
                     if ($detail) $results[] = $detail;
                 }
                 return $results;
             }
 
-            // Busca textual
-            $url  = 'https://packagist.org/search.json?q=' . urlencode($query) . '&vendor=sweflow&type=library';
+            // Busca textual — query sanitizada, domínio fixo
+            $url  = $baseUrl . '/search.json?q=' . urlencode($query) . '&vendor=sweflow&type=library';
             $json = file_get_contents($url, false, $context);
             $data = $json ? json_decode($json, true) : [];
 
@@ -96,32 +94,32 @@ class SystemModulesController
                 'downloads'   => $r['downloads'] ?? 0,
                 'url'         => $r['url'] ?? '',
                 'repository'  => $r['repository'] ?? '',
-            ], $data['results'] ?? []);
+            ], is_array($data) ? ($data['results'] ?? []) : []);
 
         } catch (\Throwable) {
             return [];
         }
     }
 
-    private function fetchPackagistDetail(string $name, $context): ?array
+    private function fetchPackagistDetail(string $name, $context, string $baseUrl = 'https://packagist.org'): ?array
     {
+        // Valida que o nome do pacote tem formato vendor/package (sem path traversal)
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $name)) {
+            return null;
+        }
         try {
-            $url  = 'https://packagist.org/packages/' . $name . '.json';
+            $url  = $baseUrl . '/packages/' . $name . '.json';
             $json = file_get_contents($url, false, $context);
             $data = $json ? json_decode($json, true) : [];
-            $pkg  = $data['package'] ?? null;
+            $pkg  = is_array($data) ? ($data['package'] ?? null) : null;
             if (!$pkg) return null;
-
-            $downloads = $pkg['downloads']['total'] ?? 0;
-            $desc      = $pkg['description'] ?? '';
-            $repo      = $pkg['repository'] ?? '';
 
             return [
                 'name'        => $name,
-                'description' => $desc,
-                'downloads'   => $downloads,
+                'description' => $pkg['description'] ?? '',
+                'downloads'   => $pkg['downloads']['total'] ?? 0,
                 'url'         => 'https://packagist.org/packages/' . $name,
-                'repository'  => $repo,
+                'repository'  => $pkg['repository'] ?? '',
             ];
         } catch (\Throwable) {
             return null;

@@ -69,7 +69,7 @@ class RateLimitMiddleware implements MiddlewareInterface
             @mkdir($this->storageDir, 0750, true);
         }
 
-        $file = $this->storageDir . DIRECTORY_SEPARATOR . md5($key) . '.json';
+        $file = $this->storageDir . DIRECTORY_SEPARATOR . hash('sha256', $key) . '.json';
         $now  = time();
 
         // Locking para evitar race condition

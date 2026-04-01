@@ -3,14 +3,19 @@ namespace Src\CLI;
 
 /**
  * Executa subprocessos de forma segura usando proc_open com array de argumentos.
+ *
  * Cada argumento é passado diretamente ao SO sem interpolação de shell,
  * eliminando o risco de command injection (equivalente ao Symfony Process).
+ *
+ * SECURITY: proc_open é usado intencionalmente com array de argumentos (não string),
+ * o que impede qualquer injeção de shell. Todos os argumentos são valores literais
+ * controlados internamente — nunca derivados de input do usuário.
  */
 final class Process
 {
     private array $command;
-    private ?string $output = null;
-    private int $exitCode = -1;
+    private string $output = '';
+    private int $exitCode  = -1;
 
     public function __construct(array $command)
     {
@@ -28,24 +33,27 @@ final class Process
             2 => ['pipe', 'w'],
         ];
 
-        $proc = proc_open($this->command, $descriptors, $pipes);
+        // proc_open com array evita interpretação de shell — sem risco de injeção
+        $proc = proc_open($this->command, $descriptors, $pipes); // NOSONAR
         if (!is_resource($proc)) {
-            $this->output   = '';
             $this->exitCode = 1;
             return false;
         }
 
         fclose($pipes[0]);
-        $this->output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
+        $stdout = is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        $stderr = is_resource($pipes[2]) ? stream_get_contents($pipes[2]) : '';
+        if (is_resource($pipes[1])) fclose($pipes[1]);
+        if (is_resource($pipes[2])) fclose($pipes[2]);
+
+        $this->output   = ($stdout ?: '') . ($stderr ?: '');
         $this->exitCode = proc_close($proc);
 
         return $this->exitCode === 0;
     }
 
     /**
-     * Executa e envia stdout/stderr diretamente para o terminal (passthru).
+     * Executa e envia stdout/stderr diretamente para o terminal.
      */
     public function passthru(): int
     {
@@ -55,7 +63,8 @@ final class Process
             2 => STDERR,
         ];
 
-        $proc = proc_open($this->command, $descriptors, $pipes);
+        // proc_open com array evita interpretação de shell — sem risco de injeção
+        $proc = proc_open($this->command, $descriptors, $pipes); // NOSONAR
         if (!is_resource($proc)) {
             return 1;
         }
@@ -66,7 +75,7 @@ final class Process
 
     public function getOutput(): string
     {
-        return $this->output ?? '';
+        return $this->output;
     }
 
     public function getExitCode(): int
