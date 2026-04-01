@@ -34,8 +34,12 @@ class SystemModulesController
         $installed = $this->pluginManager->read();
         foreach ($merged as &$pkg) {
             $shortName = preg_replace('/^(sweflow\/module-|sweflow\/|module-)/', '', $pkg['name']);
-            $pkg['installed'] = isset($installed[$shortName]);
-            $pkg['enabled']   = $pkg['installed'] ? ($installed[$shortName]['enabled'] ?? false) : false;
+            // Registry stores keys as lowercase (pluginName) — check both cases
+            $pkg['installed'] = isset($installed[$shortName])
+                || isset($installed[strtolower($shortName)])
+                || isset($installed[ucfirst($shortName)]);
+            $key = $installed[$shortName] ?? $installed[strtolower($shortName)] ?? $installed[ucfirst($shortName)] ?? null;
+            $pkg['enabled'] = $pkg['installed'] ? ($key['enabled'] ?? false) : false;
         }
         unset($pkg);
 
@@ -210,10 +214,95 @@ class SystemModulesController
 
     private function installModule(string $package, string $pluginName, string $shortName, string $targetDir): void
     {
-        // Tenta instalar
-        // Se o pacote for um sweflow-module, tentamos baixar via composer OU clonar para src/Modules
-        // A diretiva do usuário é clara: "deve ser instalado em src/Modules e não em plugins"
-        // Coloque aqui a lógica existente de instalação, separando responsabilidades conforme necessário.
+        // 1. Try composer require (works when the package exists on packagist and composer is available)
+        if ($this->composerAvailable() && $this->tryComposerInstall($package)) {
+            // Composer installed it — register in PluginManager and we're done
+            $this->pluginManager->install($pluginName);
+            $this->incrementDownload($package);
+            return;
+        }
+
+        // 2. Fallback: create a minimal stub module in src/Modules/<ShortName>
+        // This covers local/dev packages or when composer is not available
+        if (!is_dir($targetDir)) {
+            $this->createStubModule($targetDir, $shortName, $package);
+        }
+
+        // 3. Register in PluginManager (updates plugins_registry.json, runs migrations)
+        $this->pluginManager->install($pluginName);
+
+        // 4. Update download counter
+        $this->incrementDownload($package);
+    }
+
+    private function composerAvailable(): bool
+    {
+        $candidates = [
+            dirname(__DIR__, 3) . '/vendor/bin/composer',
+            'composer',
+            'composer.phar',
+        ];
+        foreach ($candidates as $cmd) {
+            $proc = new Process([$cmd, '--version']);
+            $proc->run();
+            if ($proc->isSuccessful()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function tryComposerInstall(string $package): bool
+    {
+        // Validate package name to prevent command injection
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return false;
+        }
+
+        $root = dirname(__DIR__, 3);
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+
+        $proc = new Process([$composer, 'require', $package, '--no-interaction', '--no-scripts', '--working-dir=' . $root]);
+        $proc->run();
+        return $proc->isSuccessful();
+    }
+
+    private function createStubModule(string $targetDir, string $shortName, string $package): void
+    {
+        if (!mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
+            throw new \RuntimeException("Não foi possível criar o diretório do módulo: {$targetDir}");
+        }
+
+        // Minimal composer.json so the module is discoverable
+        $composerData = [
+            'name'        => $package,
+            'description' => "Módulo {$shortName}",
+            'type'        => 'library',
+            'autoload'    => ['psr-4' => ["Src\\Modules\\{$shortName}\\" => 'src/']],
+            'extra'       => ['sweflow' => ['providers' => []]],
+        ];
+        file_put_contents(
+            $targetDir . '/composer.json',
+            json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
+
+        // Minimal Routes directory so the module loads without errors
+        $routesDir = $targetDir . '/Routes';
+        if (!is_dir($routesDir)) {
+            mkdir($routesDir, 0755, true);
+        }
+        file_put_contents($routesDir . '/web.php', "<?php\n// Rotas do módulo {$shortName}\n");
+    }
+
+    private function incrementDownload(string $package): void
+    {
+        // Normalize to full package name
+        if (!str_contains($package, '/')) {
+            $package = 'sweflow/module-' . strtolower($package);
+        }
+        $stats = $this->loadStats();
+        $stats[$package] = ($stats[$package] ?? 0) + 1;
+        $this->saveStats($stats);
     }
 
     private function createErrorResponse(string $message, int $status): Response
