@@ -343,6 +343,15 @@ $router->post('/api/capabilities/provider', [\Src\Kernel\Controllers\Capabilitie
 // E-mail customizado (dashboard)
 $router->post('/api/email/custom', function ($request) use ($container) {
     try {
+        // Verifica se o módulo Email está habilitado
+        $stateFile = __DIR__ . '/storage/modules_state.json';
+        $moduleState = is_file($stateFile) ? (json_decode((string) file_get_contents($stateFile), true) ?? []) : [];
+        $emailEnabled = $moduleState['Email'] ?? $moduleState['email'] ?? null;
+        // null = módulo nunca foi instalado; false = desabilitado; true = habilitado
+        if ($emailEnabled === false || $emailEnabled === null) {
+            return Response::json(['error' => 'Módulo de e-mail não está instalado ou está desabilitado.'], 503);
+        }
+
         $mailer = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
         if (!$mailer) {
             return Response::json(['error' => 'Módulo de e-mail não configurado. Preencha MAILER_HOST e MAILER_USERNAME no .env.'], 503);
@@ -415,6 +424,14 @@ $router->post('/api/email/history/{id}/resend', function ($request, string $id) 
     $entry = $history->find($id);
     if (!$entry) {
         return Response::json(['error' => 'Registro não encontrado.'], 404);
+    }
+
+    // Verifica se o módulo Email está habilitado
+    $stateFile = __DIR__ . '/storage/modules_state.json';
+    $moduleState = is_file($stateFile) ? (json_decode((string) file_get_contents($stateFile), true) ?? []) : [];
+    $emailEnabled = $moduleState['Email'] ?? $moduleState['email'] ?? null;
+    if ($emailEnabled === false || $emailEnabled === null) {
+        return Response::json(['error' => 'Módulo de e-mail não está instalado ou está desabilitado.'], 503);
     }
 
     $mailer = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);

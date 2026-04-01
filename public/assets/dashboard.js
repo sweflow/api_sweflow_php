@@ -630,6 +630,11 @@ window.onload = function () {
                 credentials: 'same-origin'
             });
             const body = await res.json();
+            if (res.status === 503) {
+                closeEmailModal();
+                showEmailDisabledModal();
+                return;
+            }
             if (!res.ok) {
                 throw new Error(body.error || body.message || 'Falha ao enviar e-mail');
             }
@@ -1084,11 +1089,22 @@ window.onload = function () {
                     method: 'POST', credentials: 'same-origin'
                 });
                 const data = await res.json();
+                if (res.status === 503) {
+                    // Módulo desabilitado — mostra modal específico
+                    closeEmailDetail();
+                    showEmailDisabledModal();
+                    return;
+                }
                 if (!res.ok) throw new Error(data.error || 'Falha ao reenviar.');
                 closeEmailDetail();
                 loadEmailHistory();
             } catch (err) {
-                alert(err.message);
+                if (emailFeedback) {
+                    emailFeedback.textContent = err.message;
+                    emailFeedback.className = 'login-feedback error';
+                } else {
+                    alert(err.message);
+                }
             } finally {
                 detailResend.disabled = false;
                 detailResend.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Reenviar';

@@ -60,28 +60,62 @@ class PluginManager
         // 1. Lifecycle hook
         $this->callLifecycle($pluginName, 'onUninstall');
         
-        // 2. Resolve path BEFORE unregistering (otherwise we lose metadata if we depended on it, though resolvePluginPath is stateless)
+        // 2. Resolve path BEFORE unregistering
         $path = $this->resolvePluginPath($pluginName);
 
-        // 3. Remove from registry
-        // NOTE: For safety we DO NOT drop tables automatically here.
+        // 3. Remove from plugins registry
         $state = $this->read();
         unset($state[$pluginName]);
         $this->write($state);
 
-        // 4. Delete files IF it is a local plugin (inside plugins/ or src/Modules/)
-        // We do NOT delete vendor packages automatically as Composer manages them.
+        // 4. Remove from modules_state.json so ModuleLoader stops loading it
+        $this->removeFromModulesState($pluginName);
+
+        // 5. Delete files IF it is a local plugin (inside plugins/ or src/Modules/)
         if ($path) {
             $realPath = realpath($path);
-            $inPlugins = str_contains($realPath, 'plugins' . DIRECTORY_SEPARATOR);
-            $inModules = str_contains($realPath, 'src' . DIRECTORY_SEPARATOR . 'Modules' . DIRECTORY_SEPARATOR);
-            
-            if ($inPlugins || $inModules) {
-                // Double check to avoid deleting critical system folders by accident
-                if (basename($realPath) !== 'src' && basename($realPath) !== 'Modules' && basename($realPath) !== 'plugins') {
-                    $this->deleteDirectory($path);
+            if ($realPath !== false) {
+                $inPlugins = str_contains($realPath, 'plugins' . DIRECTORY_SEPARATOR);
+                $inModules = str_contains($realPath, 'src' . DIRECTORY_SEPARATOR . 'Modules' . DIRECTORY_SEPARATOR);
+
+                if ($inPlugins || $inModules) {
+                    $base = basename($realPath);
+                    if (!in_array($base, ['src', 'Modules', 'plugins'], true)) {
+                        $this->deleteDirectory($realPath);
+                    }
                 }
             }
+        }
+    }
+
+    private function removeFromModulesState(string $pluginName): void
+    {
+        $stateFile = dirname($this->registry) . DIRECTORY_SEPARATOR . 'modules_state.json';
+        if (!is_file($stateFile)) {
+            return;
+        }
+        $data = json_decode((string) file_get_contents($stateFile), true);
+        if (!is_array($data)) {
+            return;
+        }
+
+        // Try all name variants
+        $variants = [
+            $pluginName,
+            ucfirst($pluginName),
+            strtolower($pluginName),
+        ];
+
+        $changed = false;
+        foreach ($variants as $v) {
+            if (array_key_exists($v, $data)) {
+                unset($data[$v]);
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 
