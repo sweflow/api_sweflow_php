@@ -66,16 +66,14 @@ class RateLimitMiddleware implements MiddlewareInterface
     private function increment(string $key): array
     {
         if (!is_dir($this->storageDir)) {
-            @mkdir($this->storageDir, 0750, true);
+            mkdir($this->storageDir, 0750, true);
         }
 
         $file = $this->storageDir . DIRECTORY_SEPARATOR . hash('sha256', $key) . '.json';
         $now  = time();
 
-        // Locking para evitar race condition
-        $fp = @fopen($file, 'c+');
+        $fp = fopen($file, 'c+');
         if (!$fp) {
-            // Se não conseguir criar arquivo, permite a requisição (fail open)
             return [0, $now + $this->window];
         }
 

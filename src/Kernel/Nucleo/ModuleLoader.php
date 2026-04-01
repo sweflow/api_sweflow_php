@@ -134,7 +134,7 @@ class ModuleLoader
             return;
         }
 
-        $cached = @include $this->cacheFile;
+        $cached = include $this->cacheFile;
         if (!is_array($cached)) {
             return;
         }

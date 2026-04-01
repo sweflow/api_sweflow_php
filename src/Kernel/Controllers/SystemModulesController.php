@@ -384,13 +384,13 @@ class SystemModulesController
         if (!file_exists($file)) {
             return [];
         }
-        $json = @file_get_contents($file);
-        return $json ? json_decode($json, true) : [];
+        $json = file_get_contents($file);
+        return $json ? (json_decode($json, true) ?? []) : [];
     }
 
     private function saveStats(array $stats): void
     {
         $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
-        @file_put_contents($file, json_encode($stats, JSON_PRETTY_PRINT));
+        file_put_contents($file, json_encode($stats, JSON_PRETTY_PRINT));
     }
 }
