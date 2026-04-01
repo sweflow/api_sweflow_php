@@ -64,27 +64,43 @@ class PluginMigrator
         $name = $plugin['name'];
         $version = $plugin['version'];
         $migrationsRoot = $plugin['path'] . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
-        if (!is_dir($migrationsRoot)) {
-            return;
+        if (is_dir($migrationsRoot)) {
+            $versions = $this->getAvailableVersions($migrationsRoot);
+            foreach ($versions as $ver) {
+                if ($this->compareVersions($ver, $version) > 0) {
+                    break;
+                }
+                $files = $this->getMigrationFilesForVersion($migrationsRoot, $ver);
+                foreach ($files as $migrationFile) {
+                    $callable = include $migrationFile;
+                    if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
+                        ($callable['up'])($this->pdo);
+                    }
+                }
+            }
         }
+    }
 
-        // Versioned directories: src/Database/Migrations/<version>/*.php
+    private function getAvailableVersions(string $migrationsRoot): array
+    {
         $versions = [];
         foreach (scandir($migrationsRoot) as $ver) {
-            if ($ver === '.' || $ver === '..') continue;
+            if ($ver === '.' || $ver === '..') {
+                continue;
+            }
             $verDir = $migrationsRoot . DIRECTORY_SEPARATOR . $ver;
             if (is_dir($verDir)) {
                 $versions[] = $ver;
             }
         }
-        // sort versions semver-ish (string natural)
         natsort($versions);
-        foreach ($versions as $ver) {
-            if ($this->compareVersions($ver, $version) > 0) {
-                // Only run up to declared plugin version
-                break;
-            }
-            $files = glob($migrationsRoot . DIRECTORY_SEPARATOR . $ver . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        return $versions;
+    }
+
+    private function getMigrationFilesForVersion(string $migrationsRoot, string $version): array
+    {
+        return glob($migrationsRoot . DIRECTORY_SEPARATOR . $version . DIRECTORY_SEPARATOR . '*.php') ?: [];
+    }
             sort($files, SORT_NATURAL);
             foreach ($files as $file) {
                 $nameOnly = basename($file, '.php');
@@ -228,14 +244,22 @@ class PluginMigrator
         $version = '1.0.0';
         $name = basename($path);
         if (is_file($pluginJson)) {
-            $data = json_decode(@file_get_contents($pluginJson), true) ?: [];
+            if (is_readable($pluginJson)) {
+                $data = json_decode(file_get_contents($pluginJson), true) ?: [];
+            } else {
+                $data = [];
+            }
             $name = $data['name'] ?? $name;
             $version = $data['version'] ?? $version;
         } else {
             // Fallback: read composer.json name field
             $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
             if (is_file($composer)) {
-                $meta = json_decode(@file_get_contents($composer), true) ?: [];
+                if (is_readable($composer)) {
+                    $meta = json_decode(file_get_contents($composer), true) ?: [];
+                } else {
+                    $meta = [];
+                }
                 $name = $meta['name'] ?? $name;
             }
         }

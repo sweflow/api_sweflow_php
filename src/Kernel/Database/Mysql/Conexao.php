@@ -3,15 +3,15 @@
 
 namespace Src\Database\Mysql;
 
-use src\Database\Exceptions\DatabaseException;
-use src\Database\Exceptions\DatabaseConnectionException;
-use src\Database\Exceptions\DatabaseConfigException;
-use src\Database\Exceptions\DatabaseDriverException;
-use src\Database\Exceptions\DatabaseIntegrityException;
-use src\Database\Exceptions\DatabasePermissionException;
-use src\Database\Exceptions\DatabaseQueryException;
-use src\Database\Exceptions\DatabaseTimeoutException;
-use src\Database\Exceptions\DatabaseTransactionException;
+use Src\Database\Exceptions\DatabaseException;
+use Src\Database\Exceptions\DatabaseConnectionException;
+use Src\Database\Exceptions\DatabaseConfigException;
+use Src\Database\Exceptions\DatabaseDriverException;
+use Src\Database\Exceptions\DatabaseIntegrityException;
+use Src\Database\Exceptions\DatabasePermissionException;
+use Src\Database\Exceptions\DatabaseQueryException;
+use Src\Database\Exceptions\DatabaseTimeoutException;
+use Src\Database\Exceptions\DatabaseTransactionException;
 
 use PDO;
 use PDOException;
@@ -85,43 +85,43 @@ class Conexao
             );
 
             // Opções de conexão para segurança e performance
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_PERSISTENT => false, // Conexão não persistente por segurança
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES '{$charset}' COLLATE '{$collation}'",
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false, // Ajustar conforme necessário
-            ];
-
-            // Criação da instância PDO
-            $pdo = new PDO($dsn, $username, $password, $options);
-            return $pdo;
-        } catch (PDOException $e) {
-            self::tratarErroCustomizada($e);
-        }
-    }
-
-    /**
-     * Trata erros de conexão
-     * Este método sempre lança uma exceção e nunca retorna normalmente
-     *
-     * @param PDOException $e
-     * @throws PDOException
-     * @return never
-     */
     private static function tratarErroCustomizada(PDOException $e): never
     {
-        $debug = getenv('APP_DEBUG') === 'true';
-        $mensagem = $debug 
-            ? $e->getMessage()
-            : 'Erro ao conectar ao banco de dados. Contate o administrador.';
+        $mensagem = self::getMensagemErro($e);
         $codigo = (int)$e->getCode();
 
         // Mapeamento de códigos de erro MySQL para Exceptions customizadas
-        // https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
-        // https://mariadb.com/kb/en/mariadb-error-codes/
-        switch ($codigo) {
+        self::lançarExceptionPorCodigo($codigo, $mensagem, $e);
+    }
+
+    private static function getMensagemErro(PDOException $e): string
+    {
+        $debug = getenv('APP_DEBUG') === 'true';
+        return $debug 
+            ? $e->getMessage()
+            : 'Erro ao conectar ao banco de dados. Contate o administrador.';
+    }
+
+    private static function lançarExceptionPorCodigo(int $codigo, string $mensagem, PDOException $e): never
+    {
+        if (in_array($codigo, [1045, 1044], true)) {
+            throw new DatabasePermissionException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [1049, 1046], true)) {
+            throw new DatabaseConfigException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [2002, 2003, 2006], true)) {
+            throw new DatabaseConnectionException($mensagem, $codigo, $e);
+        }
+
+        if (in_array($codigo, [1062, 1451, 1452], true)) {
+            throw new DatabaseIntegrityException($mensagem, $codigo, $e);
+        }
+
+        throw new PDOException($mensagem, $codigo, $e);
+    }
             case 1045: // Access denied
             case 1044: // Access denied for user to database
                 throw new DatabasePermissionException($mensagem, $codigo, $e);

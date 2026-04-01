@@ -7,24 +7,34 @@ class CommandRunner
     {
         $command = $argv[1] ?? null;
         if (!$command) {
-            echo "Sweflow CLI\n";
-            echo "Comandos disponíveis:\n";
-            echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
-            echo "  migrate [--seed] [--rollback]\n";
-            echo "  make:module Nome\n";
-            echo "  make:plugin Nome\n";
-            echo "  plugin:inspect\n";
-            echo "  plugin:migrate\n";
-            echo "  plugin:rollback [plugin]\n";
-            echo "  plugin:validate\n";
-            echo "  plugin:install <plugin>\n";
-            echo "  plugin:enable <plugin>\n";
-            echo "  plugin:disable <plugin>\n";
-            echo "  plugin:uninstall <plugin>\n";
-            echo "  capability:list [capability]\n";
-            echo "  plugin:provider:set <capability> <plugin>\n";
+            $this->printHelp();
             return;
         }
+        $this->dispatch($command, $argv);
+    }
+
+    private function printHelp(): void
+    {
+        echo "Sweflow CLI\n";
+        echo "Comandos disponíveis:\n";
+        echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
+        echo "  migrate [--seed] [--rollback]\n";
+        echo "  make:module Nome\n";
+        echo "  make:plugin Nome\n";
+        echo "  plugin:inspect\n";
+        echo "  plugin:migrate\n";
+        echo "  plugin:rollback [plugin]\n";
+        echo "  plugin:validate\n";
+        echo "  plugin:install <plugin>\n";
+        echo "  plugin:enable <plugin>\n";
+        echo "  plugin:disable <plugin>\n";
+        echo "  plugin:uninstall <plugin>\n";
+        echo "  capability:list [capability]\n";
+        echo "  plugin:provider:set <capability> <plugin>\n";
+    }
+
+    private function dispatch(string $command, array $argv): void
+    {
         switch ($command) {
             case 'setup':
                 (new SetupCommand())->handle($argv);

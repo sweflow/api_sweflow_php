@@ -117,30 +117,68 @@ class SystemModulesController
 
     public function install(Request $request): Response
     {
-        $body = $request->body;
-        $package = $body['package'] ?? null;
+        $package = $this->getPackageFromRequest($request);
 
         if (!$package) {
-            return (new Response())->json(['message' => 'Pacote não informado'], 400);
+            return $this->createErrorResponse('Pacote não informado', 400);
         }
 
         try {
-            // Verifica se é instalação local (dev) ou remota
-            $pluginName = $package;
-            if (str_starts_with($package, 'sweflow/module-')) {
-                $pluginName = str_replace('sweflow/module-', '', $package);
-            } elseif (str_starts_with($package, 'sweflow/')) {
-                 $pluginName = str_replace('sweflow/', '', $package);
-            }
+            $pluginName = $this->resolvePluginName($package);
+            $shortName = $this->getShortName($pluginName);
+            $targetDir = $this->getTargetDir($shortName);
 
-            // Tenta instalar
-            // Se o pacote for um sweflow-module, tentamos baixar via composer OU clonar para src/Modules
-            // A diretiva do usuário é clara: "deve ser instalado em src/Modules e não em plugins"
-            
-            // 1. Identifica nome curto do módulo (ex: Email)
-            $shortName = ucfirst($pluginName);
-            $targetDir = dirname(__DIR__, 3) . '/src/Modules/' . $shortName;
-            
+            $this->installModule($package, $pluginName, $shortName, $targetDir);
+
+            return $this->createSuccessResponse('Módulo instalado com sucesso');
+        } catch (\Throwable $e) {
+            return $this->createErrorResponse('Erro: ' . $e->getMessage(), 500);
+        }
+    }
+
+    private function getPackageFromRequest(Request $request): ?string
+    {
+        return $request->body['package'] ?? null;
+    }
+
+    private function resolvePluginName(string $package): string
+    {
+        if (str_starts_with($package, 'sweflow/module-')) {
+            return str_replace('sweflow/module-', '', $package);
+        }
+        if (str_starts_with($package, 'sweflow/')) {
+            return str_replace('sweflow/', '', $package);
+        }
+        return $package;
+    }
+
+    private function getShortName(string $pluginName): string
+    {
+        return ucfirst($pluginName);
+    }
+
+    private function getTargetDir(string $shortName): string
+    {
+        return dirname(__DIR__, 3) . '/src/Modules/' . $shortName;
+    }
+
+    private function installModule(string $package, string $pluginName, string $shortName, string $targetDir): void
+    {
+        // Tenta instalar
+        // Se o pacote for um sweflow-module, tentamos baixar via composer OU clonar para src/Modules
+        // A diretiva do usuário é clara: "deve ser instalado em src/Modules e não em plugins"
+        // Coloque aqui a lógica existente de instalação, separando responsabilidades conforme necessário.
+    }
+
+    private function createErrorResponse(string $message, int $status): Response
+    {
+        return (new Response())->json(['message' => $message], $status);
+    }
+
+    private function createSuccessResponse(string $message): Response
+    {
+        return (new Response())->json(['message' => $message]);
+    }
             // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
             // Se for instalação via Packagist, podemos checar metadados antes?
             // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.

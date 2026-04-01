@@ -60,57 +60,42 @@ class Migrator
             } else {
                 echo "Rollback sem down, removendo registro\n";
             }
-        }
-        $this->deleteMigration($row['id']);
-        echo "✔ rollback: {$row['migration']}\n";
-    }
-
-    public function seed(): void
-    {
-        $modules = $this->discoverModules();
-        foreach ($modules as $module) {
-            $dir = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
-            if (!is_dir($dir)) {
-                continue;
-            }
-            $files = glob($dir . DIRECTORY_SEPARATOR . '*.php') ?: [];
-            sort($files, SORT_NATURAL);
-            foreach ($files as $file) {
-                $callable = include $file;
-                if (is_callable($callable)) {
-                    $callable($this->pdo);
-                    echo "✔ seed: " . basename($file, '.php') . "\n";
-                }
-            }
-        }
-    }
-
     private function discoverModules(): array
     {
-        $list = [];
-        // Local modules
+        $modules = [];
+
         $modulesRoot = $this->projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
         if (is_dir($modulesRoot)) {
-            foreach (scandir($modulesRoot) as $item) {
-                if ($item === '.' || $item === '..') continue;
-                $path = $modulesRoot . DIRECTORY_SEPARATOR . $item;
-                if (is_dir($path)) {
-                    $list[] = $path;
+            $modules = array_merge($modules, $this->getDirectories($modulesRoot));
+        }
+
+        $vendorRoot = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
+        if (is_dir($vendorRoot)) {
+            foreach ($this->getDirectories($vendorRoot) as $pkgDir) {
+                $vModulesPath = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
+                if (is_dir($vModulesPath)) {
+                    $modules = array_merge($modules, $this->getDirectories($vModulesPath));
                 }
             }
         }
-        // Vendor modules (vendor/sweflow/*/src/Modules/*)
-        $vendorRoot = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
-        if (is_dir($vendorRoot)) {
-            foreach (scandir($vendorRoot) as $pkg) {
-                if ($pkg === '.' || $pkg === '..') continue;
-                $pkgDir = $vendorRoot . DIRECTORY_SEPARATOR . $pkg;
-                if (!is_dir($pkgDir)) continue;
-                $vModules = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
-                if (!is_dir($vModules)) continue;
-                foreach (scandir($vModules) as $mod) {
-                    if ($mod === '.' || $mod === '..') continue;
-                    $mPath = $vModules . DIRECTORY_SEPARATOR . $mod;
+
+        return $modules;
+    }
+
+    private function getDirectories(string $path): array
+    {
+        $items = [];
+        foreach (scandir($path) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $fullPath = $path . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($fullPath)) {
+                $items[] = $fullPath;
+            }
+        }
+        return $items;
+    }
                     if (is_dir($mPath)) {
                         $list[] = $mPath;
                     }
