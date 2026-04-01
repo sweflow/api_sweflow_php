@@ -1084,26 +1084,55 @@ window.onload = function () {
             if (!currentHistoryId) return;
             detailResend.disabled = true;
             detailResend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Reenviando...';
+
+            // Feedback element inside detail modal
+            let fb = document.getElementById('detail-resend-feedback');
+            if (!fb && detailBody) {
+                fb = document.createElement('div');
+                fb.id = 'detail-resend-feedback';
+                fb.className = 'login-feedback';
+                fb.style.marginTop = '12px';
+                detailBody.appendChild(fb);
+            }
+            if (fb) { fb.textContent = ''; fb.className = 'login-feedback'; }
+
             try {
                 const res = await fetch(`/api/email/history/${currentHistoryId}/resend`, {
                     method: 'POST', credentials: 'same-origin'
                 });
                 const data = await res.json();
-                if (res.status === 503) {
-                    // Módulo desabilitado — mostra modal específico
+
+                if (data.module_disabled) {
+                    // Fecha o detalhe e mostra modal de módulo desabilitado
                     closeEmailDetail();
-                    showEmailDisabledModal();
+                    const disabledModal = document.getElementById('email-disabled-modal');
+                    if (disabledModal) {
+                        disabledModal.classList.add('show');
+                    } else {
+                        alert('Módulo de e-mail não está instalado ou está desabilitado.');
+                    }
+                    loadEmailHistory(); // atualiza histórico com entrada "falhou"
                     return;
                 }
-                if (!res.ok) throw new Error(data.error || 'Falha ao reenviar.');
-                closeEmailDetail();
-                loadEmailHistory();
+
+                if (!res.ok) {
+                    if (fb) {
+                        fb.textContent = data.error || 'Falha ao reenviar.';
+                        fb.className = 'login-feedback error';
+                    }
+                    loadEmailHistory();
+                    return;
+                }
+
+                if (fb) {
+                    fb.textContent = 'E-mail reenviado com sucesso.';
+                    fb.className = 'login-feedback success';
+                }
+                setTimeout(() => { closeEmailDetail(); loadEmailHistory(); }, 800);
             } catch (err) {
-                if (emailFeedback) {
-                    emailFeedback.textContent = err.message;
-                    emailFeedback.className = 'login-feedback error';
-                } else {
-                    alert(err.message);
+                if (fb) {
+                    fb.textContent = err.message || 'Erro de conexão.';
+                    fb.className = 'login-feedback error';
                 }
             } finally {
                 detailResend.disabled = false;

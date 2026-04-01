@@ -431,12 +431,30 @@ $router->post('/api/email/history/{id}/resend', function ($request, string $id) 
     $moduleState = is_file($stateFile) ? (json_decode((string) file_get_contents($stateFile), true) ?? []) : [];
     $emailEnabled = $moduleState['Email'] ?? $moduleState['email'] ?? null;
     if ($emailEnabled === false || $emailEnabled === null) {
-        return Response::json(['error' => 'Módulo de e-mail não está instalado ou está desabilitado.'], 503);
+        $history->save([
+            'subject'     => $entry['subject'],
+            'recipients'  => $entry['recipients'],
+            'html'        => $entry['html'],
+            'logo_url'    => $entry['logo_url'] ?? null,
+            'status'      => 'falhou',
+            'error'       => 'Módulo de e-mail não está instalado ou está desabilitado.',
+            'resent_from' => $id,
+        ]);
+        return Response::json(['error' => 'Módulo de e-mail não está instalado ou está desabilitado.', 'module_disabled' => true], 503);
     }
 
     $mailer = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
     if (!$mailer) {
-        return Response::json(['error' => 'Módulo de e-mail não configurado.'], 503);
+        $history->save([
+            'subject'     => $entry['subject'],
+            'recipients'  => $entry['recipients'],
+            'html'        => $entry['html'],
+            'logo_url'    => $entry['logo_url'] ?? null,
+            'status'      => 'falhou',
+            'error'       => 'Módulo de e-mail não configurado (MAILER_HOST/MAILER_USERNAME ausentes).',
+            'resent_from' => $id,
+        ]);
+        return Response::json(['error' => 'Módulo de e-mail não configurado.', 'module_disabled' => true], 503);
     }
 
     try {
@@ -452,6 +470,15 @@ $router->post('/api/email/history/{id}/resend', function ($request, string $id) 
         ]);
         return Response::json(['message' => 'E-mail reenviado com sucesso.']);
     } catch (\Throwable $e) {
+        $history->save([
+            'subject'     => $entry['subject'],
+            'recipients'  => $entry['recipients'],
+            'html'        => $entry['html'],
+            'logo_url'    => $entry['logo_url'] ?? null,
+            'status'      => 'falhou',
+            'error'       => $e->getMessage(),
+            'resent_from' => $id,
+        ]);
         return Response::json(['error' => $e->getMessage()], 500);
     }
 }, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);

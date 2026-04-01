@@ -144,24 +144,64 @@ class SystemModulesController
             if (str_starts_with($package, 'sweflow/module-')) {
                 $pluginName = str_replace('sweflow/module-', '', $package);
             } elseif (str_starts_with($package, 'sweflow/')) {
-                 $pluginName = str_replace('sweflow/', '', $package);
+                $pluginName = str_replace('sweflow/', '', $package);
             }
 
-            // Remove do composer.json antes de desinstalar
             $shortName = ucfirst($pluginName);
-            $this->removeModuleFromComposer($shortName);
 
+            // 1. Remove do composer.json e roda composer remove se necessário
+            $this->removeModuleFromComposer($shortName);
+            $this->tryComposerRemove($package);
+
+            // 2. Remove do PluginManager (registry + modules_state + arquivos)
             $this->pluginManager->uninstall($pluginName);
-            
-            // Remove do capabilities após o uninstall
+
+            // 3. Remove do capabilities
             $this->removeModuleFromCapabilities($shortName);
-            
-            // Decrementa contador
+
+            // 4. Decrementa contador
             $this->decrementDownload($package);
-            
-            return (new Response())->json(['message' => 'Módulo removido com sucesso e composer.json atualizado']);
+
+            // 5. Regenera autoload do composer
+            $this->regenerateAutoload();
+
+            return (new Response())->json(['message' => 'Módulo removido com sucesso.']);
         } catch (\Throwable $e) {
             return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function tryComposerRemove(string $package): void
+    {
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return;
+        }
+        $root = dirname(__DIR__, 3);
+        // Only run if the package is actually in composer.json require
+        $composerJson = $root . '/composer.json';
+        if (!is_file($composerJson)) {
+            return;
+        }
+        $data = json_decode((string) file_get_contents($composerJson), true) ?? [];
+        if (!isset($data['require'][$package]) && !isset($data['require-dev'][$package])) {
+            return; // not a composer-managed package, skip
+        }
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+        $proc = new Process([$composer, 'remove', $package, '--no-interaction', '--no-scripts', '--working-dir=' . $root]);
+        $proc->run();
+    }
+
+    private function regenerateAutoload(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+        $proc = new Process([$composer, 'dump-autoload', '--working-dir=' . $root]);
+        $proc->run();
+
+        // Also clear the modules cache file
+        $cacheFile = $root . '/storage/modules_cache.php';
+        if (is_file($cacheFile)) {
+            unlink($cacheFile);
         }
     }
 
