@@ -122,30 +122,30 @@ window.onload = function () {
     }
 
     function showEmailDisabledModal() {
-        if (!emailDisabledModal) {
+        const modal    = document.getElementById('email-disabled-modal');
+        const okBtn    = document.getElementById('email-disabled-ok');
+        const closeBtn = document.getElementById('email-disabled-close');
+
+        if (!modal) {
             alert('O módulo de E-mail está desabilitado. Habilite em "Funcionalidades" para usar os envios.');
             return;
         }
 
-        const cleanup = () => {
-            emailDisabledModal.classList.remove('show');
-            if (emailDisabledOk) emailDisabledOk.onclick = null;
-            if (emailDisabledClose) emailDisabledClose.onclick = null;
+        const close = () => {
+            modal.classList.remove('show');
+            modal.style.zIndex = '';
         };
 
-        const closeHandler = () => cleanup();
+        // Re-wire every time to avoid stale handlers
+        if (okBtn)    okBtn.onclick    = close;
+        if (closeBtn) closeBtn.onclick = close;
 
-        if (emailDisabledOk) emailDisabledOk.onclick = closeHandler;
-        if (emailDisabledClose) emailDisabledClose.onclick = closeHandler;
+        // Overlay click
+        modal.onclick = (e) => { if (e.target === modal) close(); };
 
-        emailDisabledModal.addEventListener('click', function overlayClick(e) {
-            if (e.target === emailDisabledModal) {
-                closeHandler();
-                emailDisabledModal.removeEventListener('click', overlayClick);
-            }
-        });
-
-        requestAnimationFrame(() => emailDisabledModal.classList.add('show'));
+        // Elevate above any open modal (z-index 2000 → 3000)
+        modal.style.zIndex = '3000';
+        requestAnimationFrame(() => modal.classList.add('show'));
     }
 
     function renderModules(modules) {
@@ -1105,12 +1105,8 @@ window.onload = function () {
                 if (data.module_disabled) {
                     // Fecha o detalhe e mostra modal de módulo desabilitado
                     closeEmailDetail();
-                    const disabledModal = document.getElementById('email-disabled-modal');
-                    if (disabledModal) {
-                        disabledModal.classList.add('show');
-                    } else {
-                        alert('Módulo de e-mail não está instalado ou está desabilitado.');
-                    }
+                    historyModal?.classList.remove('show');
+                    showEmailDisabledModal();
                     loadEmailHistory(); // atualiza histórico com entrada "falhou"
                     return;
                 }
