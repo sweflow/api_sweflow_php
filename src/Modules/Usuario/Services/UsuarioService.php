@@ -228,58 +228,63 @@ class UsuarioService implements UsuarioServiceInterface
 
     private function deletarDadosRelacionados(string $uuid): void
     {
-        // Módulo Comunidade é opcional — usa reflexão para evitar referências estáticas
-        // a classes que podem não existir, eliminando falsos positivos de análise estática.
-        $repoClass = 'Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository';
-        if (!class_exists($repoClass)) {
+        if (!class_exists('Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository')) {
             return;
         }
-
         try {
-            $pdo = PdoFactory::fromEnv();
-
-            $repos = [
-                'Src\\Modules\\Comunidade\\Repositories\\NotificationRepository'      => [$pdo],
-                'Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository'        => [$pdo],
-                'Src\\Modules\\Comunidade\\Repositories\\CurtidaComentarioRepository' => [$pdo],
-            ];
-
-            $instances = [];
-            foreach ($repos as $class => $args) {
-                if (class_exists($class)) {
-                    $instances[$class] = new $class(...$args);
-                }
-            }
-
-            $notifications      = $instances['Src\\Modules\\Comunidade\\Repositories\\NotificationRepository'] ?? null;
-            $publicacoes        = $instances['Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository'] ?? null;
-            $curtidasComentario = $instances['Src\\Modules\\Comunidade\\Repositories\\CurtidaComentarioRepository'] ?? null;
-
-            $followerClass = 'Src\\Modules\\Comunidade\\Repositories\\FollowerRepository';
-            $followers = (class_exists($followerClass) && $notifications)
-                ? new $followerClass($pdo, $notifications)
-                : null;
-
-            $comentarioClass = 'Src\\Modules\\Comunidade\\Repositories\\ComentarioRepository';
-            $comentarios = (class_exists($comentarioClass) && $publicacoes && $curtidasComentario)
-                ? new $comentarioClass($pdo, $publicacoes, $curtidasComentario)
-                : null;
-
-            $curtidaClass = 'Src\\Modules\\Comunidade\\Repositories\\CurtidaRepository';
-            $curtidas = (class_exists($curtidaClass) && $publicacoes)
-                ? new $curtidaClass($pdo, $publicacoes)
-                : null;
-
-            foreach ([$notifications, $followers, $curtidasComentario, $comentarios, $curtidas] as $repo) {
-                if ($repo && method_exists($repo, 'deletarPorUsuario')) {
-                    $repo->deletarPorUsuario($uuid);
-                }
-            }
-            if ($publicacoes && method_exists($publicacoes, 'deletarPorAutor')) {
-                $publicacoes->deletarPorAutor($uuid);
-            }
+            $pdo   = PdoFactory::fromEnv();
+            $repos = $this->instanciarRepositoriosComunidade($pdo);
+            $this->executarDelecoesComunidade($uuid, $repos);
         } catch (\Throwable) {
             // Módulo Comunidade indisponível — ignora silenciosamente
+        }
+    }
+
+    /** @return array<string, object> */
+    private function instanciarRepositoriosComunidade(\PDO $pdo): array
+    {
+        $simples = [
+            'notifications'      => 'Src\\Modules\\Comunidade\\Repositories\\NotificationRepository',
+            'publicacoes'        => 'Src\\Modules\\Comunidade\\Repositories\\PublicacaoRepository',
+            'curtidasComentario' => 'Src\\Modules\\Comunidade\\Repositories\\CurtidaComentarioRepository',
+        ];
+
+        $instances = [];
+        foreach ($simples as $key => $class) {
+            if (class_exists($class)) {
+                $instances[$key] = new $class($pdo);
+            }
+        }
+
+        $followerClass = 'Src\\Modules\\Comunidade\\Repositories\\FollowerRepository';
+        if (class_exists($followerClass) && isset($instances['notifications'])) {
+            $instances['followers'] = new $followerClass($pdo, $instances['notifications']);
+        }
+
+        $comentarioClass = 'Src\\Modules\\Comunidade\\Repositories\\ComentarioRepository';
+        if (class_exists($comentarioClass) && isset($instances['publicacoes'], $instances['curtidasComentario'])) {
+            $instances['comentarios'] = new $comentarioClass($pdo, $instances['publicacoes'], $instances['curtidasComentario']);
+        }
+
+        $curtidaClass = 'Src\\Modules\\Comunidade\\Repositories\\CurtidaRepository';
+        if (class_exists($curtidaClass) && isset($instances['publicacoes'])) {
+            $instances['curtidas'] = new $curtidaClass($pdo, $instances['publicacoes']);
+        }
+
+        return $instances;
+    }
+
+    private function executarDelecoesComunidade(string $uuid, array $repos): void
+    {
+        foreach (['notifications', 'followers', 'curtidasComentario', 'comentarios', 'curtidas'] as $key) {
+            $repo = $repos[$key] ?? null;
+            if ($repo && method_exists($repo, 'deletarPorUsuario')) {
+                $repo->deletarPorUsuario($uuid);
+            }
+        }
+        $pub = $repos['publicacoes'] ?? null;
+        if ($pub && method_exists($pub, 'deletarPorAutor')) {
+            $pub->deletarPorAutor($uuid);
         }
     }
 

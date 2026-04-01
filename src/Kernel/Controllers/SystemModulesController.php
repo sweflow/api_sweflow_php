@@ -352,17 +352,15 @@ class SystemModulesController
         if (!is_file($composerFile)) {
             return;
         }
-
         $meta = json_decode((string) file_get_contents($composerFile), true);
         if (!is_array($meta)) {
             return;
         }
 
-        // Registra o namespace do módulo no autoload do projeto principal
         $this->registerModuleAutoload($moduleDir, $meta);
 
-        $require = $meta['require'] ?? [];
-        if (empty($require)) {
+        $toInstall = $this->resolvePackagesToInstall($meta['require'] ?? []);
+        if (empty($toInstall)) {
             return;
         }
 
@@ -371,48 +369,66 @@ class SystemModulesController
             return;
         }
 
-        $root     = dirname(__DIR__, 3);
-        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+        $this->runComposerRequire($toInstall);
+    }
 
-        // Filtra dependências que não são do próprio projeto (php, ext-*, etc.)
+    /**
+     * Filtra as dependências do composer.json do módulo, removendo as que já estão
+     * instaladas no projeto ou que são restrições de plataforma (php, ext-*, lib-*).
+     */
+    private function resolvePackagesToInstall(array $require): array
+    {
+        $root          = dirname(__DIR__, 3);
+        $installedPath = $root . '/vendor/composer/installed.json';
+        $installedNames = [];
+
+        if (is_file($installedPath)) {
+            $installed      = json_decode((string) file_get_contents($installedPath), true) ?? [];
+            $packages       = $installed['packages'] ?? $installed;
+            $installedNames = array_column(is_array($packages) ? $packages : [], 'name');
+        }
+
         $toInstall = [];
         foreach ($require as $dep => $version) {
             if ($dep === 'php' || str_starts_with($dep, 'ext-') || str_starts_with($dep, 'lib-')) {
                 continue;
             }
-            // Verifica se já está instalado no projeto
-            $installedPath = $root . '/vendor/composer/installed.json';
-            if (is_file($installedPath)) {
-                $installed = json_decode((string) file_get_contents($installedPath), true) ?? [];
-                $packages  = $installed['packages'] ?? $installed;
-                $names     = array_column(is_array($packages) ? $packages : [], 'name');
-                if (in_array($dep, $names, true)) {
-                    continue; // já instalado
-                }
+            if (in_array($dep, $installedNames, true)) {
+                continue;
             }
             $toInstall[] = $dep . ':' . $version;
         }
 
-        if (empty($toInstall)) {
-            return;
-        }
+        return $toInstall;
+    }
+
+    /**
+     * Executa composer require para uma lista de pacotes.
+     */
+    private function runComposerRequire(array $packages): void
+    {
+        $root     = dirname(__DIR__, 3);
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
 
         $prevLimit = (int) ini_get('max_execution_time');
         if (ini_set('max_execution_time', '300') === false) {
             error_log('[Marketplace] Could not extend max_execution_time');
         }
 
-        $cmd = array_merge(
+        $proc = new Process(array_merge(
             [$composer, 'require'],
-            $toInstall,
+            $packages,
             ['--no-interaction', '--no-scripts', '--working-dir=' . $root]
-        );
+        ));
 
-        $proc = new Process($cmd);
+        if ($prevLimit > 0) {
+            ini_set('max_execution_time', (string) $prevLimit);
+        }
+
         if (!$proc->run()) {
-            error_log("[Marketplace] Falha ao instalar dependências do módulo: " . $proc->getOutput());
+            error_log("[Marketplace] Falha ao instalar dependências: " . $proc->getOutput());
             throw new \RuntimeException(
-                "Módulo instalado, mas falha ao instalar dependências: " . implode(', ', $toInstall) .
+                "Módulo instalado, mas falha ao instalar dependências: " . implode(', ', $packages) .
                 "\nErro: " . $proc->getOutput()
             );
         }
