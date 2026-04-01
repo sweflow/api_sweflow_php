@@ -361,6 +361,9 @@ window.onload = function () {
             emailFeedback.className = 'login-feedback';
         }
         if (emailForm) emailForm.reset();
+        // Restore color inputs to valid defaults (form.reset sets them to "" which is invalid)
+        if (emailFontColor) emailFontColor.value = '#000000';
+        if (emailBgColor)   emailBgColor.value   = '#ffffff';
         // contenteditable não é limpo pelo form.reset()
         if (emailEditor) emailEditor.innerHTML = '';
         if (emailPreview) {
