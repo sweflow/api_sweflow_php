@@ -44,6 +44,34 @@ class Migrator
         }
     }
 
+    public function seed(): void
+    {
+        $modules = $this->discoverModules();
+        foreach ($modules as $module) {
+            $dir = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+            if (!is_dir($dir)) {
+                continue;
+            }
+            $files = glob($dir . DIRECTORY_SEPARATOR . '*.php') ?: [];
+            sort($files, SORT_NATURAL);
+            foreach ($files as $file) {
+                $name = basename($file, '.php');
+                $key  = basename($module) . '/seeders/' . $name;
+                if ($this->isSeederExecuted($key)) {
+                    continue;
+                }
+                $callable = include $file;
+                if (is_callable($callable)) {
+                    $callable($this->pdo);
+                } else {
+                    continue;
+                }
+                $this->markSeederExecuted($key, basename($module));
+                echo "✔ seeder: $name\n";
+            }
+        }
+    }
+
     public function rollback(): void
     {
         $row = $this->lastMigration();
@@ -64,7 +92,6 @@ class Migrator
         $this->deleteMigration((int)$row['id']);
         echo "✔ Rollback: {$row['migration']}\n";
     }
-
     private function discoverModules(): array
     {
         $modules = [];
@@ -157,6 +184,22 @@ class Migrator
     {
         $stmt = $this->pdo->prepare("DELETE FROM migrations WHERE id = :id");
         $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    private function isSeederExecuted(string $key): bool
+    {
+        $stmt = $this->pdo->prepare("SELECT 1 FROM migrations WHERE migration = :m");
+        $stmt->bindValue(':m', $key);
+        $stmt->execute();
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function markSeederExecuted(string $key, string $module): void
+    {
+        $stmt = $this->pdo->prepare("INSERT INTO migrations (module, migration) VALUES (:module, :migration)");
+        $stmt->bindValue(':module', $module);
+        $stmt->bindValue(':migration', $key);
         $stmt->execute();
     }
 }

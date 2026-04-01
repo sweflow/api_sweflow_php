@@ -84,10 +84,10 @@ class AuthController
             return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
         } catch (\Throwable $e) {
             $this->enforceMinResponseTime($startTime, 200);
+            error_log('[AuthController::login] ' . get_class($e) . ': ' . $e->getMessage());
             return Response::json([
-                'status' => 'error',
-                'message' => 'Erro interno ao autenticar',
-                'details' => $this->debugAtivo() ? $e->getMessage() : null
+                'status'  => 'error',
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -155,10 +155,10 @@ class AuthController
         } catch (\Throwable $e) {
             // Garante delay mesmo em erros de banco/infra
             $this->enforceMinResponseTime($startTime, 200);
+            error_log('[AuthController::loginPublic] ' . get_class($e) . ': ' . $e->getMessage());
             return Response::json([
-                'status' => 'error',
-                'message' => 'Erro interno ao autenticar',
-                'details' => $this->debugAtivo() ? $e->getMessage() : null
+                'status'  => 'error',
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
