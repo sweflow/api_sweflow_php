@@ -42,7 +42,12 @@ class ModuleLoader
             return;
         }
 
-        $cached = @include $this->cacheFile;
+        if (is_file($this->cacheFile)) {
+            $cached = include $this->cacheFile;
+        } else {
+            return;
+        }
+
         if (!is_array($cached)) {
             return;
         }
@@ -78,14 +83,7 @@ class ModuleLoader
 
         $this->providers[$module] = new SimpleModuleProvider($module, $moduleDir);
         $this->setEnabledIfNotExist($module);
-    }
 
-    private function setEnabledIfNotExist(string $name): void
-    {
-        if (!array_key_exists($name, $this->enabled)) {
-            $this->enabled[$name] = true;
-        }
-    }
                 // mas como está em src/Modules, o autoload PSR-4 "Src\Modules\" já pega.
                 // Precisamos instanciar o Provider correto.
                 

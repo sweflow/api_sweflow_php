@@ -89,17 +89,6 @@ class CommandRunner
         }
         (new MakePluginCommand())->handle($name, $opts);
     }
-                    if (str_starts_with($arg, '--')) {
-                        $kv = explode('=', substr($arg, 2), 2);
-                        $k = $kv[0] ?? '';
-                        $v = $kv[1] ?? '';
-                        if ($k !== '') {
-                            $opts[$k] = $v;
-                        }
-                    }
-                }
-                (new MakePluginCommand())->handle($name, $opts);
-                break;
             case 'plugin:inspect':
                 (new PluginInspectCommand())->handle();
                 break;
