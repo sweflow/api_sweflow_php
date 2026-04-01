@@ -342,6 +342,14 @@ window.onload = function () {
             emailFeedback.className = 'login-feedback';
         }
         if (emailForm) emailForm.reset();
+        // contenteditable não é limpo pelo form.reset()
+        if (emailEditor) emailEditor.innerHTML = '';
+        if (emailPreview) {
+            emailPreview.innerHTML = '';
+            emailPreview.setAttribute('hidden', 'hidden');
+            emailEditor?.removeAttribute('hidden');
+            if (emailPreviewBtn) emailPreviewBtn.classList.remove('active');
+        }
         if (emailSend) {
             emailSend.disabled = false;
             emailSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
@@ -1051,6 +1059,15 @@ window.onload = function () {
             if (historyModal) historyModal.classList.add('show');
         });
     }
+    // Fallback: event delegation in case button was added after initial parse
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#open-email-history');
+        if (!btn) return;
+        e.preventDefault();
+        loadEmailHistory();
+        const modal = document.getElementById('email-history-modal');
+        if (modal) modal.classList.add('show');
+    });
     if (historyClose) historyClose.addEventListener('click', () => historyModal?.classList.remove('show'));
     if (historyModal) historyModal.addEventListener('click', e => { if (e.target === historyModal) historyModal.classList.remove('show'); });
 

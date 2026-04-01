@@ -41,12 +41,14 @@ class SetupCommand
             echo "3)  Criar banco via docker run (container avulso)\n";
             echo "4)  Rodar migrations (módulos + plugins)\n";
             echo "5)  Rodar seeders (módulos + plugins)\n";
-            echo "6)  Subir servidor PHP (php -S)\n";
-            echo "7)  Subir servidor com PM2\n";
+            echo "6)  Subir servidor PHP em background (nohup)\n";
+            echo "7)  Subir servidor com PM2 (instala se necessário)\n";
             echo "8)  Validar conexão com banco\n";
             echo "9)  Executar tudo automaticamente (recomendado)\n";
             echo "10) Gerar JWT_SECRET e JWT_API_SECRET (se estiverem vazios)\n";
             echo "11) Gerar token JWT de API (JWT_API_SECRET)\n";
+            echo "12) Parar servidor (php -S / PM2)\n";
+            echo "13) Reiniciar servidor\n";
             echo "0)  Sair\n";
             echo "==============================\n";
             $choice = $this->prompt("Escolha uma opção");
@@ -73,11 +75,13 @@ class SetupCommand
                     $this->pause();
                     break;
                 case '6':
-                    $this->startPhpServer();
-                    return;
+                    $this->startPhpServerBackground();
+                    $this->pause();
+                    break;
                 case '7':
                     $this->startPm2();
-                    return;
+                    $this->pause();
+                    break;
                 case '8':
                     $this->checkDbConnection();
                     $this->pause();
@@ -92,6 +96,14 @@ class SetupCommand
                     break;
                 case '11':
                     $this->printApiJwtToken();
+                    $this->pause();
+                    break;
+                case '12':
+                    $this->stopServer();
+                    $this->pause();
+                    break;
+                case '13':
+                    $this->restartServer();
                     $this->pause();
                     break;
                 case '0':
@@ -129,13 +141,16 @@ class SetupCommand
             $this->printApiJwtToken();
         }
 
-        $server = strtolower((string)($flags['server'] ?? 'php'));
+        $server = strtolower((string)($flags['server'] ?? 'background'));
         if ($server === 'pm2') {
             $this->startPm2();
             return;
         }
-
-        $this->startPhpServer();
+        if ($server === 'php') {
+            $this->startPhpServer(); // foreground
+            return;
+        }
+        $this->startPhpServerBackground();
     }
 
     private function printHelp(): void
@@ -471,23 +486,150 @@ class SetupCommand
     {
         $this->reloadEnv();
         $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
-        echo "Iniciando servidor em http://0.0.0.0:{$port}\n";
+        echo "Iniciando servidor em http://0.0.0.0:{$port} (foreground — Ctrl+C para parar)\n";
         (new Process([PHP_BINARY, '-S', '0.0.0.0:' . $port, 'index.php']))->passthru();
+    }
+
+    private function startPhpServerBackground(): void
+    {
+        $this->reloadEnv();
+        $root = dirname(__DIR__, 2);
+        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $logFile = $root . '/storage/server.log';
+        $pidFile = $root . '/storage/server.pid';
+
+        // Para instância anterior se existir
+        $this->stopPhpServer($pidFile);
+
+        $cmd = PHP_BINARY . ' -S 0.0.0.0:' . $port . ' ' . escapeshellarg($root . '/index.php')
+             . ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+
+        $pid = trim((string) shell_exec($cmd));
+        if ($pid !== '' && is_numeric($pid)) {
+            file_put_contents($pidFile, $pid);
+            echo "✔ Servidor iniciado em background (PID {$pid}) em http://0.0.0.0:{$port}\n";
+            echo "  Logs: {$logFile}\n";
+            echo "  Para parar: opção 12 do menu\n";
+        } else {
+            echo "✖ Não foi possível iniciar o servidor em background.\n";
+        }
     }
 
     private function startPm2(): void
     {
         $this->reloadEnv();
+        $root = dirname(__DIR__, 2);
         $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
 
+        // Instala PM2 automaticamente se não encontrado
         if (!$this->commandExists('pm2')) {
-            echo "✖ PM2 não encontrado. Instale: npm install -g pm2\n";
-            return;
+            echo "PM2 não encontrado. Tentando instalar via npm...\n";
+            if (!$this->commandExists('npm')) {
+                echo "✖ npm não encontrado. Instale Node.js primeiro:\n";
+                echo "  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -\n";
+                echo "  sudo apt-get install -y nodejs\n";
+                return;
+            }
+            $proc = new Process(['npm', 'install', '-g', 'pm2']);
+            $proc->passthru();
+            if (!$this->commandExists('pm2')) {
+                echo "✖ Falha ao instalar PM2. Tente manualmente: npm install -g pm2\n";
+                return;
+            }
+            echo "✔ PM2 instalado com sucesso.\n";
         }
 
-        $this->runProcess(['pm2', 'start', 'php', '--name', 'sweflow-api', '--', '-S', '0.0.0.0:' . $port, 'index.php']);
+        // Para instância anterior se existir
+        $check = new Process(['pm2', 'describe', 'sweflow-api']);
+        $check->run();
+        if ($check->isSuccessful()) {
+            echo "Parando instância anterior do PM2...\n";
+            (new Process(['pm2', 'delete', 'sweflow-api']))->passthru();
+        }
+
+        $this->runProcess([
+            'pm2', 'start', PHP_BINARY,
+            '--name', 'sweflow-api',
+            '--cwd', $root,
+            '--',
+            '-S', '0.0.0.0:' . $port,
+            $root . '/index.php',
+        ]);
         $this->runProcess(['pm2', 'save']);
-        echo "✔ PM2 iniciado. Logs: pm2 logs sweflow-api\n";
+        echo "✔ PM2 iniciado em http://0.0.0.0:{$port}\n";
+        echo "  Logs:    pm2 logs sweflow-api\n";
+        echo "  Status:  pm2 status\n";
+        echo "  Parar:   opção 12 do menu\n";
+    }
+
+    private function stopServer(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $pidFile = $root . '/storage/server.pid';
+        $stopped = false;
+
+        // Para PM2 se estiver rodando
+        if ($this->commandExists('pm2')) {
+            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            $check->run();
+            if ($check->isSuccessful()) {
+                $this->runProcess(['pm2', 'delete', 'sweflow-api']);
+                echo "✔ PM2 sweflow-api parado.\n";
+                $stopped = true;
+            }
+        }
+
+        // Para php -S em background pelo PID
+        $stopped = $this->stopPhpServer($pidFile) || $stopped;
+
+        if (!$stopped) {
+            echo "⚠ Nenhum servidor Sweflow encontrado rodando.\n";
+        }
+    }
+
+    private function stopPhpServer(string $pidFile): bool
+    {
+        if (!is_file($pidFile)) {
+            return false;
+        }
+        $pid = trim((string) file_get_contents($pidFile));
+        if (!is_numeric($pid)) {
+            unlink($pidFile);
+            return false;
+        }
+        // Verifica se o processo ainda existe
+        $check = new Process(['kill', '-0', $pid]);
+        $check->run();
+        if (!$check->isSuccessful()) {
+            unlink($pidFile);
+            return false;
+        }
+        $kill = new Process(['kill', $pid]);
+        $kill->run();
+        unlink($pidFile);
+        echo "✔ Servidor PHP (PID {$pid}) parado.\n";
+        return true;
+    }
+
+    private function restartServer(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+
+        // Reinicia PM2 se estiver em uso
+        if ($this->commandExists('pm2')) {
+            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            $check->run();
+            if ($check->isSuccessful()) {
+                $this->runProcess(['pm2', 'restart', 'sweflow-api']);
+                echo "✔ PM2 sweflow-api reiniciado.\n";
+                return;
+            }
+        }
+
+        // Reinicia php -S em background
+        echo "Reiniciando servidor PHP em background...\n";
+        $this->startPhpServerBackground();
     }
 
     private function parseFlags(array $argv): array
