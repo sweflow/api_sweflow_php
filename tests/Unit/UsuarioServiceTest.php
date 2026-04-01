@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 use Src\Modules\Usuario\Services\UsuarioService;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
@@ -10,7 +11,8 @@ use DomainException;
 
 class UsuarioServiceTest extends TestCase
 {
-    private function makeRepo(): UsuarioRepositoryInterface
+    /** @return MockObject&UsuarioRepositoryInterface */
+    private function makeRepo(): MockObject
     {
         return $this->createMock(UsuarioRepositoryInterface::class);
     }

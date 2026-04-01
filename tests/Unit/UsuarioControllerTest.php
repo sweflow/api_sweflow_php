@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 use Src\Modules\Usuario\Controllers\UsuarioController;
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
@@ -9,7 +10,8 @@ use Src\Modules\Usuario\Entities\Usuario;
 
 class UsuarioControllerTest extends TestCase
 {
-    private function makeService(array $methods = []): UsuarioServiceInterface
+    /** @return MockObject&UsuarioServiceInterface */
+    private function makeService(): MockObject
     {
         return $this->createMock(UsuarioServiceInterface::class);
     }
