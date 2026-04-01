@@ -4,6 +4,8 @@ namespace Src\Kernel\Controllers;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Nucleo\PluginManager;
+use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\Process;
 
 class SystemModulesController
 {
@@ -147,62 +149,41 @@ class SystemModulesController
 
     private function performInstallation(string $package, string $pluginName, string $targetDir): void
     {
-        if (str_starts_with($package, 'sweflow/module-')) {
-            $this->cloneModule($package, $targetDir);
-        } else {
-            $this->requireModule($package);
-        }
-    }
-            // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
-            // Se for instalação via Packagist, podemos checar metadados antes?
-            // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.
-            // Mas a diretiva diz: "identifique automaticamente se o módulo instalado necessita de outro(s)... se necessitar, o modulo deve obrigar a instalação"
-            // A abordagem pós-download (acima) funciona: baixamos o módulo, lemos o composer.json dele, e se faltar algo, instalamos.
-            
-            // 2. Se não existir, tenta baixar
-            if (!is_dir($targetDir)) {
-                 // Opção A: Se tiver composer, usa composer require mas força o path?
-                 // O Composer não instala em src/Modules por padrão, a menos que seja configurado como path repo ou installer-paths.
-                 // Como o usuário quer forçar src/Modules, podemos fazer um git clone manual se for um repo git conhecido,
-                 // ou, se for via packagist, teríamos que baixar o zip e extrair.
-                 
-                 // Simulação de "Instalação": Copiar de plugins/ se existir (legado) ou criar estrutura básica?
-                 // Na verdade, o correto seria o composer.json do projeto ter um "installer-path" configurado.
-                 
-                 // Mas vamos implementar o download manual do ZIP do GitHub/Packagist se possível, ou apenas instruir.
-                 // Como o usuário pediu "Corrija!", ele espera que o botão funcione.
-                 
-                 // HACK: Se for o módulo de email que acabamos de publicar, vamos clonar do git para src/Modules/Email
-                 if ($pluginName === 'email' || $pluginName === 'module-email') {
-                     $repo = 'https://github.com/sweflow/module-email.git';
-                     // git clone $repo $targetDir
-                     $cmd = "git clone $repo \"$targetDir\" 2>&1";
-                     exec($cmd, $output, $code);
-                     
-                     if ($code !== 0) {
-                         // Fallback: Tenta mover de plugins/ se existir lá
-                         $legacyPath = dirname(__DIR__, 3) . '/plugins/sweflow-module-email';
-                         if (is_dir($legacyPath)) {
-                             rename($legacyPath, $targetDir);
-                         } else {
-                             // Fallback 2: Composer require (vai para vendor, mas o PluginManager agora lê vendor também)
-                             // Mas o usuário EXIGIU src/Modules.
-                             // Então vamos lançar erro se não conseguir por lá.
-                             throw new \Exception("Falha ao clonar repositório para src/Modules: " . implode("\n", $output));
-                         }
-                     }
-                     
-                     // Novo passo: Registrar no composer.json e psr-4
-                     $this->registerModuleInComposer($shortName, $targetDir);
+        // --- NOVO: Verificação de Dependências (PRÉ-INSTALAÇÃO) ---
+        // Se for instalação via Packagist, podemos checar metadados antes?
+        // Difícil sem fazer request. Vamos assumir que instalamos o principal e depois as deps.
+        // Mas a diretiva diz: "identifique automaticamente se o módulo instalado necessita de outro(s)... se necessitar, o modulo deve obrigar a instalação"
+         // HACK: Se for o módulo de email que acabamos de publicar, vamos clonar do git para src/Modules/Email
+         if ($pluginName === 'email' || $pluginName === 'module-email') {
+             $repo = 'https://github.com/sweflow/module-email.git';
+             // git clone $repo $targetDir
+             try {
+                 $process = new Process(['git', 'clone', $repo, $targetDir]);
+                 $process->mustRun();
+             } catch (ProcessFailedException $exception) {
+                 // Fallback: Tenta mover de plugins/ se existir lá
+                 $legacyPath = dirname(__DIR__, 3) . '/plugins/sweflow-module-email';
+                 if (is_dir($legacyPath)) {
+                     rename($legacyPath, $targetDir);
                  } else {
-                     // Para outros módulos genéricos, tentamos composer require padrão (vai para vendor)
-                     // A menos que implementemos um downloader genérico.
-                     // Vamos manter o composer require como fallback seguro para não quebrar tudo.
-                     $this->pluginManager->install($pluginName);
-                     return (new Response())->json(['message' => 'Módulo instalado via Composer (vendor).']);
+                     // Fallback 2: Composer require (vai para vendor, mas o PluginManager agora lê vendor também)
+                     // Mas o usuário EXIGIU src/Modules.
+                     // Então vamos lançar erro se não conseguir por lá.
+                     throw new \Exception("Falha ao clonar repositório para src/Modules: " . $exception->getMessage());
                  }
-            } else {
-                // Se já existe, garante que está registrado no composer.json
+             }
+
+             // Novo passo: Registrar no composer.json e psr-4
+             $this->registerModuleInComposer($shortName, $targetDir);
+         } else {
+             // Para outros módulos genéricos, tentamos composer require padrão (vai para vendor)
+             // A menos que implementemos um downloader genérico.
+             // Vamos manter o composer require como fallback seguro para não quebrar tudo.
+             $this->pluginManager->install($pluginName);
+             return (new Response())->json(['message' => 'Módulo instalado via Composer (vendor).']);
+         }
+    } else {
+        // Se já existe, garante que está registrado no composer.json
                 $this->registerModuleInComposer($shortName, $targetDir);
             }
 
@@ -263,79 +244,6 @@ class SystemModulesController
             return (new Response())->json(['message' => 'Erro: ' . $e->getMessage()], 500);
         }
     }
-
-    private function removeModuleFromComposer(string $moduleName): void
-    {
-        $composerPath = dirname(__DIR__, 3) . '/composer.json';
-        if (!file_exists($composerPath)) {
-            return;
-        }
-
-        $content = file_get_contents($composerPath);
-        $json = json_decode($content, true);
-
-        if (!is_array($json)) {
-            return;
-        }
-
-        // Tenta remover o namespace do psr-4
-        $changed = false;
-        if (isset($json['autoload']['psr-4'])) {
-            foreach ($json['autoload']['psr-4'] as $ns => $path) {
-                // Normaliza path
-                $path = str_replace('\\', '/', $path);
-                // Procura por src/Modules/Email/
-                // O moduleName vem capitalizado (Ex: Email)
-                if (str_contains($path, "src/Modules/{$moduleName}/")) {
-                    unset($json['autoload']['psr-4'][$ns]);
-                    $changed = true;
-                }
-            }
-        }
-        
-        // Remove também do require, caso tenha sido adicionado lá (fallback antigo ou manual)
-        // O nome do pacote geralmente é sweflow/module-$moduleName (lowercase)
-        $packageName = 'sweflow/module-' . strtolower($moduleName);
-        if (isset($json['require'][$packageName])) {
-            unset($json['require'][$packageName]);
-            $changed = true;
-        }
-
-        if ($changed) {
-            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            // exec('composer dump-autoload'); // O PluginManager::uninstall já pode estar rodando isso ou cuidando disso
-            // Mas vamos garantir:
-            // Se possível rodar, rodamos. Se falhar (ambiente restrito), paciência.
-            @exec('composer dump-autoload');
-        }
-    }
-    
-    private function removeModuleFromCapabilities(string $moduleName): void
-    {
-        $storageDir = dirname(__DIR__, 3) . '/storage';
-        $registryFile = $storageDir . '/capabilities_registry.json';
-        
-        if (!file_exists($registryFile)) {
-            return;
-        }
-        
-        $json = @file_get_contents($registryFile);
-        $map = $json ? json_decode($json, true) : [];
-        $changed = false;
-        
-        // O plugin name salvo no registry pode variar (ex: 'sweflow-module-email', 'email', 'Email')
-        // Vamos varrer e remover qualquer valor que pareça ser este módulo
-        $candidates = [
-            $moduleName,
-            ucfirst($moduleName), // Email
-            strtolower($moduleName), // email
-            'sweflow-module-' . strtolower($moduleName),
-            'module-' . strtolower($moduleName),
-            'sweflow/module-' . strtolower($moduleName)
-        ];
-        
-        foreach ($map as $cap => $activePlugin) {
-            // Verifica se o activePlugin está na lista de candidatos
             if (in_array($activePlugin, $candidates)) {
                 unset($map[$cap]);
                 $changed = true;
@@ -410,7 +318,13 @@ class SystemModulesController
             
             // Tenta rodar composer dump-autoload
             // Assume que 'composer' está no PATH
-            exec('composer dump-autoload');
+            $process = new Process(['composer', 'dump-autoload']);
+            try {
+                $process->mustRun();
+                echo $process->getOutput();
+            } catch (ProcessFailedException $exception) {
+                echo $exception->getMessage();
+            }
         }
     }
 
@@ -485,36 +399,24 @@ class SystemModulesController
         $this->saveStats($stats);
     }
 
-    private function decrementDownload(string $moduleName): void
-    {
-        // Normalize name
-        if (str_starts_with($moduleName, 'sweflow/module-')) {
-            $moduleName = 'sweflow/module-' . str_replace('sweflow/module-', '', $moduleName);
-        } elseif (!str_contains($moduleName, '/')) {
-            // Assume short name like 'email', convert to package name
-            $moduleName = 'sweflow/module-' . strtolower($moduleName);
-        }
-
-        $stats = $this->loadStats();
-        if (isset($stats[$moduleName]) && $stats[$moduleName] > 0) {
-            $stats[$moduleName]--;
-            $this->saveStats($stats);
-        }
-    }
-
     private function loadStats(): array
     {
         $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
         if (!file_exists($file)) {
             return [];
         }
-        $json = @file_get_contents($file);
+        $json = false;
+        if (is_readable($file)) {
+            $json = file_get_contents($file);
+        }
         return $json ? json_decode($json, true) : [];
     }
 
     private function saveStats(array $stats): void
     {
         $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
-        @file_put_contents($file, json_encode($stats, JSON_PRETTY_PRINT));
+        if (!empty($stats)) {
+            file_put_contents($file, json_encode($stats, JSON_PRETTY_PRINT));
+        }
     }
 }

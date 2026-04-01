@@ -324,7 +324,7 @@ class UsuarioController
             $status = 500;
             $debug = ((
                 $_ENV['APP_DEBUG'] ?? 'false'
-            ) === 'true');
+            ) === 'true';
             $data = [
                 'status' => 'error',
                 'message' => 'Erro interno no servidor',
@@ -466,6 +466,8 @@ class UsuarioController
                     'nome_completo' => $usuario->getNomeCompleto(),
                     'username' => $usuario->getUsername(),
                     'email' => $usuario->getEmail(),
+                ],
+            ]);
                     'nivel_acesso' => $usuario->getNivelAcesso(),
                     'ativo' => $usuario->isAtivo(),
                     'criado_em' => $usuario->getCriadoEm()->format('c'),

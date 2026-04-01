@@ -142,14 +142,6 @@ class Migrator
         }
         return $modules;
     }
-                    if (is_dir($mPath)) {
-                        $list[] = $mPath;
-                    }
-                }
-            }
-        }
-        return $list;
-    }
 
     private function moduleDir(string $moduleName): string
     {

@@ -126,6 +126,7 @@ class Conexao
 
         return $exceptionClass;
     }
+            switch ($codigo) {
             case 1205: // Lock wait timeout exceeded
             case 1213: // Deadlock found
                 throw new DatabaseTimeoutException($mensagem, $codigo, $e);
@@ -142,7 +143,7 @@ class Conexao
                 throw new DatabaseTransactionException($mensagem, $codigo, $e);
             default:
                 throw new DatabaseException($mensagem, $codigo, $e);
-        }
+            }
     }
 
     /**

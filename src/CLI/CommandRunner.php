@@ -49,20 +49,9 @@ class CommandRunner
             case 'setup':
                 (new SetupCommand())->handle($argv);
                 break;
-            default:
-                $this->handleUnknownCommand($command);
-                break;
-        }
-    }
-
-    private function handleUnknownCommand(string $command): void
-    {
-        echo "Comando desconhecido: {$command}\n";
-        $this->displayHelp();
-    }
-}
             case 'migrate':
                 exit((new MigrateCommand())->run(array_slice($argv, 2)));
+                break;
             case 'make:module':
                 $name = $argv[2] ?? null;
                 if (!$name) {
@@ -107,7 +96,10 @@ class CommandRunner
                 break;
             case 'plugin:install':
                 $name = $argv[2] ?? null;
-                if (!$name) { echo "Informe o nome do plugin (ex.: email)\n"; return; }
+                if (!$name) {
+                    echo "Informe o nome do plugin (ex.: email)\n";
+                    return;
+                }
                 (new PluginInstallCommand())->handle($name);
                 break;
             case 'plugin:enable':
@@ -135,7 +127,14 @@ class CommandRunner
                 (new PluginProviderSetCommand())->handle($cap, $name);
                 break;
             default:
-                echo "Comando não encontrado\n";
+                $this->handleUnknownCommand($command);
+                break;
         }
+    }
+
+    private function handleUnknownCommand(string $command): void
+    {
+        echo "Comando desconhecido: {$command}\n";
+        $this->displayHelp();
     }
 }

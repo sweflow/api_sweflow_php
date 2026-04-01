@@ -124,24 +124,25 @@ class PluginMigrator
         if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
             $callable['up']($this->pdo);
         }
-    }
-            sort($files, SORT_NATURAL);
-            foreach ($files as $file) {
-                $nameOnly = basename($file, '.php');
-                if ($this->isApplied($name, $ver, $nameOnly)) {
-                    continue;
-                }
-                $callable = include $file;
-                if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
-                    ($callable['up'])($this->pdo);
-                } elseif (is_callable($callable)) {
-                    $callable($this->pdo);
-                } else {
-                    continue;
-                }
-                $this->markApplied($name, $ver, $nameOnly);
-                echo "✔ plugin: {$name} {$ver} {$nameOnly}\n";
+
+        sort($files, SORT_NATURAL);
+        foreach ($files as $file) {
+            $nameOnly = basename($file, '.php');
+            if ($this->isApplied($name, $ver, $nameOnly)) {
+                continue;
             }
+            $callable = include $file;
+            if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
+                ($callable['up'])($this->pdo);
+            } elseif (is_callable($callable)) {
+                $callable($this->pdo);
+            } else {
+                continue;
+            }
+            $this->markApplied($name, $ver, $nameOnly);
+            echo "✔ plugin: {$name} {$ver} {$nameOnly}\n";
+        }
+    }
         }
 
         // Flat fallback: src/Database/Migrations/*.php
