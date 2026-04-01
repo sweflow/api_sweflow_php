@@ -66,7 +66,10 @@
             <section class="card" id="email-actions">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <h2 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-envelope"></i> Disparo de e-mail <span id="email-module-state" class="pill" style="font-weight:700;">Carregando...</span></h2>
-                    <button class="btn primary" id="open-email-modal"><i class="fa-solid fa-paper-plane"></i> Enviar e-mail personalizado</button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn ghost" id="open-email-history"><i class="fa-solid fa-clock-rotate-left"></i> Histórico</button>
+                        <button class="btn primary" id="open-email-modal"><i class="fa-solid fa-paper-plane"></i> Enviar e-mail personalizado</button>
+                    </div>
                 </div>
                 <p style="margin-top:10px;color:#505050;">Envie comunicações de confirmação, recuperação de senha ou mensagens customizadas.</p>
             </section>
@@ -261,6 +264,50 @@
             <div class="form-actions" style="justify-content: flex-end;">
                 <button class="btn ghost" id="image-cancel">Cancelar</button>
                 <button class="btn primary" id="image-confirm">Inserir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histórico de e-mails -->
+    <div class="modal-overlay" id="email-history-modal">
+        <div class="modal" style="max-width:780px;width:95vw;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-clock-rotate-left"></i> Histórico de e-mails</h2>
+                <button class="modal-close" id="email-history-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="email-history-list" style="max-height:60vh;overflow-y:auto;">
+                <p style="color:#888;text-align:center;padding:24px;">Carregando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalhe de e-mail do histórico -->
+    <div class="modal-overlay" id="email-detail-modal">
+        <div class="modal email-modal" style="max-width:780px;width:95vw;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-envelope-open-text"></i> Detalhes do e-mail</h2>
+                <button class="modal-close" id="email-detail-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="email-detail-body" style="overflow-y:auto;max-height:65vh;"></div>
+            <div class="form-actions" style="justify-content:flex-end;margin-top:16px;">
+                <button class="btn ghost" id="email-detail-edit"><i class="fa-solid fa-pen"></i> Editar e reenviar</button>
+                <button class="btn ghost" id="email-detail-resend"><i class="fa-solid fa-rotate-right"></i> Reenviar</button>
+                <button class="btn" style="background:#e74c3c;color:#fff;" id="email-detail-delete"><i class="fa-solid fa-trash"></i> Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmação de exclusão -->
+    <div class="modal-overlay" id="email-delete-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-trash"></i> Excluir registro</h2>
+                <button class="modal-close" id="email-delete-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p>Tem certeza que deseja excluir este registro do histórico? Esta ação não pode ser desfeita.</p>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button class="btn ghost" id="email-delete-cancel">Cancelar</button>
+                <button class="btn" style="background:#e74c3c;color:#fff;" id="email-delete-confirm">Excluir</button>
             </div>
         </div>
     </div>

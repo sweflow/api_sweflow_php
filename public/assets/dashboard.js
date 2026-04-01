@@ -907,14 +907,13 @@ window.onload = function () {
         .then(async data => {
             if (!data) return;
             renderMetrics(data);
-            // Só carrega o resto após confirmar que a sessão é válida
-            loadCapabilities();
-            // Sequencial: aguarda metrics antes de disparar modules/state
+            // Sequencial: evita conexões simultâneas no php -S (single-thread)
             await fetchModulesState();
-            // Polling a cada 30s — sequencial para evitar conexões simultâneas no php -S
+            await loadCapabilities();
+            // Polling a cada 30s — sequencial
             setInterval(async () => {
                 await fetchMetrics();
-                fetchModulesState();
+                await fetchModulesState();
             }, 30000);
         })
         .catch(() => {});
@@ -922,6 +921,213 @@ window.onload = function () {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
     }
+
+    // ── Histórico de e-mails ──────────────────────────────────────────────
+    const historyModal      = document.getElementById('email-history-modal');
+    const historyClose      = document.getElementById('email-history-close');
+    const historyList       = document.getElementById('email-history-list');
+    const detailModal       = document.getElementById('email-detail-modal');
+    const detailClose       = document.getElementById('email-detail-close');
+    const detailBody        = document.getElementById('email-detail-body');
+    const detailEdit        = document.getElementById('email-detail-edit');
+    const detailResend      = document.getElementById('email-detail-resend');
+    const detailDelete      = document.getElementById('email-detail-delete');
+    const deleteModal       = document.getElementById('email-delete-modal');
+    const deleteClose       = document.getElementById('email-delete-close');
+    const deleteCancel      = document.getElementById('email-delete-cancel');
+    const deleteConfirm     = document.getElementById('email-delete-confirm');
+    const openHistoryBtn    = document.getElementById('open-email-history');
+    let currentHistoryId    = null;
+
+    function fmtDate(iso) {
+        if (!iso) return '--';
+        const d = new Date(iso);
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function recipientEmails(recipients) {
+        if (!Array.isArray(recipients)) return String(recipients || '');
+        return recipients.map(r => (typeof r === 'string' ? r : r.email || '')).filter(Boolean).join(', ');
+    }
+
+    async function loadEmailHistory() {
+        if (!historyList) return;
+        historyList.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Carregando...</p>';
+        try {
+            const res = await fetch('/api/email/history', { credentials: 'same-origin' });
+            const data = await res.json();
+            const items = data.items || [];
+            if (!items.length) {
+                historyList.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Nenhum e-mail enviado ainda.</p>';
+                return;
+            }
+            historyList.innerHTML = items.map(item => {
+                const statusColor = item.status === 'enviado' ? '#27ae60' : '#e74c3c';
+                const statusIcon  = item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle';
+                return `
+                <div class="toggle-card" style="cursor:pointer;margin-bottom:8px;" data-id="${item.id}" role="button" tabindex="0">
+                    <div class="toggle-info" style="flex:1;min-width:0;">
+                        <span class="toggle-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${item.subject || '(sem assunto)'}</span>
+                        <span class="toggle-tag" style="color:${statusColor};font-weight:600;">
+                            <i class="fa-solid ${statusIcon}"></i> ${item.status}
+                        </span>
+                        <small style="color:#888;">${fmtDate(item.created_at)}</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="color:#bbb;margin-left:8px;"></i>
+                </div>`;
+            }).join('');
+
+            historyList.querySelectorAll('[data-id]').forEach(el => {
+                const open = () => openEmailDetail(el.dataset.id);
+                el.addEventListener('click', open);
+                el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
+            });
+        } catch {
+            historyList.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:24px;">Erro ao carregar histórico.</p>';
+        }
+    }
+
+    async function openEmailDetail(id) {
+        currentHistoryId = id;
+        if (detailBody) detailBody.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Carregando...</p>';
+        if (detailModal) detailModal.classList.add('show');
+
+        try {
+            const res = await fetch(`/api/email/history/${id}`, { credentials: 'same-origin' });
+            const item = await res.json();
+            if (!res.ok) throw new Error(item.error || 'Erro ao carregar.');
+
+            const emails = recipientEmails(item.recipients);
+            const statusColor = item.status === 'enviado' ? '#27ae60' : '#e74c3c';
+
+            detailBody.innerHTML = `
+                <div style="display:grid;gap:12px;">
+                    <div class="input-group" style="margin:0;">
+                        <label>Assunto</label>
+                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;">${item.subject || '(sem assunto)'}</div>
+                    </div>
+                    <div class="input-group" style="margin:0;">
+                        <label>Destinatários</label>
+                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;">${emails || '--'}</div>
+                    </div>
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                        <div><label style="font-size:.8rem;color:#888;">Status</label><br>
+                            <span style="color:${statusColor};font-weight:600;"><i class="fa-solid ${item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${item.status}</span>
+                        </div>
+                        <div><label style="font-size:.8rem;color:#888;">Data/Hora</label><br>
+                            <span>${fmtDate(item.created_at)}</span>
+                        </div>
+                        ${item.error ? `<div style="flex:1;"><label style="font-size:.8rem;color:#e74c3c;">Erro</label><br><span style="color:#e74c3c;font-size:.9rem;">${item.error}</span></div>` : ''}
+                    </div>
+                    <div class="input-group" style="margin:0;">
+                        <label>Conteúdo do e-mail</label>
+                        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:16px;background:#fff;max-height:300px;overflow-y:auto;">
+                            ${item.html || '<em style="color:#888;">Sem conteúdo</em>'}
+                        </div>
+                    </div>
+                </div>`;
+        } catch (err) {
+            detailBody.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:24px;">${err.message}</p>`;
+        }
+    }
+
+    function closeEmailDetail() {
+        if (detailModal) detailModal.classList.remove('show');
+        currentHistoryId = null;
+    }
+
+    function openDeleteConfirm() {
+        if (deleteModal) deleteModal.classList.add('show');
+    }
+
+    function closeDeleteConfirm() {
+        if (deleteModal) deleteModal.classList.remove('show');
+    }
+
+    if (openHistoryBtn) {
+        openHistoryBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadEmailHistory();
+            if (historyModal) historyModal.classList.add('show');
+        });
+    }
+    if (historyClose) historyClose.addEventListener('click', () => historyModal?.classList.remove('show'));
+    if (historyModal) historyModal.addEventListener('click', e => { if (e.target === historyModal) historyModal.classList.remove('show'); });
+
+    if (detailClose) detailClose.addEventListener('click', closeEmailDetail);
+    if (detailModal) detailModal.addEventListener('click', e => { if (e.target === detailModal) closeEmailDetail(); });
+
+    if (detailResend) {
+        detailResend.addEventListener('click', async () => {
+            if (!currentHistoryId) return;
+            detailResend.disabled = true;
+            detailResend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Reenviando...';
+            try {
+                const res = await fetch(`/api/email/history/${currentHistoryId}/resend`, {
+                    method: 'POST', credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Falha ao reenviar.');
+                closeEmailDetail();
+                loadEmailHistory();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                detailResend.disabled = false;
+                detailResend.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Reenviar';
+            }
+        });
+    }
+
+    if (detailEdit) {
+        detailEdit.addEventListener('click', async () => {
+            if (!currentHistoryId) return;
+            try {
+                const res = await fetch(`/api/email/history/${currentHistoryId}`, { credentials: 'same-origin' });
+                const item = await res.json();
+                if (!res.ok) throw new Error(item.error || 'Erro.');
+
+                // Populate email form with history data
+                if (emailTo) emailTo.value = recipientEmails(item.recipients);
+                if (emailSubject) emailSubject.value = item.subject || '';
+                if (emailLogo) emailLogo.value = item.logo_url || '';
+                if (emailEditor) emailEditor.innerHTML = item.html || '';
+
+                closeEmailDetail();
+                historyModal?.classList.remove('show');
+                if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
+                openEmailModal();
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    }
+
+    if (detailDelete) detailDelete.addEventListener('click', openDeleteConfirm);
+    if (deleteClose) deleteClose.addEventListener('click', closeDeleteConfirm);
+    if (deleteCancel) deleteCancel.addEventListener('click', closeDeleteConfirm);
+    if (deleteModal) deleteModal.addEventListener('click', e => { if (e.target === deleteModal) closeDeleteConfirm(); });
+
+    if (deleteConfirm) {
+        deleteConfirm.addEventListener('click', async () => {
+            if (!currentHistoryId) return;
+            deleteConfirm.disabled = true;
+            try {
+                const res = await fetch(`/api/email/history/${currentHistoryId}`, {
+                    method: 'DELETE', credentials: 'same-origin'
+                });
+                if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Erro.'); }
+                closeDeleteConfirm();
+                closeEmailDetail();
+                loadEmailHistory();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                deleteConfirm.disabled = false;
+            }
+        });
+    }
+    // ── fim histórico ─────────────────────────────────────────────────────
 
     if (openEmailModalBtn) {
         openEmailModalBtn.addEventListener('click', (e) => {

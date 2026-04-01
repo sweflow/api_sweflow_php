@@ -358,8 +358,27 @@ $router->post('/api/email/custom', function ($request) use ($container) {
             return Response::json(['error' => 'Destinatários, assunto e conteúdo são obrigatórios.'], 422);
         }
 
-        $mailer->sendCustom($recipients, $subject, $html, $logoUrl);
-        return Response::json(['message' => 'E-mail enviado com sucesso.']);
+        $history = new \Src\Kernel\Support\EmailHistory(__DIR__ . '/storage');
+        $entry = [
+            'subject'    => $subject,
+            'recipients' => $recipients,
+            'html'       => $html,
+            'logo_url'   => $logoUrl,
+            'status'     => 'enviado',
+            'error'      => null,
+        ];
+
+        try {
+            $mailer->sendCustom($recipients, $subject, $html, $logoUrl);
+        } catch (\Throwable $e) {
+            $entry['status'] = 'falhou';
+            $entry['error']  = $e->getMessage();
+            $saved = $history->save($entry);
+            return Response::json(['error' => $e->getMessage(), 'id' => $saved['id']], 500);
+        }
+
+        $saved = $history->save($entry);
+        return Response::json(['message' => 'E-mail enviado com sucesso.', 'id' => $saved['id']]);
     } catch (\Throwable $e) {
         return Response::json(['error' => $e->getMessage()], 500);
     }
@@ -367,6 +386,58 @@ $router->post('/api/email/custom', function ($request) use ($container) {
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
+
+// Histórico de e-mails
+$router->get('/api/email/history', function () {
+    $history = new \Src\Kernel\Support\EmailHistory(__DIR__ . '/storage');
+    return Response::json(['items' => $history->all()]);
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+$router->get('/api/email/history/{id}', function ($request, string $id) {
+    $history = new \Src\Kernel\Support\EmailHistory(__DIR__ . '/storage');
+    $entry = $history->find($id);
+    if (!$entry) {
+        return Response::json(['error' => 'Registro não encontrado.'], 404);
+    }
+    return Response::json($entry);
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+$router->delete('/api/email/history/{id}', function ($request, string $id) {
+    $history = new \Src\Kernel\Support\EmailHistory(__DIR__ . '/storage');
+    if (!$history->delete($id)) {
+        return Response::json(['error' => 'Registro não encontrado.'], 404);
+    }
+    return Response::json(['message' => 'Registro excluído.']);
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+$router->post('/api/email/history/{id}/resend', function ($request, string $id) use ($container) {
+    $history = new \Src\Kernel\Support\EmailHistory(__DIR__ . '/storage');
+    $entry = $history->find($id);
+    if (!$entry) {
+        return Response::json(['error' => 'Registro não encontrado.'], 404);
+    }
+
+    $mailer = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+    if (!$mailer) {
+        return Response::json(['error' => 'Módulo de e-mail não configurado.'], 503);
+    }
+
+    try {
+        $mailer->sendCustom($entry['recipients'], $entry['subject'], $entry['html'], $entry['logo_url'] ?? null);
+        $history->save([
+            'subject'    => $entry['subject'],
+            'recipients' => $entry['recipients'],
+            'html'       => $entry['html'],
+            'logo_url'   => $entry['logo_url'] ?? null,
+            'status'     => 'enviado',
+            'error'      => null,
+            'resent_from' => $id,
+        ]);
+        return Response::json(['message' => 'E-mail reenviado com sucesso.']);
+    } catch (\Throwable $e) {
+        return Response::json(['error' => $e->getMessage()], 500);
+    }
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
 
 function isPrivateRoute(array $route): bool {
     $private = [
