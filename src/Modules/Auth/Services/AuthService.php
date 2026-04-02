@@ -109,6 +109,12 @@ class AuthService
 
     public function decodificarToken(string $token): object
     {
+        // Tenta JWT_API_SECRET primeiro (admin_system), depois JWT_SECRET
+        $apiSecret = $this->segredoJwtAdmin();
+        try {
+            return JWT::decode($token, new Key($apiSecret, 'HS256'));
+        } catch (\Throwable) {}
+
         return JWT::decode($token, new Key($this->segredoJwt(), 'HS256'));
     }
 
@@ -156,6 +162,13 @@ class AuthService
 
     private function hashToken(string $token): string
     {
+        // Detecta qual secret assinou o token para usar o mesmo no hash
+        $apiSecret = $this->segredoJwtAdmin();
+        try {
+            JWT::decode($token, new Key($apiSecret, 'HS256'));
+            return hash_hmac('sha256', $token, $apiSecret);
+        } catch (\Throwable) {}
+
         return hash_hmac('sha256', $token, $this->segredoJwt());
     }
 

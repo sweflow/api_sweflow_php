@@ -390,7 +390,10 @@ class AuthController
             }
 
             $this->servico()->revogarRefreshPorJti($payload->jti ?? '');
-            $tokens = $this->servico()->emitirTokens($usuario);
+            // admin_system deve sempre receber token assinado com JWT_API_SECRET
+            $tokens = $usuario->getNivelAcesso() === 'admin_system'
+                ? $this->servico()->emitirTokensAdmin($usuario)
+                : $this->servico()->emitirTokens($usuario);
 
             return Response::json([
                 'access_token' => $tokens['access_token'],
