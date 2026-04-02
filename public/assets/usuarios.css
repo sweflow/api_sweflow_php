@@ -4,7 +4,85 @@
    ============================================================ */
 
 /* ── Base overrides para esta pagina ── */
-.content { font-size: 1.05rem; }
+.dash-body .u-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    margin-bottom: 0;
+}
+.dash-body .u-search-input {
+    background: var(--bg-input);
+    border-color: var(--border-input);
+    color: var(--text-primary);
+}
+.dash-body .u-search-input:focus {
+    border-color: #4f46e5;
+    background: rgba(79,70,229,0.06);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.18);
+}
+.dash-body .u-search-input::placeholder { color: var(--text-muted); }
+.dash-body .u-search-icon { color: var(--text-muted); }
+.dash-body .u-select {
+    background: var(--bg-input);
+    border-color: var(--border-input);
+    color: var(--text-primary);
+}
+.dash-body .u-select option { background: var(--bg-card); color: var(--text-primary); }
+.dash-body .u-select-all-label { color: var(--text-secondary); }
+.dash-body .u-table-card { padding: 0; }
+.dash-body .u-table thead tr { background: rgba(79,70,229,0.15); }
+.dash-body .u-table th { color: #a5b4fc; background: transparent; }
+.dash-body .u-table tbody tr { border-bottom-color: var(--border-color); }
+.dash-body .u-table tbody tr:hover td { background: var(--bg-hover); }
+.dash-body .u-table tbody tr.u-selected td { background: rgba(79,70,229,0.08); }
+.dash-body .u-table td { color: var(--text-primary); }
+.dash-body .u-username { color: var(--text-primary); }
+.dash-body .u-fullname { color: var(--text-secondary); }
+.dash-body .u-table-footer { border-top-color: var(--border-color); }
+.dash-body .u-page-info { color: var(--text-secondary); }
+.dash-body .u-page-btn { background: var(--bg-input); border-color: var(--border-color); color: var(--text-primary); }
+.dash-body .u-page-btn:hover { background: var(--bg-hover); border-color: var(--border-color); }
+.dash-body .u-page-btn.u-page-active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+.dash-body .u-action-btn { background: var(--bg-input); border-color: var(--border-color); color: var(--text-secondary); }
+.dash-body .u-action-btn:hover { background: var(--bg-hover); border-color: var(--border-color); color: var(--text-primary); }
+.dash-body .u-action-btn.u-act-danger:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #f87171; }
+.dash-body .u-action-btn.u-act-success:hover { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.25); color: #4ade80; }
+.dash-body .u-avatar-ph { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+.dash-body .u-loading-cell { color: var(--text-muted); }
+.dash-body .u-empty { color: var(--text-muted); }
+.dash-body .u-empty i { color: var(--text-muted); }
+.dash-body .u-stat-pill { background: var(--bg-card); border-color: var(--border-card); color: var(--text-primary); }
+.dash-body .u-stat-pill i { color: #818cf8; }
+.dash-body .u-page-title { color: var(--text-primary); }
+.dash-body .u-page-sub { color: var(--text-secondary); }
+.dash-body .u-detail-modal { background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text-primary); }
+.dash-body .u-detail-name { color: var(--text-primary); }
+.dash-body .u-detail-username { color: var(--text-secondary); }
+.dash-body .u-detail-hero { border-bottom-color: var(--border-color); }
+.dash-body .u-detail-grid .u-detail-field span { color: var(--text-primary); }
+.dash-body .u-field-label { color: var(--text-muted); }
+.dash-body .u-detail-bio-wrap { border-top-color: var(--border-color); }
+.dash-body .u-detail-bio-text { color: var(--text-secondary); }
+.dash-body .u-confirm-input { background: var(--bg-input); border-color: var(--border-input); color: var(--text-primary); }
+.dash-body .u-confirm-input::placeholder { color: var(--text-muted); }
+.dash-body .u-modal-sub { color: var(--text-secondary); }
+.dash-body .u-danger-box { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); }
+.dash-body .u-danger-box p { color: #fca5a5; }
+.dash-body .u-confirm-label { color: var(--text-secondary); }
+.dash-body .u-bulk-bar { background: linear-gradient(135deg, #1e1b4b, #312e81); }
+.dash-body .u-table-footer { background: var(--bg-card); }
+.dash-body .u-detail-capa { border-color: var(--border-color); }
+.dash-body .u-detail-avatar { border-color: var(--border-color); }
+/* Nivel badges — funcionam em ambos os temas */
+.dash-body .u-nivel-admin_system { background: rgba(239,68,68,0.12);  color: #ef4444; }
+.dash-body .u-nivel-admin        { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.dash-body .u-nivel-moderador    { background: rgba(34,197,94,0.1);   color: #22c55e; }
+.dash-body .u-nivel-usuario      { background: rgba(96,165,250,0.1);  color: #60a5fa; }
+.dash-body .u-status-ativo       { background: rgba(34,197,94,0.1);   color: #22c55e; }
+.dash-body .u-status-inativo     { background: rgba(239,68,68,0.1);   color: #ef4444; }
+
 
 /* ── Page header ── */
 .u-page-header {

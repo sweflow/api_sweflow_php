@@ -119,22 +119,34 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
-                    $def = is_array($mw) ? ($mw['definition'] ?? '') : $mw;
-                    if (!is_string($def) || $def === '') {
-                        continue;
-                    }
-                    // Use basename instead of ReflectionClass to avoid autoloading overhead
+                    $def = is_array($mw) ? ($mw[0] ?? '') : $mw;
+                    if (!is_string($def) || $def === '') continue;
                     $shortName = basename(str_replace('\\', '/', $def));
                     if (in_array($shortName, $authMiddlewares, true)) {
                         $isProtected = true;
                         break;
                     }
                 }
+
+                // Enriquece com inspeção automática de campos
+                $inspected = RouteInspector::inspect(
+                    $route['method'] ?? 'GET',
+                    $route['uri']    ?? '',
+                    $route['handler'] ?? null,
+                    $route['middlewares'] ?? []
+                );
+
                 return [
-                    'method'    => strtoupper($route['method'] ?? 'GET'),
-                    'uri'       => $route['uri'] ?? '',
-                    'protected' => $isProtected,
-                    'tipo'      => $isProtected ? 'privada' : 'pública',
+                    'method'      => strtoupper($route['method'] ?? 'GET'),
+                    'uri'         => $route['uri'] ?? '',
+                    'protected'   => $isProtected,
+                    'tipo'        => $isProtected ? 'privada' : 'pública',
+                    'description' => $inspected['description'],
+                    'auth'        => $inspected['auth'],
+                    'fields'      => $inspected['fields'],
+                    'path_params' => $inspected['path_params'],
+                    'query_params'=> $inspected['query_params'],
+                    'body_fields' => $inspected['body_fields'],
                 ];
             }, $this->routes),
         ];

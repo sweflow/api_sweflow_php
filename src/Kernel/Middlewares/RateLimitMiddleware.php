@@ -5,6 +5,7 @@ namespace Src\Kernel\Middlewares;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\IpResolver;
 
 /**
  * Rate Limiting por IP + usuário autenticado (sem dependência de Redis).
@@ -213,6 +214,7 @@ class RateLimitMiddleware implements MiddlewareInterface
     /**
      * Loga abuso em stderr no formato estruturado para Fail2Ban e observabilidade.
      * Formato: JSON com campo "type": "RATE_LIMIT_EXCEEDED" — Fail2Ban filtra por isso.
+     * Em ambiente de teste (APP_ENV=testing) suprime o log para não poluir o output do PHPUnit.
      */
     private function logAbuse(
         string  $type,
@@ -221,6 +223,12 @@ class RateLimitMiddleware implements MiddlewareInterface
         int     $count,
         ?string $userIdentifier = null
     ): void {
+        // Suprime logs em ambiente de teste
+        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+        if ($env === 'testing') {
+            return;
+        }
+
         $line = json_encode([
             'timestamp'       => date('Y-m-d\TH:i:sP'),
             'type'            => 'RATE_LIMIT_EXCEEDED',
@@ -256,18 +264,6 @@ class RateLimitMiddleware implements MiddlewareInterface
 
     private function resolveIp(): string
     {
-        $trustProxy = strtolower(trim($_ENV['TRUST_PROXY'] ?? getenv('TRUST_PROXY') ?: 'false'));
-        if (in_array($trustProxy, ['1', 'true', 'yes'], true)) {
-            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $header) {
-                $val = $_SERVER[$header] ?? '';
-                if ($val !== '') {
-                    $ip = trim(explode(',', $val)[0]);
-                    if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                        return $ip;
-                    }
-                }
-            }
-        }
-        return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        return IpResolver::resolve();
     }
 }

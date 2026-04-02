@@ -15,10 +15,7 @@ class StatusController
 
     public function index(): void
     {
-        $this->resposta->json([
-            'status' => $this->servidor->obter(),
-            'modules' => $this->modulos->lerCompleto()
-        ]);
+        $this->resposta->json(['status' => 'ok']);
     }
 
     public function modules(): void

@@ -482,8 +482,9 @@ class SetupCommand
         $this->stopPhpServer($pidFile);
 
         // Usa proc_open com array de argumentos — sem interpolação de shell
+        $nullDevice  = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         $descriptors = [
-            0 => ['file', '/dev/null', 'r'],
+            0 => ['file', $nullDevice, 'r'],
             1 => ['file', $logFile, 'a'],
             2 => ['file', $logFile, 'a'],
         ];

@@ -35,6 +35,12 @@ class Logger
 
     private function log(string $level, string $message, array $data): void
     {
+        // Suprime logs em ambiente de teste
+        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+        if ($env === 'testing') {
+            return;
+        }
+
         $payload = array_merge([
             'timestamp' => date('Y-m-d\TH:i:sP'),
             'level' => $level,

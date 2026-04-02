@@ -78,7 +78,9 @@ function nivelBadge(nivel) {
         moderador:    { label: 'Moderador',      icon: 'fa-shield-halved', cls: 'u-nivel-moderador'    },
         usuario:      { label: 'Usuario',        icon: 'fa-user',          cls: 'u-nivel-usuario'      }
     };
-    var n = map[nivel] || { label: nivel, icon: 'fa-user', cls: 'u-nivel-usuario' };
+    // Usa whitelist — se nivel nao estiver no mapa, cai no fallback seguro
+    var n = map[nivel] || { label: escHtml(String(nivel || 'desconhecido')), icon: 'fa-question', cls: 'u-nivel-usuario' };
+    // label do mapa e estatico (sem dados do usuario), cls e icon tambem — sem risco de XSS
     return '<span class="u-nivel ' + n.cls + '"><i class="fa-solid ' + n.icon + '"></i> ' + n.label + '</span>';
 }
 

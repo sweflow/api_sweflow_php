@@ -7,13 +7,29 @@
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* ── Marketplace layout ── */
+        html, body { margin: 0; padding: 0; }
+        html.will-dark, html.will-dark body, html.will-dark .dash-body { background: #0b0d18 !important; color: #f1f5f9 !important; }
+    </style>
+    <script>
+        if (localStorage.getItem('dash-dark-mode') === '1') {
+            document.documentElement.classList.add('will-dark', 'dash-no-transition');
+        } else {
+            document.documentElement.classList.add('dash-no-transition');
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            if (localStorage.getItem('dash-dark-mode') === '1') document.body.classList.add('dark');
+            document.documentElement.classList.remove('will-dark');
+            requestAnimationFrame(function() { requestAnimationFrame(function() { document.documentElement.classList.remove('dash-no-transition'); }); });
+        });
+    </script>
+    <style>
+        /* ── Marketplace — usa variáveis do tema (light/dark) ── */
         .mp-hero {
-            background: linear-gradient(135deg, #1a1f3b 0%, #2c3166 60%, #1a1f3b 100%);
-            color: #fff;
+            background: linear-gradient(135deg, rgba(79,70,229,0.12) 0%, rgba(124,58,237,0.08) 100%);
+            border: 1px solid rgba(79,70,229,0.2);
             border-radius: 16px;
-            padding: 40px 36px;
-            margin-bottom: 28px;
+            padding: 36px 32px;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -21,331 +37,234 @@
             flex-wrap: wrap;
         }
         .mp-hero-text h1 {
-            color: #fff;
-            font-size: 2rem;
+            color: var(--text-primary);
+            font-size: 1.8rem;
             margin: 0 0 8px;
             display: flex;
             align-items: center;
             gap: 14px;
         }
-        .mp-hero-text h1 i { color: #a5b4fc; }
-        .mp-hero-text p {
-            color: rgba(255,255,255,0.72);
-            font-size: 1.1rem;
-            margin: 0;
-        }
+        .mp-hero-text h1 i { color: #818cf8; }
+        .mp-hero-text p { color: var(--text-secondary); font-size: 1rem; margin: 0; }
         .mp-hero-badge {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.18);
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
             border-radius: 12px;
             padding: 14px 20px;
             text-align: center;
-            min-width: 120px;
+            min-width: 110px;
         }
-        .mp-hero-badge .badge-num {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #a5b4fc;
-            display: block;
-        }
-        .mp-hero-badge .badge-label {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.6);
-            margin-top: 2px;
-        }
+        .mp-hero-badge .badge-num { font-size: 2rem; font-weight: 800; color: #818cf8; display: block; }
+        .mp-hero-badge .badge-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
 
-        /* ── Search bar ── */
         .mp-search-wrap {
-            background: #fff;
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
             border-radius: 14px;
-            padding: 20px 24px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            margin-bottom: 28px;
+            padding: 18px 22px;
+            margin-bottom: 24px;
             display: flex;
             gap: 12px;
             align-items: center;
             flex-wrap: wrap;
         }
-        .mp-search-wrap label {
-            font-weight: 700;
-            font-size: 1rem;
-            color: #1e2235;
-            white-space: nowrap;
-        }
+        .mp-search-wrap label { font-weight: 700; font-size: 1rem; color: var(--text-secondary); white-space: nowrap; }
         .mp-search-input {
             flex: 1;
             min-width: 220px;
-            padding: 14px 18px;
-            font-size: 1.05rem;
-            border: 2px solid #e0e4f0;
+            padding: 13px 16px;
+            font-size: 1rem;
+            border: 1px solid var(--border-input);
             border-radius: 10px;
-            background: #f8f9ff;
-            color: #1e2235;
+            background: var(--bg-input);
+            color: var(--text-primary);
             transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .mp-search-input:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
-            background: #fff;
+            font-family: inherit;
         }
+        .mp-search-input::placeholder { color: var(--text-muted); }
+        .mp-search-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.18); background: rgba(79,70,229,0.04); }
         .mp-search-btn {
-            padding: 14px 24px;
-            font-size: 1.05rem;
+            padding: 13px 22px;
+            font-size: 1rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #2c2f55, #4f52a0);
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
             color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            transition: opacity 0.15s, transform 0.1s;
-            white-space: nowrap;
-        }
-        .mp-search-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .mp-search-btn:active { transform: translateY(0); }
-
-        /* ── Grid ── */
-        .mp-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 22px;
-        }
-
-        /* ── Package card ── */
-        .pkg-card {
-            background: #fff;
-            border: 2px solid #eef0f8;
-            border-radius: 16px;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-            overflow: hidden;
-            position: relative;
-        }
-        .pkg-card:hover {
-            border-color: #c7d0ff;
-            box-shadow: 0 12px 36px rgba(99,102,241,0.12);
-            transform: translateY(-3px);
-        }
-        .pkg-card.installed {
-            border-color: #bbf7d0;
-        }
-        .pkg-card.installed:hover {
-            border-color: #6ee7b7;
-            box-shadow: 0 12px 36px rgba(16,185,129,0.12);
-        }
-
-        /* accent bar */
-        .pkg-card::before {
-            content: '';
-            display: block;
-            height: 5px;
-            background: linear-gradient(90deg, #6366f1, #a5b4fc);
-        }
-        .pkg-card.installed::before {
-            background: linear-gradient(90deg, #10b981, #6ee7b7);
-        }
-
-        .pkg-card-body {
-            padding: 22px 24px 18px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .pkg-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-        }
-        .pkg-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #eef0ff, #dde1ff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: #6366f1;
-            flex-shrink: 0;
-        }
-        .pkg-card.installed .pkg-icon {
-            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-            color: #10b981;
-        }
-        .pkg-title-wrap { flex: 1; min-width: 0; }
-        .pkg-name {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: #1e2235;
-            margin: 0 0 4px;
-            word-break: break-word;
-            line-height: 1.3;
-        }
-        .pkg-vendor {
-            font-size: 0.85rem;
-            color: #6b7280;
-            font-family: monospace;
-        }
-
-        .pkg-status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 999px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        .pkg-status-badge.installed {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .pkg-status-badge.available {
-            background: #ede9fe;
-            color: #4c1d95;
-        }
-
-        .pkg-desc {
-            font-size: 1rem;
-            color: #4b5563;
-            line-height: 1.65;
-            margin: 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .pkg-meta {
-            display: flex;
-            gap: 18px;
-            flex-wrap: wrap;
-        }
-        .pkg-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 0.92rem;
-            color: #6b7280;
-            font-weight: 500;
-        }
-        .pkg-meta-item i { color: #9ca3af; font-size: 0.85rem; }
-        .pkg-meta-item strong { color: #374151; }
-
-        .pkg-card-footer {
-            padding: 16px 24px 20px;
-            border-top: 1px solid #f3f4f6;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        .pkg-packagist-link {
-            font-size: 0.9rem;
-            color: #6366f1;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 600;
-        }
-        .pkg-packagist-link:hover { text-decoration: underline; }
-
-        .pkg-btn {
-            padding: 12px 22px;
-            font-size: 1rem;
-            font-weight: 700;
             border: none;
             border-radius: 10px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 9px;
-            transition: all 0.15s;
-            min-width: 130px;
-            justify-content: center;
+            transition: opacity 0.15s, transform 0.1s;
+            white-space: nowrap;
+            font-family: inherit;
+            box-shadow: 0 4px 14px rgba(79,70,229,0.3);
+            touch-action: manipulation;
         }
-        .pkg-btn:focus-visible {
-            outline: 3px solid #6366f1;
-            outline-offset: 3px;
-        }
-        .pkg-btn.install {
-            background: linear-gradient(135deg, #2c2f55, #4f52a0);
-            color: #fff;
-            box-shadow: 0 4px 14px rgba(99,102,241,0.3);
-        }
-        .pkg-btn.install:hover { opacity: 0.9; transform: translateY(-1px); }
-        .pkg-btn.remove {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 2px solid #fecaca;
-        }
-        .pkg-btn.remove:hover { background: #fee2e2; }
-        .pkg-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
+        .mp-search-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        /* ── Empty / loading states ── */
-        .mp-state {
-            grid-column: 1 / -1;
-            background: #fff;
+        .mp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .pkg-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
             border-radius: 16px;
-            padding: 56px 32px;
-            text-align: center;
-            border: 2px dashed #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            overflow: hidden;
+            position: relative;
         }
-        .mp-state i { font-size: 3rem; color: #c7d2fe; margin-bottom: 16px; display: block; }
-        .mp-state p { font-size: 1.1rem; color: #6b7280; margin: 0; }
-        .mp-state strong { color: #374151; }
-
-        /* ── Modals ── */
-        .mp-modal-icon { font-size: 2.5rem; display: block; text-align: center; margin-bottom: 12px; }
-
+        .pkg-card:hover { border-color: rgba(79,70,229,0.4); box-shadow: 0 12px 36px rgba(0,0,0,0.15); transform: translateY(-3px); }
+        .pkg-card.installed { border-color: rgba(34,197,94,0.25); }
+        .pkg-card.installed:hover { border-color: rgba(34,197,94,0.45); box-shadow: 0 12px 36px rgba(34,197,94,0.1); }
+        .pkg-card::before { content: ''; display: block; height: 4px; background: linear-gradient(90deg, #4f46e5, #818cf8); }
+        .pkg-card.installed::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .pkg-card-body { padding: 22px 22px 16px; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+        .pkg-header { display: flex; align-items: flex-start; gap: 14px; }
+        .pkg-icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: rgba(79,70,229,0.12); display: flex; align-items: center;
+            justify-content: center; font-size: 1.4rem; color: #818cf8; flex-shrink: 0;
+        }
+        .pkg-card.installed .pkg-icon { background: rgba(34,197,94,0.1); color: #22c55e; }
+        .pkg-title-wrap { flex: 1; min-width: 0; }
+        .pkg-name { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; word-break: break-word; line-height: 1.3; }
+        .pkg-vendor { font-size: 0.82rem; color: var(--text-muted); font-family: monospace; }
+        .pkg-status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+        }
+        .pkg-status-badge.installed { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+        .pkg-status-badge.available { background: rgba(79,70,229,0.1); color: #818cf8; border: 1px solid rgba(79,70,229,0.2); }
+        .pkg-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.65; margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .pkg-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+        .pkg-meta-item { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; color: var(--text-secondary); font-weight: 500; }
+        .pkg-meta-item i { color: var(--text-muted); font-size: 0.82rem; }
+        .pkg-meta-item strong { color: var(--text-primary); }
+        .pkg-card-footer { padding: 14px 22px 18px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--bg-card); }
+        .pkg-packagist-link { font-size: 0.88rem; color: #818cf8; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+        .pkg-packagist-link:hover { color: #a5b4fc; text-decoration: underline; }
+        .pkg-btn {
+            padding: 11px 20px; font-size: 0.97rem; font-weight: 700; border: none; border-radius: 10px;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            transition: all 0.15s; min-width: 120px; justify-content: center; font-family: inherit;
+            touch-action: manipulation;
+        }
+        .pkg-btn.install { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; box-shadow: 0 4px 14px rgba(79,70,229,0.3); }
+        .pkg-btn.install:hover { opacity: 0.9; transform: translateY(-1px); }
+        .pkg-btn.remove { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+        .pkg-btn.remove:hover { background: rgba(239,68,68,0.18); }
+        .pkg-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .mp-state { grid-column: 1/-1; background: var(--bg-card); border-radius: 16px; padding: 56px 32px; text-align: center; border: 1px dashed var(--border-card); }
+        .mp-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; display: block; }
+        .mp-state p { font-size: 1rem; color: var(--text-secondary); margin: 0; }
+        .mp-state strong { color: var(--text-primary); }
         @media (max-width: 900px) {
-            .mp-hero { padding: 28px 20px; }
-            .mp-hero-text h1 { font-size: 1.5rem; }
+            .mp-hero { padding: 24px 18px; }
+            .mp-hero-text h1 { font-size: 1.4rem; }
             .mp-grid { grid-template-columns: 1fr; }
-            .mp-search-wrap { padding: 16px; }
+            .mp-search-wrap { padding: 14px; }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <aside class="sidebar">
-            <div class="logo">
+<body class="dash-body">
+    <!-- TOPBAR -->
+    <header class="dash-topbar" id="dash-topbar">
+        <div class="dash-topbar-left">
+            <button class="dash-sidebar-toggle" id="sidebar-toggle" aria-label="Menu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <a href="/" class="dash-brand">
                 <?php if (!empty($logo_url)): ?>
-                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:32px;height:32px;border-radius:6px;object-fit:contain;vertical-align:middle;margin-right:8px;" />
+                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" />
                 <?php else: ?>
-                    <i class="fa-solid fa-cubes"></i>
+                    <img src="/favicon.ico" alt="Sweflow" class="dash-brand-img" />
                 <?php endif; ?>
-                Dashboard
-            </div>
-            <nav>
-                <ul>
-                    <li class="nav-section-label">Navegação</li>
-                    <li><a href="/dashboard"><i class="fa-solid fa-arrow-left"></i> Voltar ao Dashboard</a></li>
-                    <li><a href="/"><i class="fa-solid fa-house"></i> Início</a></li>
-                    <li class="nav-divider"></li>
-                    <li class="nav-section-label">Marketplace</li>
-                    <li><a href="/modules/marketplace" aria-current="page"><i class="fa-solid fa-store"></i> Módulos</a></li>
-                </ul>
-            </nav>
-        </aside>
+                <span class="dash-brand-name">Sweflow <span class="dash-brand-accent">API</span></span>
+            </a>
+        </div>
 
-        <main class="content" id="main-content">
+        <nav class="dash-topbar-nav" aria-label="Navegação principal">
+            <div class="dash-dropdown">
+                <button class="dash-dropdown-btn" data-dropdown="monitor">
+                    <i class="fa-solid fa-chart-line"></i> Monitoramento
+                    <i class="fa-solid fa-chevron-down dash-dd-arrow"></i>
+                </button>
+                <div class="dash-dropdown-menu" id="dd-monitor">
+                    <a href="/dashboard#metrics"  class="dash-dd-item"><i class="fa-solid fa-gauge-high"></i> Métricas</a>
+                    <a href="/dashboard#modules"  class="dash-dd-item"><i class="fa-solid fa-layer-group"></i> Módulos</a>
+                    <a href="/dashboard#routes"   class="dash-dd-item"><i class="fa-solid fa-route"></i> Rotas</a>
+                    <a href="/dashboard#features" class="dash-dd-item"><i class="fa-solid fa-toggle-on"></i> Funcionalidades</a>
+                </div>
+            </div>
+            <div class="dash-dropdown">
+                <button class="dash-dropdown-btn" data-dropdown="config">
+                    <i class="fa-solid fa-gear"></i> Configuração
+                    <i class="fa-solid fa-chevron-down dash-dd-arrow"></i>
+                </button>
+                <div class="dash-dropdown-menu" id="dd-config">
+                    <a href="/dashboard#capabilities"  class="dash-dd-item"><i class="fa-solid fa-plug"></i> Capacidades</a>
+                    <a href="/modules/marketplace"     class="dash-dd-item"><i class="fa-solid fa-store"></i> Marketplace</a>
+                    <a href="/dashboard#email-actions" class="dash-dd-item"><i class="fa-solid fa-envelope"></i> E-mail</a>
+                </div>
+            </div>
+            <div class="dash-dropdown">
+                <button class="dash-dropdown-btn" data-dropdown="conta">
+                    <i class="fa-solid fa-circle-user"></i> Conta
+                    <i class="fa-solid fa-chevron-down dash-dd-arrow"></i>
+                </button>
+                <div class="dash-dropdown-menu" id="dd-conta">
+                    <a href="/dashboard/usuarios" class="dash-dd-item"><i class="fa-solid fa-users"></i> Usuários</a>
+                    <div class="dash-dd-divider"></div>
+                    <a href="#" id="logout-btn" class="dash-dd-item dash-dd-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="dash-topbar-right">
+            <button class="dash-theme-toggle" id="theme-toggle" aria-label="Alternar tema" title="Alternar dark/light mode">
+                <div class="dash-theme-toggle-thumb" id="theme-thumb">
+                    <i class="fa-solid fa-moon" id="theme-icon"></i>
+                </div>
+            </button>
+            <div class="dash-avatar-wrap" id="topbar-avatar-wrap">
+                <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil">
+                    <i class="fa-solid fa-circle-user"></i>
+                </div>
+                <span class="dash-avatar-status"></span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dash-layout">
+        <!-- SIDEBAR -->
+        <aside class="dash-sidebar" id="dash-sidebar">
+            <div class="dash-sidebar-inner">
+                <nav class="dash-sidenav">
+                    <div class="dash-sidenav-section">
+                        <span class="dash-sidenav-label">Configuração</span>
+                        <a href="/modules/marketplace"     class="dash-sidenav-link dash-sidenav-active"><i class="fa-solid fa-store"></i> Marketplace</a>
+                    </div>
+                    <div class="dash-sidenav-section">
+                        <span class="dash-sidenav-label">Conta</span>
+                        <a href="/dashboard/usuarios" class="dash-sidenav-link"><i class="fa-solid fa-users"></i> Usuários</a>
+                    </div>
+                    <div class="dash-sidenav-section">
+                        <a href="/dashboard" class="dash-sidenav-link"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+                        <a href="/" class="dash-sidenav-link"><i class="fa-solid fa-arrow-left"></i> Voltar ao início</a>
+                        <a href="#" id="sb-logout" class="dash-sidenav-link dash-sidenav-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+                    </div>
+                </nav>
+            </div>
+        </aside>
+        <div class="dash-sidebar-backdrop" id="sidebar-backdrop"></div>
+
+        <main class="dash-main" id="main-content">
 
             <!-- Hero -->
             <div class="mp-hero" role="banner">
@@ -379,7 +298,7 @@
             <div class="mp-grid" id="pkg-grid" role="list" aria-live="polite" aria-label="Lista de módulos"></div>
 
         </main>
-    </div>
+    </div><!-- /.dash-layout -->
 
     <!-- Modal: Confirmar remoção -->
     <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
@@ -634,5 +553,6 @@
         fetchPkgs('').then(renderPkgs);
     })();
     </script>
+    <script src="/assets/nav-init.js"></script>
 </body>
 </html>

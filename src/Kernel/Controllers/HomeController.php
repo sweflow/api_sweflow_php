@@ -20,7 +20,7 @@ class HomeController
         ob_start();
         View::render('index', [
             'titulo'    => 'Sweflow API',
-            'descricao' => 'API modular PHP com detecção automática de módulos e rotas.',
+            'descricao' => 'API modular com detecção automática de módulos e rotas.',
             'logo_url'  => $logoUrl,
             'csp_nonce' => \Src\Kernel\Nonce::get(),
         ]);

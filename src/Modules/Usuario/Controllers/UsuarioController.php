@@ -6,6 +6,7 @@ use DomainException;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Utils\ImageProcessor;
+use Src\Kernel\Utils\Sanitizer;
 use Src\Modules\Usuario\Entities\Usuario;
 use Src\Modules\Usuario\Exceptions\DomainException as ModuleDomainException;
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
@@ -32,11 +33,11 @@ class UsuarioController
     public function criar(Request $request): Response
     {
         try {
-            $body = $request->body ?? [];
-            $nome     = trim((string) ($body['nome_completo'] ?? $body['nome'] ?? ''));
-            $username = trim((string) ($body['username'] ?? ''));
-            $email    = trim((string) ($body['email'] ?? ''));
-            $senha    = (string) ($body['senha'] ?? $body['password'] ?? '');
+            $body     = $request->body ?? [];
+            $nome     = Sanitizer::string($body['nome_completo'] ?? $body['nome'] ?? '', 150);
+            $username = Sanitizer::username($body['username'] ?? '');
+            $email    = Sanitizer::email($body['email'] ?? '');
+            $senha    = Sanitizer::password($body['senha'] ?? $body['password'] ?? '');
             // nivel_acesso nunca vem do body em registro público — sempre 'usuario'
             $nivel    = 'usuario';
 
@@ -71,9 +72,9 @@ class UsuarioController
     {
         try {
             $body  = $request->body ?? [];
-            $email = trim((string) ($body['email'] ?? ''));
+            $email = Sanitizer::email($body['email'] ?? '');
 
-            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            if ($email === '') {
                 return Response::json(['status' => 'error', 'message' => 'E-mail inválido ou não informado.'], 422);
             }
 
@@ -195,10 +196,10 @@ class UsuarioController
     public function listar(Request $request): Response
     {
         try {
-            $pagina    = max(1, (int) ($request->query['pagina'] ?? $request->query['page'] ?? 1));
-            $porPagina = min(100, max(1, (int) ($request->query['por_pagina'] ?? $request->query['per_page'] ?? 20)));
-            $busca     = trim((string) ($request->query['q'] ?? ''));
-            $nivel     = trim((string) ($request->query['nivel'] ?? ''));
+            $pagina    = Sanitizer::positiveInt($request->query['pagina'] ?? $request->query['page'] ?? 1, 1, 10000);
+            $porPagina = Sanitizer::positiveInt($request->query['por_pagina'] ?? $request->query['per_page'] ?? 20, 1, 100);
+            $busca     = Sanitizer::search($request->query['q'] ?? '');
+            $nivel     = Sanitizer::nivelAcesso($request->query['nivel'] ?? '');
 
             $resultado = $this->service->listarComFiltro($pagina, $porPagina, $busca, $nivel);
 
@@ -231,13 +232,30 @@ class UsuarioController
     public function atualizar(Request $request, string $uuid): Response
     {
         try {
+            $uuid = Sanitizer::uuid($uuid);
+            if ($uuid === '') {
+                return Response::json(['status' => 'error', 'message' => 'UUID inválido.'], 422);
+            }
             $body = $request->body ?? [];
             if (empty($body)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum dado enviado.'], 422);
             }
-            // Whitelist de campos que admin pode alterar — nivel_acesso é explícito e intencional aqui
-            $permitidos = ['nome_completo', 'username', 'email', 'senha', 'url_avatar', 'url_capa', 'biografia', 'nivel_acesso'];
-            $dados = array_intersect_key($body, array_flip($permitidos));
+            // Whitelist + sanitização por campo
+            $dados = [];
+            if (isset($body['nome_completo']))  $dados['nome_completo'] = Sanitizer::string($body['nome_completo'], 150);
+            if (isset($body['username']))        $dados['username']      = Sanitizer::username($body['username']);
+            if (isset($body['email']))           $dados['email']         = Sanitizer::email($body['email']);
+            if (isset($body['senha']))           $dados['senha']         = Sanitizer::password($body['senha']);
+            if (isset($body['url_avatar']))      $dados['url_avatar']    = Sanitizer::url($body['url_avatar']);
+            if (isset($body['url_capa']))        $dados['url_capa']      = Sanitizer::url($body['url_capa']);
+            if (isset($body['biografia']))       $dados['biografia']     = Sanitizer::text($body['biografia'], 500);
+            if (isset($body['nivel_acesso'])) {
+                $nivel = Sanitizer::nivelAcesso($body['nivel_acesso']);
+                if ($nivel === '') {
+                    return Response::json(['status' => 'error', 'message' => 'Nível de acesso inválido.'], 422);
+                }
+                $dados['nivel_acesso'] = $nivel;
+            }
             if (empty($dados)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum campo válido enviado.'], 422);
             }
@@ -318,10 +336,13 @@ class UsuarioController
                 return Response::json(['status' => 'error', 'message' => 'Não autenticado.'], 401);
             }
 
-            $body = $request->body ?? [];
-            // Campos permitidos para auto-edição (sem nivel_acesso)
-            $permitidos = ['nome_completo', 'username', 'url_avatar', 'url_capa', 'biografia'];
-            $dados = array_intersect_key($body, array_flip($permitidos));
+            $body  = $request->body ?? [];
+            $dados = [];
+            if (isset($body['nome_completo'])) $dados['nome_completo'] = Sanitizer::string($body['nome_completo'], 150);
+            if (isset($body['username']))       $dados['username']      = Sanitizer::username($body['username']);
+            if (isset($body['url_avatar']))     $dados['url_avatar']    = Sanitizer::url($body['url_avatar']);
+            if (isset($body['url_capa']))       $dados['url_capa']      = Sanitizer::url($body['url_capa']);
+            if (isset($body['biografia']))      $dados['biografia']     = Sanitizer::text($body['biografia'], 500);
 
             if (empty($dados)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum campo válido enviado.'], 422);
@@ -353,11 +374,11 @@ class UsuarioController
             }
 
             $body  = $request->body ?? [];
-            $email = trim((string) ($body['email'] ?? ''));
-            $senha = (string) ($body['senha'] ?? $body['password'] ?? '');
+            $email = Sanitizer::email($body['email'] ?? '');
+            $senha = Sanitizer::password($body['senha'] ?? $body['password'] ?? '');
 
             if ($email === '') {
-                return Response::json(['status' => 'error', 'message' => 'E-mail é obrigatório.'], 422);
+                return Response::json(['status' => 'error', 'message' => 'E-mail inválido ou não informado.'], 422);
             }
             if ($senha === '' || !$authUser->verificarSenha($senha)) {
                 return Response::json(['status' => 'error', 'message' => 'Senha incorreta.'], 403);
@@ -392,8 +413,8 @@ class UsuarioController
             }
 
             $body        = $request->body ?? [];
-            $senhaAtual  = (string) ($body['senha_atual'] ?? $body['current_password'] ?? '');
-            $novaSenha   = (string) ($body['nova_senha'] ?? $body['new_password'] ?? '');
+            $senhaAtual  = Sanitizer::password($body['senha_atual'] ?? $body['current_password'] ?? '');
+            $novaSenha   = Sanitizer::password($body['nova_senha'] ?? $body['new_password'] ?? '');
 
             if ($senhaAtual === '' || $novaSenha === '') {
                 return Response::json(['status' => 'error', 'message' => 'senha_atual e nova_senha são obrigatórios.'], 422);

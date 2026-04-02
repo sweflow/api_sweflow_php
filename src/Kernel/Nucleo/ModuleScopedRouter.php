@@ -55,6 +55,7 @@ class ModuleScopedRouter implements RouterInterface
         $this->registeredRoutes[] = [
             'method'      => $method,
             'uri'         => $uri,
+            'handler'     => $handler,
             'middlewares' => $middlewares,
         ];
     }

@@ -89,7 +89,11 @@ class UsuarioControllerTest extends TestCase
     public function test_listar_retorna_lista_de_usuarios(): void
     {
         $service = $this->makeService();
-        $service->method('listar')->willReturn([$this->makeUsuario()]);
+        $service->method('listarComFiltro')->willReturn([
+            'usuarios'      => [$this->makeUsuario()],
+            'total'         => 1,
+            'total_paginas' => 1,
+        ]);
         $ctrl = $this->makeController($service);
         $req  = $this->makeRequest('GET', '/api/usuarios');
         $res  = $ctrl->listar($req);
@@ -102,7 +106,11 @@ class UsuarioControllerTest extends TestCase
     public function test_listar_retorna_lista_vazia(): void
     {
         $service = $this->makeService();
-        $service->method('listar')->willReturn([]);
+        $service->method('listarComFiltro')->willReturn([
+            'usuarios'      => [],
+            'total'         => 0,
+            'total_paginas' => 1,
+        ]);
         $ctrl = $this->makeController($service);
         $req  = $this->makeRequest('GET', '/api/usuarios');
         $res  = $ctrl->listar($req);
@@ -149,8 +157,9 @@ class UsuarioControllerTest extends TestCase
         $service->expects($this->once())->method('atualizar');
         $service->method('buscarPorUuid')->willReturn($this->makeUsuario());
         $ctrl = $this->makeController($service);
-        $req  = $this->makeRequest('PUT', '/api/usuario/atualizar/uuid', ['nome_completo' => 'Novo Nome']);
-        $res  = $ctrl->atualizar($req, 'uuid');
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+        $req  = $this->makeRequest('PUT', '/api/usuario/atualizar/' . $uuid, ['nome_completo' => 'Novo Nome']);
+        $res  = $ctrl->atualizar($req, $uuid);
         $this->assertStatusCode($res, 200);
         $this->assertJsonStatus($res, 'success');
     }

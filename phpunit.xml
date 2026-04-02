@@ -5,6 +5,10 @@
          colors="true"
          displayDetailsOnTestsThatTriggerWarnings="false"
          displayDetailsOnTestsThatTriggerDeprecations="false">
+    <php>
+        <env name="APP_ENV" value="testing" />
+        <env name="APP_DEBUG" value="false" />
+    </php>
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>

@@ -261,17 +261,246 @@ window.onload = function () {
     function renderRoutes(modules) {
         if (!routesList) return;
         const enabled = modules.filter(m => m.enabled !== false && Array.isArray(m.routes) && m.routes.length > 0);
+
+        if (!enabled.length) {
+            routesList.innerHTML = '<p style="color:#475569;text-align:center;padding:24px;">Nenhuma rota disponível.</p>';
+            return;
+        }
+
+        const methodMeta = {
+            GET:    { color: '#22c55e', bg: 'rgba(34,197,94,0.12)',    label: 'GET'    },
+            POST:   { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',   label: 'POST'   },
+            PUT:    { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',   label: 'PUT'    },
+            PATCH:  { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: 'PATCH'  },
+            DELETE: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', label: 'DELETE' },
+        };
+
         let html = '';
         enabled.forEach(mod => {
-            html += `<h3>${mod.name ?? mod.nome}</h3>`;
-            html += `<table class="routes-table"><thead><tr><th>Método</th><th>URI</th><th>Tipo</th></tr></thead><tbody>`;
-            (mod.routes || []).forEach(route => {
-                const tipo = route.tipo === 'pública' ? '<span class=public><i class=fa-solid fa-unlock></i> Pública</span>' : '<span class=private><i class=fa-solid fa-lock></i> Privada</span>';
-                html += `<tr><td>${route.method}</td><td>${route.uri}</td><td>${tipo}</td></tr>`;
+            html += `<div class="rt-module">
+                <div class="rt-module-header">
+                    <span class="rt-module-name"><i class="fa-solid fa-layer-group"></i> ${mod.name ?? mod.nome}</span>
+                    <span class="rt-module-count">${mod.routes.length} rota${mod.routes.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="rt-list">`;
+
+            mod.routes.forEach((route, idx) => {
+                const m   = methodMeta[route.method] || { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', label: route.method };
+                const priv = route.tipo === 'privada' || route.protected;
+                const hasFields = Array.isArray(route.fields) && route.fields.length > 0;
+                const routeId = `route-${(mod.name ?? mod.nome).replace(/\W/g,'')}-${idx}`;
+
+                html += `<div class="rt-row" data-route-id="${routeId}" role="button" tabindex="0"
+                              aria-label="Ver detalhes de ${route.method} ${route.uri}">
+                    <span class="rt-method" style="color:${m.color};background:${m.bg}">${m.label}</span>
+                    <span class="rt-uri">${route.uri}</span>
+                    <div class="rt-badges">
+                        ${priv
+                            ? '<span class="rt-badge rt-badge-private"><i class="fa-solid fa-lock"></i> Privada</span>'
+                            : '<span class="rt-badge rt-badge-public"><i class="fa-solid fa-unlock"></i> Pública</span>'}
+                        ${hasFields ? '<span class="rt-badge rt-badge-fields"><i class="fa-solid fa-list"></i> Campos</span>' : ''}
+                    </div>
+                    <i class="fa-solid fa-chevron-right rt-row-arrow"></i>
+                </div>`;
             });
-            html += `</tbody></table>`;
+
+            html += `</div></div>`;
         });
+
         routesList.innerHTML = html;
+
+        // Armazena dados para o modal
+        window._routeData = {};
+        enabled.forEach(mod => {
+            mod.routes.forEach((route, idx) => {
+                const routeId = `route-${(mod.name ?? mod.nome).replace(/\W/g,'')}-${idx}`;
+                window._routeData[routeId] = { ...route, moduleName: mod.name ?? mod.nome };
+            });
+        });
+
+        // Eventos de clique
+        routesList.querySelectorAll('.rt-row').forEach(row => {
+            const open = () => openRouteModal(window._routeData[row.dataset.routeId]);
+            row.addEventListener('click', open);
+            row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+        });
+    }
+
+    // ── Modal de detalhes da rota ────────────────────────────────────
+    function openRouteModal(route) {
+        if (!route) return;
+
+        const methodMeta = {
+            GET:    { color: '#22c55e', bg: 'rgba(34,197,94,0.12)'    },
+            POST:   { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)'   },
+            PUT:    { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'   },
+            PATCH:  { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+            DELETE: { color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
+        };
+        const m    = methodMeta[route.method] || { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' };
+        const priv = route.tipo === 'privada' || route.protected;
+
+        const authLabels = {
+            admin:     { icon: 'fa-user-shield', label: 'Admin obrigatório', color: '#f87171' },
+            jwt:       { icon: 'fa-key',         label: 'JWT obrigatório',   color: '#f59e0b' },
+            cookie:    { icon: 'fa-cookie',      label: 'Cookie de sessão',  color: '#a78bfa' },
+            api_token: { icon: 'fa-plug',        label: 'API Token',         color: '#60a5fa' },
+            none:      { icon: 'fa-unlock',      label: 'Pública',           color: '#22c55e' },
+        };
+        const auth = authLabels[route.auth] || authLabels.none;
+
+        const typeIcons = {
+            email: 'fa-envelope', password: 'fa-lock', uuid: 'fa-fingerprint',
+            phone: 'fa-phone', url: 'fa-link', date: 'fa-calendar',
+            boolean: 'fa-toggle-on', enum: 'fa-list-check', integer: 'fa-hashtag', string: 'fa-font',
+        };
+        const inLabels = { path: 'Path', query: 'Query', body: 'Body' };
+        const inColors = {
+            path:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
+            query: { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
+            body:  { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)'  },
+        };
+
+        const fields = Array.isArray(route.fields) ? route.fields : [];
+        const bodyFields  = fields.filter(f => f.in === 'body');
+        const pathFields  = fields.filter(f => f.in === 'path');
+        const queryFields = fields.filter(f => f.in === 'query');
+
+        const renderFieldRow = (f) => {
+            const ic  = inColors[f.in] || inColors.body;
+            const ico = typeIcons[f.type] || 'fa-font';
+            return `<div class="rd-field-row">
+                <span class="rd-field-in" style="color:${ic.color};background:${ic.bg}">${inLabels[f.in] || f.in}</span>
+                <span class="rd-field-name"><i class="fa-solid ${ico}"></i> ${f.name}</span>
+                <span class="rd-field-type">${f.type}</span>
+                ${f.required ? '<span class="rd-field-req">obrigatório</span>' : '<span class="rd-field-opt">opcional</span>'}
+            </div>`;
+        };
+
+        // Gera exemplo JSON para o body (estilo Postman/Thunder Client)
+        const buildBodyJson = (bFields) => {
+            const obj = {};
+            bFields.forEach(f => {
+                const examples = {
+                    string: `"valor"`, integer: 0, boolean: false,
+                    email: `"[email]"`, password: `"[senha]"`, uuid: `"[uuid]"`,
+                    phone: `"[telefone]"`, url: `"https://exemplo.com"`,
+                    date: `"2024-01-01"`, enum: `"opcao"`,
+                };
+                obj[f.name] = examples[f.type] !== undefined ? examples[f.type] : `"valor"`;
+            });
+            // Formata como JSON com syntax highlight
+            const lines = ['{'];
+            const entries = Object.entries(obj);
+            entries.forEach(([k, v], i) => {
+                const comma = i < entries.length - 1 ? ',' : '';
+                const valStr = typeof v === 'string' && !v.startsWith('"') ? JSON.stringify(v) : String(v);
+                const isStr = String(v).startsWith('"');
+                const keyHtml = `<span class="json-key">"${k}"</span>`;
+                const valHtml = isStr
+                    ? `<span class="json-str">${valStr}</span>`
+                    : `<span class="json-val">${valStr}</span>`;
+                lines.push(`  ${keyHtml}: ${valHtml}${comma}`);
+            });
+            lines.push('}');
+            return lines.join('\n');
+        };
+
+        const renderBodySection = (bFields) => {
+            if (!bFields.length) return '';
+            const jsonHtml = buildBodyJson(bFields);
+            const jsonRaw = JSON.stringify(
+                Object.fromEntries(bFields.map(f => {
+                    const ex = { string:'valor', integer:0, boolean:false, email:'[email]', password:'[senha]', uuid:'[uuid]', phone:'[telefone]', url:'https://exemplo.com', date:'2024-01-01', enum:'opcao' };
+                    return [f.name, ex[f.type] !== undefined ? ex[f.type] : 'valor'];
+                })),
+                null, 2
+            );
+            return `<div class="rd-section">
+                <div class="rd-section-title">
+                    <i class="fa-solid fa-code"></i> Body (${route.method})
+                    <span class="rd-json-badge">JSON</span>
+                    <button class="rd-copy-json-btn" data-json='${jsonRaw.replace(/'/g,"&#39;")}' title="Copiar JSON">
+                        <i class="fa-solid fa-copy"></i> Copiar
+                    </button>
+                </div>
+                <div class="rd-json-block"><pre class="rd-json-pre">${jsonHtml}</pre></div>
+            </div>`;
+        };
+
+        const fieldsHtml = fields.length
+            ? `<div class="rd-section">
+                <div class="rd-section-title"><i class="fa-solid fa-list-check"></i> Campos detectados</div>
+                <div class="rd-fields">${fields.map(renderFieldRow).join('')}</div>
+               </div>`
+            : ((['POST','PUT','PATCH','DELETE'].includes(route.method))
+                ? `<div class="rd-section"><p class="rd-empty"><i class="fa-solid fa-circle-info"></i> Nenhum campo detectado automaticamente para esta rota.</p></div>`
+                : '');
+
+        const descHtml = route.description
+            ? `<p class="rd-desc">${route.description}</p>` : '';
+
+        const overlay = document.getElementById('route-detail-modal');
+        const body    = document.getElementById('route-detail-body');
+        if (!overlay || !body) return;
+
+        body.innerHTML = `
+            <div class="rd-header">
+                <span class="rd-method" style="color:${m.color};background:${m.bg}">${route.method}</span>
+                <code class="rd-uri">${route.uri}</code>
+                <button class="rd-copy-btn" id="rd-copy" title="Copiar caminho">
+                    <i class="fa-solid fa-copy"></i> Copiar
+                </button>
+            </div>
+            ${descHtml}
+            <div class="rd-meta-row">
+                <span class="rd-meta-item" style="color:${auth.color}">
+                    <i class="fa-solid ${auth.icon}"></i> ${auth.label}
+                </span>
+                <span class="rd-meta-item" style="color:${priv ? '#f87171' : '#22c55e'}">
+                    <i class="fa-solid ${priv ? 'fa-lock' : 'fa-unlock'}"></i> ${priv ? 'Privada' : 'Pública'}
+                </span>
+                <span class="rd-meta-item" style="color:#94a3b8">
+                    <i class="fa-solid fa-layer-group"></i> ${route.moduleName}
+                </span>
+            </div>
+            ${pathFields.length  ? `<div class="rd-section"><div class="rd-section-title"><i class="fa-solid fa-route"></i> Parâmetros de rota</div><div class="rd-fields">${pathFields.map(renderFieldRow).join('')}</div></div>` : ''}
+            ${queryFields.length ? `<div class="rd-section"><div class="rd-section-title"><i class="fa-solid fa-magnifying-glass"></i> Query params</div><div class="rd-fields">${queryFields.map(renderFieldRow).join('')}</div></div>` : ''}
+            ${bodyFields.length  ? renderBodySection(bodyFields) : ''}
+            ${!pathFields.length && !queryFields.length && !bodyFields.length ? fieldsHtml : ''}
+        `;
+
+        // Botão copiar URI
+        document.getElementById('rd-copy')?.addEventListener('click', () => {
+            navigator.clipboard.writeText(route.uri).then(() => {
+                const btn = document.getElementById('rd-copy');
+                if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!'; setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800); }
+            }).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = route.uri; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                const btn = document.getElementById('rd-copy');
+                if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!'; setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800); }
+            });
+        });
+
+        // Botão copiar JSON do body
+        body.querySelectorAll('.rd-copy-json-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const json = btn.getAttribute('data-json');
+                navigator.clipboard.writeText(json).then(() => {
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
+                    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800);
+                }).catch(() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = json; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
+                    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800);
+                });
+            });
+        });
+
+        overlay.classList.add('show');
+        overlay.setAttribute('aria-hidden', 'false');
     }
 
     async function loadCapabilities() {
@@ -298,14 +527,17 @@ window.onload = function () {
                         <span class="toggle-name">${it.capability}</span>
                         <span class="toggle-tag">Ativo: ${it.active || 'nenhum'}</span>
                     </div>
-                    <div>
-                        <label class="pill">Provedor</label>
-                        <select data-capability="${it.capability}" class="capability-select">
-                            ${noneOption}
-                            ${options}
-                        </select>
+                    <div class="cap-select-group">
+                        <label class="cap-select-label"><i class="fa-solid fa-plug"></i> Provedor</label>
+                        <div class="cap-select-wrap">
+                            <select data-capability="${it.capability}" class="capability-select">
+                                ${noneOption}
+                                ${options}
+                            </select>
+                        </div>
                     </div>
                 </div>`;
+
             }).join('');
             el.innerHTML = rows;
             el.querySelectorAll('select.capability-select').forEach(sel => {
@@ -949,6 +1181,18 @@ window.onload = function () {
         .then(async data => {
             if (!data) return;
             renderMetrics(data);
+            // Carrega avatar do topbar imediatamente
+            fetch('/api/perfil', { credentials: 'same-origin' })
+                .then(r => r.ok ? r.json() : null)
+                .then(d => {
+                    if (d?.usuario?.url_avatar) updateTopbarAvatar(d.usuario.url_avatar);
+                    const heroName = document.getElementById('hero-username');
+                    if (heroName && d?.usuario) {
+                        const name = d.usuario.nome_completo?.split(' ')[0] || d.usuario.username || 'usuário';
+                        heroName.textContent = name;
+                    }
+                })
+                .catch(() => {});
             // Sequencial: evita conexões simultâneas no php -S (single-thread)
             await fetchModulesState();
             await loadCapabilities();
@@ -960,8 +1204,24 @@ window.onload = function () {
         })
         .catch(() => {});
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
+    // ── Nav scroll shadow ─────────────────────────────────────────────
+    const topbar = document.getElementById('dash-topbar');
+    if (topbar) {
+        window.addEventListener('scroll', () => {
+            topbar.classList.toggle('scrolled', window.scrollY > 8);
+        }, { passive: true });
+    }
+
+    // ── Avatar clique → abre perfil ───────────────────────────────────
+    const avatarEl = document.getElementById('topbar-avatar');
+    if (avatarEl) {
+        avatarEl.addEventListener('click', () => {
+            openModal('meu-perfil-modal');
+            carregarMeuPerfil();
+        });
+        avatarEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); avatarEl.click(); }
+        });
     }
 
     // ── Histórico de e-mails ──────────────────────────────────────────────
@@ -1485,9 +1745,51 @@ window.onload = function () {
         }
     }
 
+    function updateTopbarAvatar(url) {
+        const el = document.getElementById('topbar-avatar');
+        if (!el) return;
+        // Persiste no localStorage para carregamento instantâneo no próximo refresh
+        if (url) {
+            try { localStorage.setItem('dash-avatar-url', url); } catch(_) {}
+        } else {
+            try { localStorage.removeItem('dash-avatar-url'); } catch(_) {}
+        }
+        // Evita piscar se a URL já é a mesma
+        const current = el.querySelector('img');
+        if (url) {
+            if (current && current.src === url) return;
+            if (!current) {
+                el.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Avatar';
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                img.onerror = () => { el.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
+                el.appendChild(img);
+            } else {
+                current.src = url;
+            }
+        } else {
+            if (!current) return;
+            el.innerHTML = '<i class="fa-solid fa-circle-user"></i>';
+        }
+    }
+
+    // Aplica avatar salvo imediatamente — sem esperar fetch
+    (function () {
+        try {
+            const saved = localStorage.getItem('dash-avatar-url');
+            if (saved) updateTopbarAvatar(saved);
+        } catch(_) {}
+    })();
+
     function renderMeuPerfil(u) {
         const body = document.getElementById('meu-perfil-body');
         if (!body || !u) return;
+
+        // Atualiza avatar do topbar em tempo real
+        updateTopbarAvatar(u.url_avatar);
+
         const avatarHtml = u.url_avatar
             ? `<img class="perfil-avatar" src="${u.url_avatar}" alt="Avatar" onerror="this.style.display='none'" />`
             : `<div class="perfil-avatar-placeholder"><i class="fa-solid fa-user"></i></div>`;
@@ -1502,18 +1804,30 @@ window.onload = function () {
             <div class="perfil-header">
                 ${avatarHtml}
                 <div>
-                    <div style="font-size:1.2rem;font-weight:800;color:#1e2235;">${u.nome_completo || '--'}</div>
-                    <div style="color:#888;font-size:.9rem;">@${u.username || '--'}</div>
+                    <div class="perfil-nome">${u.nome_completo || '--'}</div>
+                    <div class="perfil-username">@${u.username || '--'}</div>
                     <span class="nivel-badge ${nivelClass}">${nivelLabel}</span>
                 </div>
             </div>
             <div class="perfil-grid">
-                <div class="perfil-field"><label>E-mail</label><span>${u.email || '--'}</span></div>
-                <div class="perfil-field"><label>Status</label><span>${u.ativo ? '✔ Ativo' : '✖ Inativo'}</span></div>
-                <div class="perfil-field"><label>E-mail verificado</label><span>${u.verificado_email ? '✔ Sim' : '✖ Não'}</span></div>
-                <div class="perfil-field"><label>Membro desde</label><span>${u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '--'}</span></div>
+                <div class="perfil-field">
+                    <label><i class="fa-solid fa-envelope"></i> E-mail</label>
+                    <span>${u.email || '--'}</span>
+                </div>
+                <div class="perfil-field">
+                    <label><i class="fa-solid fa-circle-check"></i> Status</label>
+                    <span>${u.ativo ? '✔ Ativo' : '✖ Inativo'}</span>
+                </div>
+                <div class="perfil-field">
+                    <label><i class="fa-solid fa-shield-check"></i> E-mail verificado</label>
+                    <span>${u.verificado_email ? '✔ Sim' : '✖ Não'}</span>
+                </div>
+                <div class="perfil-field">
+                    <label><i class="fa-solid fa-calendar"></i> Membro desde</label>
+                    <span>${u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '--'}</span>
+                </div>
             </div>
-            ${u.biografia ? `<div class="perfil-field"><label>Biografia</label><span>${u.biografia}</span></div>` : ''}
+            ${u.biografia ? `<div class="perfil-field" style="grid-column:1/-1"><label><i class="fa-solid fa-quote-left"></i> Biografia</label><span>${u.biografia}</span></div>` : ''}
         `;
     }
 
@@ -1632,6 +1946,8 @@ window.onload = function () {
 
                 fb.textContent = 'Dados salvos com sucesso.';
                 fb.className = 'login-feedback success';
+                // Atualiza avatar do topbar imediatamente
+                updateTopbarAvatar(avatar);
                 setTimeout(async () => {
                     closeModal('editar-perfil-modal');
                     await carregarMeuPerfil();
