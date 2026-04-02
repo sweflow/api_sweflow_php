@@ -12,7 +12,7 @@
         <aside class="sidebar">
             <div class="logo">
                 <?php if (!empty($logo_url)): ?>
-                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:32px;height:32px;border-radius:6px;object-fit:contain;vertical-align:middle;margin-right:8px;" />
+                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:28px;height:28px;border-radius:6px;object-fit:contain;flex-shrink:0;" />
                 <?php else: ?>
                     <i class="fa-solid fa-cubes"></i>
                 <?php endif; ?>
@@ -20,7 +20,7 @@
             </div>
             <nav>
                 <ul>
-                    <li><a href="#login" id="open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="nav-login-text" style="visibility:hidden">Login</span></a></li>
+                    <li><a href="#login" id="open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="nav-login-text" class="nav-label-hidden">Login</span></a></li>
                     <li><a href="#status"><i class="fa-solid fa-server"></i> Status</a></li>
                     <li><a href="#modulos"><i class="fa-solid fa-layer-group"></i> Módulos</a></li>
                 </ul>
@@ -30,7 +30,7 @@
             <section id="descricao">
                 <h1>
                     <?php if (!empty($logo_url)): ?>
-                        <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:40px;height:40px;border-radius:8px;object-fit:contain;vertical-align:middle;margin-right:10px;" />
+                        <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" />
                     <?php else: ?>
                         <i class="fa-solid fa-cubes"></i>
                     <?php endif; ?>
@@ -38,7 +38,7 @@
                 </h1>
                 <p><?= htmlspecialchars($descricao ?? '', ENT_QUOTES, 'UTF-8') ?></p>
                 <div class="cta-row">
-                    <button class="btn primary login-btn" id="cta-open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="cta-login-text" style="visibility:hidden">Fazer login</span></button>
+                    <button class="btn primary login-btn" id="cta-open-login"><i class="fa-solid fa-right-to-bracket"></i> <span id="cta-login-text" class="nav-label-hidden">Fazer login</span></button>
                 </div>
             </section>
             <section id="status">
@@ -47,10 +47,10 @@
                     <li>Carregando...</li>
                 </ul>
             </section>
-            <section id="db-status" style="margin-top:4px">
-                <h2 style="margin-bottom:6px"><i class="fa-solid fa-database"></i> Status do Banco de Dados</h2>
-                <div id="db-status-content" class="db-status"> 
-                    <i class="fa-solid fa-circle-notch fa-spin" style="color:gray"></i> <span style="color:gray">Verificando...</span>
+            <section id="db-status">
+                <h2><i class="fa-solid fa-database"></i> Status do Banco de Dados</h2>
+                <div id="db-status-content" class="db-status">
+                    <i class="fa-solid fa-circle-notch fa-spin db-spin-icon"></i> <span class="db-spin-text">Verificando...</span>
                 </div>
             </section>
             <section id="modulos">
@@ -84,7 +84,7 @@
                     </form>
                 </div>
             </div>
-            <script>
+            <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
             window.onload = function() {
                 const statusList = document.getElementById('status-list');
                 const modulesList = document.getElementById('modules-list');
@@ -112,9 +112,9 @@
                         `;
                     } else {
                         const ok = status.env !== undefined;
-                        const cor = ok ? 'green' : 'red';
+                        const cls = ok ? 'text-green' : 'text-red';
                         const txt = ok ? 'Funcionando' : 'Indisponível';
-                        statusList.innerHTML = `<li><i class="fa-solid fa-circle" style="color:${cor}"></i> <strong style="color:${cor}">${txt}</strong></li>`;
+                        statusList.innerHTML = `<li><i class="fa-solid fa-circle ${cls}"></i> <strong class="${cls}">${txt}</strong></li>`;
                     }
                 }
 
@@ -145,10 +145,10 @@
 
                 function renderDbStatus(conectado) {
                     if (!dbStatusContent) return;
-                    const cor = conectado ? '#22c55e' : '#ef4444';
+                    const cls  = conectado ? 'text-green' : 'text-red';
                     const icon = conectado ? 'fa-circle-check' : 'fa-circle-xmark';
-                    const txt = conectado ? 'Conectado' : 'Desconectado';
-                    dbStatusContent.innerHTML = `<i class="fa-solid ${icon}" style="color:${cor};font-size:1.1em;vertical-align:middle"></i> <span style="color:${cor};vertical-align:middle">${txt}</span>`;
+                    const txt  = conectado ? 'Conectado' : 'Desconectado';
+                    dbStatusContent.innerHTML = `<i class="fa-solid ${icon} icon-status ${cls}"></i> <span class="text-status ${cls}">${txt}</span>`;
                 }
 
                 function updateData() {
@@ -160,7 +160,7 @@
                             renderRoutes(data);
                         })
                         .catch(() => {
-                            if (statusList) statusList.innerHTML = '<li><i class="fa-solid fa-circle" style="color:red"></i> <strong style="color:red">Indisponível</strong></li>';
+                            if (statusList) statusList.innerHTML = '<li><i class="fa-solid fa-circle text-red"></i> <strong class="text-red">Indisponível</strong></li>';
                         });
                 }
 

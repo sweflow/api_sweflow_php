@@ -8,13 +8,21 @@ class HomeController
 {
     public function index(): Response
     {
-        $logoUrl = $_ENV['APP_LOGO_URL'] ?? getenv('APP_LOGO_URL') ?? '/public/favicon.ico';
+        $logoUrl = $_ENV['APP_LOGO_URL'] ?? getenv('APP_LOGO_URL') ?? null;
+        // Não usa favicon.ico como logo — só usa se for uma URL de imagem real
+        if ($logoUrl !== null) {
+            $ext = strtolower(pathinfo(parse_url($logoUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+            if ($ext === 'ico' || $ext === '') {
+                $logoUrl = null;
+            }
+        }
 
         ob_start();
         View::render('index', [
             'titulo'    => 'Sweflow API',
             'descricao' => 'API modular PHP com detecção automática de módulos e rotas.',
             'logo_url'  => $logoUrl,
+            'csp_nonce' => \Src\Kernel\Nonce::get(),
         ]);
         $html = ob_get_clean();
 

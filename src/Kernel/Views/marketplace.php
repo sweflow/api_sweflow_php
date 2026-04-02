@@ -412,7 +412,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
     function openModal(id) {
         const el = document.getElementById(id);
         el.classList.add('show');

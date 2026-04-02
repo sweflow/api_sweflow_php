@@ -90,6 +90,13 @@ body {
     align-items: center;
     gap: 10px;
 }
+.logo img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
 .sidebar nav ul {
     list-style: none;
     padding: 0;
@@ -124,6 +131,29 @@ body {
 h1, h2, h3 {
     color: #232946;
     margin-top: 0;
+}
+h1 i, h2 i, h3 i {
+    font-size: 0.85em;
+    vertical-align: middle;
+    line-height: 1;
+}
+.logo i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+#descricao h1 {
+    font-size: 1.75rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+#descricao h1 img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 .status-list, .modules-list {
     list-style: none;
@@ -826,6 +856,19 @@ h1, h2, h3 {
 .hint.error { color: #e74c3c; font-weight: 600; }
 .hint.warn  { color: #e67e22; font-weight: 600; }
 
+.db-spin-icon { color: gray; }
+.db-spin-text  { color: gray; }
+.nav-label-hidden { visibility: hidden; }
+#db-status { margin-top: 4px; }
+#db-status h2 { margin-bottom: 6px; }
+
 /* Input validation states */
 input.input-ok    { border-color: #27ae60 !important; }
 input.input-error { border-color: #e74c3c !important; }
+
+/* Status colors (usadas via JS classList em vez de style inline) */
+.text-green  { color: #22c55e; }
+.text-red    { color: #ef4444; }
+.text-gray   { color: gray; }
+.icon-status { font-size: 1.1em; vertical-align: middle; }
+.text-status { vertical-align: middle; }

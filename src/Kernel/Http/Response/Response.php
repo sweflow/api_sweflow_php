@@ -74,11 +74,12 @@ class Response
 
     private static function securityHeaders(bool $isApi = true): array
     {
-        // API pura: bloqueia tudo — sem JS, CSS, imagens, nada
-        // HTML (dashboard): permite apenas recursos do próprio domínio, sem inline
-        $csp = $isApi
-            ? "default-src 'none'; frame-ancestors 'none'"
-            : "default-src 'self'; script-src 'self'; style-src 'self' https://cdnjs.cloudflare.com; style-src-elem 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        if ($isApi) {
+            $csp = "default-src 'none'; frame-ancestors 'none'";
+        } else {
+            $nonce = \Src\Kernel\Nonce::get();
+            $csp   = "default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        }
 
         $headers = [
             'X-Content-Type-Options'  => 'nosniff',

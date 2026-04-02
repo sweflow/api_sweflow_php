@@ -27,12 +27,13 @@ class View
             || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
             || strncmp($appUrl, 'https://', 8) === 0;
 
+        $nonce = \Src\Kernel\Nonce::get();
         $headers = [
             'X-Content-Type-Options' => 'nosniff',
             'X-Frame-Options'        => 'DENY',
             'Referrer-Policy'        => 'strict-origin-when-cross-origin',
             'Permissions-Policy'     => 'geolocation=(), microphone=(), camera=()',
-            'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         ];
 
         if ($isHttps) {

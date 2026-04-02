@@ -23,9 +23,12 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             || strncmp($appUrl, 'https://', 8) === 0;
 
         $isApi = str_starts_with($request->getUri(), '/api/');
-        $csp   = $isApi
-            ? "default-src 'none'; frame-ancestors 'none'"
-            : "default-src 'self'; script-src 'self'; style-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        if ($isApi) {
+            $csp = "default-src 'none'; frame-ancestors 'none'";
+        } else {
+            $nonce = \Src\Kernel\Nonce::get();
+            $csp   = "default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        }
 
         $response = $response
             ->withHeader('X-Content-Type-Options',  'nosniff')
