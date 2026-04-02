@@ -62,7 +62,8 @@ class AuthPageMiddleware implements MiddlewareInterface
 
             $request = $request
                 ->withAttribute('auth_user', $usuario)
-                ->withAttribute('auth_payload', $payload);
+                ->withAttribute('auth_payload', $payload)
+                ->withAttribute('token_signed_with_api_secret', $tokenEhAdmin);
 
             return $next($request);
 
