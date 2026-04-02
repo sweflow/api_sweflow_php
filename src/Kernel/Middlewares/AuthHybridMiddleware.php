@@ -59,7 +59,12 @@ class AuthHybridMiddleware implements MiddlewareInterface
             return $this->responder(401, 'Token revogado. Faça login novamente.');
         }
 
-        $usuario = $this->usuarios->buscarPorUuid($payload->sub);
+        $sub = $payload->sub ?? '';
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sub)) {
+            return $this->responder(401, 'Token inválido: identificador de usuário malformado.');
+        }
+
+        $usuario = $this->usuarios->buscarPorUuid($sub);
         if (!$usuario) {
             return $this->responder(401, 'Usuário não encontrado.');
         }

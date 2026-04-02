@@ -61,14 +61,21 @@ class Response
     private static function allowedOrigins(): array
     {
         $origins = [];
+
+        // CORS_ALLOWED_ORIGINS aceita lista separada por vírgula
+        $extra = $_ENV['CORS_ALLOWED_ORIGINS'] ?? '';
+        if ($extra !== '') {
+            foreach (explode(',', $extra) as $o) {
+                $o = trim($o);
+                if ($o !== '') $origins[] = $o;
+            }
+        }
+
         $frontend = $_ENV['APP_URL_FRONTEND'] ?? null;
-        $backend = $_ENV['APP_URL'] ?? null;
-        if ($frontend) {
-            $origins[] = $frontend;
-        }
-        if ($backend && $backend !== $frontend) {
-            $origins[] = $backend;
-        }
+        $backend  = $_ENV['APP_URL']          ?? null;
+        if ($frontend && !in_array($frontend, $origins, true)) $origins[] = $frontend;
+        if ($backend  && !in_array($backend,  $origins, true)) $origins[] = $backend;
+
         return array_values(array_filter($origins));
     }
 

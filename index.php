@@ -34,8 +34,29 @@ if (file_exists(__DIR__ . '/.env')) {
     $dotenv->load();
 }
 
+// ── Preflight CORS (OPTIONS) ──────────────────────────────────────────────
+// Deve rodar antes de qualquer lógica — o browser envia OPTIONS antes do POST/PUT real.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowedOrigins = array_filter(array_map('trim', explode(',',
+        ($_ENV['CORS_ALLOWED_ORIGINS'] ?? '') . ',' .
+        ($_ENV['APP_URL_FRONTEND']     ?? '') . ',' .
+        ($_ENV['APP_URL']              ?? '')
+    )));
+    if ($requestOrigin !== '' && in_array($requestOrigin, $allowedOrigins, true)) {
+        header('Access-Control-Allow-Origin: ' . $requestOrigin);
+        header('Access-Control-Allow-Credentials: true');
+    }
+    header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-CSRF-Token, X-Device-Id, X-Client-Public-IP');
+    header('Access-Control-Max-Age: 86400');
+    header('Vary: Origin');
+    if (ob_get_level() > 0) ob_end_clean();
+    http_response_code(204);
+    exit;
+}
+
 // ── Validação de segredos críticos em produção ────────────────────────────
-// Impede boot com segredos fracos, padrão ou ausentes
 (static function (): void {
     $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
     if (!$isProduction) {

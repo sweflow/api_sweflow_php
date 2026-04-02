@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Sweflow Frontend Test</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="login-page">
+    <div class="login-card">
+
+        <div class="login-logo">
+            <div class="login-logo-icon"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+                <div class="login-logo-text">Sweflow</div>
+                <div class="login-logo-sub">Frontend Test</div>
+            </div>
+        </div>
+
+        <h1 class="login-title">Bem-vindo de volta</h1>
+        <p class="login-subtitle">Entre com suas credenciais para continuar.</p>
+
+        <form id="login-form" novalidate>
+            <div class="form-group">
+                <label class="form-label" for="login">E-mail ou username</label>
+                <input
+                    class="form-input"
+                    type="text"
+                    id="login"
+                    name="login"
+                    placeholder="seu@email.com"
+                    autocomplete="username"
+                    required
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="senha">Senha</label>
+                <input
+                    class="form-input"
+                    type="password"
+                    id="senha"
+                    name="senha"
+                    placeholder="••••••••"
+                    autocomplete="current-password"
+                    required
+                />
+            </div>
+
+            <div id="feedback" class="feedback" role="alert"></div>
+
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+                <span id="btn-text">Entrar</span>
+            </button>
+        </form>
+
+    </div>
+</div>
+
+<script type="module">
+import { login, isLogado } from './api.js';
+
+// Redireciona se já estiver logado
+if (isLogado()) window.location.href = 'dashboard.html';
+
+const form     = document.getElementById('login-form');
+const feedback = document.getElementById('feedback');
+const btnText  = document.getElementById('btn-text');
+const submitBtn = document.getElementById('submit-btn');
+
+function setFeedback(msg, type = 'error') {
+    feedback.textContent = msg;
+    feedback.className = `feedback ${type}`;
+}
+
+function setLoading(on) {
+    submitBtn.disabled = on;
+    btnText.innerHTML = on
+        ? '<span class="spinner"></span> Entrando...'
+        : 'Entrar';
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    feedback.className = 'feedback';
+
+    const loginVal = document.getElementById('login').value.trim();
+    const senhaVal = document.getElementById('senha').value;
+
+    if (!loginVal || !senhaVal) {
+        setFeedback('Preencha todos os campos.');
+        return;
+    }
+
+    setLoading(true);
+    try {
+        await login(loginVal, senhaVal);
+        setFeedback('Login realizado! Redirecionando...', 'success');
+        setTimeout(() => window.location.href = 'dashboard.html', 600);
+    } catch (err) {
+        setFeedback(err.message || 'Credenciais inválidas.');
+    } finally {
+        setLoading(false);
+    }
+});
+</script>
+
+</body>
+</html>
