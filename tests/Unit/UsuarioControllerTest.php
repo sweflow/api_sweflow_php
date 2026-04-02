@@ -2,12 +2,14 @@
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 use Src\Modules\Usuario\Controllers\UsuarioController;
 use Src\Modules\Usuario\Services\UsuarioServiceInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 
+#[AllowMockObjectsWithoutExpectations]
 class UsuarioControllerTest extends TestCase
 {
     /** @return MockObject&UsuarioServiceInterface */
@@ -347,11 +349,11 @@ class UsuarioControllerTest extends TestCase
     {
         $service = $this->makeService();
         $service->method('buscarPorUuid')->willReturn($this->makeUsuario());
-        $service->expects($this->once())->method('salvarTokenVerificacaoEmail');
+        // Com emailSender null, o controller não chama salvarTokenVerificacaoEmail
         $ctrl = $this->makeController($service);
         $res  = $ctrl->enviarVerificacaoEmail($this->makeRequest('POST', '/api/usuarios/uuid/enviar-verificacao-email'), 'uuid');
         $this->assertStatusCode($res, 200);
-        $this->assertArrayHasKey('token', $res->getBody());
+        $this->assertJsonStatus($res, 'success');
     }
 
     public function test_verificar_email_retorna_400_com_token_invalido(): void

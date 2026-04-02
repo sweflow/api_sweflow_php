@@ -36,6 +36,7 @@
 
                     <li class="nav-divider"></li>
                     <li class="nav-section-label">Conta</li>
+                    <li><a href="/dashboard/usuarios"><i class="fa-solid fa-users"></i> Usuários</a></li>
                     <li><a href="#" id="open-meu-perfil"><i class="fa-solid fa-circle-user"></i> Meu perfil</a></li>
                     <li><a href="#" id="open-criar-usuario"><i class="fa-solid fa-user-plus"></i> Novo usuário</a></li>
 

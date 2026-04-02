@@ -2,9 +2,11 @@
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use Tests\TestCase;
 use Src\Kernel\Nucleo\Container;
 
+#[AllowMockObjectsWithoutExpectations]
 class ContainerTest extends TestCase
 {
     public function test_bind_e_make_com_closure(): void

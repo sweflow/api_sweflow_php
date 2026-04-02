@@ -69,6 +69,12 @@ interface UsuarioServiceInterface
      */
     public function listar(int $pagina = 1, int $porPagina = 20): array;
 
+    /**
+     * Lista com busca, filtro de nível e total para paginação.
+     * @return array{usuarios: Usuario[], total: int, total_paginas: int}
+     */
+    public function listarComFiltro(int $pagina, int $porPagina, string $busca = '', string $nivel = ''): array;
+
     public function desativar(string $uuid): void;
 
     public function ativar(string $uuid): void;

@@ -197,12 +197,18 @@ class UsuarioController
         try {
             $pagina    = max(1, (int) ($request->query['pagina'] ?? $request->query['page'] ?? 1));
             $porPagina = min(100, max(1, (int) ($request->query['por_pagina'] ?? $request->query['per_page'] ?? 20)));
-            $usuarios  = $this->service->listar($pagina, $porPagina);
+            $busca     = trim((string) ($request->query['q'] ?? ''));
+            $nivel     = trim((string) ($request->query['nivel'] ?? ''));
+
+            $resultado = $this->service->listarComFiltro($pagina, $porPagina, $busca, $nivel);
 
             return Response::json([
-                'status'   => 'success',
-                'pagina'   => $pagina,
-                'usuarios' => array_map([$this, 'serializar'], $usuarios),
+                'status'        => 'success',
+                'pagina'        => $pagina,
+                'por_pagina'    => $porPagina,
+                'total'         => $resultado['total'],
+                'total_paginas' => $resultado['total_paginas'],
+                'usuarios'      => array_map([$this, 'serializar'], $resultado['usuarios']),
             ]);
         } catch (\Throwable $e) {
             return Response::json(['status' => 'error', 'message' => 'Erro ao listar usuários.', 'details' => $this->debug($e)], 500);

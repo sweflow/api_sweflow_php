@@ -310,6 +310,10 @@ $router->get('/dashboard', [DashboardController::class, 'index'], [
     AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
+$router->get('/dashboard/usuarios', [\Src\Kernel\Controllers\UsuariosPageController::class, 'index'], [
+    AuthPageMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
 $router->get('/modules/marketplace', [\Src\Kernel\Controllers\MarketplacePageController::class, 'index'], [
     AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,

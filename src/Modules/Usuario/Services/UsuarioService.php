@@ -195,8 +195,12 @@ class UsuarioService implements UsuarioServiceInterface
 
     public function listar(int $pagina = 1, int $porPagina = 20): array
     {
-        // Exemplo: busca paginada por nome vazio (todos)
         return $this->repository->buscarPorNomePaginado('', $pagina, $porPagina);
+    }
+
+    public function listarComFiltro(int $pagina, int $porPagina, string $busca = '', string $nivel = ''): array
+    {
+        return $this->repository->buscarComFiltro($pagina, $porPagina, $busca, $nivel);
     }
 
     public function desativar(string $uuid): void

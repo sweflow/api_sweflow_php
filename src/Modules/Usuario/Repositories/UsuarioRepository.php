@@ -304,6 +304,49 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
         );
     }
 
+    public function buscarComFiltro(int $pagina, int $porPagina, string $busca = '', string $nivel = ''): array
+    {
+        $offset = ($pagina - 1) * $porPagina;
+        $params = [];
+        $where  = [];
+
+        if ($busca !== '') {
+            $where[]          = "(username LIKE :busca OR email LIKE :busca)";
+            $params[':busca'] = '%' . $busca . '%';
+        }
+        if ($nivel !== '') {
+            $where[]          = "nivel_acesso = :nivel";
+            $params[':nivel'] = $nivel;
+        }
+
+        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        // Total
+        $stmtCount = $this->pdo->prepare("SELECT COUNT(*) FROM {$this->tabela} {$whereClause}");
+        $stmtCount->execute($params);
+        $total = (int) $stmtCount->fetchColumn();
+
+        // Rows
+        $stmtRows = $this->pdo->prepare(
+            "SELECT * FROM {$this->tabela} {$whereClause} ORDER BY criado_em DESC LIMIT :limite OFFSET :offset"
+        );
+        foreach ($params as $k => $v) $stmtRows->bindValue($k, $v);
+        $stmtRows->bindValue(':limite', $porPagina, PDO::PARAM_INT);
+        $stmtRows->bindValue(':offset', $offset,    PDO::PARAM_INT);
+        $stmtRows->execute();
+
+        $usuarios = array_map(
+            fn(array $row) => $this->mapearParaEntity($row),
+            $stmtRows->fetchAll(PDO::FETCH_ASSOC) ?: []
+        );
+
+        return [
+            'usuarios'      => $usuarios,
+            'total'         => $total,
+            'total_paginas' => max(1, (int) ceil($total / $porPagina)),
+        ];
+    }
+
     /**
      * Lista usernames ativos para sitemap
      *

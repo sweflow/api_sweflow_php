@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 use Src\Modules\Usuario\Services\UsuarioService;
@@ -9,6 +10,7 @@ use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use DomainException;
 
+#[AllowMockObjectsWithoutExpectations]
 class UsuarioServiceTest extends TestCase
 {
     /** @return MockObject&UsuarioRepositoryInterface */

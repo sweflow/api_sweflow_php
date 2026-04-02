@@ -100,4 +100,10 @@ interface UsuarioRepositoryInterface
      * @return array<int, array{username: string, atualizado_em: ?string, criado_em: ?string}>
      */
     public function listarUsernamesAtivos(int $limite = 50000, int $offset = 0): array;
+
+    /**
+     * Busca usuários com filtro de busca e nível, retornando total para paginação.
+     * @return array{usuarios: Usuario[], total: int, total_paginas: int}
+     */
+    public function buscarComFiltro(int $pagina, int $porPagina, string $busca = '', string $nivel = ''): array;
 }
