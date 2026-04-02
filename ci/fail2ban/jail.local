@@ -1,0 +1,58 @@
+# ============================================================
+# Fail2Ban — Sweflow API
+#
+# Instalação:
+#   sudo cp ci/fail2ban/jail.local /etc/fail2ban/jail.local
+#   sudo cp ci/fail2ban/filter.d/sweflow-api.conf /etc/fail2ban/filter.d/sweflow-api.conf
+#   sudo cp ci/fail2ban/filter.d/sweflow-nginx.conf /etc/fail2ban/filter.d/sweflow-nginx.conf
+#   sudo systemctl restart fail2ban
+#   sudo fail2ban-client status sweflow-api
+# ============================================================
+
+[DEFAULT]
+bantime  = 600       ; 10 minutos de ban padrão
+findtime = 300       ; janela de 5 minutos para contar falhas
+maxretry = 10        ; máximo de falhas antes de banir
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+
+# ── Ban por rate limit no Nginx (429) ────────────────────
+[sweflow-nginx-ratelimit]
+enabled  = true
+port     = http,https
+filter   = sweflow-nginx
+logpath  = /var/log/nginx/api.typper.shop.access.log
+maxretry = 20        ; 20 respostas 429 em 5 min → ban
+findtime = 300
+bantime  = 1800      ; 30 minutos
+
+# ── Ban por falhas de autenticação no Nginx (401/403) ────
+[sweflow-nginx-auth]
+enabled  = true
+port     = http,https
+filter   = sweflow-nginx-auth
+logpath  = /var/log/nginx/api.typper.shop.access.log
+maxretry = 15
+findtime = 300
+bantime  = 3600      ; 1 hora
+
+# ── Ban por eventos de segurança no PHP (stderr) ─────────
+# Lê o log do PHP built-in server / PM2 / journald
+[sweflow-api-brute]
+enabled  = true
+port     = http,https
+filter   = sweflow-api
+logpath  = /var/log/sweflow/app.log
+maxretry = 10
+findtime = 300
+bantime  = 3600      ; 1 hora
+
+# ── Ban por rate limit detectado pelo PHP ─────────────────
+[sweflow-api-ratelimit]
+enabled  = true
+port     = http,https
+filter   = sweflow-api-ratelimit
+logpath  = /var/log/sweflow/app.log
+maxretry = 30
+findtime = 300
+bantime  = 1800      ; 30 minutos

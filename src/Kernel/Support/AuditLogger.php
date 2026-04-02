@@ -48,6 +48,49 @@ class AuditLogger
     }
 
     /**
+     * Registra respostas HTTP de segurança (401, 403, 429) para observabilidade e Fail2Ban.
+     * Deve ser chamado após o dispatch, com o status code da resposta.
+     */
+    public function registrarResposta(int $statusCode, string $uri, ?string $ip = null): void
+    {
+        if (!in_array($statusCode, [401, 403, 429], true)) {
+            return;
+        }
+
+        $ip = $ip ?? $this->resolveIp();
+
+        $eventMap = [
+            401 => 'http.unauthorized',
+            403 => 'http.forbidden',
+            429 => 'http.rate_limited',
+        ];
+
+        $line = json_encode([
+            'timestamp'  => date('Y-m-d\TH:i:sP'),
+            'type'       => 'SECURITY_RESPONSE',
+            'event'      => $eventMap[$statusCode],
+            'status'     => $statusCode,
+            'ip'         => $ip,
+            'uri'        => $uri,
+            'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
+
+        // Persiste no banco para análise posterior
+        if ($this->pdo !== null) {
+            $this->persistir(
+                $eventMap[$statusCode],
+                null,
+                ['status' => $statusCode, 'uri' => $uri],
+                $ip,
+                substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 512),
+                ($_SERVER['REQUEST_METHOD'] ?? 'GET') . ' ' . $uri
+            );
+        }
+    }
+
+    /**
      * Detecta padrões suspeitos e emite alertas via stderr.
      * Em produção, integrar com Slack/PagerDuty/SNS aqui.
      */

@@ -8,9 +8,8 @@ use Src\Kernel\Http\Response\Response;
 
 /**
  * Garante que todos os headers de segurança estejam presentes em toda resposta.
- * Atua como camada de segurança adicional — os headers já são definidos em
- * Response::securityHeaders(), mas este middleware os reforça via header() nativo
- * para cobrir qualquer resposta que escape do pipeline normal.
+ * Complementa os headers já definidos em Response::securityHeaders(),
+ * cobrindo respostas que escapem do pipeline normal.
  */
 class SecurityHeadersMiddleware implements MiddlewareInterface
 {
@@ -23,12 +22,18 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
             || strncmp($appUrl, 'https://', 8) === 0;
 
+        $isApi = str_starts_with($request->getUri(), '/api/');
+        $csp   = $isApi
+            ? "default-src 'none'; frame-ancestors 'none'"
+            : "default-src 'self'; script-src 'self'; style-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
         $response = $response
-            ->withHeader('X-Content-Type-Options', 'nosniff')
-            ->withHeader('X-Frame-Options', 'DENY')
-            ->withHeader('X-XSS-Protection', '1; mode=block')
-            ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-            ->withHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+            ->withHeader('X-Content-Type-Options',  'nosniff')
+            ->withHeader('X-Frame-Options',          'DENY')
+            ->withHeader('X-XSS-Protection',         '1; mode=block')
+            ->withHeader('Referrer-Policy',          'strict-origin-when-cross-origin')
+            ->withHeader('Permissions-Policy',       'geolocation=(), microphone=(), camera=()')
+            ->withHeader('Content-Security-Policy',  $csp);
 
         if ($isHttps) {
             $response = $response->withHeader(

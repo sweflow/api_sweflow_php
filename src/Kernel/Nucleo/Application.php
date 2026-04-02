@@ -59,8 +59,21 @@ class Application
     public function run(): void
     {
         try {
-            $request = RequestFactory::fromGlobals();
+            $request  = RequestFactory::fromGlobals();
             $response = $this->router->dispatch($request);
+
+            // Observabilidade: loga 401, 403, 429 automaticamente para Fail2Ban e análise
+            $statusCode = $response->getStatusCode();
+            if (in_array($statusCode, [401, 403, 429], true)) {
+                try {
+                    $audit = $this->container->make(\Src\Kernel\Support\AuditLogger::class);
+                    $uri   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+                    $audit->registrarResposta($statusCode, $uri);
+                } catch (\Throwable) {
+                    // Falha silenciosa — observabilidade não deve quebrar a resposta
+                }
+            }
+
             $response->Enviar();
         } catch (\Throwable $e) {
             $this->exceptionHandler->handle($e);

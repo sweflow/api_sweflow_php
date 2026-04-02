@@ -2,6 +2,8 @@
 
 use Src\Kernel\Middlewares\AuthHybridMiddleware;
 use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
+use Src\Kernel\Middlewares\CircuitBreakerMiddleware;
 use Src\Modules\Usuario\Controllers\UsuarioController;
 
 /** @var \Src\Kernel\Contracts\RouterInterface $router */
@@ -10,12 +12,21 @@ use Src\Modules\Usuario\Controllers\UsuarioController;
 $adminProtected = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
 $userProtected  = [AuthHybridMiddleware::class];
 
+// Circuit breaker para rotas que dependem de DB
+$dbCircuit = [CircuitBreakerMiddleware::class, ['service' => 'database', 'threshold' => 5, 'cooldown' => 20]];
+
+// Rate limits
+$registroRateLimit  = [RateLimitMiddleware::class, ['limit' => 5,  'window' => 60,  'key' => 'usuario.registro']];
+$reenvioRateLimit   = [RateLimitMiddleware::class, ['limit' => 3,  'window' => 300, 'key' => 'usuario.reenvio']];
+$perfilRateLimit    = [RateLimitMiddleware::class, ['limit' => 30, 'window' => 60,  'key' => 'usuario.perfil']];
+$verificaRateLimit  = [RateLimitMiddleware::class, ['limit' => 10, 'window' => 60,  'key' => 'usuario.verifica']];
+
 // Registro público de usuário
-$router->post('/api/criar/usuario', [UsuarioController::class, 'criar']);
-$router->post('/api/registrar', [UsuarioController::class, 'criar']);
+$router->post('/api/criar/usuario', [UsuarioController::class, 'criar'], [$registroRateLimit, $dbCircuit]);
+$router->post('/api/registrar',     [UsuarioController::class, 'criar'], [$registroRateLimit, $dbCircuit]);
 
 // Reenvio de e-mail de verificação (público, sem autenticação)
-$router->post('/api/auth/reenviar-verificacao', [UsuarioController::class, 'reenviarVerificacaoEmail']);
+$router->post('/api/auth/reenviar-verificacao', [UsuarioController::class, 'reenviarVerificacaoEmail'], [$reenvioRateLimit]);
 
 // Gerenciamento de usuários (admin)
 $router->get('/api/usuarios', [UsuarioController::class, 'listar'], $adminProtected);
@@ -34,11 +45,11 @@ $router->post('/api/perfil/upload', [UsuarioController::class, 'uploadProfileIma
 $router->delete('/api/perfil', [UsuarioController::class, 'deletarMinhaConta'], $userProtected);
 
 // Perfil público
-$router->get('/api/perfil/{username}', [UsuarioController::class, 'buscarPorUsername']);
-$router->get('/perfil/{username}', [UsuarioController::class, 'exibirPerfilHtml']);
+$router->get('/api/perfil/{username}', [UsuarioController::class, 'buscarPorUsername'], [$perfilRateLimit]);
+$router->get('/perfil/{username}',     [UsuarioController::class, 'exibirPerfilHtml'],  [$perfilRateLimit]);
 
 // Verificação de e-mail
-$router->post('/api/usuarios/{uuid}/enviar-verificacao-email', [UsuarioController::class, 'enviarVerificacaoEmail'], $adminProtected);
-$router->post('/api/usuarios/enviar-verificacao-email', [UsuarioController::class, 'enviarVerificacaoEmailPorEmail'], $adminProtected);
-$router->get('/api/usuarios/verificar-email-status', [UsuarioController::class, 'verificarEmailStatus'], $adminProtected);
-$router->post('/api/usuarios/verificar-email/{token}', [UsuarioController::class, 'verificarEmail']);
+$router->post('/api/usuarios/{uuid}/enviar-verificacao-email', [UsuarioController::class, 'enviarVerificacaoEmail'],        $adminProtected);
+$router->post('/api/usuarios/enviar-verificacao-email',        [UsuarioController::class, 'enviarVerificacaoEmailPorEmail'], $adminProtected);
+$router->get('/api/usuarios/verificar-email-status',           [UsuarioController::class, 'verificarEmailStatus'],          $adminProtected);
+$router->post('/api/usuarios/verificar-email/{token}',         [UsuarioController::class, 'verificarEmail'],                [$verificaRateLimit]);

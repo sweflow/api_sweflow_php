@@ -145,6 +145,12 @@ class UsuarioService implements UsuarioServiceInterface
         $this->repository->marcarEmailComoVerificado($uuid);
     }
 
+    // Reseta a verificação de e-mail (usado ao alterar o endereço de e-mail)
+    public function resetarVerificacaoEmail(string $uuid): void
+    {
+        $this->repository->marcarEmailComoVerificado($uuid, false);
+    }
+
     /**
      * Verifica se a senha fornecida está correta para o usuário.
      */

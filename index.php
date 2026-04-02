@@ -506,7 +506,7 @@ $router->get('/api/status', function () use ($modules) {
         'status' => $status,
         'modules' => $moduleList,
     ]);
-});
+}, [[RateLimitMiddleware::class, ['limit' => 20, 'window' => 60, 'key' => 'api.status']]]);
 
 $router->get('/api/db-status', function () use ($container) {
     // Rota pública — retorna apenas conectado/desconectado, sem detalhes de infra
@@ -517,7 +517,7 @@ $router->get('/api/db-status', function () use ($container) {
     } catch (\Throwable $e) {
         return Response::json(['conectado' => false], 503);
     }
-});
+}, [[RateLimitMiddleware::class, ['limit' => 10, 'window' => 60, 'key' => 'api.dbstatus']]]);
 
 $router->get('/api/db-status/details', function () use ($container) {
     // Rota protegida — retorna driver para admins

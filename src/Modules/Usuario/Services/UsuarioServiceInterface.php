@@ -49,6 +49,11 @@ interface UsuarioServiceInterface
      */
     public function marcarEmailComoVerificado(string $uuid): void;
 
+    /**
+     * Reseta a verificação de e-mail (usado ao alterar o endereço de e-mail)
+     */
+    public function resetarVerificacaoEmail(string $uuid): void;
+
      /**
      * Verifica se a senha fornecida está correta para o usuário.
      */
