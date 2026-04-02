@@ -143,7 +143,10 @@ class AuthController
                 ], 403);
             }
 
-            $tokens = $this->servico()->emitirTokens($usuario);
+            // admin_system recebe token assinado com JWT_API_SECRET — obrigatório para rotas protegidas
+            $tokens = $usuario->getNivelAcesso() === 'admin_system'
+                ? $this->servico()->emitirTokensAdmin($usuario)
+                : $this->servico()->emitirTokens($usuario);
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
 
             $this->audit()->registrar('auth.login.success', $usuario->getUuid()->toString(), [
