@@ -29,11 +29,10 @@ class AdminOnlyMiddleware implements MiddlewareInterface
         $nivel        = $payload->nivel_acesso ?? null;
         $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
 
-        // Caso 2: token de usuário admin_system assinado com JWT_API_SECRET.
-        // O AuthHybridMiddleware já validou e injetou o atributo 'token_signed_with_api_secret'.
-        // Fallback: verifica diretamente nos headers/cookie para compatibilidade.
-        $assinadoComApiSecret = $request->attribute('token_signed_with_api_secret') === true
-            || $this->verificarTokenApiSecret();
+        // Caso 2: token de usuário admin_system DEVE ter sido assinado com JWT_API_SECRET.
+        // Confia exclusivamente no atributo injetado pelo AuthHybridMiddleware —
+        // não re-decodifica o token aqui para evitar inconsistências.
+        $assinadoComApiSecret = $request->attribute('token_signed_with_api_secret') === true;
 
         if ($nivel === 'admin_system' && $nivelUsuario === 'admin_system' && $assinadoComApiSecret) {
             return $this->prosseguir($next, $request);
@@ -59,55 +58,4 @@ class AdminOnlyMiddleware implements MiddlewareInterface
         return Response::json([], 204);
     }
 
-    /**
-     * Fallback: verifica se o token presente nos headers/cookie foi assinado com JWT_API_SECRET.
-     * Aceita cookie auth_token, Authorization Bearer e X-API-KEY.
-     */
-    private function verificarTokenApiSecret(): bool
-    {
-        $apiSecret = trim((string) ($_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? ''));
-        if ($apiSecret === '') {
-            return false;
-        }
-
-        $token = $this->extrairToken();
-        if ($token === '') {
-            return false;
-        }
-
-        try {
-            \Firebase\JWT\JWT::decode($token, new \Firebase\JWT\Key($apiSecret, 'HS256'));
-            return true;
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    /**
-     * Extrai o token dos mesmos vetores que o AuthHybridMiddleware:
-     * cookie auth_token > Authorization Bearer > X-API-KEY
-     */
-    private function extrairToken(): string
-    {
-        $cookieToken = isset($_COOKIE['auth_token']) ? trim((string) $_COOKIE['auth_token']) : '';
-        if ($cookieToken !== '') {
-            return $cookieToken;
-        }
-
-        $bearer = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        if (preg_match('/Bearer\s+(.*)/i', $bearer, $m)) {
-            $bearerToken = trim($m[1]);
-            if ($bearerToken !== '') {
-                return $bearerToken;
-            }
-        }
-
-        // X-API-KEY também pode carregar token de usuário admin_system
-        $apiKey = trim((string) ($_SERVER['HTTP_X_API_KEY'] ?? ''));
-        if ($apiKey !== '') {
-            return $apiKey;
-        }
-
-        return '';
-    }
 }
