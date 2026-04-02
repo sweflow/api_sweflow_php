@@ -464,7 +464,10 @@ class UsuarioController
             }
 
             // Validação real de conteúdo — mime_content_type é falsificável
-            if (@getimagesize($file['tmp_name']) === false) {
+            set_error_handler(static function (): bool { return true; });
+            $imageInfo = getimagesize($file['tmp_name']);
+            restore_error_handler();
+            if ($imageInfo === false) {
                 return Response::json(['status' => 'error', 'message' => 'Arquivo inválido: não é uma imagem.'], 422);
             }
 

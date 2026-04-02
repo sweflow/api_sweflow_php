@@ -250,14 +250,17 @@ class RateLimitMiddleware implements MiddlewareInterface
         }
         $now = time();
         foreach (glob($this->storageDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $file) {
-            $raw = @file_get_contents($file);
+            if (!is_file($file) || !is_readable($file)) {
+                continue;
+            }
+            $raw = file_get_contents($file);
             if ($raw === false) {
                 continue;
             }
             $data    = json_decode($raw, true) ?? [];
             $resetAt = (int) ($data['reset_at'] ?? 0);
-            if ($resetAt > 0 && $now > $resetAt + 300) {
-                @unlink($file);
+            if ($resetAt > 0 && $now > $resetAt + 300 && is_writable($file)) {
+                unlink($file);
             }
         }
     }

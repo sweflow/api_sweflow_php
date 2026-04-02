@@ -8152,3 +8152,5 @@ u Apr  2 12:49:33 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Thu Apr  2 13:09:03 2026] 127.0.0.1:49135 Closing
 [Thu Apr  2 13:09:03 2026] 127.0.0.1:16150 Closing
 [Thu Apr  2 13:09:03 2026] 127.0.0.1:55807 Accepted
+[Thu Apr  2 13:34:42 2026] PHP Warning:  Module "zip" is already loaded in Unknown on line 0
+[Thu Apr  2 13:34:42 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
