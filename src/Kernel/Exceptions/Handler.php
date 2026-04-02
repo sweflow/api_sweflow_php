@@ -126,6 +126,11 @@ class Handler
 
     private function isDebug(): bool
     {
+        // Em produção, debug NUNCA é ativado — mesmo que APP_DEBUG=true esteja no .env
+        $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
+        if ($isProduction) {
+            return false;
+        }
         return ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
     }
 }

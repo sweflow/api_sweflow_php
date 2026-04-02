@@ -39,7 +39,7 @@ class AuthController
 
     public function login(): Response
     {
-        // Tempo mínimo de resposta para mitigar timing attacks (200ms)
+        // /api/auth/login é exclusivo para admin_system — token assinado com JWT_API_SECRET
         $startTime = microtime(true);
 
         try {
@@ -51,6 +51,13 @@ class AuthController
             $senha = $dados['senha'] ?? $dados['password'] ?? '';
 
             $usuario = $this->servico()->autenticar((string)$login, (string)$senha);
+
+            // Esta rota é exclusiva para admin_system
+            if ($usuario->getNivelAcesso() !== 'admin_system') {
+                $this->enforceMinResponseTime($startTime, 200);
+                return Response::json(['status' => 'error', 'message' => 'Acesso restrito.'], 403);
+            }
+
             if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
                 $this->enforceMinResponseTime($startTime, 200);
                 return Response::json([
@@ -60,26 +67,28 @@ class AuthController
                     'email'              => $usuario->getEmail(),
                 ], 403);
             }
-            $tokens = $this->servico()->emitirTokens($usuario);
+
+            // Token assinado com JWT_API_SECRET para admin_system
+            $tokens = $this->servico()->emitirTokensAdmin($usuario);
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
 
             $this->audit()->registrar('auth.login.success', $usuario->getUuid()->toString(), [
-                'username' => $usuario->getUsername(),
+                'username'     => $usuario->getUsername(),
                 'nivel_acesso' => $usuario->getNivelAcesso(),
             ]);
 
             $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
-                'status' => 'success',
-                'access_token' => $tokens['access_token'],
-                'expires_in' => $tokens['access_expira_em'],
-                'refresh_token' => $tokens['refresh_token'],
+                'status'           => 'success',
+                'access_token'     => $tokens['access_token'],
+                'expires_in'       => $tokens['access_expira_em'],
+                'refresh_token'    => $tokens['refresh_token'],
                 'refresh_expires_in' => $tokens['refresh_expira_em'],
                 'usuario' => [
-                    'uuid' => $usuario->getUuid()->toString(),
-                    'nome_completo' => $usuario->getNomeCompleto(),
-                    'username' => $usuario->getUsername(),
-                    'email' => $usuario->getEmail(),
+                    'uuid'         => $usuario->getUuid()->toString(),
+                    'nome_completo'=> $usuario->getNomeCompleto(),
+                    'username'     => $usuario->getUsername(),
+                    'email'        => $usuario->getEmail(),
                     'nivel_acesso' => $usuario->getNivelAcesso(),
                 ]
             ]);
@@ -91,10 +100,7 @@ class AuthController
         } catch (\Throwable $e) {
             $this->enforceMinResponseTime($startTime, 200);
             error_log('[AuthController::login] ' . get_class($e) . ': ' . $e->getMessage());
-            return Response::json([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ], 500);
+            return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
         }
     }
 
@@ -169,18 +175,20 @@ class AuthController
             error_log('[AuthController::loginPublic] ' . get_class($e) . ': ' . $e->getMessage());
             return Response::json([
                 'status'  => 'error',
-                'message' => $e->getMessage(),
+                'message' => 'Erro interno.',
             ], 500);
         }
     }
 
     public function solicitarRecuperacaoSenha(): Response
     {
+        $startTime = microtime(true);
         try {
             $dados = $this->corpoDaRequisicao();
             $email = trim($dados['email'] ?? '');
 
             if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->enforceMinResponseTime($startTime, 200);
                 return Response::json([
                     'status' => 'error',
                     'message' => 'E-mail inválido ou não informado.'
@@ -219,11 +227,13 @@ class AuthController
             }
 
             // Sempre retorna 200 com mensagem genérica para não revelar se o e-mail existe
+            $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
                 'status' => 'success',
                 'message' => 'Se o e-mail informado estiver cadastrado, um link de recuperação será enviado.'
             ]);
         } catch (\Throwable $e) {
+            $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
                 'status' => 'error',
                 'message' => 'Não foi possível iniciar a recuperação de senha.',
@@ -250,6 +260,14 @@ class AuthController
                 return Response::json([
                     'status' => 'error',
                     'message' => 'Nova senha deve ter ao menos 8 caracteres.'
+                ], 400);
+            }
+
+            // Exige ao menos uma letra e um número
+            if (!preg_match('/[A-Za-z]/', $novaSenha) || !preg_match('/[0-9]/', $novaSenha)) {
+                return Response::json([
+                    'status' => 'error',
+                    'message' => 'Nova senha deve conter ao menos uma letra e um número.'
                 ], 400);
             }
 
@@ -632,12 +650,12 @@ class AuthController
         }
 
         // Limita tamanho para evitar DoS por JSON profundo ou arrays gigantes
-        if (strlen($conteudoBruto) > 2 * 1024 * 1024) {
+        if (strlen($conteudoBruto) > 64 * 1024) {
             return array_merge($_POST);
         }
 
         // Tenta decodificar JSON com profundidade limitada
-        $dadosJson = json_decode($conteudoBruto, true, 32) ?? [];
+        $dadosJson = json_decode($conteudoBruto, true, 8) ?? [];
         if (!is_array($dadosJson)) {
             $dadosJson = [];
         }
@@ -646,7 +664,7 @@ class AuthController
         if (empty($dadosJson) && strlen($conteudoBruto) < 4096 && trim($conteudoBruto) !== '') {
             $brutoCorrigido = preg_replace('/([\{,]\s*)([A-Za-z0-9_]+)\s*:/', '$1"$2":', $conteudoBruto) ?? $conteudoBruto;
             $brutoCorrigido = preg_replace('/:\s*([A-Za-z0-9_@.\-]+)(\s*[},])/', ':"$1"$2', $brutoCorrigido) ?? $brutoCorrigido;
-            $tentativa = json_decode($brutoCorrigido, true, 32);
+            $tentativa = json_decode($brutoCorrigido, true, 8);
             if (is_array($tentativa)) {
                 $dadosJson = $tentativa;
             }

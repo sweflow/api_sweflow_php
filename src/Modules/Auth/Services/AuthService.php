@@ -40,47 +40,57 @@ class AuthService
 
     public function emitirTokens(Usuario $usuario): array
     {
-        $accessTtl = $this->tempoExpiracao(); // curto
-        $refreshTtl = $this->tempoRefresh(); // longo
+        return $this->emitirTokensComSecret($usuario, $this->segredoJwt());
+    }
 
-        $agora = time();
-        $iss = $this->emissor();
-        $aud = $this->audiencia();
+    /**
+     * Emite tokens para admin_system assinados com JWT_API_SECRET.
+     * Esses tokens são aceitos pelas rotas protegidas com AdminOnlyMiddleware.
+     */
+    public function emitirTokensAdmin(Usuario $usuario): array
+    {
+        return $this->emitirTokensComSecret($usuario, $this->segredoJwtAdmin());
+    }
 
-        // Access token
+    private function emitirTokensComSecret(Usuario $usuario, string $secret): array
+    {
+        $accessTtl  = $this->tempoExpiracao();
+        $refreshTtl = $this->tempoRefresh();
+        $agora      = time();
+        $iss        = $this->emissor();
+        $aud        = $this->audiencia();
+
         $accessJti = Uuid::uuid4()->toString();
         $accessExp = $agora + $accessTtl;
         $accessPayload = [
-            'sub' => $usuario->getUuid()->toString(),
-            'email' => $usuario->getEmail(),
-            'username' => $usuario->getUsername(),
+            'sub'          => $usuario->getUuid()->toString(),
+            'email'        => $usuario->getEmail(),
+            'username'     => $usuario->getUsername(),
             'nivel_acesso' => $usuario->getNivelAcesso(),
-            'iat' => $agora,
-            'exp' => $accessExp,
-            'iss' => $iss,
-            'aud' => $aud,
-            'tipo' => 'user',
-            'jti' => $accessJti
+            'iat'          => $agora,
+            'exp'          => $accessExp,
+            'iss'          => $iss,
+            'aud'          => $aud,
+            'tipo'         => 'user',
+            'jti'          => $accessJti,
         ];
-        $access = JWT::encode($accessPayload, $this->segredoJwt(), 'HS256');
+        $access = JWT::encode($accessPayload, $secret, 'HS256');
 
-        // Refresh token
         $refreshJti = Uuid::uuid4()->toString();
         $refreshExp = $agora + $refreshTtl;
         $refreshPayload = [
-            'sub' => $usuario->getUuid()->toString(),
-            'iat' => $agora,
-            'exp' => $refreshExp,
-            'iss' => $iss,
-            'aud' => $aud,
+            'sub'  => $usuario->getUuid()->toString(),
+            'iat'  => $agora,
+            'exp'  => $refreshExp,
+            'iss'  => $iss,
+            'aud'  => $aud,
             'tipo' => 'refresh',
-            'jti' => $refreshJti
+            'jti'  => $refreshJti,
         ];
-        $refresh = JWT::encode($refreshPayload, $this->segredoJwt(), 'HS256');
+        $refresh = JWT::encode($refreshPayload, $secret, 'HS256');
 
-        // Persist refresh (hash) para revogação
         if ($this->refreshTokens) {
-            $hash = $this->hashToken($refresh);
+            $hash = hash_hmac('sha256', $refresh, $secret);
             $this->refreshTokens->store(
                 $refreshJti,
                 $usuario->getUuid()->toString(),
@@ -90,10 +100,10 @@ class AuthService
         }
 
         return [
-            'access_token' => $access,
-            'access_expira_em' => $accessExp,
-            'refresh_token' => $refresh,
-            'refresh_expira_em' => $refreshExp
+            'access_token'      => $access,
+            'access_expira_em'  => $accessExp,
+            'refresh_token'     => $refresh,
+            'refresh_expira_em' => $refreshExp,
         ];
     }
 
@@ -177,6 +187,15 @@ class AuthService
         $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?? '';
         if ($secret === '') {
             throw new DomainException('JWT_SECRET não configurado.', 500);
+        }
+        return $secret;
+    }
+
+    private function segredoJwtAdmin(): string
+    {
+        $secret = $_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? '';
+        if ($secret === '') {
+            throw new DomainException('JWT_API_SECRET não configurado.', 500);
         }
         return $secret;
     }

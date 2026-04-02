@@ -24,52 +24,39 @@ class AuthPageMiddleware implements MiddlewareInterface
 
     public function handle(Request $request, callable $next): Response
     {
-        // Tenta cookie primeiro
-        $token = '';
-        $cookieToken = $_COOKIE['auth_token'] ?? '';
-        if (is_string($cookieToken) && trim($cookieToken) !== '') {
-            $token = trim($cookieToken);
-        }
+        $token = $this->extrairToken();
 
-        // Fallback: Authorization Bearer
-        if ($token === '') {
-            $bearer = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-            if (preg_match('/Bearer\s+(.+)/i', $bearer, $m)) {
-                $token = trim($m[1]);
-            }
-        }
-
-        // Sem token → redireciona para home
         if ($token === '') {
             return $this->redirecionar(false);
         }
 
         try {
-            $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?? '';
-            if ($secret === '') {
-                return $this->redirecionar(false);
-            }
+            $payload = $this->decodificarToken($token);
 
-            $payload = JWT::decode($token, new Key($secret, 'HS256'));
-
-            // Valida tipo
             if (!isset($payload->tipo) || $payload->tipo !== 'user') {
-                return $this->redirecionar(true); // token inválido — limpa cookie
+                return $this->redirecionar(true);
             }
 
-            // Valida jti
             if (empty($payload->jti)) {
                 return $this->redirecionar(true);
             }
 
-            // Verifica blacklist
             if ($this->blacklistRepo->isRevoked($payload->jti)) {
                 return $this->redirecionar(true);
             }
 
-            // Busca usuário — se o banco estiver fora do ar, não apaga o cookie
             $usuario = $this->usuarios->buscarPorUuid($payload->sub ?? '');
             if (!$usuario) {
+                return $this->redirecionar(true);
+            }
+
+            // Dashboard é exclusivo para admin_system com token JWT_API_SECRET
+            $nivelPayload  = $payload->nivel_acesso ?? null;
+            $nivelUsuario  = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
+            $tokenEhAdmin  = $this->tokenAssinadoComApiSecret($token);
+
+            if ($nivelPayload !== 'admin_system' || $nivelUsuario !== 'admin_system' || !$tokenEhAdmin) {
+                // Limpa cookie e redireciona — não permite acesso ao dashboard
                 return $this->redirecionar(true);
             }
 
@@ -80,12 +67,63 @@ class AuthPageMiddleware implements MiddlewareInterface
             return $next($request);
 
         } catch (\Firebase\JWT\ExpiredException $e) {
-            return $this->redirecionar(true); // token expirado — limpa cookie
+            return $this->redirecionar(true);
         } catch (\Firebase\JWT\SignatureInvalidException $e) {
-            return $this->redirecionar(true); // assinatura inválida — limpa cookie
+            return $this->redirecionar(true);
         } catch (\Throwable $e) {
-            // Erro de banco ou outro — não apaga o cookie, apenas redireciona
             return $this->redirecionar(false);
+        }
+    }
+
+    private function extrairToken(): string
+    {
+        $cookieToken = $_COOKIE['auth_token'] ?? '';
+        if (is_string($cookieToken) && trim($cookieToken) !== '') {
+            return trim($cookieToken);
+        }
+        $bearer = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (preg_match('/Bearer\s+(.+)/i', $bearer, $m)) {
+            return trim($m[1]);
+        }
+        return '';
+    }
+
+    /**
+     * Tenta decodificar com JWT_API_SECRET primeiro (admin_system),
+     * depois com JWT_SECRET (usuários comuns).
+     */
+    private function decodificarToken(string $token): object
+    {
+        $apiSecret = trim((string) ($_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? ''));
+        if ($apiSecret !== '') {
+            try {
+                $payload = JWT::decode($token, new Key($apiSecret, 'HS256'));
+                if (isset($payload->tipo) && $payload->tipo === 'user') {
+                    return $payload;
+                }
+            } catch (\Throwable) {
+                // não é token de admin — tenta JWT_SECRET
+            }
+        }
+
+        $secret = trim((string) ($_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?? ''));
+        if ($secret === '') {
+            throw new \RuntimeException('JWT_SECRET não configurado.');
+        }
+        return JWT::decode($token, new Key($secret, 'HS256'));
+    }
+
+    private function tokenAssinadoComApiSecret(string $token): bool
+    {
+        $apiSecret = trim((string) ($_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? ''));
+        if ($apiSecret === '') {
+            return false;
+        }
+        try {
+            JWT::decode($token, new Key($apiSecret, 'HS256'));
+            return true;
+        } catch (\Throwable) {
+            return false;
         }
     }
 

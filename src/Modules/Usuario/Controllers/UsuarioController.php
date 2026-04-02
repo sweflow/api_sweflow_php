@@ -27,7 +27,8 @@ class UsuarioController
             $username = trim((string) ($body['username'] ?? ''));
             $email    = trim((string) ($body['email'] ?? ''));
             $senha    = (string) ($body['senha'] ?? $body['password'] ?? '');
-            $nivel    = (string) ($body['nivel_acesso'] ?? 'usuario');
+            // nivel_acesso nunca vem do body em registro público — sempre 'usuario'
+            $nivel    = 'usuario';
 
             if ($nome === '' || $username === '' || $email === '' || $senha === '') {
                 return Response::json(['status' => 'error', 'message' => 'Campos obrigatórios: nome_completo, username, email, senha.'], 422);
@@ -208,7 +209,13 @@ class UsuarioController
             if (empty($body)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum dado enviado.'], 422);
             }
-            $this->service->atualizar($uuid, $body);
+            // Whitelist de campos que admin pode alterar — nivel_acesso é explícito e intencional aqui
+            $permitidos = ['nome_completo', 'username', 'email', 'senha', 'url_avatar', 'url_capa', 'biografia', 'nivel_acesso'];
+            $dados = array_intersect_key($body, array_flip($permitidos));
+            if (empty($dados)) {
+                return Response::json(['status' => 'error', 'message' => 'Nenhum campo válido enviado.'], 422);
+            }
+            $this->service->atualizar($uuid, $dados);
             $usuario = $this->service->buscarPorUuid($uuid);
             return Response::json([
                 'status'  => 'success',
@@ -380,6 +387,10 @@ class UsuarioController
             }
 
             $tipo = trim((string) ($request->body['tipo'] ?? 'avatar')); // avatar | capa
+            // Whitelist de tipo para evitar path traversal no nome do arquivo
+            if (!in_array($tipo, ['avatar', 'capa'], true)) {
+                $tipo = 'avatar';
+            }
             $file = $_FILES['imagem'] ?? $_FILES['file'] ?? null;
 
             if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -392,7 +403,19 @@ class UsuarioController
                 return Response::json(['status' => 'error', 'message' => 'Formato não suportado. Use JPEG, PNG ou WebP.'], 422);
             }
 
-            $ext      = pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'jpg';
+            // Valida tamanho máximo (5MB)
+            if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
+                return Response::json(['status' => 'error', 'message' => 'Imagem muito grande. Máximo 5MB.'], 422);
+            }
+
+            // Validação real de conteúdo — mime_content_type é falsificável
+            if (@getimagesize($file['tmp_name']) === false) {
+                return Response::json(['status' => 'error', 'message' => 'Arquivo inválido: não é uma imagem.'], 422);
+            }
+
+            // Whitelist de extensão — nunca usa extensão do nome original sem validar
+            $extMap = ['image/jpeg' => 'jpg', 'image/jpg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            $ext = $extMap[$mime] ?? 'jpg';
             $uuid     = $authUser->getUuid()->toString();
             $filename = $uuid . '_' . $tipo . '_' . time() . '.' . $ext;
             $uploadDir = dirname(__DIR__, 5) . '/public/uploads/perfil/';

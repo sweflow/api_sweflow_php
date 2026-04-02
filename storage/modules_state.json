@@ -1,5 +1,5 @@
 {
     "Auth": true,
     "Usuario": true,
-    "Email": false
+    "Email": true
 }

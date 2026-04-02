@@ -30,13 +30,22 @@ class AuthHybridMiddleware implements MiddlewareInterface
             $bearerToken = trim($m[1]);
         }
 
-        $token = $cookieToken !== '' ? $cookieToken : $bearerToken;
+        // Aceita também X-API-KEY para tokens de API
+        $apiKeyHeader = trim((string) ($_SERVER['HTTP_X_API_KEY'] ?? ''));
+
+        $token = $cookieToken !== '' ? $cookieToken : ($bearerToken !== '' ? $bearerToken : $apiKeyHeader);
         if ($token === '') {
             return $this->responder(401, 'Não autenticado: token ausente.');
         }
 
+        // Verifica se é token de API (JWT_API_SECRET com tipo:api)
+        if ($this->isApiToken($token)) {
+            $request = $request->withAttribute('api_token', true);
+            return $next($request);
+        }
+
         try {
-            $payload = $this->decodificarJwtUsuario($token);
+            [$payload, $assinadoComApiSecret] = $this->decodificarJwtUsuario($token);
             $this->validarClaimsUsuario($payload);
         } catch (DomainException $e) {
             $this->limparCookieAuth();
@@ -57,20 +66,52 @@ class AuthHybridMiddleware implements MiddlewareInterface
 
         $request = $request
             ->withAttribute('auth_user', $usuario)
-            ->withAttribute('auth_payload', $payload);
+            ->withAttribute('auth_payload', $payload)
+            ->withAttribute('token_signed_with_api_secret', $assinadoComApiSecret);
 
         return $next($request);
     }
 
-    private function decodificarJwtUsuario(string $token): object
+    /**
+     * Verifica se o token é um token de API válido (JWT_API_SECRET, tipo:api).
+     */
+    private function isApiToken(string $token): bool
     {
-        $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?? '';
+        $secret = trim((string) ($_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? ''));
+        if ($secret === '') {
+            return false;
+        }
+        try {
+            $payload = JWT::decode($token, new Key($secret, 'HS256'));
+            return !empty($payload->api_access) || ($payload->tipo ?? '') === 'api';
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function decodificarJwtUsuario(string $token): array
+    {
+        // Tenta JWT_API_SECRET primeiro (tokens de admin_system via /api/auth/login)
+        $apiSecret = trim((string) ($_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? ''));
+        if ($apiSecret !== '') {
+            try {
+                $payload = JWT::decode($token, new Key($apiSecret, 'HS256'));
+                if (isset($payload->tipo) && $payload->tipo === 'user') {
+                    return [$payload, true]; // [payload, assinadoComApiSecret]
+                }
+            } catch (\Throwable) {
+                // não é um token de admin — tenta JWT_SECRET
+            }
+        }
+
+        // Tenta JWT_SECRET (tokens de usuários comuns via /api/login)
+        $secret = trim((string) ($_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?? ''));
         if ($secret === '') {
             throw new DomainException('JWT_SECRET não configurado.');
         }
 
         try {
-            return JWT::decode($token, new Key($secret, 'HS256'));
+            return [JWT::decode($token, new Key($secret, 'HS256')), false];
         } catch (DomainException $e) {
             throw new DomainException('Token inválido: ' . $e->getMessage(), 401, $e);
         } catch (\Throwable $e) {
@@ -92,16 +133,22 @@ class AuthHybridMiddleware implements MiddlewareInterface
             throw new DomainException('Token sem jti.', 401);
         }
 
-        // Valida iss e aud apenas se configurados E se o token os contém
-        // Tokens emitidos antes de configurar JWT_ISSUER/JWT_AUDIENCE continuam válidos
+        // Valida iss: se JWT_ISSUER estiver configurado, o token DEVE ter iss e ele DEVE bater
         $iss = $_ENV['JWT_ISSUER'] ?? getenv('JWT_ISSUER') ?? null;
-        if ($iss && isset($payload->iss) && $payload->iss !== $iss) {
-            throw new DomainException('Emissor do token inválido.', 401);
+        if ($iss) {
+            if (!isset($payload->iss) || $payload->iss !== $iss) {
+                throw new DomainException('Emissor do token inválido.', 401);
+            }
         }
 
+        // Valida aud: se JWT_AUDIENCE estiver configurado, o token DEVE ter aud e ele DEVE bater
         $aud = $_ENV['JWT_AUDIENCE'] ?? getenv('JWT_AUDIENCE') ?? null;
-        if ($aud && isset($payload->aud) && $payload->aud !== $aud) {
-            throw new DomainException('Audiência do token inválida.', 401);
+        if ($aud) {
+            $tokenAud = $payload->aud ?? null;
+            $audMatch = is_array($tokenAud) ? in_array($aud, $tokenAud, true) : $tokenAud === $aud;
+            if (!$audMatch) {
+                throw new DomainException('Audiência do token inválida.', 401);
+            }
         }
     }
 

@@ -18,7 +18,7 @@ class Response
     public static function json($data, int $status = 200): self
     {
         $origin = self::resolveOrigin();
-        $allowCredentials = $origin !== '*';
+        $allowCredentials = $origin !== '';
         $securityHeaders = self::securityHeaders();
         return new self(
             $data,
@@ -48,11 +48,14 @@ class Response
     {
         $allowed = self::allowedOrigins();
         $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-        if ($requestOrigin && in_array($requestOrigin, $allowed, true)) {
+
+        if ($requestOrigin !== '' && in_array($requestOrigin, $allowed, true)) {
             return $requestOrigin;
         }
 
-        return $allowed[0] ?? '*';
+        // Sem origem configurada: bloqueia CORS (não retorna '*' — evita acesso cross-origin irrestrito)
+        // Retorna a primeira origem configurada, ou vazio para bloquear
+        return $allowed[0] ?? '';
     }
 
     private static function allowedOrigins(): array

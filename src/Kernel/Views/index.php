@@ -520,6 +520,14 @@
                                     }
                                     return; // não incrementa tentativas
                                 }
+                                // Acesso restrito (não é admin_system) — NÃO conta como tentativa
+                                if (response.status === 403) {
+                                    if (feedback) {
+                                        feedback.textContent = 'Acesso restrito.';
+                                        feedback.classList.add('error');
+                                    }
+                                    return;
+                                }
                                 const mensagem = body.message || body.error || body.erro || 'Falha ao autenticar.';
                                 throw new Error(mensagem);
                             }
