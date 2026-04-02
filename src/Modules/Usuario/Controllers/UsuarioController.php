@@ -240,21 +240,12 @@ class UsuarioController
             if (empty($body)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum dado enviado.'], 422);
             }
-            // Whitelist + sanitização por campo
-            $dados = [];
-            if (isset($body['nome_completo']))  $dados['nome_completo'] = Sanitizer::string($body['nome_completo'], 150);
-            if (isset($body['username']))        $dados['username']      = Sanitizer::username($body['username']);
-            if (isset($body['email']))           $dados['email']         = Sanitizer::email($body['email']);
-            if (isset($body['senha']))           $dados['senha']         = Sanitizer::password($body['senha']);
-            if (isset($body['url_avatar']))      $dados['url_avatar']    = Sanitizer::url($body['url_avatar']);
-            if (isset($body['url_capa']))        $dados['url_capa']      = Sanitizer::url($body['url_capa']);
-            if (isset($body['biografia']))       $dados['biografia']     = Sanitizer::text($body['biografia'], 500);
+            $dados = $this->sanitizarCamposUsuario($body);
             if (isset($body['nivel_acesso'])) {
-                $nivel = Sanitizer::nivelAcesso($body['nivel_acesso']);
-                if ($nivel === '') {
-                    return Response::json(['status' => 'error', 'message' => 'Nível de acesso inválido.'], 422);
+                $nivelError = $this->sanitizarNivelAcesso($body['nivel_acesso'], $dados);
+                if ($nivelError !== null) {
+                    return $nivelError;
                 }
-                $dados['nivel_acesso'] = $nivel;
             }
             if (empty($dados)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum campo válido enviado.'], 422);
@@ -272,6 +263,38 @@ class UsuarioController
         } catch (\Throwable $e) {
             return Response::json(['status' => 'error', 'message' => 'Erro ao atualizar usuário.', 'details' => $this->debug($e)], 500);
         }
+    }
+
+    /** Sanitiza os campos comuns de usuário a partir do body da requisição. */
+    private function sanitizarCamposUsuario(array $body): array
+    {
+        $map = [
+            'nome_completo' => static fn($v) => Sanitizer::string($v, 150),
+            'username'      => static fn($v) => Sanitizer::username($v),
+            'email'         => static fn($v) => Sanitizer::email($v),
+            'senha'         => static fn($v) => Sanitizer::password($v),
+            'url_avatar'    => static fn($v) => Sanitizer::url($v),
+            'url_capa'      => static fn($v) => Sanitizer::url($v),
+            'biografia'     => static fn($v) => Sanitizer::text($v, 500),
+        ];
+        $dados = [];
+        foreach ($map as $campo => $sanitize) {
+            if (isset($body[$campo])) {
+                $dados[$campo] = $sanitize($body[$campo]);
+            }
+        }
+        return $dados;
+    }
+
+    /** Valida e adiciona nivel_acesso em $dados. Retorna Response de erro ou null se ok. */
+    private function sanitizarNivelAcesso(mixed $valor, array &$dados): ?Response
+    {
+        $nivel = Sanitizer::nivelAcesso($valor);
+        if ($nivel === '') {
+            return Response::json(['status' => 'error', 'message' => 'Nível de acesso inválido.'], 422);
+        }
+        $dados['nivel_acesso'] = $nivel;
+        return null;
     }
 
     public function deletar(Request $request, string $uuid): Response
@@ -441,51 +464,30 @@ class UsuarioController
                 return Response::json(['status' => 'error', 'message' => 'Não autenticado.'], 401);
             }
 
-            $tipo = trim((string) ($request->body['tipo'] ?? 'avatar')); // avatar | capa
-            // Whitelist de tipo para evitar path traversal no nome do arquivo
-            if (!in_array($tipo, ['avatar', 'capa'], true)) {
-                $tipo = 'avatar';
-            }
-            $file = $_FILES['imagem'] ?? $_FILES['file'] ?? null;
+            $tipo  = $this->resolverTipoImagem($request->body['tipo'] ?? 'avatar');
+            $file  = $_FILES['imagem'] ?? $_FILES['file'] ?? null;
 
-            if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-                return Response::json(['status' => 'error', 'message' => 'Nenhuma imagem enviada ou erro no upload.'], 422);
+            $validationError = $this->validarArquivoImagem($file);
+            if ($validationError !== null) {
+                return $validationError;
             }
 
             $mime = mime_content_type($file['tmp_name']) ?: '';
-            $allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-            if (!in_array($mime, $allowed, true)) {
-                return Response::json(['status' => 'error', 'message' => 'Formato não suportado. Use JPEG, PNG ou WebP.'], 422);
+            $mimeError = $this->validarMimeImagem($mime);
+            if ($mimeError !== null) {
+                return $mimeError;
             }
 
-            // Valida tamanho máximo (5MB)
-            if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
-                return Response::json(['status' => 'error', 'message' => 'Imagem muito grande. Máximo 5MB.'], 422);
-            }
-
-            // Validação real de conteúdo — mime_content_type é falsificável
-            set_error_handler(static function (): bool { return true; });
-            $imageInfo = getimagesize($file['tmp_name']);
-            restore_error_handler();
-            if ($imageInfo === false) {
-                return Response::json(['status' => 'error', 'message' => 'Arquivo inválido: não é uma imagem.'], 422);
-            }
-
-            // Whitelist de extensão — nunca usa extensão do nome original sem validar
-            $extMap = ['image/jpeg' => 'jpg', 'image/jpg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-            $ext = $extMap[$mime] ?? 'jpg';
-            $uuid     = $authUser->getUuid()->toString();
-            $filename = $uuid . '_' . $tipo . '_' . time() . '.' . $ext;
+            $uuid      = $authUser->getUuid()->toString();
+            $filename  = $this->gerarNomeArquivo($uuid, $tipo, $mime);
             $uploadDir = dirname(__DIR__, 5) . '/public/uploads/perfil/';
 
             if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
                 return Response::json(['status' => 'error', 'message' => 'Erro ao criar diretório de upload.'], 500);
             }
 
-            $destPath = $uploadDir . $filename;
             [$maxW, $maxH] = $tipo === 'capa' ? [1200, 400] : [400, 400];
-
-            if (!ImageProcessor::resizeAndSave($file['tmp_name'], $destPath, $mime, $maxW, $maxH)) {
+            if (!ImageProcessor::resizeAndSave($file['tmp_name'], $uploadDir . $filename, $mime, $maxW, $maxH)) {
                 return Response::json(['status' => 'error', 'message' => 'Falha ao processar imagem.'], 500);
             }
 
@@ -497,6 +499,46 @@ class UsuarioController
         } catch (\Throwable $e) {
             return Response::json(['status' => 'error', 'message' => 'Erro no upload.', 'details' => $this->debug($e)], 500);
         }
+    }
+
+    private function resolverTipoImagem(mixed $tipo): string
+    {
+        $tipo = trim((string) $tipo);
+        return in_array($tipo, ['avatar', 'capa'], true) ? $tipo : 'avatar';
+    }
+
+    private function validarArquivoImagem(?array $file): ?Response
+    {
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return Response::json(['status' => 'error', 'message' => 'Nenhuma imagem enviada ou erro no upload.'], 422);
+        }
+        if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
+            return Response::json(['status' => 'error', 'message' => 'Imagem muito grande. Máximo 5MB.'], 422);
+        }
+        // Validação real de conteúdo — mime_content_type é falsificável
+        set_error_handler(static function (): bool { return true; });
+        $imageInfo = getimagesize($file['tmp_name']);
+        restore_error_handler();
+        if ($imageInfo === false) {
+            return Response::json(['status' => 'error', 'message' => 'Arquivo inválido: não é uma imagem.'], 422);
+        }
+        return null;
+    }
+
+    private function validarMimeImagem(string $mime): ?Response
+    {
+        $allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!in_array($mime, $allowed, true)) {
+            return Response::json(['status' => 'error', 'message' => 'Formato não suportado. Use JPEG, PNG ou WebP.'], 422);
+        }
+        return null;
+    }
+
+    private function gerarNomeArquivo(string $uuid, string $tipo, string $mime): string
+    {
+        $extMap = ['image/jpeg' => 'jpg', 'image/jpg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+        $ext    = $extMap[$mime] ?? 'jpg';
+        return $uuid . '_' . $tipo . '_' . time() . '.' . $ext;
     }
 
     public function deletarMinhaConta(Request $request): Response

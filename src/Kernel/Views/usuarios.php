@@ -12,7 +12,7 @@
         html, body { margin: 0; padding: 0; }
         html.will-dark, html.will-dark body, html.will-dark .dash-body { background: #0b0d18 !important; color: #f1f5f9 !important; }
     </style>
-    <script>
+    <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
         if (localStorage.getItem('dash-dark-mode') === '1') {
             document.documentElement.classList.add('will-dark', 'dash-no-transition');
         } else {

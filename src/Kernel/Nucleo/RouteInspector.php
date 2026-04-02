@@ -208,19 +208,42 @@ class RouteInspector
     private static function guessType(string $name): string
     {
         $n = strtolower($name);
-        if (in_array($n, ['email', 'e_mail', 'email_address'], true))        return 'email';
-        if (in_array($n, ['senha', 'password', 'pass', 'pwd', 'nova_senha'], true)) return 'password';
-        if (str_contains($n, 'uuid') || str_ends_with($n, '_id'))            return 'uuid';
-        if (in_array($n, ['telefone', 'phone', 'celular', 'fone'], true))    return 'phone';
-        if (str_contains($n, 'url') || str_contains($n, 'link'))             return 'url';
-        if (str_contains($n, 'data') || str_contains($n, 'date'))            return 'date';
-        if (in_array($n, ['ativo', 'enabled', 'active', 'verificado'], true)) return 'boolean';
-        if (str_contains($n, 'nivel') || str_contains($n, 'role')
-            || str_contains($n, 'acesso'))                                   return 'enum';
+        return self::resolveTypeFromMap($n) ?? self::resolveTypeFromPatterns($n) ?? 'string';
+    }
+
+    private static function resolveTypeFromMap(string $n): ?string
+    {
+        $exactMap = [
+            'email'          => 'email',
+            'e_mail'         => 'email',
+            'email_address'  => 'email',
+            'senha'          => 'password',
+            'password'       => 'password',
+            'pass'           => 'password',
+            'pwd'            => 'password',
+            'nova_senha'     => 'password',
+            'telefone'       => 'phone',
+            'phone'          => 'phone',
+            'celular'        => 'phone',
+            'fone'           => 'phone',
+            'ativo'          => 'boolean',
+            'enabled'        => 'boolean',
+            'active'         => 'boolean',
+            'verificado'     => 'boolean',
+        ];
+        return $exactMap[$n] ?? null;
+    }
+
+    private static function resolveTypeFromPatterns(string $n): ?string
+    {
+        if (str_contains($n, 'uuid') || str_ends_with($n, '_id'))   return 'uuid';
+        if (str_contains($n, 'url')  || str_contains($n, 'link'))   return 'url';
+        if (str_contains($n, 'data') || str_contains($n, 'date'))   return 'date';
+        if (str_contains($n, 'nivel') || str_contains($n, 'role') || str_contains($n, 'acesso')) return 'enum';
         if (str_contains($n, 'limit') || str_contains($n, 'page')
             || str_contains($n, 'count') || str_contains($n, 'total')
-            || str_contains($n, 'offset'))                                   return 'integer';
-        return 'string';
+            || str_contains($n, 'offset'))                           return 'integer';
+        return null;
     }
 
     /**

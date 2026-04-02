@@ -11,7 +11,7 @@
             color: #f1f5f9 !important;
         }
     </style>
-    <script>
+    <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
         if (localStorage.getItem('dash-dark-mode') === '1') {
             document.documentElement.classList.add('will-dark', 'dash-no-transition');
         } else {
@@ -674,8 +674,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Smooth scroll links
     document.querySelectorAll('a[href^="#"]').forEach(a => {
+        const href = a.getAttribute('href');
+        if (!href || href === '#') return;
         a.addEventListener('click', e => {
-            const t = document.querySelector(a.getAttribute('href'));
+            const t = document.querySelector(href);
             if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
         });
     });
