@@ -10296,3 +10296,73 @@ u Apr  2 13:34:42 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Thu Apr  2 17:05:40 2026] 127.0.0.1:16329 Accepted
 [Thu Apr  2 17:07:03 2026] 127.0.0.1:16329 Closed without sending a request; it was probably just an unused speculative preconnection
 [Thu Apr  2 17:07:03 2026] 127.0.0.1:16329 Closing
+[Thu Apr  2 17:13:20 2026] PHP Warning:  Module "zip" is already loaded in Unknown on line 0
+[Thu Apr  2 17:13:20 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Thu Apr  2 17:13:53 2026] 127.0.0.1:16654 Accepted
+[Thu Apr  2 17:13:53 2026] 127.0.0.1:16654 Closing
+[Thu Apr  2 17:13:53 2026] 127.0.0.1:57835 Accepted
+{"timestamp":"2026-04-02T20:13:53+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:13:53+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:13:53 2026] 127.0.0.1:57835 Closing
+[Thu Apr  2 17:13:53 2026] 127.0.0.1:53226 Accepted
+{"timestamp":"2026-04-02T20:14:17+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:14:17+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:14:17 2026] 127.0.0.1:53226 Closing
+[Thu Apr  2 17:17:26 2026] 127.0.0.1:46215 Accepted
+{"timestamp":"2026-04-02T20:17:27+00:00","type":"AUDIT","evento":"auth.login.success","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":{"username":"adimael"}}
+[Thu Apr  2 17:17:27 2026] 127.0.0.1:46215 Closing
+[Thu Apr  2 17:17:40 2026] 127.0.0.1:44477 Accepted
+[Thu Apr  2 17:17:40 2026] 127.0.0.1:44477 Closing
+[Thu Apr  2 17:17:52 2026] 127.0.0.1:4529 Accepted
+{"timestamp":"2026-04-02T20:17:53+00:00","type":"AUDIT","evento":"auth.login.success","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":{"username":"adimael"}}
+[Thu Apr  2 17:17:53 2026] 127.0.0.1:4529 Closing
+[Thu Apr  2 17:18:25 2026] 127.0.0.1:46671 Accepted
+{"timestamp":"2026-04-02T20:18:25+00:00","type":"AUDIT","evento":"auth.login.success","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":{"username":"adimael"}}
+[Thu Apr  2 17:18:25 2026] 127.0.0.1:46671 Closing
+[Thu Apr  2 17:20:44 2026] 127.0.0.1:49128 Accepted
+{"timestamp":"2026-04-02T20:20:45+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:20:45+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:20:45 2026] 127.0.0.1:49128 Closing
+[Thu Apr  2 17:20:45 2026] 127.0.0.1:11476 Accepted
+{"timestamp":"2026-04-02T20:21:02+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:21:02+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:21:02 2026] 127.0.0.1:11476 Closing
+[Thu Apr  2 17:22:25 2026] 127.0.0.1:10398 Accepted
+{"timestamp":"2026-04-02T20:22:25+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:22:25+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:22:25 2026] 127.0.0.1:10398 Closing
+[Thu Apr  2 17:22:25 2026] 127.0.0.1:12426 Accepted
+{"timestamp":"2026-04-02T20:22:43+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:22:44+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:22:44 2026] 127.0.0.1:12426 Closing
+[Thu Apr  2 17:22:54 2026] 127.0.0.1:23969 Accepted
+{"timestamp":"2026-04-02T20:22:54+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:22:54+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:22:54 2026] 127.0.0.1:23969 Closing
+[Thu Apr  2 17:22:54 2026] 127.0.0.1:60304 Accepted
+{"timestamp":"2026-04-02T20:23:03+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:23:03+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:23:03 2026] 127.0.0.1:60304 Closing
+[Thu Apr  2 17:24:07 2026] 127.0.0.1:1176 Accepted
+[Thu Apr  2 17:24:07 2026] 127.0.0.1:1176 Closing
+[Thu Apr  2 17:24:53 2026] 127.0.0.1:29846 Accepted
+[Thu Apr  2 17:24:53 2026] 127.0.0.1:29846 Closing
+[Thu Apr  2 17:25:50 2026] 127.0.0.1:1606 Accepted
+{"timestamp":"2026-04-02T20:25:50+00:00","type":"AUDIT","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"identifier":"teste@gmail.com"}}
+{"timestamp":"2026-04-02T20:25:50+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"}
+[Thu Apr  2 17:25:50 2026] 127.0.0.1:1606 Closing
+[Thu Apr  2 17:25:50 2026] 127.0.0.1:45339 Accepted
+{"timestamp":"2026-04-02T20:26:15+00:00","type":"AUDIT","evento":"auth.login.success","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":{"username":"adimael"}}
+[Thu Apr  2 17:26:15 2026] 127.0.0.1:45339 Closing
+[Thu Apr  2 17:26:16 2026] 127.0.0.1:56837 Accepted
+[Thu Apr  2 17:26:16 2026] 127.0.0.1:56837 Closing
+[Thu Apr  2 17:26:16 2026] 127.0.0.1:54645 Accepted
+[Thu Apr  2 17:26:16 2026] 127.0.0.1:54645 Closing
+[Thu Apr  2 17:26:16 2026] 127.0.0.1:42688 Accepted
+[Thu Apr  2 17:26:53 2026] 127.0.0.1:42688 Closing
+[Thu Apr  2 17:26:53 2026] 127.0.0.1:58907 Accepted
+{"timestamp":"2026-04-02T20:26:54+00:00","type":"AUDIT","evento":"auth.logout","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":[]}
+[Thu Apr  2 17:26:54 2026] 127.0.0.1:58907 Closing
+[Thu Apr  2 17:26:54 2026] 127.0.0.1:5022 Accepted
+[Thu Apr  2 17:28:39 2026] 127.0.0.1:5022 Closed without sending a request; it was probably just an unused speculative preconnection
+[Thu Apr  2 17:28:39 2026] 127.0.0.1:5022 Closing
