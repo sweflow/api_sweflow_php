@@ -220,7 +220,7 @@ function renderDbConnectionError(string $uri): void
         header('Content-Type: text/html; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
-        header('Content-Security-Policy: default-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; frame-ancestors \'none\'');
+        header('Content-Security-Policy: default-src \'self\'; style-src \'self\' \'unsafe-inline\'; script-src \'self\'; img-src \'self\' data:; frame-ancestors \'none\'');
     }
     if (ob_get_level() > 0) ob_end_clean();
     echo $html;
@@ -229,6 +229,35 @@ function renderDbConnectionError(string $uri): void
 
 if (!isset($GLOBALS['__raw_input'])) {
     $GLOBALS['__raw_input'] = file_get_contents('php://input');
+}
+
+// ── /api/db-status — responde antes de tentar conectar ao banco ───────────
+// Permite que a página de erro verifique se o banco voltou sem depender do boot completo.
+if ($uri === '/api/db-status' || str_starts_with($uri, '/api/db-status?')) {
+    $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowedOrigins = array_filter(array_map('trim', explode(',',
+        ($_ENV['CORS_ALLOWED_ORIGINS'] ?? '') . ',' .
+        ($_ENV['APP_URL_FRONTEND']     ?? '') . ',' .
+        ($_ENV['APP_URL']              ?? '')
+    )));
+    if ($requestOrigin !== '' && in_array($requestOrigin, $allowedOrigins, true)) {
+        header('Access-Control-Allow-Origin: ' . $requestOrigin);
+        header('Access-Control-Allow-Credentials: true');
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    try {
+        $testPdo = PdoFactory::fromEnv();
+        $testPdo->query('SELECT 1');
+        if (ob_get_level() > 0) ob_end_clean();
+        http_response_code(200);
+        echo json_encode(['conectado' => true]);
+    } catch (\Throwable) {
+        if (ob_get_level() > 0) ob_end_clean();
+        http_response_code(503);
+        echo json_encode(['conectado' => false]);
+    }
+    exit;
 }
 
 $container = new Container();
@@ -507,31 +536,12 @@ $router->get('/robots.txt', function () use ($router) {
     return new Response($body, 200, ['Content-Type' => 'text/plain; charset=utf-8']);
 });
 
-$router->get('/api/status', function () use ($modules) {
-    $status = [
-        'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
-        'port' => $_SERVER['SERVER_PORT'] ?? '-',
-        'env'  => $_ENV['APP_ENV'] ?? 'local',
-        'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? 'true' : 'false',
-    ];
-
-    $moduleList = [];
-    foreach ($modules->providers() as $name => $provider) {
-        $enabled = $modules->isEnabled($name);
-        $desc = $provider->describe();
-        // Remove routes from public status to avoid API inventory exposure
-        unset($desc['routes']);
-        $moduleList[] = array_merge(
-            ['name' => $name, 'enabled' => $enabled],
-            $desc
-        );
-    }
-
-    return Response::json([
-        'status' => $status,
-        'modules' => $moduleList,
-    ]);
-}, [[RateLimitMiddleware::class, ['limit' => 20, 'window' => 60, 'key' => 'api.status']]]);
+$router->get('/api/status', function () {
+    return Response::json(['status' => 'ok']);
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
 
 $router->get('/api/db-status', function () use ($container) {
     // Rota pública — retorna apenas conectado/desconectado, sem detalhes de infra

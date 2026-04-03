@@ -10296,8 +10296,9 @@ u Apr  2 13:34:42 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Thu Apr  2 17:05:40 2026] 127.0.0.1:16329 Accepted
 [Thu Apr  2 17:07:03 2026] 127.0.0.1:16329 Closed without sending a request; it was probably just an unused speculative preconnection
 [Thu Apr  2 17:07:03 2026] 127.0.0.1:16329 Closing
-[Thu Apr  2 17:13:20 2026] PHP Warning:  Module "zip" is already loaded in Unknown on line 0
-[Thu Apr  2 17:13:20 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+u Apr  2 17:13:20 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
 [Thu Apr  2 17:13:53 2026] 127.0.0.1:16654 Accepted
 [Thu Apr  2 17:13:53 2026] 127.0.0.1:16654 Closing
 [Thu Apr  2 17:13:53 2026] 127.0.0.1:57835 Accepted
@@ -10366,3 +10367,146 @@ u Apr  2 13:34:42 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Thu Apr  2 17:26:54 2026] 127.0.0.1:5022 Accepted
 [Thu Apr  2 17:28:39 2026] 127.0.0.1:5022 Closed without sending a request; it was probably just an unused speculative preconnection
 [Thu Apr  2 17:28:39 2026] 127.0.0.1:5022 Closing
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+u Apr  2 21:01:29 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Thu Apr  2 21:01:37 2026] 127.0.0.1:22862 Accepted
+[Thu Apr  2 21:01:42 2026] 127.0.0.1:22862 Closing
+[Thu Apr  2 21:01:42 2026] 127.0.0.1:22867 Accepted
+[Thu Apr  2 21:01:46 2026] 127.0.0.1:22867 Closing
+[Thu Apr  2 21:01:46 2026] 127.0.0.1:22872 Accepted
+[Thu Apr  2 21:01:50 2026] 127.0.0.1:22872 Closing
+[Thu Apr  2 21:01:58 2026] 127.0.0.1:63452 Accepted
+[Thu Apr  2 21:02:02 2026] 127.0.0.1:63452 Closing
+[Thu Apr  2 21:02:02 2026] 127.0.0.1:48955 Accepted
+[Thu Apr  2 21:02:27 2026] 127.0.0.1:48955 Closing
+[Thu Apr  2 21:02:30 2026] 127.0.0.1:17785 Accepted
+{"timestamp":"2026-04-03T00:02:30+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:30 2026] 127.0.0.1:17785 Closing
+[Thu Apr  2 21:02:30 2026] 127.0.0.1:3954 Accepted
+{"timestamp":"2026-04-03T00:02:31+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:31 2026] 127.0.0.1:3954 Closing
+[Thu Apr  2 21:02:36 2026] 127.0.0.1:21988 Accepted
+{"timestamp":"2026-04-03T00:02:36+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:36 2026] 127.0.0.1:21988 Closing
+[Thu Apr  2 21:02:36 2026] 127.0.0.1:31989 Accepted
+{"timestamp":"2026-04-03T00:02:37+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:37 2026] 127.0.0.1:31989 Closing
+[Thu Apr  2 21:02:38 2026] 127.0.0.1:31453 Accepted
+{"timestamp":"2026-04-03T00:02:38+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:38 2026] 127.0.0.1:31453 Closing
+[Thu Apr  2 21:02:38 2026] 127.0.0.1:6262 Accepted
+{"timestamp":"2026-04-03T00:02:42+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:42 2026] 127.0.0.1:6262 Closing
+[Thu Apr  2 21:02:43 2026] 127.0.0.1:46177 Accepted
+{"timestamp":"2026-04-03T00:02:44+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:44 2026] 127.0.0.1:46177 Closing
+[Thu Apr  2 21:02:44 2026] 127.0.0.1:4978 Accepted
+{"timestamp":"2026-04-03T00:02:44+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:44 2026] 127.0.0.1:4978 Closing
+[Thu Apr  2 21:02:45 2026] 127.0.0.1:4780 Accepted
+{"timestamp":"2026-04-03T00:02:45+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:02:45 2026] 127.0.0.1:4780 Closing
+[Thu Apr  2 21:02:46 2026] 127.0.0.1:56299 Accepted
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:56299 Closing
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:49976 Accepted
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:1510 Accepted
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:49976 Closing
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:1510 Closing
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:62402 Accepted
+[Thu Apr  2 21:02:50 2026] 127.0.0.1:62402 Closing
+[Thu Apr  2 21:03:21 2026] 127.0.0.1:53016 Accepted
+[Thu Apr  2 21:03:25 2026] 127.0.0.1:53016 Closing
+[Thu Apr  2 21:03:25 2026] 127.0.0.1:33554 Accepted
+[Thu Apr  2 21:03:29 2026] 127.0.0.1:33554 Closing
+[Thu Apr  2 21:03:29 2026] 127.0.0.1:30983 Accepted
+[Thu Apr  2 21:03:29 2026] 127.0.0.1:27474 Accepted
+[Thu Apr  2 21:03:29 2026] 127.0.0.1:30983 Closing
+[Thu Apr  2 21:03:29 2026] 127.0.0.1:27474 Closing
+[Thu Apr  2 21:03:30 2026] 127.0.0.1:34577 Accepted
+[Thu Apr  2 21:03:30 2026] 127.0.0.1:34577 Closing
+[Thu Apr  2 21:03:30 2026] 127.0.0.1:30527 Accepted
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:30527 Closing
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:49447 Accepted
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:37009 Accepted
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:49447 Closing
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:37009 Closing
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:20896 Accepted
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:20896 Closing
+[Thu Apr  2 21:04:00 2026] 127.0.0.1:20917 Accepted
+{"timestamp":"2026-04-03T00:04:04+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/status","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Thu Apr  2 21:04:04 2026] 127.0.0.1:20917 Closing
+[Thu Apr  2 21:04:06 2026] 127.0.0.1:39404 Accepted
+[Thu Apr  2 21:04:06 2026] 127.0.0.1:39404 Closing
+[Thu Apr  2 21:04:06 2026] 127.0.0.1:26935 Accepted
+[Thu Apr  2 21:04:31 2026] 127.0.0.1:26935 Closing
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:26796 Accepted
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:23437 Accepted
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:26796 Closing
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:23437 Closing
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:9676 Accepted
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:9676 Closing
+[Thu Apr  2 21:04:32 2026] 127.0.0.1:52676 Accepted
+[Thu Apr  2 21:04:44 2026] 127.0.0.1:52676 Closing
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:4175 Accepted
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:3469 Accepted
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:4175 Closing
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:3469 Closing
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:35279 Accepted
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:35279 Closing
+[Thu Apr  2 21:04:45 2026] 127.0.0.1:28452 Accepted
+[Thu Apr  2 21:05:53 2026] 127.0.0.1:28452 Closed without sending a request; it was probably just an unused speculative preconnection
+[Thu Apr  2 21:05:53 2026] 127.0.0.1:28452 Closing
+[Thu Apr  2 21:05:53 2026] 127.0.0.1:11430 Accepted
+[Thu Apr  2 21:05:57 2026] 127.0.0.1:11430 Closing
+[Thu Apr  2 21:05:57 2026] 127.0.0.1:16961 Accepted
+[Thu Apr  2 21:05:57 2026] 127.0.0.1:16961 Closing
+[Thu Apr  2 21:05:58 2026] 127.0.0.1:38044 Accepted
+[Thu Apr  2 21:05:58 2026] 127.0.0.1:38044 Closing
+[Thu Apr  2 21:05:58 2026] 127.0.0.1:8249 Accepted
+[Thu Apr  2 21:05:58 2026] 127.0.0.1:8249 Closing
+[Thu Apr  2 21:05:58 2026] 127.0.0.1:8476 Accepted
+[Thu Apr  2 21:07:54 2026] 127.0.0.1:8476 Closed without sending a request; it was probably just an unused speculative preconnection
+[Thu Apr  2 21:07:54 2026] 127.0.0.1:8476 Closing
+[Thu Apr  2 21:07:54 2026] 127.0.0.1:32588 Accepted
+[Thu Apr  2 21:07:58 2026] 127.0.0.1:32588 Closing
+[Thu Apr  2 21:07:58 2026] 127.0.0.1:35715 Accepted
+[Thu Apr  2 21:07:58 2026] 127.0.0.1:35715 Closing
+[Thu Apr  2 21:07:59 2026] 127.0.0.1:55284 Accepted
+[Thu Apr  2 21:07:59 2026] 127.0.0.1:55284 Closing
+[Thu Apr  2 21:07:59 2026] 127.0.0.1:13729 Accepted
+[Thu Apr  2 21:07:59 2026] 127.0.0.1:13729 Closing
+[Thu Apr  2 21:07:59 2026] 127.0.0.1:21591 Accepted
+[Thu Apr  2 21:09:51 2026] 127.0.0.1:21591 Closed without sending a request; it was probably just an unused speculative preconnection
+[Thu Apr  2 21:09:51 2026] 127.0.0.1:21591 Closing
+[Thu Apr  2 21:09:52 2026] 127.0.0.1:55736 Accepted
+[Thu Apr  2 21:09:56 2026] 127.0.0.1:55736 Closing
+[Thu Apr  2 21:09:56 2026] 127.0.0.1:30763 Accepted
+[Thu Apr  2 21:09:56 2026] 127.0.0.1:30763 Closing
+[Thu Apr  2 21:09:56 2026] 127.0.0.1:45058 Accepted
+[Thu Apr  2 21:09:56 2026] 127.0.0.1:45058 Closing
+[Thu Apr  2 21:09:56 2026] 127.0.0.1:4282 Accepted
+[Thu Apr  2 21:09:57 2026] 127.0.0.1:4282 Closing
+[Thu Apr  2 21:09:57 2026] 127.0.0.1:43353 Accepted
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:43353 Closing
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:30330 Accepted
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:53588 Accepted
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:23393 Accepted
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:30330 Closing
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:53588 Closing
+[Thu Apr  2 21:10:26 2026] 127.0.0.1:23393 Closing
+[Thu Apr  2 21:10:27 2026] 127.0.0.1:39000 Accepted
+[Thu Apr  2 21:10:27 2026] 127.0.0.1:39000 Closing
+[Thu Apr  2 21:10:27 2026] 127.0.0.1:22044 Accepted
+[Thu Apr  2 21:10:32 2026] 127.0.0.1:22044 Closing
+[Thu Apr  2 21:11:09 2026] 127.0.0.1:20013 Accepted
+[Thu Apr  2 21:11:10 2026] 127.0.0.1:20013 Closing
+[Thu Apr  2 21:11:10 2026] 127.0.0.1:64045 Accepted
+[Thu Apr  2 21:11:10 2026] 127.0.0.1:64045 Closing
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:1098 Accepted
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:56424 Accepted
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:1098 Closing
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:56424 Closing
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:19434 Accepted
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:19434 Closing
+[Thu Apr  2 21:11:11 2026] 127.0.0.1:60483 Accepted

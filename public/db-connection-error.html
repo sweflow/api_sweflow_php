@@ -30,7 +30,9 @@
             </p>
 
             <div class="db-error-actions">
-              <button class="btn primary" type="button" onclick="location.reload()">Tentar novamente</button>
+              <button class="btn primary" type="button" id="retry-btn">
+                <span id="retry-label">Tentar novamente</span>
+              </button>
               <a class="btn" href="/">Voltar para a página inicial</a>
             </div>
           </div>
@@ -59,5 +61,7 @@
         </footer>
       </section>
     </main>
+
+    <script src="/assets/db-error.js"></script>
   </body>
 </html>

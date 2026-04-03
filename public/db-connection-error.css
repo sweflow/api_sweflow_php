@@ -253,7 +253,29 @@ body{
   border-bottom: 1px dashed rgba(238,242,255,0.32);
 }
 
-.db-error-footer a:hover{
-  color: var(--text);
-  border-bottom-color: rgba(238,242,255,0.6);
+/* ── Retry button spinner ─────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.btn.primary:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-offline {
+  border-color: rgba(255,77,109,0.42) !important;
+  background: linear-gradient(135deg, rgba(255,77,109,0.3), rgba(255,77,109,0.15)) !important;
 }
