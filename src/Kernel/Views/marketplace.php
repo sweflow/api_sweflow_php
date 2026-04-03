@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Marketplace de Módulos — Sweflow</title>
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/style.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         html, body { margin: 0; padding: 0; }
@@ -568,6 +568,6 @@
         fetchPkgs('').then(renderPkgs);
     })();
     </script>
-    <script src="/assets/nav-init.js"></script>
+    <script src="/assets/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/nav-init.js') ?>"></script>
 </body>
 </html>

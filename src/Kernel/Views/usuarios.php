@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Usuários — Sweflow</title>
-    <link rel="stylesheet" href="/style.css?v=2">
+    <link rel="stylesheet" href="/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/style.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="/assets/usuarios.css?v=2">
+    <link rel="stylesheet" href="/assets/usuarios.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/usuarios.css') ?>">
     <style>
         html, body { margin: 0; padding: 0; }
         html.will-dark, html.will-dark body, html.will-dark .dash-body { background: #0b0d18 !important; color: #f1f5f9 !important; }
@@ -293,7 +293,7 @@
     <span id="toast-msg"></span>
 </div>
 
-<script src="/assets/usuarios.js?v=<?= time() ?>"></script>
-<script src="/assets/nav-init.js"></script>
+<script src="/assets/usuarios.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/usuarios.js') ?>"></script>
+<script src="/assets/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/nav-init.js') ?>"></script>
 </body>
 </html>

@@ -609,6 +609,7 @@ window.onload = function () {
     function openEmailModal() {
         if (!emailModal) return;
         emailModal.classList.add('show');
+        restoreDraft();
         if (emailEditor) emailEditor.focus();
     }
 
@@ -923,6 +924,7 @@ window.onload = function () {
                 emailFeedback.textContent = 'E-mail enviado com sucesso.';
                 emailFeedback.className = 'email-feedback success';
             }
+            try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
             setTimeout(closeEmailModal, 800);
         } catch (err) {
             if (emailFeedback) {
@@ -1645,6 +1647,37 @@ window.onload = function () {
     }
     if (emailClose) emailClose.addEventListener('click', closeEmailModal);
     if (emailCancel) emailCancel.addEventListener('click', closeEmailModal);
+
+    // ── Rascunho ──────────────────────────────────────────────────────────────
+    const DRAFT_KEY = 'sweflow-email-draft';
+    const emailDraftBtn = document.getElementById('email-draft-btn');
+
+    function saveDraft() {        const draft = {
+            to:      emailTo?.value      || '',
+            subject: emailSubject?.value || '',
+            body:    emailEditor?.innerHTML || '',
+        };
+        try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (_) {}
+        if (emailFeedback) {
+            emailFeedback.textContent = 'Rascunho salvo.';
+            emailFeedback.className = 'email-feedback success';
+            setTimeout(() => { if (emailFeedback) { emailFeedback.textContent = ''; emailFeedback.className = 'email-feedback'; } }, 2500);
+        }
+    }
+
+    function restoreDraft() {
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            if (emailTo && draft.to)           emailTo.value = draft.to;
+            if (emailSubject && draft.subject) emailSubject.value = draft.subject;
+            if (emailEditor && draft.body)     emailEditor.innerHTML = draft.body;
+        } catch (_) {}
+    }
+
+    if (emailDraftBtn) emailDraftBtn.addEventListener('click', saveDraft);
+    // ── fim rascunho ──────────────────────────────────────────────────────────
     if (emailToolbar) emailToolbar.addEventListener('click', handleToolbarClick);
     if (emailEditor) {
         emailEditor.addEventListener('keyup', storeSelection);

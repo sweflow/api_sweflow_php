@@ -31,7 +31,7 @@
             });
         });
     </script>
-    <link rel="stylesheet" href="/style.css?v=2">
+    <link rel="stylesheet" href="/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/style.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="dash-body">
@@ -430,6 +430,9 @@
             <div class="email-form-footer">
                 <div id="email-feedback" class="email-feedback" aria-live="polite"></div>
                 <div class="email-form-btns">
+                    <button type="button" class="btn ghost" id="email-draft-btn" title="Salvar rascunho localmente">
+                        <i class="fa-solid fa-floppy-disk"></i> Rascunho
+                    </button>
                     <button type="button" class="btn ghost" id="email-cancel">
                         <i class="fa-solid fa-xmark"></i> Cancelar
                     </button>
@@ -682,9 +685,14 @@
     </div>
 </div>
 
-<script src="/assets/nav-init.js?v=<?= time() ?>"></script>
-<script src="/assets/dashboard.js?v=<?= time() ?>"></script>
 <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+// Seta flag ANTES de nav-init.js ser parseado, para que ele não registre listener duplicado
+window.__sidebarToggleInit = true;
+</script>
+<script src="/assets/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/nav-init.js') ?>"></script>
+<script src="/assets/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/dashboard.js') ?>"></script>
+<script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>"><?php // inline dashboard init ?>
+
 // Conecta botões extras ao dashboard.js (open-email-modal-hero, open-email-modal2, sidebar links)
 document.addEventListener('DOMContentLoaded', function () {
     // Fecha modal de rota
@@ -702,7 +710,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // Dark mode — gerenciado pelo nav-init.js (evita listener duplicado)
 
     // Sidebar toggle
-    window.__sidebarToggleInit = true; // evita registro duplo pelo nav-init.js
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const sidebar       = document.getElementById('dash-sidebar');
     const backdrop      = document.getElementById('sidebar-backdrop');
