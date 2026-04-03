@@ -13353,3 +13353,84 @@ i Apr  3 00:20:18 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Fri Apr  3 00:30:08 2026] 127.0.0.1:11121 Accepted
 [Fri Apr  3 00:30:09 2026] 127.0.0.1:11121 Closing
 [Fri Apr  3 00:30:09 2026] 127.0.0.1:13836 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+i Apr  3 00:37:46 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Fri Apr  3 00:37:46 2026] 127.0.0.1:1287 Accepted
+[Fri Apr  3 00:37:58 2026] 127.0.0.1:1287 Closing
+[Fri Apr  3 00:37:59 2026] 127.0.0.1:9136 Accepted
+[Fri Apr  3 00:37:59 2026] 127.0.0.1:9136 Closing
+[Fri Apr  3 00:37:59 2026] 127.0.0.1:3046 Accepted
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:2911 Accepted
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:2911 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:2911 Closing
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:8008 Accepted
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:8008 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:8008 Closing
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:40350 Accepted
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:40350 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:01 2026] 127.0.0.1:40350 Closing
+[Fri Apr  3 00:38:02 2026] 127.0.0.1:47290 Accepted
+[Fri Apr  3 00:38:02 2026] 127.0.0.1:47290 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:02 2026] 127.0.0.1:47290 Closing
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:12305 Accepted
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:12305 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:12305 Closing
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:46512 Accepted
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:46512 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:46512 Closing
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:3713 Accepted
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:3713 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:3713 Closing
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:62807 Accepted
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:62807 Invalid request (Unsupported SSL request)
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:62807 Closing
+[Fri Apr  3 00:38:03 2026] 127.0.0.1:3046 Closing
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:57759 Accepted
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:57759 Closing
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:15977 Accepted
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:15977 Closing
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:16219 Accepted
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:45183 Accepted
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:31230 Accepted
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:46968 Accepted
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:16219 Closing
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:45183 Closing
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:31230 Closing
+[Fri Apr  3 00:38:17 2026] 127.0.0.1:46968 Closing
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:35789 Accepted
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:61788 Accepted
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:41788 Accepted
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:35789 Closing
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:61788 Closing
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:41788 Closing
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:55666 Accepted
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:52103 Accepted
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:55666 Closing
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:52103 Closing
+[Fri Apr  3 00:38:18 2026] 127.0.0.1:47206 Accepted
+[Fri Apr  3 00:38:19 2026] 127.0.0.1:47206 Closing
+[Fri Apr  3 00:38:19 2026] 127.0.0.1:1789 Accepted
+{"timestamp":"2026-04-03T03:38:22+00:00","type":"AUDIT","evento":"auth.logout","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":[]}
+[Fri Apr  3 00:38:22 2026] 127.0.0.1:1789 Closing
+[Fri Apr  3 00:38:22 2026] 127.0.0.1:1753 Accepted
+[Fri Apr  3 00:38:22 2026] 127.0.0.1:1753 Closing
+[Fri Apr  3 00:38:22 2026] 127.0.0.1:59123 Accepted
+[Fri Apr  3 00:38:22 2026] 127.0.0.1:59123 Closing
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:4057 Accepted
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:39712 Accepted
+{"timestamp":"2026-04-03T03:38:23+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/logout","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:4057 Closing
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:39712 Closing
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:63227 Accepted
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:63227 Closing
+[Fri Apr  3 00:38:23 2026] 127.0.0.1:16048 Accepted
+[Fri Apr  3 00:38:30 2026] 127.0.0.1:16048 Closing
+[Fri Apr  3 00:38:30 2026] 127.0.0.1:14905 Accepted
+[Fri Apr  3 00:38:30 2026] 127.0.0.1:14905 Closing
+[Fri Apr  3 00:38:30 2026] 127.0.0.1:5502 Accepted
+[Fri Apr  3 00:38:30 2026] 127.0.0.1:5502 Closing
+[Fri Apr  3 00:38:31 2026] 127.0.0.1:23733 Accepted
+[Fri Apr  3 00:38:31 2026] 127.0.0.1:34726 Accepted
+[Fri Apr  3 00:38:31 2026] 127.0.0.1:23733 Closing
+[Fri Apr  3 00:38:31 2026] 127.0.0.1:34726 Closing

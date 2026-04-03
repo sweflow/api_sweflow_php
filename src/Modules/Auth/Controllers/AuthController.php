@@ -15,7 +15,7 @@ use Src\Kernel\Contracts\EmailSenderInterface;
 class AuthController
 {
     private ?AuthService $authService = null;
-    private ?UserRepositoryInterface $usuarioRepository = null;
+    private ?\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface $usuarioRepository = null;
     private ?RefreshTokenRepository $refreshTokenRepository = null;
     private ?AccessTokenBlacklistRepository $accessBlacklist = null;
     private ?PDO $pdo = null;
@@ -569,10 +569,9 @@ class AuthController
         return $this->authService;
     }
 
-    private function repositorio(): UserRepositoryInterface
+    private function repositorio(): \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface
     {
         if ($this->usuarioRepository === null) {
-            // Usa a implementação concreta via contrato — sem importar o módulo Usuario diretamente
             $this->usuarioRepository = new \Src\Modules\Usuario\Repositories\UsuarioRepository($this->pdo());
         }
 
@@ -710,13 +709,6 @@ class AuthController
     {
         $valorNormalizado = strtolower(trim($valor));
         return in_array($valorNormalizado, ['1', 'true', 'on', 'yes'], true);
-    }
-
-    private function resolverSameSite(string $valor): string
-    {
-        $normalizado = ucfirst(strtolower(trim($valor)));
-        $permitidos = ['Lax', 'Strict', 'None'];
-        return in_array($normalizado, $permitidos, true) ? $normalizado : 'Lax';
     }
 
     private function debugAtivo(): bool
