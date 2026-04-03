@@ -21,7 +21,7 @@ class BotBlockerMiddlewareTest extends TestCase
 {
     private array $originalServer = [];
     private array $originalEnv    = [];
-    private string $threatDir;
+    private string $threatDir     = '';
 
     protected function setUp(): void
     {

@@ -10,8 +10,8 @@ use Src\Kernel\Support\ThreatScorer;
  */
 class ThreatScorerTest extends TestCase
 {
-    private string $storageDir;
-    private ThreatScorer $scorer;
+    private string $storageDir = '';
+    private ?ThreatScorer $scorer = null;
 
     protected function setUp(): void
     {

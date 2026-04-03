@@ -14,7 +14,7 @@ class AdminOnlyMiddleware implements MiddlewareInterface
 
         // Caso 1: token de API puro (JWT_API_SECRET com tipo:api) — acesso total
         if ($request->attribute('api_token') === true) {
-            return $this->prosseguir($next, $request);
+            return $next($request);
         }
 
         $payload = $request->attribute('auth_payload');

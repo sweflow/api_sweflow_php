@@ -74,7 +74,7 @@ class AuthPageMiddleware implements MiddlewareInterface
     private function redirecionar(bool $limparCookie): Response
     {
         if ($limparCookie && isset($_COOKIE['auth_token'])) {
-            @setcookie('auth_token', '', \Src\Kernel\Support\CookieConfig::options(time() - 3600));
+            setcookie('auth_token', '', \Src\Kernel\Support\CookieConfig::options(time() - 3600));
         }
 
         $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');

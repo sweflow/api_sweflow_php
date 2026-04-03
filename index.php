@@ -593,7 +593,7 @@ $router->get('/robots.txt', function () use ($router) {
 // Qualquer acesso é registrado para Fail2Ban. Retorna 404 para não revelar que é honeypot.
 (static function () use ($router): void {
     $honeypotPaths = honeypotUris();
-    $honeypotHandler = function () use ($router): Response {
+    $honeypotHandler = function (): Response {
         $ip  = \Src\Kernel\Support\IpResolver::resolve();
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $ua  = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 300);

@@ -18,7 +18,7 @@ use Src\Kernel\Http\Response\Response;
  */
 class RateLimitMiddlewareTest extends TestCase
 {
-    private string $storageDir;
+    private string $storageDir    = '';
     private array  $originalServer = [];
     private array  $originalEnv    = [];
 

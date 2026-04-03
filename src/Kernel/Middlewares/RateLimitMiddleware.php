@@ -230,4 +230,19 @@ class RateLimitMiddleware implements MiddlewareInterface
     {
         return IpResolver::resolve();
     }
+
+    /**
+     * Extrai o claim "sub" do JWT sem validar assinatura.
+     * Usado apenas para rate limiting por usuário — não é autenticação.
+     */
+    private function extractSubFromToken(string $token): ?string
+    {
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            return null;
+        }
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        $sub = $payload['sub'] ?? null;
+        return is_string($sub) && $sub !== '' ? $sub : null;
+    }
 }
