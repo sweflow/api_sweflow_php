@@ -622,21 +622,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Dark mode — gerenciado pelo nav-init.js (evita listener duplicado)
 
-    // Sidebar toggle
-    const sidebarToggle   = document.getElementById('sidebar-toggle');
-    const sidebar         = document.getElementById('dash-sidebar');
-    const backdrop        = document.getElementById('sidebar-backdrop');
-
-    function openSidebar()  { sidebar.classList.add('open');  backdrop.classList.add('show'); }
-    function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
-
-    if (sidebarToggle) sidebarToggle.addEventListener('click', () => sidebar.classList.contains('open') ? closeSidebar() : openSidebar());
-    if (backdrop)      backdrop.addEventListener('click', closeSidebar);
-
-    // Fecha sidebar ao clicar em link interno no mobile
-    document.querySelectorAll('.dash-sidenav-link[href^="#"]').forEach(a => {
-        a.addEventListener('click', () => { if (window.innerWidth < 1024) closeSidebar(); });
-    });
+    // Sidebar toggle — gerenciado pelo nav-init.js (evita listener duplicado)
 
     // Dropdowns topbar
     document.querySelectorAll('.dash-dropdown-btn').forEach(btn => {

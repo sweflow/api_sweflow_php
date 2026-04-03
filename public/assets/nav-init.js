@@ -18,6 +18,15 @@
                 sidebar.classList.remove('open');
                 backdrop.classList.remove('show');
             });
+            // Fecha ao clicar em link interno no mobile
+            document.querySelectorAll('.dash-sidenav-link[href^="#"]').forEach(a => {
+                a.addEventListener('click', () => {
+                    if (window.innerWidth < 1024) {
+                        sidebar.classList.remove('open');
+                        backdrop?.classList.remove('show');
+                    }
+                });
+            });
         }
 
         // ── Dropdowns ─────────────────────────────────────────────────
