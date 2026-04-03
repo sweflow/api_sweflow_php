@@ -2722,38 +2722,58 @@ h1 i, h2 i, h3 i {
     box-shadow: 0 0 0 3px rgba(29, 209, 161, 0.25);
 }
 
-/* ── Modal de e-mail — layout fixo independente do overlay ── */
+/* ── Modal de e-mail — layout robusto para mobile ─────────── */
+#email-modal {
+    align-items: stretch;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+}
+@media (min-width: 601px) {
+    #email-modal {
+        align-items: center;
+        padding: 16px;
+    }
+}
 .email-modal {
-    position: fixed !important;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(980px, 96vw);
-    height: min(90vh, 860px);
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 980px;
+    height: 100%;
+    max-height: 100%;
     display: flex !important;
     flex-direction: column;
     overflow: hidden;
     padding: 0 !important;
-    border-radius: 16px;
-    z-index: 10000;
+    border-radius: 0;
+}
+@media (min-width: 601px) {
+    .email-modal {
+        height: auto;
+        max-height: min(90vh, 860px);
+        border-radius: 16px;
+    }
 }
 .email-modal .modal-header {
     flex-shrink: 0;
-    padding: 16px 18px 12px;
+    padding: 14px 16px 12px;
     border-bottom: 1px solid var(--border-card, #e6e8f1);
     margin-bottom: 0;
 }
 .email-form {
     flex: 1 1 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 16px 18px;
+    padding: 14px 16px;
 }
 .email-form .form-actions {
     /* removido — footer agora é .email-modal-footer fora do form */
@@ -2761,28 +2781,16 @@ h1 i, h2 i, h3 i {
 .email-modal-footer {
     flex-shrink: 0;
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    padding: 12px 18px 16px;
+    padding: 10px 16px 12px;
     border-top: 1px solid var(--border-card, #e6e8f1);
     background: var(--bg-card, #fff);
 }
 @media (max-width: 600px) {
-    .email-modal {
-        top: 0;
-        left: 0;
-        transform: none;
-        width: 100vw;
-        height: 100dvh;
-        max-height: 100dvh;
-        border-radius: 0;
-    }
-    .email-modal .modal-header { padding: 14px 14px 10px; }
-    .email-form { padding: 12px 14px; gap: 10px; }
-    .email-modal-footer { padding: 10px 14px 14px; }
-    .email-modal-footer .btn { flex: 1 1 auto; justify-content: center; }
+    .email-modal-footer .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
 }
 .email-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border: 1px solid #e0e0e0; border-radius: 10px; padding: 8px; background: #fafafa; }
 .email-toolbar button { border: 1px solid #d5d5d5; background: #fff; border-radius: 8px; padding: 6px 8px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
@@ -2820,12 +2828,19 @@ h1 i, h2 i, h3 i {
 }
 @media (max-height: 700px) {
     .email-editor { min-height: 120px; max-height: 200px; }
-    .email-modal  { max-height: 98vh; }
 }
 .email-preview { border: 1px solid #cfd4ff; border-radius: 12px; padding: 12px; background: #f7f8ff; min-height: 120px; }
-.email-modal.fullscreen { width: 100vw; height: 100vh; max-height: 100vh; }
-.email-modal.fullscreen form { height: calc(100vh - 120px); }
-.email-modal.fullscreen .email-editor, .email-modal.fullscreen .email-preview { min-height: calc(100vh - 320px); }
+.email-modal.fullscreen {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+}
+.email-modal.fullscreen .email-editor,
+.email-modal.fullscreen .email-preview {
+    min-height: 300px;
+    max-height: none;
+    flex: 1 1 0;
+}
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #c2c2c2; border-radius: 10px; }
