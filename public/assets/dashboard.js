@@ -791,11 +791,31 @@ window.onload = function () {
 
     function positionImagePopover(img) {
         const pop = ensureImagePopover();
+        // Garante que o popover está visível antes de medir offsetHeight
+        pop.style.visibility = 'hidden';
+        pop.style.opacity = '0';
+        pop.classList.add('show');
+
         const rect = img.getBoundingClientRect();
-        const top = window.scrollY + rect.top - pop.offsetHeight - 8;
-        const left = window.scrollX + rect.left;
-        pop.style.top = `${Math.max(8, top)}px`;
-        pop.style.left = `${Math.max(8, left)}px`;
+        const popH = pop.offsetHeight || 80;
+        const popW = pop.offsetWidth  || 260;
+
+        let top  = window.scrollY + rect.top - popH - 8;
+        let left = window.scrollX + rect.left;
+
+        // Evita sair pela esquerda/direita
+        const maxLeft = window.scrollX + window.innerWidth - popW - 8;
+        left = Math.max(8, Math.min(left, maxLeft));
+
+        // Se não cabe acima, posiciona abaixo da imagem
+        if (top < window.scrollY + 8) {
+            top = window.scrollY + rect.bottom + 8;
+        }
+
+        pop.style.top  = `${top}px`;
+        pop.style.left = `${left}px`;
+        pop.style.visibility = '';
+        pop.style.opacity = '';
     }
 
     function showImagePopover(img) {
@@ -806,7 +826,6 @@ window.onload = function () {
         const currentWidth = parseInt(img.style.width || '', 10) || img.getBoundingClientRect().width;
 
         imagePopoverTarget = img;
-        pop.classList.add('show');
         positionImagePopover(img);
 
         const applyWidth = (val) => {

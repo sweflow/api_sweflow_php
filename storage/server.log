@@ -14872,3 +14872,243 @@ i Apr  3 11:46:35 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Fri Apr  3 11:58:14 2026] 127.0.0.1:48640 Accepted
 [Fri Apr  3 11:58:14 2026] 127.0.0.1:48640 Closing
 [Fri Apr  3 11:58:14 2026] 127.0.0.1:39000 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+i Apr  3 12:40:39 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Fri Apr  3 12:40:40 2026] 127.0.0.1:52947 Accepted
+[Fri Apr  3 12:40:40 2026] 127.0.0.1:52947 Closing
+[Fri Apr  3 12:40:40 2026] 127.0.0.1:53227 Accepted
+[Fri Apr  3 12:40:40 2026] 127.0.0.1:53227 Closing
+[Fri Apr  3 12:40:40 2026] 127.0.0.1:59453 Accepted
+[Fri Apr  3 12:41:00 2026] 127.0.0.1:59453 Closing
+[Fri Apr  3 12:41:01 2026] 127.0.0.1:56739 Accepted
+[Fri Apr  3 12:41:01 2026] 127.0.0.1:56739 Closing
+[Fri Apr  3 12:41:01 2026] 127.0.0.1:50475 Accepted
+[Fri Apr  3 12:43:30 2026] 127.0.0.1:50475 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Apr  3 12:43:30 2026] 127.0.0.1:50475 Closing
+[Fri Apr  3 12:43:30 2026] 127.0.0.1:41691 Accepted
+[Fri Apr  3 12:43:30 2026] 127.0.0.1:41691 Closing
+[Fri Apr  3 12:43:31 2026] 127.0.0.1:61378 Accepted
+[Fri Apr  3 12:43:31 2026] 127.0.0.1:61378 Closing
+[Fri Apr  3 12:43:31 2026] 127.0.0.1:1760 Accepted
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:1760 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:1760 Closing
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:61784 Accepted
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:61784 Closing
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:50160 Accepted
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:50160 Closing
+[Fri Apr  3 12:45:12 2026] 127.0.0.1:24361 Accepted
+[Fri Apr  3 12:45:19 2026] 127.0.0.1:24361 Closing
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:56022 Accepted
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:14210 Accepted
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:56022 Closing
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:14210 Closing
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:5703 Accepted
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:5703 Closing
+[Fri Apr  3 12:45:20 2026] 127.0.0.1:32073 Accepted
+[Fri Apr  3 13:03:44 2026] 127.0.0.1:32073 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Apr  3 13:03:44 2026] 127.0.0.1:32073 Closing
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+i Apr  3 15:33:08 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Fri Apr  3 15:33:16 2026] 127.0.0.1:11307 Accepted
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:11307 Closing
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:46554 Accepted
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:46554 Closing
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:50771 Accepted
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:6245 Accepted
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:50771 Closing
+[Fri Apr  3 15:33:17 2026] 127.0.0.1:6245 Closing
+[Fri Apr  3 15:33:26 2026] 127.0.0.1:17024 Accepted
+{"timestamp":"2026-04-03T18:33:27+00:00","type":"AUDIT","evento":"auth.login.success","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":{"username":"adimael","nivel_acesso":"admin_system"}}
+[Fri Apr  3 15:33:27 2026] 127.0.0.1:17024 Closing
+[Fri Apr  3 15:33:27 2026] 127.0.0.1:55138 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:55138 Closing
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:34023 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:9727 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:62017 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:48618 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:34023 Closing
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:9727 Closing
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:62017 Closing
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:48618 Closing
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:50160 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:50160 Closing
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:24883 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:8487 Accepted
+[Fri Apr  3 15:33:28 2026] 127.0.0.1:24883 Closing
+[Fri Apr  3 15:33:29 2026] 127.0.0.1:8487 Closing
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:32760 Accepted
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:32760 Closing
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:57319 Accepted
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:63932 Accepted
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:57319 Closing
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:63932 Closing
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:21198 Accepted
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:21198 Closing
+[Fri Apr  3 15:33:30 2026] 127.0.0.1:26931 Accepted
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:26931 Closing
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:40430 Accepted
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:32595 Accepted
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:64036 Accepted
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:40430 Closing
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:32595 Closing
+[Fri Apr  3 15:33:32 2026] 127.0.0.1:64036 Closing
+[Fri Apr  3 15:33:33 2026] 127.0.0.1:20101 Accepted
+[Fri Apr  3 15:33:41 2026] PHP Warning:  file_get_contents(https://packagist.org/packages/sweflow/module-email.json): Failed to open stream: HTTP request failed! in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Controllers\SystemModulesController.php on line 116
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:20101 Closing
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:23127 Accepted
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:39078 Accepted
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:23127 Closing
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:46095 Accepted
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:39078 Closing
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:61406 Accepted
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:46095 Closing
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:61406 Closing
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:48465 Accepted
+[Fri Apr  3 15:33:41 2026] 127.0.0.1:48465 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:18064 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:18064 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:32029 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:57300 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:58074 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:39588 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:32029 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:57300 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:58074 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:39588 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:26604 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:33373 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:26604 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:25501 Accepted
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:33373 Closing
+[Fri Apr  3 15:33:42 2026] 127.0.0.1:25501 Closing
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:35177 Accepted
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:26374 Accepted
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:35177 Closing
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:26374 Closing
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:27777 Accepted
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:27777 Closing
+[Fri Apr  3 15:33:43 2026] 127.0.0.1:27663 Accepted
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:27663 Closing
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:62188 Accepted
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:50180 Accepted
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:1148 Accepted
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:62188 Closing
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:50180 Closing
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:1148 Closing
+[Fri Apr  3 15:33:44 2026] 127.0.0.1:40789 Accepted
+[Fri Apr  3 15:33:46 2026] 127.0.0.1:40789 Closing
+[Fri Apr  3 15:33:46 2026] 127.0.0.1:55994 Accepted
+[Fri Apr  3 15:33:46 2026] 127.0.0.1:52892 Accepted
+[Fri Apr  3 15:33:46 2026] 127.0.0.1:55994 Closing
+[Fri Apr  3 15:33:46 2026] 127.0.0.1:52892 Closing
+[Fri Apr  3 15:33:48 2026] 127.0.0.1:35313 Accepted
+[Fri Apr  3 15:33:54 2026] PHP Warning:  file_get_contents(https://packagist.org/packages/sweflow/module-email.json): Failed to open stream: HTTP request failed! in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Controllers\SystemModulesController.php on line 526
+[Fri Apr  3 15:33:54 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 2 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:33:54 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 2 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:33:55 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 193 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:33:55 2026] 127.0.0.1:35313 Closing
+[Fri Apr  3 15:33:55 2026] 127.0.0.1:40003 Accepted
+[Fri Apr  3 15:34:05 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 2 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:34:05 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 2 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:34:05 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 193 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:34:05 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 2 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:34:05 2026] 127.0.0.1:40003 Closing
+[Fri Apr  3 15:34:06 2026] 127.0.0.1:9228 Accepted
+[Fri Apr  3 15:34:08 2026] 127.0.0.1:9228 Closing
+[Fri Apr  3 15:34:08 2026] 127.0.0.1:7445 Accepted
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:7445 Closing
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:26470 Accepted
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:24537 Accepted
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:47954 Accepted
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:41768 Accepted
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:26470 Closing
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:24537 Closing
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:47954 Closing
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:41768 Closing
+[Fri Apr  3 15:34:11 2026] 127.0.0.1:41559 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:41559 Closing
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:39720 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:4245 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:24769 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:10945 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:39720 Closing
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:4245 Closing
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:24769 Closing
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:10945 Closing
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:4854 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:4834 Accepted
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:4854 Closing
+[Fri Apr  3 15:34:12 2026] 127.0.0.1:4834 Closing
+[Fri Apr  3 15:34:13 2026] 127.0.0.1:10753 Accepted
+[Fri Apr  3 15:34:13 2026] 127.0.0.1:39363 Accepted
+[Fri Apr  3 15:34:13 2026] 127.0.0.1:10753 Closing
+[Fri Apr  3 15:34:13 2026] 127.0.0.1:39363 Closing
+[Fri Apr  3 15:34:13 2026] 127.0.0.1:48895 Accepted
+[Fri Apr  3 15:34:43 2026] 127.0.0.1:48895 Closing
+[Fri Apr  3 15:34:43 2026] 127.0.0.1:44471 Accepted
+[Fri Apr  3 15:34:43 2026] 127.0.0.1:19296 Accepted
+[Fri Apr  3 15:34:43 2026] 127.0.0.1:44471 Closing
+[Fri Apr  3 15:34:43 2026] 127.0.0.1:19296 Closing
+[Fri Apr  3 15:34:43 2026] 127.0.0.1:28922 Accepted
+[Fri Apr  3 15:34:44 2026] 127.0.0.1:28922 Closing
+[Fri Apr  3 15:34:44 2026] 127.0.0.1:60223 Accepted
+[Fri Apr  3 15:35:13 2026] 127.0.0.1:60223 Closing
+[Fri Apr  3 15:35:13 2026] 127.0.0.1:33656 Accepted
+[Fri Apr  3 15:35:13 2026] 127.0.0.1:45371 Accepted
+[Fri Apr  3 15:35:13 2026] 127.0.0.1:33656 Closing
+[Fri Apr  3 15:35:13 2026] 127.0.0.1:45371 Closing
+[Fri Apr  3 15:35:13 2026] 127.0.0.1:40479 Accepted
+[Fri Apr  3 15:35:14 2026] 127.0.0.1:40479 Closing
+[Fri Apr  3 15:35:14 2026] 127.0.0.1:38600 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+i Apr  3 15:36:03 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:43329 Accepted
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:43329 Closing
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:32959 Accepted
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:32959 Closing
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:26031 Accepted
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:31508 Accepted
+[Fri Apr  3 15:36:07 2026] 127.0.0.1:35180 Accepted
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:26031 Closing
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:43363 Accepted
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:31508 Closing
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:35180 Closing
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:43363 Closing
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:52356 Accepted
+[Fri Apr  3 15:36:09 2026] 127.0.0.1:52356 Closing
+[Fri Apr  3 15:36:12 2026] 127.0.0.1:33815 Accepted
+[Fri Apr  3 15:36:12 2026] PHP Warning:  unlink(C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Modules\Email\.git\objects\pack\pack-089196b156381c2ee9acc6761fe7b5bf9c66b5b9.idx): Permission denied in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Nucleo\PluginManager.php on line 157
+[Fri Apr  3 15:36:12 2026] PHP Warning:  unlink(C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Modules\Email\.git\objects\pack\pack-089196b156381c2ee9acc6761fe7b5bf9c66b5b9.pack): Permission denied in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Nucleo\PluginManager.php on line 157
+[Fri Apr  3 15:36:12 2026] PHP Warning:  unlink(C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Modules\Email\.git\objects\pack\pack-089196b156381c2ee9acc6761fe7b5bf9c66b5b9.rev): Permission denied in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Nucleo\PluginManager.php on line 157
+[Fri Apr  3 15:36:12 2026] PHP Warning:  proc_open(): CreateProcess failed, error code: 2 in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\CLI\Process.php on line 50
+[Fri Apr  3 15:36:12 2026] 127.0.0.1:33815 Closing
+[Fri Apr  3 15:36:13 2026] 127.0.0.1:53175 Accepted
+[Fri Apr  3 15:36:13 2026] 127.0.0.1:53175 Closing
+[Fri Apr  3 15:36:13 2026] 127.0.0.1:44187 Accepted
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:44187 Closing
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:54511 Accepted
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:27956 Accepted
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:52876 Accepted
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:44896 Accepted
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:54511 Closing
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:27956 Closing
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:52876 Closing
+[Fri Apr  3 15:36:16 2026] 127.0.0.1:44896 Closing
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:26847 Accepted
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:26847 Closing
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:37985 Accepted
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:46907 Accepted
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:31161 Accepted
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:39000 Accepted
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:37985 Closing
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:46907 Closing
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:31161 Closing
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:39000 Closing
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:11235 Accepted
+[Fri Apr  3 15:36:17 2026] 127.0.0.1:11235 Closing
+[Fri Apr  3 15:36:18 2026] 127.0.0.1:20293 Accepted
+[Fri Apr  3 15:36:18 2026] 127.0.0.1:20293 Closing
+[Fri Apr  3 15:36:18 2026] 127.0.0.1:38235 Accepted
