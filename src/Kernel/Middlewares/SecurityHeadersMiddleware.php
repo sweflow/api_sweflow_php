@@ -5,6 +5,7 @@ namespace Src\Kernel\Middlewares;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\CookieConfig;
 
 /**
  * Garante que todos os headers de segurança estejam presentes em toda resposta.
@@ -17,10 +18,7 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     {
         $response = $next($request);
 
-        $appUrl  = $_ENV['APP_URL'] ?? '';
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-            || strncmp($appUrl, 'https://', 8) === 0;
+        $isHttps = CookieConfig::isHttps();
 
         $isApi = str_starts_with($request->getUri(), '/api/');
         if ($isApi) {

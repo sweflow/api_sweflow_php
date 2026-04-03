@@ -6,6 +6,7 @@ use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\IpResolver;
+use Src\Kernel\Support\TokenExtractor;
 
 /**
  * Rate Limiting por IP + usuário autenticado (sem dependência de Redis).
@@ -51,6 +52,7 @@ class RateLimitMiddleware implements MiddlewareInterface
         if ($ipCount > $this->limit) {
             $retryAfter = max(0, $resetAt - time());
             $this->logAbuse('rate_limit.ip', $ip, $request->getUri(), $ipCount);
+            (new \Src\Kernel\Support\ThreatScorer())->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_RATE_LIMIT);
             return $this->tooManyResponse($retryAfter, $resetAt);
         }
 
@@ -111,55 +113,14 @@ class RateLimitMiddleware implements MiddlewareInterface
         }
 
         // Tenta extrair sub do JWT sem validar assinatura (só para rate limit — não é auth)
-        $token = $this->extractRawToken();
-        if ($token !== null) {
+        $token = TokenExtractor::fromRequest();
+        if ($token !== '') {
             $sub = $this->extractSubFromToken($token);
             if ($sub !== null) {
                 return $sub;
             }
         }
 
-        return null;
-    }
-
-    /**
-     * Extrai o sub do JWT sem verificar assinatura.
-     * Usado apenas para identificar o usuário no rate limit — não é autenticação.
-     */
-    private function extractSubFromToken(string $token): ?string
-    {
-        $parts = explode('.', $token);
-        if (count($parts) !== 3) {
-            return null;
-        }
-        try {
-            $payload = json_decode(
-                base64_decode(strtr($parts[1], '-_', '+/')),
-                true,
-                4
-            );
-            $sub = $payload['sub'] ?? null;
-            // Valida que sub parece um UUID ou identificador seguro
-            if (is_string($sub) && strlen($sub) >= 8 && strlen($sub) <= 64) {
-                return $sub;
-            }
-        } catch (\Throwable) {
-            // ignora
-        }
-        return null;
-    }
-
-    private function extractRawToken(): ?string
-    {
-        $bearer = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        if (str_starts_with($bearer, 'Bearer ')) {
-            $t = trim(substr($bearer, 7));
-            return $t !== '' ? $t : null;
-        }
-        $cookie = $_COOKIE['auth_token'] ?? '';
-        if (is_string($cookie) && trim($cookie) !== '') {
-            return trim($cookie);
-        }
         return null;
     }
 

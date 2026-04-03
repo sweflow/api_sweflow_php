@@ -6,6 +6,8 @@ use DomainException;
 use PDO;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\AuditLogger;
+use Src\Kernel\Support\IpResolver;
+use Src\Kernel\Support\ThreatScorer;
 use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Src\Modules\Auth\Services\AuthService;
@@ -101,6 +103,7 @@ class AuthController
             ]);
         } catch (DomainException $e) {
             $this->audit()->registrar('auth.login.failed', null, ['reason' => $e->getMessage()]);
+            (new ThreatScorer())->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
             $this->enforceMinResponseTime($startTime, 200);
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
             return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
@@ -138,6 +141,7 @@ class AuthController
             $usuario = $this->buscarUsuarioPorLogin((string)$login);
             if (!$usuario || !$usuario->verificarSenha((string)$senha)) {
                 $this->audit()->registrar('auth.login.failed', null, ['identifier' => substr((string)$login, 0, 64)]);
+                (new ThreatScorer())->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
                 $this->enforceMinResponseTime($startTime, 200);
                 throw new DomainException('Credenciais inválidas.', 401);
             }

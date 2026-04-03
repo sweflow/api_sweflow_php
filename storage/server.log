@@ -14650,3 +14650,225 @@ i Apr  3 08:45:47 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) star
 [Fri Apr  3 08:47:05 2026] 127.0.0.1:48621 Accepted
 [Fri Apr  3 08:47:15 2026] 127.0.0.1:48621 Closed without sending a request; it was probably just an unused speculative preconnection
 [Fri Apr  3 08:47:15 2026] 127.0.0.1:48621 Closing
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+i Apr  3 11:34:27 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:4883 Accepted
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:4883 Closing
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:43156 Accepted
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:43156 Closing
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:7494 Accepted
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:36648 Accepted
+[Fri Apr  3 11:34:41 2026] 127.0.0.1:7494 Closing
+[Fri Apr  3 11:34:42 2026] 127.0.0.1:36648 Closing
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:25412 Accepted
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:25412 Closing
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:52355 Accepted
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:52355 Closing
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:55460 Accepted
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:37315 Accepted
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:55460 Closing
+[Fri Apr  3 11:35:03 2026] 127.0.0.1:37315 Closing
+[Fri Apr  3 11:35:41 2026] 127.0.0.1:22824 Accepted
+[Fri Apr  3 11:35:41 2026] 127.0.0.1:22824 Closing
+[Fri Apr  3 11:35:42 2026] 127.0.0.1:35527 Accepted
+[Fri Apr  3 11:35:42 2026] 127.0.0.1:35527 Closing
+[Fri Apr  3 11:35:42 2026] 127.0.0.1:12508 Accepted
+[Fri Apr  3 11:35:44 2026] 127.0.0.1:61323 Accepted
+[Fri Apr  3 11:35:44 2026] 127.0.0.1:61323 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:44 2026] 127.0.0.1:61323 Closing
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:29681 Accepted
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:29681 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:29681 Closing
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:1462 Accepted
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:1462 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:1462 Closing
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:30754 Accepted
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:30754 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:45 2026] 127.0.0.1:30754 Closing
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:58307 Accepted
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:58307 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:58307 Closing
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:35609 Accepted
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:35609 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:35609 Closing
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:60103 Accepted
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:60103 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:46 2026] 127.0.0.1:60103 Closing
+[Fri Apr  3 11:35:47 2026] 127.0.0.1:38249 Accepted
+[Fri Apr  3 11:35:47 2026] 127.0.0.1:38249 Invalid request (Unsupported SSL request)
+[Fri Apr  3 11:35:47 2026] 127.0.0.1:38249 Closing
+[Fri Apr  3 11:35:48 2026] 127.0.0.1:12508 Closing
+[Fri Apr  3 11:35:58 2026] 127.0.0.1:7418 Accepted
+[Fri Apr  3 11:35:58 2026] 127.0.0.1:7418 Closing
+[Fri Apr  3 11:35:58 2026] 127.0.0.1:40753 Accepted
+[Fri Apr  3 11:35:58 2026] 127.0.0.1:40753 Closing
+[Fri Apr  3 11:35:59 2026] 127.0.0.1:18078 Accepted
+[Fri Apr  3 11:36:21 2026] 127.0.0.1:18078 Closing
+[Fri Apr  3 11:36:21 2026] 127.0.0.1:22019 Accepted
+[Fri Apr  3 11:36:21 2026] 127.0.0.1:22019 Closing
+[Fri Apr  3 11:36:21 2026] 127.0.0.1:23134 Accepted
+[Fri Apr  3 11:46:20 2026] 127.0.0.1:23134 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Apr  3 11:46:20 2026] 127.0.0.1:23134 Closing
+[Fri Apr  3 11:46:21 2026] 127.0.0.1:14174 Accepted
+{"timestamp":"2026-04-03T14:46:21+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/sitemap.xml","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:46:21 2026] 127.0.0.1:14174 Closing
+[Fri Apr  3 11:46:21 2026] 127.0.0.1:25941 Accepted
+{"timestamp":"2026-04-03T14:46:23+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/sitemap.xml","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:46:23 2026] 127.0.0.1:25941 Closing
+[Fri Apr  3 11:46:24 2026] 127.0.0.1:4333 Accepted
+{"timestamp":"2026-04-03T14:46:24+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/sitemap.xml","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:46:24 2026] 127.0.0.1:4333 Closing
+[Fri Apr  3 11:46:24 2026] 127.0.0.1:29009 Accepted
+[Fri Apr  3 11:46:24 2026] 127.0.0.1:15863 Accepted
+{"timestamp":"2026-04-03T14:46:25+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/sitemap.xml","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:46:25 2026] 127.0.0.1:29009 Closing
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+i Apr  3 11:46:35 2026] PHP 8.3.29 Development Server (http://0.0.0.0:3005) started
+[Fri Apr  3 11:46:39 2026] 127.0.0.1:33312 Accepted
+{"timestamp":"2026-04-03T14:46:39+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/sitemap.xml","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:46:39 2026] 127.0.0.1:33312 Closing
+[Fri Apr  3 11:46:39 2026] 127.0.0.1:23089 Accepted
+{"timestamp":"2026-04-03T14:46:43+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:46:43 2026] 127.0.0.1:23089 Closing
+[Fri Apr  3 11:48:14 2026] 127.0.0.1:40493 Accepted
+{"timestamp":"2026-04-03T14:48:14+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:48:14 2026] 127.0.0.1:40493 Closing
+[Fri Apr  3 11:48:14 2026] 127.0.0.1:17387 Accepted
+{"timestamp":"2026-04-03T14:48:15+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:48:15 2026] 127.0.0.1:17387 Closing
+[Fri Apr  3 11:48:16 2026] 127.0.0.1:39484 Accepted
+{"timestamp":"2026-04-03T14:48:16+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:48:16 2026] 127.0.0.1:39484 Closing
+[Fri Apr  3 11:48:16 2026] 127.0.0.1:20405 Accepted
+[Fri Apr  3 11:48:51 2026] 127.0.0.1:18646 Accepted
+{"timestamp":"2026-04-03T14:48:51+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT; Windows NT 10.0; pt-BR) WindowsPowerShell/5.1.26100.7920"}
+[Fri Apr  3 11:48:51 2026] 127.0.0.1:18646 Closing
+[Fri Apr  3 11:49:13 2026] 127.0.0.1:33058 Accepted
+{"timestamp":"2026-04-03T14:49:13+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT; Windows NT 10.0; pt-BR) WindowsPowerShell/5.1.26100.7920"}
+[Fri Apr  3 11:49:13 2026] 127.0.0.1:33058 Closing
+[Fri Apr  3 11:49:31 2026] 127.0.0.1:39649 Accepted
+{"timestamp":"2026-04-03T14:49:31+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT; Windows NT 10.0; pt-BR) WindowsPowerShell/5.1.26100.7920"}
+[Fri Apr  3 11:49:31 2026] 127.0.0.1:39649 Closing
+[Fri Apr  3 11:49:38 2026] 127.0.0.1:20405 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Apr  3 11:49:38 2026] 127.0.0.1:20405 Closing
+[Fri Apr  3 11:49:39 2026] 127.0.0.1:5101 Accepted
+{"timestamp":"2026-04-03T14:49:39+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:49:39 2026] 127.0.0.1:5101 Closing
+[Fri Apr  3 11:49:39 2026] 127.0.0.1:13585 Accepted
+{"timestamp":"2026-04-03T14:49:40+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:49:40 2026] 127.0.0.1:13585 Closing
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:55902 Accepted
+{"timestamp":"2026-04-03T14:49:41+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:55902 Closing
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:16568 Accepted
+{"timestamp":"2026-04-03T14:49:41+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:16568 Closing
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:12777 Accepted
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:24819 Accepted
+{"timestamp":"2026-04-03T14:49:41+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:49:41 2026] 127.0.0.1:12777 Closing
+{"timestamp":"2026-04-03T14:49:42+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:49:42 2026] 127.0.0.1:24819 Closing
+[Fri Apr  3 11:50:12 2026] 127.0.0.1:62331 Accepted
+{"timestamp":"2026-04-03T14:50:12+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:50:12 2026] 127.0.0.1:62331 Closing
+[Fri Apr  3 11:50:12 2026] 127.0.0.1:50160 Accepted
+{"timestamp":"2026-04-03T14:50:13+00:00","type":"BOT_BLOCKED","event":"bot.blocked.score","ip":"127.0.0.1","uri":"/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:50:13 2026] 127.0.0.1:50160 Closing
+[Fri Apr  3 11:50:38 2026] 127.0.0.1:14418 Accepted
+[Fri Apr  3 11:50:39 2026] 127.0.0.1:14418 Closing
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:31033 Accepted
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:31033 Closing
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:45924 Accepted
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:45924 Closing
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:47697 Accepted
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:2952 Accepted
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:25414 Accepted
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:47697 Closing
+[Fri Apr  3 11:51:24 2026] 127.0.0.1:2952 Closing
+[Fri Apr  3 11:51:25 2026] 127.0.0.1:25414 Closing
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:16651 Accepted
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:16651 Closing
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:30192 Accepted
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:30192 Closing
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:24906 Accepted
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:16438 Accepted
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:26204 Accepted
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:24906 Closing
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:16438 Closing
+[Fri Apr  3 11:51:39 2026] 127.0.0.1:26204 Closing
+[Fri Apr  3 11:51:56 2026] 127.0.0.1:1822 Accepted
+{"timestamp":"2026-04-03T14:51:56+00:00","type":"AUDIT","evento":"auth.login.success","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":{"username":"adimael","nivel_acesso":"admin_system"}}
+[Fri Apr  3 11:51:56 2026] 127.0.0.1:1822 Closing
+[Fri Apr  3 11:51:56 2026] 127.0.0.1:28709 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:28709 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:15559 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:48504 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:15559 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:46265 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:48504 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:24958 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:46265 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:50982 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:24958 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:50982 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:12916 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:12916 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:34352 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:1688 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:38025 Accepted
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:34352 Closing
+[Fri Apr  3 11:51:57 2026] 127.0.0.1:1616 Accepted
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:1688 Closing
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:38025 Closing
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:1616 Closing
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:62614 Accepted
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:62614 Closing
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:5409 Accepted
+[Fri Apr  3 11:51:58 2026] 127.0.0.1:5409 Closing
+[Fri Apr  3 11:51:59 2026] 127.0.0.1:16086 Accepted
+[Fri Apr  3 11:52:09 2026] 127.0.0.1:16086 Closing
+[Fri Apr  3 11:52:10 2026] 127.0.0.1:8979 Accepted
+[Fri Apr  3 11:52:10 2026] 127.0.0.1:8979 Closing
+[Fri Apr  3 11:52:13 2026] 127.0.0.1:51198 Accepted
+[Fri Apr  3 11:52:13 2026] 127.0.0.1:15645 Accepted
+{"timestamp":"2026-04-03T14:52:13+00:00","type":"AUDIT","evento":"auth.logout","usuario_uuid":"ce9aa9aa-842f-4770-9058-886071ca2a46","ip":"127.0.0.1","contexto":[]}
+[Fri Apr  3 11:52:13 2026] 127.0.0.1:51198 Closing
+{"timestamp":"2026-04-03T14:52:13+00:00","type":"SECURITY_RESPONSE","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/logout","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Fri Apr  3 11:52:13 2026] 127.0.0.1:15645 Closing
+[Fri Apr  3 11:52:13 2026] 127.0.0.1:14765 Accepted
+[Fri Apr  3 11:52:13 2026] 127.0.0.1:14765 Closing
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:65384 Accepted
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:65384 Closing
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:49608 Accepted
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:49608 Closing
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:50161 Accepted
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:37073 Accepted
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:49997 Accepted
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:50161 Closing
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:37073 Closing
+[Fri Apr  3 11:52:14 2026] 127.0.0.1:36231 Accepted
+[Fri Apr  3 11:52:24 2026] 127.0.0.1:49997 Closing
+[Fri Apr  3 11:52:24 2026] 127.0.0.1:36231 Closing
+[Fri Apr  3 11:55:39 2026] 127.0.0.1:42749 Accepted
+[Fri Apr  3 11:55:39 2026] 127.0.0.1:42749 Closing
+[Fri Apr  3 11:55:39 2026] 127.0.0.1:42445 Accepted
+[Fri Apr  3 11:55:39 2026] 127.0.0.1:42445 Closing
+[Fri Apr  3 11:55:39 2026] 127.0.0.1:19133 Accepted
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:19133 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:19133 Closing
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:62224 Accepted
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:62224 Closing
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:50559 Accepted
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:50559 Closing
+[Fri Apr  3 11:58:09 2026] 127.0.0.1:26908 Accepted
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:26908 Closing
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:10898 Accepted
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:5464 Accepted
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:10898 Closing
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:5464 Closing
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:48640 Accepted
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:48640 Closing
+[Fri Apr  3 11:58:14 2026] 127.0.0.1:39000 Accepted

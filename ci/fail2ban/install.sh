@@ -15,6 +15,7 @@ cp "$(dirname "$0")/filter.d/sweflow-nginx.conf"         /etc/fail2ban/filter.d/
 cp "$(dirname "$0")/filter.d/sweflow-nginx-auth.conf"    /etc/fail2ban/filter.d/sweflow-nginx-auth.conf
 cp "$(dirname "$0")/filter.d/sweflow-api.conf"           /etc/fail2ban/filter.d/sweflow-api.conf
 cp "$(dirname "$0")/filter.d/sweflow-api-ratelimit.conf" /etc/fail2ban/filter.d/sweflow-api-ratelimit.conf
+cp "$(dirname "$0")/filter.d/sweflow-bot.conf"           /etc/fail2ban/filter.d/sweflow-bot.conf
 
 echo "==> Configurando redirecionamento de log do PHP para /var/log/sweflow/app.log..."
 # Se usar PM2: pm2 logs são capturados automaticamente

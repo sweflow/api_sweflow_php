@@ -82,6 +82,28 @@ api.typper.shop {
         health_timeout  5s
     }
 
+    # ── Bloqueia User-Agents de scanners conhecidos ──────────
+    @malicious_ua {
+        header User-Agent *sqlmap*
+        header User-Agent *nikto*
+        header User-Agent *nmap*
+        header User-Agent *masscan*
+        header User-Agent *nuclei*
+        header User-Agent *dirbuster*
+        header User-Agent *gobuster*
+        header User-Agent *wfuzz*
+        header User-Agent *ffuf*
+        header User-Agent *feroxbuster*
+        header User-Agent *hydra*
+        header User-Agent *acunetix*
+        header User-Agent *nessus*
+        header User-Agent *openvas*
+        header User-Agent *zgrab*
+        header User-Agent *libwww-perl*
+        header User-Agent *scrapy*
+    }
+    respond @malicious_ua 403
+
     # ── Bloqueia acesso a arquivos sensíveis ─────────────
     @sensitive {
         path /.env* /.git* /*.json /*.lock /*.md /*.sh /*.sql /*.yml /*.yaml

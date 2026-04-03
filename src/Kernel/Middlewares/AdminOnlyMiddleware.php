@@ -35,27 +35,11 @@ class AdminOnlyMiddleware implements MiddlewareInterface
         $assinadoComApiSecret = $request->attribute('token_signed_with_api_secret') === true;
 
         if ($nivel === 'admin_system' && $nivelUsuario === 'admin_system' && $assinadoComApiSecret) {
-            return $this->prosseguir($next, $request);
+            return $next($request);
         }
 
         return $isPage
             ? new Response('', 302, ['Location' => '/'])
             : Response::json(['error' => 'Acesso restrito.'], 403);
     }
-
-    private function prosseguir(callable $next, Request $request): Response
-    {
-        $result = $next($request);
-        if ($result instanceof Response) {
-            return $result;
-        }
-        if (is_array($result) || is_object($result)) {
-            return Response::json($result);
-        }
-        if (is_string($result)) {
-            return Response::html($result);
-        }
-        return Response::json([], 204);
-    }
-
 }

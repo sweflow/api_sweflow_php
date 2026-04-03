@@ -22,11 +22,6 @@ class View
      */
     public static function securityHeaders(): array
     {
-        $appUrl  = $_ENV['APP_URL'] ?? '';
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-            || strncmp($appUrl, 'https://', 8) === 0;
-
         $nonce = \Src\Kernel\Nonce::get();
         $headers = [
             'X-Content-Type-Options' => 'nosniff',
@@ -36,7 +31,7 @@ class View
             'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         ];
 
-        if ($isHttps) {
+        if (\Src\Kernel\Support\CookieConfig::isHttps()) {
             $headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload';
         }
 

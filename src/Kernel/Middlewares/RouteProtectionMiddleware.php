@@ -6,6 +6,7 @@ use Firebase\JWT\Key;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\TokenExtractor;
 
 /**
  * Protege rotas que aceitam tanto token de usuário quanto token de API.
@@ -24,15 +25,9 @@ class RouteProtectionMiddleware implements MiddlewareInterface
             return Response::json(['error' => 'JWT secrets não configurados.'], 500);
         }
 
-        // Extrai token do header Authorization Bearer
-        $authHeader = trim((string)($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
-        $jwt = '';
-        if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
-            $jwt = trim($m[1]);
-        }
-
-        // Fallback: X-API-KEY header (apenas para token de API)
-        $apiKeyHeader = trim((string)($_SERVER['HTTP_X_API_KEY'] ?? ''));
+        // Extrai token do header Authorization Bearer ou X-API-KEY
+        $jwt         = TokenExtractor::fromBearer();
+        $apiKeyHeader = TokenExtractor::fromApiKey();
 
         // Tenta validar como token de API (JWT_API_SECRET)
         $decodedApi  = null;

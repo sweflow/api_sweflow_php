@@ -68,6 +68,19 @@ class Application
                 return;
             }
 
+            // Bloqueia bots maliciosos por User-Agent antes de qualquer processamento
+            $botBlocker  = new \Src\Kernel\Middlewares\BotBlockerMiddleware();
+            $passThrough = false;
+            $botBlocker->handle($request, function ($r) use (&$passThrough, &$request) {
+                $passThrough = true;
+                $request     = $r;
+                return new \Src\Kernel\Http\Response\Response('', 200);
+            });
+            if (!$passThrough) {
+                (new \Src\Kernel\Http\Response\Response('', 403))->Enviar();
+                return;
+            }
+
             $response = $this->router->dispatch($request);
 
             // Observabilidade: loga 401, 403, 429 automaticamente para Fail2Ban e análise

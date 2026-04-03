@@ -71,34 +71,17 @@ class Request
         ];
     }
 
-    /**
-     * Get request method
-     *
-     * @return string
-     */
     public function getMethod(): string
     {
         return $this->method ?? 'GET';
     }
 
-    /**
-     * Get request URI
-     *
-     * @return string
-     */
     public function getUri(): string
     {
         return $this->path ?? '/';
     }
 
-    /**
-     * Get query parameter
-     *
-     * @param string $key
-     * @param mixed $default
-     * @return mixed
-     */
-    public function getQueryParam(string $key, $default = null)
+    public function getQueryParam(string $key, mixed $default = null): mixed
     {
         return $this->query[$key] ?? $default;
     }

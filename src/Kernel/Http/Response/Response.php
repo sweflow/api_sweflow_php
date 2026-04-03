@@ -97,29 +97,11 @@ class Response
             'Content-Security-Policy' => $csp,
         ];
 
-        $appUrl = $_ENV['APP_URL'] ?? '';
-        $appUrlIsHttps = $appUrl !== '' && strncmp($appUrl, 'https://', 8) === 0;
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-            || $appUrlIsHttps;
-
-        if ($isHttps) {
+        if (\Src\Kernel\Support\CookieConfig::isHttps()) {
             $headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload';
         }
 
         return $headers;
-    }
-
-    public function setStatus(int $status): self
-    {
-        $this->status = $status;
-        return $this;
-    }
-
-    public function setHeader(string $name, $value): self
-    {
-        $this->headers[$name] = $value;
-        return $this;
     }
 
     /** Retorna nova instância com header adicionado (imutável). */
@@ -138,12 +120,6 @@ class Response
             $clone->headers[$name] = $value;
         }
         return $clone;
-    }
-
-    public function setBody($body): self
-    {
-        $this->body = $body;
-        return $this;
     }
 
     public function Enviar(): void
@@ -173,34 +149,18 @@ class Response
         }
     }
 
-    /**
-     * Get response status code
-     *
-     * @return int
-     */
     public function getStatusCode(): int
     {
         return $this->status;
     }
 
-    /**
-     * Get response body
-     *
-     * @return mixed
-     */
-    public function getBody()
+    public function getBody(): mixed
     {
         return $this->body;
     }
 
-    /**
-     * Get response headers
-     *
-     * @return array
-     */
     public function getHeaders(): array
     {
         return $this->headers;
     }
-
 }

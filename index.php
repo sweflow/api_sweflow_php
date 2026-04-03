@@ -147,12 +147,7 @@ if ($uri !== '/') {
             exit;
         }
 
-        $appUrl  = $_ENV['APP_URL'] ?? '';
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-            || strncmp($appUrl, 'https://', 8) === 0;
-
-        header_remove('X-Powered-By');
+        $isHttps = \Src\Kernel\Support\CookieConfig::isHttps();        header_remove('X-Powered-By');
         header('Content-Type: ' . $mimeMap[$ext]);
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
@@ -466,6 +461,9 @@ function isPrivateRoute(array $route): bool {
         AuthHybridMiddleware::class,
         AdminOnlyMiddleware::class,
         \Src\Kernel\Middlewares\RouteProtectionMiddleware::class,
+        \Src\Kernel\Middlewares\AuthPageMiddleware::class,
+        \Src\Kernel\Middlewares\AuthCookieMiddleware::class,
+        \Src\Kernel\Middlewares\ApiTokenMiddleware::class,
     ];
     foreach ($route['middlewares'] ?? [] as $mw) {
         $def = $mw['definition'] ?? null;
@@ -477,18 +475,36 @@ function isPrivateRoute(array $route): bool {
 }
 
 function absoluteUrl(string $uri): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? ('localhost');
-    return rtrim($scheme . '://' . $host, '/') . $uri;
+    // Usa APP_URL como fonte autoritativa quando disponível
+    $appUrl = rtrim($_ENV['APP_URL'] ?? '', '/');
+    if ($appUrl !== '') {
+        return $appUrl . $uri;
+    }
+    // Fallback: detecta esquema via CookieConfig (respeita TRUST_PROXY e X-Forwarded-Proto)
+    $scheme = \Src\Kernel\Support\CookieConfig::isHttps() ? 'https' : 'http';
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . $uri;
+}
+
+/** URIs de honeypot — registradas no router mas nunca devem aparecer no sitemap. */
+function honeypotUris(): array {
+    return [
+        '/wp-admin', '/wp-login.php', '/wp-config.php', '/xmlrpc.php',
+        '/phpmyadmin', '/pma', '/admin', '/administrator',
+        '/shell', '/cmd', '/exec', '/eval',
+        '/.env', '/.git/config', '/config.php', '/backup',
+        '/cgi-bin/luci', '/boaform/admin/formLogin',
+    ];
 }
 
 function isSitemapEligible(array $route): bool {
     if (strtoupper($route['method']) !== 'GET') return false;
     $uri = $route['uri'] ?? '';
     if ($uri === '') return false;
-    if (strpos($uri, '/api/') === 0) return false; // não indexa APIs
-    if (strpos($uri, '{') !== false) return false; // ignora rotas dinâmicas
-    if (isPrivateRoute($route)) return false;
+    if (strpos($uri, '/api/') === 0) return false;       // não indexa APIs
+    if (strpos($uri, '{') !== false) return false;        // ignora rotas dinâmicas
+    if (isPrivateRoute($route)) return false;             // rotas autenticadas
+    if (in_array($uri, honeypotUris(), true)) return false; // honeypots
     if (in_array($uri, ['/sitemap.xml', '/robots.txt'], true)) return false;
     return true;
 }
@@ -551,6 +567,16 @@ $router->get('/robots.txt', function () use ($router) {
         'User-agent: *',
         'Allow: /',
         'Disallow: /api/',
+        // Honeypot — bots que ignoram robots.txt e acessam estas rotas são banidos
+        'Disallow: /wp-admin/',
+        'Disallow: /wp-login.php',
+        'Disallow: /phpmyadmin/',
+        'Disallow: /admin/',
+        'Disallow: /.env',
+        'Disallow: /config/',
+        'Disallow: /backup/',
+        'Disallow: /shell',
+        'Disallow: /xmlrpc.php',
     ];
 
     foreach ($privateUris as $uri) {
@@ -562,6 +588,37 @@ $router->get('/robots.txt', function () use ($router) {
     $body = implode("\n", $lines);
     return new Response($body, 200, ['Content-Type' => 'text/plain; charset=utf-8']);
 });
+
+// ── Honeypot — rotas que bots costumam escanear ───────────────────────────
+// Qualquer acesso é registrado para Fail2Ban. Retorna 404 para não revelar que é honeypot.
+(static function () use ($router): void {
+    $honeypotPaths = honeypotUris();
+    $honeypotHandler = function () use ($router): Response {
+        $ip  = \Src\Kernel\Support\IpResolver::resolve();
+        $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $ua  = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 300);
+        $env = $_ENV['APP_ENV'] ?? 'production';
+
+        (new \Src\Kernel\Support\ThreatScorer())->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_HONEYPOT);
+
+        if ($env !== 'testing') {
+            $line = json_encode([
+                'timestamp'  => date('Y-m-d\TH:i:sP'),
+                'type'       => 'BOT_HONEYPOT',
+                'event'      => 'honeypot.hit',
+                'ip'         => $ip,
+                'uri'        => $uri,
+                'user_agent' => $ua,
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
+        }
+        return Response::json(['error' => 'Not Found'], 404);
+    };
+    foreach ($honeypotPaths as $path) {
+        $router->get($path,  $honeypotHandler);
+        $router->post($path, $honeypotHandler);
+    }
+})();
 
 $router->get('/api/status', function () {
     return Response::json(['status' => 'ok']);
