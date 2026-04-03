@@ -55,6 +55,7 @@ window.onload = function () {
     const emailBgColor = document.getElementById('email-bg-color');
     const emailFeedback = document.getElementById('email-feedback');
     const emailSend = document.getElementById('email-send');
+    const emailDraft = document.getElementById('email-draft');
     const authVerifyToggle = document.getElementById('require-email-verification');
     const authVerifyTag = document.getElementById('auth-verify-tag');
     const linkModal = document.getElementById('link-modal');
@@ -1364,12 +1365,13 @@ window.onload = function () {
                 return;
             }
             historyList.innerHTML = items.map(item => {
+                const isDraft = item.status === 'rascunho';
                 const ok      = item.status === 'enviado';
-                const color   = ok ? '#4ade80' : '#f87171';
-                const bg      = ok ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
-                const border  = ok ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)';
-                const icon    = ok ? 'fa-circle-check' : 'fa-circle-xmark';
-                const label   = ok ? 'Enviado' : esc(item.status);
+                const color   = isDraft ? '#f59e0b' : (ok ? '#4ade80' : '#f87171');
+                const bg      = isDraft ? 'rgba(245,158,11,0.1)' : (ok ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)');
+                const border  = isDraft ? 'rgba(245,158,11,0.2)' : (ok ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)');
+                const icon    = isDraft ? 'fa-file-pen' : (ok ? 'fa-circle-check' : 'fa-circle-xmark');
+                const label   = isDraft ? 'Rascunho' : (ok ? 'Enviado' : esc(item.status));
                 const errorHint = item.error
                     ? `<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#f87171;">
                            <i class="fa-solid fa-triangle-exclamation"></i>
@@ -1439,7 +1441,16 @@ window.onload = function () {
             if (!res.ok) throw new Error(item.error || 'Erro ao carregar.');
 
             const emails = recipientEmails(item.recipients);
-            const statusColor = item.status === 'enviado' ? '#27ae60' : '#e74c3c';
+            const isDraft     = item.status === 'rascunho';
+            const statusColor = isDraft ? '#f59e0b' : (item.status === 'enviado' ? '#27ae60' : '#e74c3c');
+            const statusIcon  = isDraft ? 'fa-file-pen' : (item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle');
+
+            // Ajusta label do botão de reenvio conforme status
+            if (detailResend) {
+                detailResend.innerHTML = isDraft
+                    ? '<i class="fa-solid fa-paper-plane"></i> Enviar'
+                    : '<i class="fa-solid fa-rotate-right"></i> Reenviar';
+            }
 
             detailBody.innerHTML = `
                 <div style="display:grid;gap:12px;">
@@ -1453,7 +1464,7 @@ window.onload = function () {
                     </div>
                     <div style="display:flex;gap:16px;flex-wrap:wrap;">
                         <div><label style="font-size:.8rem;color:#888;">Status</label><br>
-                            <span style="color:${statusColor};font-weight:600;"><i class="fa-solid ${item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${esc(item.status)}</span>
+                            <span style="color:${statusColor};font-weight:600;"><i class="fa-solid ${statusIcon}"></i> ${esc(item.status)}</span>
                         </div>
                         <div><label style="font-size:.8rem;color:#888;">Data/Hora</label><br>
                             <span>${fmtDate(item.created_at)}</span>
@@ -1658,6 +1669,44 @@ window.onload = function () {
     if (emailPreviewBtn) emailPreviewBtn.addEventListener('click', (e) => { e.preventDefault(); togglePreview(); });
     if (emailFullscreenBtn) emailFullscreenBtn.addEventListener('click', (e) => { e.preventDefault(); toggleFullscreen(); });
     if (emailForm) emailForm.addEventListener('submit', submitEmail);
+
+    if (emailDraft) {
+        emailDraft.addEventListener('click', async () => {
+            if (!emailEditor || !emailSubject) return;
+            const payload = {
+                recipients: extractEmailsFromText(emailTo?.value || '').map(e => ({ email: e, name: e })),
+                subject: emailSubject.value.trim() || '(Rascunho sem assunto)',
+                logo_url: emailLogo?.value.trim() || '',
+                html: emailEditor.innerHTML.trim() || '',
+                draft: true,
+            };
+            emailDraft.disabled = true;
+            emailDraft.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+            try {
+                const res = await fetch('/api/email/custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    credentials: 'same-origin',
+                });
+                const body = await res.json();
+                if (!res.ok) throw new Error(body.error || body.message || 'Falha ao salvar rascunho');
+                if (emailFeedback) {
+                    emailFeedback.textContent = 'Rascunho salvo com sucesso.';
+                    emailFeedback.className = 'login-feedback success';
+                }
+                setTimeout(closeEmailModal, 800);
+            } catch (err) {
+                if (emailFeedback) {
+                    emailFeedback.textContent = err.message;
+                    emailFeedback.className = 'login-feedback error';
+                }
+            } finally {
+                emailDraft.disabled = false;
+                emailDraft.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Rascunho';
+            }
+        });
+    }
     if (authVerifyToggle) authVerifyToggle.addEventListener('change', (e) => {
         persistAuthPolicy(e.target.checked);
     });
