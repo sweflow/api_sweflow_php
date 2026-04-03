@@ -56,7 +56,7 @@ interface UsuarioRepositoryInterface
     /**
      * Marca o e-mail do usuário como verificado
      */
-    public function marcarEmailComoVerificado(string $uuid): void;
+    public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void;
 
     /**
      * Verifica se e-mail já existe
