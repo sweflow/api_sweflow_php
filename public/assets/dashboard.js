@@ -1345,6 +1345,7 @@ window.onload = function () {
     const detailEdit        = document.getElementById('email-detail-edit');
     const detailResend      = document.getElementById('email-detail-resend');
     const detailDiscard     = document.getElementById('email-detail-discard');
+    const detailDraftEdit   = document.getElementById('email-detail-draft-edit');
     const detailDelete      = document.getElementById('email-detail-delete');
     const deleteModal       = document.getElementById('email-delete-modal');
     const deleteClose       = document.getElementById('email-delete-close');
@@ -1478,12 +1479,12 @@ window.onload = function () {
         if (subtitle) subtitle.textContent = isDraft ? 'Rascunho local' : 'Visualizando registro';
 
         // Ajusta botões conforme tipo
-        if (detailResend)  detailResend.style.display  = isDraft ? 'none' : '';
-        if (detailEdit)    detailEdit.innerHTML = isDraft
-            ? '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail'
-            : '<i class="fa-solid fa-pen"></i> Editar e reenviar';
-        if (detailDelete)  detailDelete.style.display  = '';
-        if (detailDiscard) detailDiscard.style.display = isDraft ? '' : 'none';
+        if (detailResend)    detailResend.style.display    = isDraft ? 'none' : '';
+        if (detailEdit)      detailEdit.style.display      = isDraft ? 'none' : '';
+        if (detailDraftEdit) detailDraftEdit.style.display = isDraft ? '' : 'none';
+        if (detailEdit)      detailEdit.innerHTML = '<i class="fa-solid fa-pen"></i> Editar e reenviar';
+        if (detailDelete)    detailDelete.style.display    = '';
+        if (detailDiscard)   detailDiscard.style.display   = isDraft ? '' : 'none';
 
         if (isDraft) {
             const draft = getDrafts().find(d => d.id === id);
@@ -1661,6 +1662,22 @@ window.onload = function () {
                 detailResend.disabled = false;
                 detailResend.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Reenviar';
             }
+        });
+    }
+
+    if (detailDraftEdit) {
+        detailDraftEdit.addEventListener('click', () => {
+            if (!currentHistoryId) return;
+            const draft = getDrafts().find(d => d.id === currentHistoryId);
+            if (!draft) return;
+            if (emailTo)      emailTo.value         = draft.to       || '';
+            if (emailSubject) emailSubject.value    = draft.subject  || '';
+            if (emailLogo)    emailLogo.value       = draft.logo_url || '';
+            if (emailEditor)  emailEditor.innerHTML = draft.html     || '';
+            closeEmailDetail();
+            historyModal?.classList.remove('show');
+            if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
+            openEmailModal();
         });
     }
 

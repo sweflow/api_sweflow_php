@@ -524,6 +524,7 @@
             <div class="email-form-btns">
                 <button class="btn ghost" id="email-detail-discard" style="display:none;color:#f59e0b;border-color:rgba(245,158,11,0.3);"><i class="fa-solid fa-trash-can"></i> Descartar rascunho</button>
                 <button class="btn ghost" id="email-detail-resend"><i class="fa-solid fa-rotate-right"></i> Reenviar</button>
+                <button class="btn ghost" id="email-detail-draft-edit" style="display:none;"><i class="fa-solid fa-pen-to-square"></i> Editar rascunho</button>
                 <button class="btn ghost" id="email-detail-edit"><i class="fa-solid fa-pen"></i> Editar e reenviar</button>
                 <button class="btn" style="background:#e74c3c;color:#fff;" id="email-detail-delete"><i class="fa-solid fa-trash"></i> Excluir</button>
             </div>
