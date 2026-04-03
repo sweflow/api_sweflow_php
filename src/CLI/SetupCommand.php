@@ -62,6 +62,8 @@ class SetupCommand
         echo "14) Instalar Caddy + subir HTTPS em produção\n";
         echo "15) Subir Caddy em desenvolvimento (HTTPS local via mkcert)\n";
         echo "16) Subir PM2 + Caddy em produção (recomendado para produção)\n";
+        echo "17) Reiniciar PM2 + Caddy\n";
+        echo "18) Parar PM2 + Caddy\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -86,6 +88,8 @@ class SetupCommand
             '14' => fn() => $this->startCaddyProduction(),
             '15' => fn() => $this->startCaddyDev(),
             '16' => fn() => $this->startPm2WithCaddy(),
+            '17' => fn() => $this->restartPm2WithCaddy(),
+            '18' => fn() => $this->stopPm2WithCaddy(),
         ];
 
         if ($choice === '0') {
@@ -168,6 +172,72 @@ class SetupCommand
         $this->startCaddyProduction();
     }
 
+    private function restartPm2WithCaddy(): void
+    {
+        echo "▶ Reiniciando PM2 + Caddy...\n\n";
+
+        // Reinicia PM2
+        if ($this->commandExists('pm2')) {
+            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            if ($check->run()) {
+                echo "▶ Reiniciando PM2 sweflow-api...\n";
+                (new Process(['pm2', 'restart', 'sweflow-api']))->passthru();
+            } else {
+                echo "⚠ PM2 sweflow-api não está rodando. Iniciando...\n";
+                $this->startPm2();
+            }
+        } else {
+            echo "⚠ PM2 não encontrado. Pulando reinício do PM2.\n";
+        }
+
+        // Recarrega Caddy sem downtime
+        $caddyfile = dirname(__DIR__, 2) . '/Caddyfile';
+        if ($this->commandExists('caddy') && is_file($caddyfile)) {
+            echo "▶ Recarregando Caddy...\n";
+            $exitCode = (new Process(['sudo', 'caddy', 'reload', '--config', $caddyfile]))->passthru();
+            if ($exitCode === 0) {
+                echo "✔ Caddy recarregado sem downtime.\n";
+            } else {
+                echo "✖ Falha ao recarregar Caddy. Tente: sudo caddy reload --config {$caddyfile}\n";
+            }
+        } else {
+            echo "⚠ Caddy não encontrado ou Caddyfile ausente. Pulando.\n";
+        }
+    }
+
+    private function stopPm2WithCaddy(): void
+    {
+        echo "▶ Parando PM2 + Caddy...\n\n";
+
+        // Para PM2
+        if ($this->commandExists('pm2')) {
+            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            if ($check->run()) {
+                echo "▶ Parando PM2 sweflow-api...\n";
+                (new Process(['pm2', 'delete', 'sweflow-api']))->passthru();
+                (new Process(['pm2', 'save']))->passthru();
+                echo "✔ PM2 sweflow-api parado.\n";
+            } else {
+                echo "⚠ PM2 sweflow-api não estava rodando.\n";
+            }
+        } else {
+            echo "⚠ PM2 não encontrado.\n";
+        }
+
+        // Para Caddy
+        if ($this->commandExists('caddy')) {
+            echo "▶ Parando Caddy...\n";
+            $exitCode = (new Process(['sudo', 'caddy', 'stop']))->passthru();
+            if ($exitCode === 0) {
+                echo "✔ Caddy parado.\n";
+            } else {
+                echo "⚠ Caddy pode já estar parado ou falhou ao parar.\n";
+            }
+        } else {
+            echo "⚠ Caddy não encontrado.\n";
+        }
+    }
+
     // ── Caddy ─────────────────────────────────────────────────────────
 
     private function startCaddyProduction(): void
@@ -194,19 +264,27 @@ class SetupCommand
         // Garante que o diretório de logs existe
         $this->runProcess(['sudo', 'mkdir', '-p', '/var/log/caddy']);
 
-        // Inicia o servidor PHP em background se não estiver rodando
-        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        // Inicia o servidor PHP em background se não estiver rodando (via php -S)
+        // Se PM2 estiver gerenciando, não sobe um segundo processo
+        $port    = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
         $pidFile = $root . '/storage/server.pid';
-        if (!is_file($pidFile)) {
+        $pm2Running = $this->commandExists('pm2') && (new Process(['pm2', 'describe', 'sweflow-api']))->run();
+        if (!$pm2Running && !is_file($pidFile)) {
             echo "▶ Iniciando servidor PHP em background na porta {$port}...\n";
             $this->startPhpServerBackground();
         } else {
-            echo "✔ Servidor PHP já está rodando (PID " . trim((string)file_get_contents($pidFile)) . ")\n";
+            echo "✔ Servidor já está rodando (PM2 ou php -S)\n";
         }
 
         // Inicia o Caddy
         echo "▶ Iniciando Caddy em produção...\n";
-        $this->runProcess(['sudo', 'caddy', 'start', '--config', $caddyfile]);
+        $exitCode = (new Process(['sudo', 'caddy', 'start', '--config', $caddyfile]))->passthru();
+
+        if ($exitCode !== 0) {
+            echo "✖ Caddy falhou ao iniciar (exit code {$exitCode}). Verifique o Caddyfile.\n";
+            echo "  Teste manualmente: sudo caddy validate --config {$caddyfile}\n";
+            return;
+        }
 
         $domain = (string)($_ENV['APP_URL'] ?? 'https://seu-dominio.com');
         echo "✔ Caddy iniciado!\n";
