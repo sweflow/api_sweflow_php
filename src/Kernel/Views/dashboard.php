@@ -620,39 +620,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target === this) { this.classList.remove('show'); this.setAttribute('aria-hidden', 'true'); }
     });
 
-    // Dark mode toggle
-    (function () {
-        const body  = document.body;
-        const btn   = document.getElementById('theme-toggle');
-        const icon  = document.getElementById('theme-icon');
-        const DARK_KEY = 'dash-dark-mode';
-
-        function applyTheme(dark) {
-            body.classList.toggle('dark', dark);
-            document.documentElement.classList.remove('dash-pre-dark');
-            if (icon) icon.className = dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-            if (btn) btn.setAttribute('aria-label', dark ? 'Ativar modo claro' : 'Ativar modo escuro');
-        }
-
-        // Inicia com light (padrão) — só ativa dark se o usuário salvou
-        const saved = localStorage.getItem(DARK_KEY);
-        // Se DOMContentLoaded já aplicou o dark, não re-aplica (evita flash)
-        if (!body.classList.contains('dark')) {
-            applyTheme(saved === '1');
-        } else {
-            // Só sincroniza ícone e aria sem mexer nas classes
-            if (icon) icon.className = 'fa-solid fa-sun';
-            if (btn) btn.setAttribute('aria-label', 'Ativar modo claro');
-        }
-
-        if (btn) {
-            btn.addEventListener('click', () => {
-                const isDark = body.classList.toggle('dark');
-                localStorage.setItem(DARK_KEY, isDark ? '1' : '0');
-                applyTheme(isDark);
-            });
-        }
-    })();
+    // Dark mode — gerenciado pelo nav-init.js (evita listener duplicado)
 
     // Sidebar toggle
     const sidebarToggle   = document.getElementById('sidebar-toggle');
