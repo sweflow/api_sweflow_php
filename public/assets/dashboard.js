@@ -873,9 +873,11 @@ window.onload = function () {
 
     function extractEmailsFromText(text) {
         const parts = (text || '').split(/[,;\n\s]+/);
+        // Regex sem backtracking: classes de caracteres específicas evitam ReDoS
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return parts
             .map(p => p.trim())
-            .filter(p => p !== '' && /.+@.+\..+/.test(p));
+            .filter(p => p !== '' && emailRe.test(p));
     }
 
     async function submitEmail(e) {
