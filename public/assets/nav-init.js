@@ -6,27 +6,31 @@
     document.addEventListener('DOMContentLoaded', function () {
 
         // ── Sidebar toggle ────────────────────────────────────────────
-        const toggle   = document.getElementById('sidebar-toggle');
-        const sidebar  = document.getElementById('dash-sidebar');
-        const backdrop = document.getElementById('sidebar-backdrop');
-        if (toggle && sidebar) {
-            toggle.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-                backdrop?.classList.toggle('show');
-            });
-            backdrop?.addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                backdrop.classList.remove('show');
-            });
-            // Fecha ao clicar em link interno no mobile
-            document.querySelectorAll('.dash-sidenav-link[href^="#"]').forEach(a => {
-                a.addEventListener('click', () => {
-                    if (window.innerWidth < 1024) {
-                        sidebar.classList.remove('open');
-                        backdrop?.classList.remove('show');
-                    }
+        // Usa flag para evitar registro duplo quando o inline script do dashboard já registrou
+        if (!window.__sidebarToggleInit) {
+            window.__sidebarToggleInit = true;
+            const toggle   = document.getElementById('sidebar-toggle');
+            const sidebar  = document.getElementById('dash-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (toggle && sidebar) {
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sidebar.classList.toggle('open');
+                    backdrop?.classList.toggle('show');
                 });
-            });
+                backdrop?.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                    backdrop.classList.remove('show');
+                });
+                document.querySelectorAll('.dash-sidenav-link[href^="#"]').forEach(a => {
+                    a.addEventListener('click', () => {
+                        if (window.innerWidth < 1024) {
+                            sidebar.classList.remove('open');
+                            backdrop?.classList.remove('show');
+                        }
+                    });
+                });
+            }
         }
 
         // ── Dropdowns ─────────────────────────────────────────────────

@@ -315,53 +315,131 @@
 <!-- E-mail composer -->
 <div class="modal-overlay" id="email-modal">
     <div class="modal email-modal">
-        <div class="modal-header">
-            <h2><i class="fa-solid fa-envelope"></i> Enviar e-mail personalizado</h2>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <button class="btn ghost" id="email-preview-btn" type="button"><i class="fa-solid fa-eye"></i> Pré-visualizar</button>
-                <button class="btn ghost" id="email-fullscreen-btn" type="button"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></button>
-                <button class="modal-close" id="email-close"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-header email-modal-header">
+            <div class="email-modal-title-wrap">
+                <div class="email-modal-icon">
+                    <i class="fa-solid fa-envelope"></i>
+                </div>
+                <div>
+                    <h2 class="email-modal-title">Enviar e-mail personalizado</h2>
+                    <p class="email-modal-sub">Compose e dispare mensagens diretamente pela API</p>
+                </div>
+            </div>
+            <div class="email-modal-actions">
+                <button class="email-action-btn" id="email-preview-btn" type="button" title="Pré-visualizar">
+                    <i class="fa-solid fa-eye"></i>
+                    <span>Preview</span>
+                </button>
+                <button class="email-action-btn" id="email-fullscreen-btn" type="button" title="Tela cheia">
+                    <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                </button>
+                <button class="modal-close" id="email-close" aria-label="Fechar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         </div>
+
         <form id="email-form" class="email-form" autocomplete="off">
-            <div class="input-group"><label for="email-to">Para</label>
-                <input type="text" id="email-to" placeholder="email@exemplo.com ou vários separados por vírgula" /></div>
-            <div class="input-group"><label for="email-subject">Assunto</label>
-                <input type="text" id="email-subject" placeholder="Assunto do e-mail" required /></div>
-            <div class="input-group"><label for="email-logo">Logo (URL opcional)</label>
-                <input type="url" id="email-logo" placeholder="https://.../logo.png" /></div>
-            <div class="email-toolbar" id="email-toolbar">
-                <button type="button" data-cmd="bold"><i class="fa-solid fa-bold"></i></button>
-                <button type="button" data-cmd="italic"><i class="fa-solid fa-italic"></i></button>
-                <button type="button" data-cmd="underline"><i class="fa-solid fa-underline"></i></button>
-                <button type="button" data-cmd="strikeThrough"><i class="fa-solid fa-strikethrough"></i></button>
-                <button type="button" data-cmd="insertOrderedList"><i class="fa-solid fa-list-ol"></i></button>
-                <button type="button" data-cmd="insertUnorderedList"><i class="fa-solid fa-list-ul"></i></button>
-                <button type="button" data-cmd="formatBlock" data-value="blockquote"><i class="fa-solid fa-quote-left"></i></button>
-                <button type="button" data-cmd="formatBlock" data-value="pre"><i class="fa-solid fa-code"></i></button>
-                <button type="button" data-cmd="align-left"><i class="fa-solid fa-align-left"></i></button>
-                <button type="button" data-cmd="align-center"><i class="fa-solid fa-align-center"></i></button>
-                <button type="button" data-cmd="align-right"><i class="fa-solid fa-align-right"></i></button>
-                <button type="button" data-cmd="createLink"><i class="fa-solid fa-link"></i></button>
-                <button type="button" data-cmd="insertImage"><i class="fa-solid fa-image"></i></button>
-                <select id="email-font-size" aria-label="Tamanho da fonte">
-                    <option value="">Tam.</option>
-                    <option value="12">12px</option><option value="14">14px</option>
-                    <option value="18">18px</option><option value="22">22px</option>
-                    <option value="28">28px</option><option value="36">36px</option>
-                </select>
-                <label class="color-picker">Cor <input type="color" id="email-font-color" /></label>
-                <label class="color-picker">Fundo <input type="color" id="email-bg-color" /></label>
+
+            <!-- Campos principais -->
+            <div class="email-fields">
+                <div class="email-field-row">
+                    <div class="email-field-label">
+                        <i class="fa-solid fa-at"></i>
+                        <span>Para</span>
+                    </div>
+                    <input type="text" id="email-to" class="email-field-input"
+                           placeholder="email@exemplo.com, outro@exemplo.com" />
+                </div>
+                <div class="email-field-divider"></div>
+                <div class="email-field-row">
+                    <div class="email-field-label">
+                        <i class="fa-solid fa-heading"></i>
+                        <span>Assunto</span>
+                    </div>
+                    <input type="text" id="email-subject" class="email-field-input"
+                           placeholder="Assunto do e-mail" required />
+                </div>
+                <div class="email-field-divider"></div>
+                <div class="email-field-row">
+                    <div class="email-field-label">
+                        <i class="fa-solid fa-image"></i>
+                        <span>Logo</span>
+                    </div>
+                    <input type="url" id="email-logo" class="email-field-input"
+                           placeholder="https://.../logo.png (opcional)" />
+                </div>
             </div>
-            <div class="email-editor" id="email-editor" contenteditable="true" aria-label="Editor de e-mail"></div>
-            <div class="email-preview" id="email-preview" hidden></div>
-            <div id="email-feedback" class="login-feedback" aria-live="polite"></div>
+
+            <!-- Toolbar -->
+            <div class="email-toolbar" id="email-toolbar">
+                <div class="email-toolbar-group">
+                    <button type="button" data-cmd="bold" title="Negrito"><i class="fa-solid fa-bold"></i></button>
+                    <button type="button" data-cmd="italic" title="Itálico"><i class="fa-solid fa-italic"></i></button>
+                    <button type="button" data-cmd="underline" title="Sublinhado"><i class="fa-solid fa-underline"></i></button>
+                    <button type="button" data-cmd="strikeThrough" title="Tachado"><i class="fa-solid fa-strikethrough"></i></button>
+                </div>
+                <div class="email-toolbar-sep"></div>
+                <div class="email-toolbar-group">
+                    <button type="button" data-cmd="insertOrderedList" title="Lista numerada"><i class="fa-solid fa-list-ol"></i></button>
+                    <button type="button" data-cmd="insertUnorderedList" title="Lista"><i class="fa-solid fa-list-ul"></i></button>
+                    <button type="button" data-cmd="formatBlock" data-value="blockquote" title="Citação"><i class="fa-solid fa-quote-left"></i></button>
+                    <button type="button" data-cmd="formatBlock" data-value="pre" title="Código"><i class="fa-solid fa-code"></i></button>
+                </div>
+                <div class="email-toolbar-sep"></div>
+                <div class="email-toolbar-group">
+                    <button type="button" data-cmd="align-left" title="Alinhar à esquerda"><i class="fa-solid fa-align-left"></i></button>
+                    <button type="button" data-cmd="align-center" title="Centralizar"><i class="fa-solid fa-align-center"></i></button>
+                    <button type="button" data-cmd="align-right" title="Alinhar à direita"><i class="fa-solid fa-align-right"></i></button>
+                </div>
+                <div class="email-toolbar-sep"></div>
+                <div class="email-toolbar-group">
+                    <button type="button" data-cmd="createLink" title="Inserir link"><i class="fa-solid fa-link"></i></button>
+                    <button type="button" data-cmd="insertImage" title="Inserir imagem"><i class="fa-solid fa-image"></i></button>
+                </div>
+                <div class="email-toolbar-sep"></div>
+                <div class="email-toolbar-group email-toolbar-extras">
+                    <select id="email-font-size" aria-label="Tamanho da fonte" title="Tamanho">
+                        <option value="">Tam.</option>
+                        <option value="12">12px</option>
+                        <option value="14">14px</option>
+                        <option value="18">18px</option>
+                        <option value="22">22px</option>
+                        <option value="28">28px</option>
+                        <option value="36">36px</option>
+                    </select>
+                    <label class="color-picker" title="Cor do texto">
+                        <i class="fa-solid fa-font"></i>
+                        <input type="color" id="email-font-color" />
+                    </label>
+                    <label class="color-picker" title="Cor de fundo">
+                        <i class="fa-solid fa-fill-drip"></i>
+                        <input type="color" id="email-bg-color" />
+                    </label>
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div class="email-editor-wrap">
+                <div class="email-editor" id="email-editor" contenteditable="true"
+                     aria-label="Editor de e-mail" aria-multiline="true"></div>
+                <div class="email-preview" id="email-preview" hidden></div>
+            </div>
+
+            <!-- Footer -->
+            <div class="email-form-footer">
+                <div id="email-feedback" class="email-feedback" aria-live="polite"></div>
+                <div class="email-form-btns">
+                    <button type="button" class="btn ghost" id="email-cancel">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn primary email-send-btn" id="email-send">
+                        <i class="fa-solid fa-paper-plane"></i> Enviar e-mail
+                    </button>
+                </div>
+            </div>
+
         </form>
-        <div class="email-modal-footer">
-            <button type="button" class="btn ghost" id="email-cancel">Cancelar</button>
-            <button type="button" class="btn ghost" id="email-draft"><i class="fa-solid fa-floppy-disk"></i> Rascunho</button>
-            <button type="button" class="btn primary" id="email-send" onclick="document.getElementById('email-form').requestSubmit()"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
-        </div>
     </div>
 </div>
 
@@ -623,25 +701,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Dark mode — gerenciado pelo nav-init.js (evita listener duplicado)
 
-    // Sidebar toggle — gerenciado pelo nav-init.js (evita listener duplicado)
-
-    // Dropdowns topbar
-    document.querySelectorAll('.dash-dropdown-btn').forEach(btn => {
-        btn.addEventListener('click', function (e) {
+    // Sidebar toggle
+    window.__sidebarToggleInit = true; // evita registro duplo pelo nav-init.js
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebar       = document.getElementById('dash-sidebar');
+    const backdrop      = document.getElementById('sidebar-backdrop');
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id   = 'dd-' + this.dataset.dropdown;
-            const menu = document.getElementById(id);
-            if (!menu) return;
-            const isOpen = menu.classList.contains('open');
-            document.querySelectorAll('.dash-dropdown-menu.open').forEach(m => m.classList.remove('open'));
-            document.querySelectorAll('.dash-dropdown-btn.active').forEach(b => b.classList.remove('active'));
-            if (!isOpen) { menu.classList.add('open'); this.classList.add('active'); }
+            sidebar.classList.toggle('open');
+            backdrop?.classList.toggle('show');
         });
-    });
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.dash-dropdown-menu.open').forEach(m => m.classList.remove('open'));
-        document.querySelectorAll('.dash-dropdown-btn.active').forEach(b => b.classList.remove('active'));
-    });
+        backdrop?.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            backdrop.classList.remove('show');
+        });
+        document.querySelectorAll('.dash-sidenav-link[href^="#"]').forEach(a => {
+            a.addEventListener('click', () => {
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.remove('open');
+                    backdrop?.classList.remove('show');
+                }
+            });
+        });
+    }
+
+    // Dropdowns topbar — gerenciados pelo nav-init.js (evita listener duplicado)
 
     // Smooth scroll links
     document.querySelectorAll('a[href^="#"]').forEach(a => {
