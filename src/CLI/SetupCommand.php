@@ -155,6 +155,15 @@ class SetupCommand
     private function startPm2WithCaddy(): void
     {
         echo "▶ Iniciando PM2 + Caddy em produção...\n\n";
+
+        if (!$this->commandExists('node') && !$this->commandExists('nodejs')) {
+            echo "✖ Node.js não encontrado. Instale antes de continuar:\n";
+            echo "  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -\n";
+            echo "  sudo apt-get install -y nodejs\n";
+            echo "\nAlternativa sem PM2: use a opção 14 (php -S + Caddy).\n";
+            return;
+        }
+
         $this->startPm2();
         $this->startCaddyProduction();
     }
@@ -271,15 +280,10 @@ class SetupCommand
             echo "No Windows, instale o Caddy manualmente: https://caddyserver.com/docs/install\n";
             return;
         }
-        $steps = [
-            ['sudo', 'apt-get', 'install', '-y', 'debian-keyring', 'debian-archive-keyring', 'apt-transport-https', 'curl'],
-        ];
-        foreach ($steps as $cmd) {
-            $this->runProcess($cmd);
-        }
-        // Download e instalação via script oficial
+        $this->runProcess(['sudo', 'apt-get', 'install', '-y', 'debian-keyring', 'debian-archive-keyring', 'apt-transport-https', 'curl']);
+
         $proc = new Process(['bash', '-c',
-            'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && ' .
+            'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && ' .
             'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt" | sudo tee /etc/apt/sources.list.d/caddy-stable.list && ' .
             'sudo apt-get update && sudo apt-get install -y caddy'
         ]);
@@ -852,11 +856,29 @@ class SetupCommand
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
             return false;
         }
-        $isWindows = stripos(PHP_OS_FAMILY, 'Windows') !== false;
-        $cmd = $isWindows ? ['where', $name] : ['command', '-v', $name];
-        $proc = new Process($cmd);
+
+        if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
+            $proc = new Process(['where', $name]);
+            $proc->run();
+            return $proc->isSuccessful() && trim($proc->getOutput()) !== '';
+        }
+
+        // Tenta `which` primeiro (binário real, funciona sem shell)
+        $proc = new Process(['which', $name]);
         $proc->run();
-        return $proc->isSuccessful() && trim($proc->getOutput()) !== '';
+        if ($proc->isSuccessful() && trim($proc->getOutput()) !== '') {
+            return true;
+        }
+
+        // Fallback: verifica diretamente nos paths mais comuns
+        $paths = ['/usr/bin', '/usr/local/bin', '/bin', '/usr/sbin', '/usr/local/sbin', '/snap/bin'];
+        foreach ($paths as $dir) {
+            if (is_executable($dir . '/' . $name)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function dockerContainerExists(string $containerName): bool
