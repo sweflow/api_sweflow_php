@@ -59,6 +59,9 @@ class SetupCommand
         echo "11) Gerar token JWT de API (JWT_API_SECRET)\n";
         echo "12) Parar servidor (php -S / PM2)\n";
         echo "13) Reiniciar servidor\n";
+        echo "14) Instalar Caddy + subir HTTPS em produção\n";
+        echo "15) Subir Caddy em desenvolvimento (HTTPS local via mkcert)\n";
+        echo "16) Subir PM2 + Caddy em produção (recomendado para produção)\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -80,6 +83,9 @@ class SetupCommand
             '11' => fn() => $this->printApiJwtToken(),
             '12' => fn() => $this->stopServer(),
             '13' => fn() => $this->restartServer(),
+            '14' => fn() => $this->startCaddyProduction(),
+            '15' => fn() => $this->startCaddyDev(),
+            '16' => fn() => $this->startPm2WithCaddy(),
         ];
 
         if ($choice === '0') {
@@ -122,16 +128,163 @@ class SetupCommand
             $this->printApiJwtToken();
         }
 
+        // Inicia o servidor PHP em background primeiro
         $server = strtolower((string)($flags['server'] ?? 'background'));
+        if ($server === 'pm2+caddy') {
+            $this->startPm2WithCaddy();
+            return;
+        }
         if ($server === 'pm2') {
             $this->startPm2();
+        } elseif ($server === 'php') {
+            $this->startPhpServer(); // foreground — bloqueia aqui
+            return;
+        } else {
+            $this->startPhpServerBackground();
+        }
+
+        // Caddy (proxy HTTPS na frente do PHP)
+        $caddy = strtolower((string)($flags['caddy'] ?? 'skip'));
+        if ($caddy === 'production') {
+            $this->startCaddyProduction();
+        } elseif ($caddy === 'dev') {
+            $this->startCaddyDev();
+        }
+    }
+
+    private function startPm2WithCaddy(): void
+    {
+        echo "▶ Iniciando PM2 + Caddy em produção...\n\n";
+        $this->startPm2();
+        $this->startCaddyProduction();
+    }
+
+    // ── Caddy ─────────────────────────────────────────────────────────
+
+    private function startCaddyProduction(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $caddyfile = $root . '/Caddyfile';
+
+        if (!is_file($caddyfile)) {
+            echo "✖ Caddyfile não encontrado em {$root}\n";
+            echo "  Certifique-se de que o arquivo Caddyfile existe na raiz do projeto.\n";
             return;
         }
-        if ($server === 'php') {
-            $this->startPhpServer(); // foreground
+
+        // Instala o Caddy se não estiver disponível
+        if (!$this->commandExists('caddy')) {
+            echo "Caddy não encontrado. Instalando...\n";
+            $this->installCaddy();
+            if (!$this->commandExists('caddy')) {
+                echo "✖ Falha ao instalar o Caddy. Instale manualmente: https://caddyserver.com/docs/install\n";
+                return;
+            }
+        }
+
+        // Garante que o diretório de logs existe
+        $this->runProcess(['sudo', 'mkdir', '-p', '/var/log/caddy']);
+
+        // Inicia o servidor PHP em background se não estiver rodando
+        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $pidFile = $root . '/storage/server.pid';
+        if (!is_file($pidFile)) {
+            echo "▶ Iniciando servidor PHP em background na porta {$port}...\n";
+            $this->startPhpServerBackground();
+        } else {
+            echo "✔ Servidor PHP já está rodando (PID " . trim((string)file_get_contents($pidFile)) . ")\n";
+        }
+
+        // Inicia o Caddy
+        echo "▶ Iniciando Caddy em produção...\n";
+        $this->runProcess(['sudo', 'caddy', 'start', '--config', $caddyfile]);
+
+        $domain = (string)($_ENV['APP_URL'] ?? 'https://seu-dominio.com');
+        echo "✔ Caddy iniciado!\n";
+        echo "  API disponível em: {$domain}\n";
+        echo "  TLS gerenciado automaticamente pelo Let's Encrypt.\n";
+        echo "  Para recarregar config: sudo caddy reload --config {$caddyfile}\n";
+        echo "  Para parar: sudo caddy stop\n";
+    }
+
+    private function startCaddyDev(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $caddyfileDev = $root . '/Caddyfile.dev';
+
+        if (!is_file($caddyfileDev)) {
+            echo "✖ Caddyfile.dev não encontrado em {$root}\n";
             return;
         }
-        $this->startPhpServerBackground();
+
+        if (!$this->commandExists('caddy')) {
+            echo "Caddy não encontrado. Instalando...\n";
+            $this->installCaddy();
+            if (!$this->commandExists('caddy')) {
+                echo "✖ Falha ao instalar o Caddy.\n";
+                return;
+            }
+        }
+
+        // Verifica/instala mkcert
+        if (!$this->commandExists('mkcert')) {
+            echo "mkcert não encontrado. Instalando...\n";
+            $this->runProcess(['sudo', 'apt-get', 'install', '-y', 'mkcert', 'libnss3-tools']);
+        }
+
+        // Gera certificado local se não existir
+        $certFile = $root . '/localhost+1.pem';
+        if (!is_file($certFile)) {
+            echo "▶ Gerando certificado local com mkcert...\n";
+            $this->runProcess(['mkcert', '-install']);
+            $this->runProcess(['mkcert', 'localhost', '127.0.0.1'], null);
+            // mkcert gera os arquivos no diretório atual — move para a raiz do projeto
+            foreach (['localhost+1.pem', 'localhost+1-key.pem'] as $f) {
+                if (is_file($f) && !is_file($root . '/' . $f)) {
+                    rename($f, $root . '/' . $f);
+                }
+            }
+        } else {
+            echo "✔ Certificado local já existe\n";
+        }
+
+        // Inicia o servidor PHP em background se não estiver rodando
+        $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $pidFile = $root . '/storage/server.pid';
+        if (!is_file($pidFile)) {
+            echo "▶ Iniciando servidor PHP em background na porta {$port}...\n";
+            $this->startPhpServerBackground();
+        } else {
+            echo "✔ Servidor PHP já está rodando (PID " . trim((string)file_get_contents($pidFile)) . ")\n";
+        }
+
+        // Inicia o Caddy em foreground (dev)
+        echo "▶ Iniciando Caddy em desenvolvimento (HTTPS local)...\n";
+        echo "  Acesse: https://localhost:2443\n";
+        echo "  Pressione Ctrl+C para parar.\n\n";
+        (new Process(['caddy', 'run', '--config', $caddyfileDev]))->passthru();
+    }
+
+    private function installCaddy(): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            echo "No Windows, instale o Caddy manualmente: https://caddyserver.com/docs/install\n";
+            return;
+        }
+        $steps = [
+            ['sudo', 'apt-get', 'install', '-y', 'debian-keyring', 'debian-archive-keyring', 'apt-transport-https', 'curl'],
+        ];
+        foreach ($steps as $cmd) {
+            $this->runProcess($cmd);
+        }
+        // Download e instalação via script oficial
+        $proc = new Process(['bash', '-c',
+            'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && ' .
+            'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt" | sudo tee /etc/apt/sources.list.d/caddy-stable.list && ' .
+            'sudo apt-get update && sudo apt-get install -y caddy'
+        ]);
+        $proc->passthru();
+        echo "✔ Caddy instalado.\n";
     }
 
     private function printHelp(): void
@@ -142,9 +295,20 @@ class SetupCommand
         echo "\n";
         echo "Flags (modo --auto):\n";
         echo "  --db-mode=compose|docker|skip   # padrão: compose\n";
-        echo "  --server=php|pm2                # padrão: php\n";
+        echo "  --server=background|php|pm2|pm2+caddy  # padrão: background\n";
         echo "  --jwt=if-empty|skip             # padrão: if-empty\n";
         echo "  --api-token=generate|skip       # padrão: skip\n";
+        echo "  --caddy=production|dev|skip     # padrão: skip\n";
+        echo "\n";
+        echo "Exemplos:\n";
+        echo "  # Produção: PM2 + Caddy HTTPS automático (recomendado):\n";
+        echo "  php sweflow setup --auto --server=pm2+caddy\n";
+        echo "\n";
+        echo "  # Produção: php -S + Caddy HTTPS automático:\n";
+        echo "  php sweflow setup --auto --caddy=production\n";
+        echo "\n";
+        echo "  # Desenvolvimento local com HTTPS via mkcert:\n";
+        echo "  php sweflow setup --auto --db-mode=skip --caddy=dev\n";
         echo "\n";
         echo "Pré-requisitos:\n";
         echo "  - docker + docker compose instalados e rodando\n";

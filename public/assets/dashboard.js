@@ -1,3 +1,15 @@
+// ── XSS protection helper ─────────────────────────────────────────────────
+// Use esc() em TODOS os dados vindos da API antes de inserir em innerHTML.
+function esc(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
 window.onload = function () {
     const dbConnection = document.getElementById('db-connection');
     const dbMeta = document.getElementById('db-meta');
@@ -66,7 +78,7 @@ window.onload = function () {
             }
 
             disableModalName.textContent = moduleName;
-            disableModalText.innerHTML = `Tem certeza que deseja desabilitar o módulo <strong>${moduleName}</strong>?\nTodas as rotas e serviços desse módulo ficarão indisponíveis.`;
+            disableModalText.innerHTML = `Tem certeza que deseja desabilitar o módulo <strong>${esc(moduleName)}</strong>?\nTodas as rotas e serviços desse módulo ficarão indisponíveis.`;
 
             const cleanup = () => {
                 disableModal.classList.remove('show');
@@ -167,14 +179,12 @@ window.onload = function () {
         }
 
         modulesList.innerHTML = modules.map(mod => {
-            const isEnabled = mod.enabled !== false; // API might return explicit false
+            const isEnabled = mod.enabled !== false;
             const isProtected = mod.protected || ['Auth', 'Usuario'].includes(mod.name);
             const statusClass = isEnabled ? 'active' : 'inactive';
             const statusText = isEnabled ? 'Ativo' : 'Inativo';
-            
             let cardStatusClass = isProtected ? 'status-system' : (isEnabled ? 'status-active' : 'status-inactive');
-            
-            // Determine icon based on module name
+
             let iconClass = 'fa-cube';
             const nameLower = (mod.name || mod.nome || '').toLowerCase();
             if (nameLower.includes('auth')) iconClass = 'fa-shield-halved';
@@ -184,20 +194,21 @@ window.onload = function () {
             else if (nameLower.includes('report') || nameLower.includes('relatorio')) iconClass = 'fa-chart-pie';
             else if (nameLower.includes('plugin')) iconClass = 'fa-plug';
 
+            const modName = esc(mod.name ?? mod.nome ?? '');
             let actionElement = '';
             if (!isProtected) {
                 const btnClass = isEnabled ? 'toggle-on' : 'toggle-off';
-                const btnIcon = isEnabled ? 'fa-power-off' : 'fa-play';
-                const btnText = isEnabled ? 'Desativar' : 'Ativar';
-                // Note: toggleModule must be globally available or attached via event delegation. 
-                // Since we render HTML string, onclick needs global scope. We'll attach toggleModule to window.
-                actionElement = `<button class="module-btn ${btnClass}" onclick="window.toggleModule('${mod.name ?? mod.nome}')"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
+                const btnIcon  = isEnabled ? 'fa-power-off' : 'fa-play';
+                const btnText  = isEnabled ? 'Desativar' : 'Ativar';
+                actionElement = `<button class="module-btn ${btnClass}" onclick="window.toggleModule('${modName}')"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
             } else {
                 actionElement = `<span style="font-size:0.85rem;color:#95a5a6;font-style:italic;"><i class="fa-solid fa-lock"></i> Protegido</span>`;
             }
 
             const routeCount = (mod.routes || []).length;
-            const routeText = routeCount === 1 ? 'rota' : 'rotas';
+            const routeText  = routeCount === 1 ? 'rota' : 'rotas';
+            const modDesc    = esc(mod.description || 'Sem descrição disponível para este módulo.');
+            const modVersion = esc(mod.version || '1.0.0');
 
             return `
             <div class="module-card ${cardStatusClass}">
@@ -205,31 +216,19 @@ window.onload = function () {
                     <div class="module-info">
                         <div class="module-icon"><i class="fa-solid ${iconClass}"></i></div>
                         <div class="module-meta">
-                            <h3 class="module-title">${mod.name ?? mod.nome}</h3>
-                            <span class="module-version">v${mod.version || '1.0.0'}</span>
+                            <h3 class="module-title">${modName}</h3>
+                            <span class="module-version">v${modVersion}</span>
                         </div>
                     </div>
                     <span class="module-badge ${isProtected ? 'system' : statusClass}">${statusText}</span>
                 </div>
-                
-                <div class="module-description" title="${mod.description || ''}">
-                    ${mod.description || 'Sem descrição disponível para este módulo.'}
-                </div>
-                
+                <div class="module-description" title="${modDesc}">${modDesc}</div>
                 <div class="module-stats">
-                    <div class="stat-item" title="Rotas registradas">
-                        <i class="fa-solid fa-route"></i> ${routeCount} ${routeText}
-                    </div>
-                    <div class="stat-item" title="Tipo de módulo">
-                            ${isProtected ? '<i class="fa-solid fa-lock"></i> Core' : '<i class="fa-solid fa-puzzle-piece"></i> Extensão'}
-                    </div>
+                    <div class="stat-item"><i class="fa-solid fa-route"></i> ${routeCount} ${routeText}</div>
+                    <div class="stat-item">${isProtected ? '<i class="fa-solid fa-lock"></i> Core' : '<i class="fa-solid fa-puzzle-piece"></i> Extensão'}</div>
                 </div>
-
-                <div class="module-footer">
-                    ${actionElement}
-                </div>
-            </div>
-            `;
+                <div class="module-footer">${actionElement}</div>
+            </div>`;
         }).join('');
     }
 
@@ -248,8 +247,9 @@ window.onload = function () {
             });
             const data = await res.json();
             if (data.enabled !== undefined) {
-                fetchMetrics();
-                fetchModulesState();
+                await fetchMetrics();
+                await fetchModulesState();
+                await loadCapabilities();
             } else {
                 showErrorModal(data.error || 'Erro desconhecido ao alterar status.', 'Erro ao alterar módulo');
             }
@@ -260,9 +260,9 @@ window.onload = function () {
 
     function renderRoutes(modules) {
         if (!routesList) return;
-        const enabled = modules.filter(m => m.enabled !== false && Array.isArray(m.routes) && m.routes.length > 0);
+        const withRoutes = modules.filter(m => Array.isArray(m.routes) && m.routes.length > 0);
 
-        if (!enabled.length) {
+        if (!withRoutes.length) {
             routesList.innerHTML = '<p style="color:#475569;text-align:center;padding:24px;">Nenhuma rota disponível.</p>';
             return;
         }
@@ -275,23 +275,27 @@ window.onload = function () {
             DELETE: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', label: 'DELETE' },
         };
 
-        let html = '';
-        enabled.forEach(mod => {
-            html += `<div class="rt-module">
-                <div class="rt-module-header">
-                    <span class="rt-module-name"><i class="fa-solid fa-layer-group"></i> ${mod.name ?? mod.nome}</span>
-                    <span class="rt-module-count">${mod.routes.length} rota${mod.routes.length !== 1 ? 's' : ''}</span>
-                </div>
-                <div class="rt-list">`;
+        // Armazena dados para o modal
+        window._routeData = {};
 
+        let html = '';
+        withRoutes.forEach(mod => {
+            const modKey = (mod.name ?? mod.nome).replace(/\W/g, '');
+            const isDisabled = mod.enabled === false;
+            const disabledBadge = isDisabled
+                ? '<span class="rt-badge rt-badge-private" style="margin-left:8px;"><i class="fa-solid fa-power-off"></i> Desativado</span>'
+                : '';
+
+            let routesHtml = '';
             mod.routes.forEach((route, idx) => {
-                const m   = methodMeta[route.method] || { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', label: route.method };
+                const m = methodMeta[route.method] || { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', label: route.method };
                 const priv = route.tipo === 'privada' || route.protected;
                 const hasFields = Array.isArray(route.fields) && route.fields.length > 0;
-                const routeId = `route-${(mod.name ?? mod.nome).replace(/\W/g,'')}-${idx}`;
+                const routeId = `route-${modKey}-${idx}`;
+                window._routeData[routeId] = { ...route, moduleName: mod.name ?? mod.nome };
 
-                html += `<div class="rt-row" data-route-id="${routeId}" role="button" tabindex="0"
-                              aria-label="Ver detalhes de ${route.method} ${route.uri}">
+                routesHtml += `<div class="rt-row" data-route-id="${routeId}" role="button" tabindex="0"
+                                    aria-label="Ver detalhes de ${route.method} ${route.uri}">
                     <span class="rt-method" style="color:${m.color};background:${m.bg}">${m.label}</span>
                     <span class="rt-uri">${route.uri}</span>
                     <div class="rt-badges">
@@ -304,21 +308,40 @@ window.onload = function () {
                 </div>`;
             });
 
-            html += `</div></div>`;
+            html += `
+            <div class="rt-module">
+                <button type="button" class="rt-module-header rt-module-toggle" data-mod="${modKey}"
+                        aria-expanded="false" aria-controls="rt-body-${modKey}">
+                    <span class="rt-module-name">
+                        <i class="fa-solid fa-layer-group"></i> ${mod.name ?? mod.nome}
+                        ${disabledBadge}
+                    </span>
+                    <span style="display:flex;align-items:center;gap:10px;">
+                        <span class="rt-module-count">${mod.routes.length} rota${mod.routes.length !== 1 ? 's' : ''}</span>
+                        <i class="fa-solid fa-chevron-down rt-toggle-icon" style="transition:transform .2s;"></i>
+                    </span>
+                </button>
+                <div class="rt-list" id="rt-body-${modKey}" style="display:none;">
+                    ${routesHtml}
+                </div>
+            </div>`;
         });
 
         routesList.innerHTML = html;
 
-        // Armazena dados para o modal
-        window._routeData = {};
-        enabled.forEach(mod => {
-            mod.routes.forEach((route, idx) => {
-                const routeId = `route-${(mod.name ?? mod.nome).replace(/\W/g,'')}-${idx}`;
-                window._routeData[routeId] = { ...route, moduleName: mod.name ?? mod.nome };
+        // Toggle expand/collapse por módulo
+        routesList.querySelectorAll('.rt-module-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const body = document.getElementById(`rt-body-${btn.dataset.mod}`);
+                const icon = btn.querySelector('.rt-toggle-icon');
+                const expanded = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', String(!expanded));
+                body.style.display = expanded ? 'none' : '';
+                icon.style.transform = expanded ? '' : 'rotate(180deg)';
             });
         });
 
-        // Eventos de clique
+        // Eventos de clique nas rotas
         routesList.querySelectorAll('.rt-row').forEach(row => {
             const open = () => openRouteModal(window._routeData[row.dataset.routeId]);
             row.addEventListener('click', open);
@@ -438,7 +461,7 @@ window.onload = function () {
                 : '');
 
         const descHtml = route.description
-            ? `<p class="rd-desc">${route.description}</p>` : '';
+            ? `<p class="rd-desc">${esc(route.description)}</p>` : '';
 
         const overlay = document.getElementById('route-detail-modal');
         const body    = document.getElementById('route-detail-body');
@@ -446,8 +469,8 @@ window.onload = function () {
 
         body.innerHTML = `
             <div class="rd-header">
-                <span class="rd-method" style="color:${m.color};background:${m.bg}">${route.method}</span>
-                <code class="rd-uri">${route.uri}</code>
+                <span class="rd-method" style="color:${m.color};background:${m.bg}">${esc(route.method)}</span>
+                <code class="rd-uri">${esc(route.uri)}</code>
                 <button class="rd-copy-btn" id="rd-copy" title="Copiar caminho">
                     <i class="fa-solid fa-copy"></i> Copiar
                 </button>
@@ -461,7 +484,7 @@ window.onload = function () {
                     <i class="fa-solid ${priv ? 'fa-lock' : 'fa-unlock'}"></i> ${priv ? 'Privada' : 'Pública'}
                 </span>
                 <span class="rd-meta-item" style="color:#94a3b8">
-                    <i class="fa-solid fa-layer-group"></i> ${route.moduleName}
+                    <i class="fa-solid fa-layer-group"></i> ${esc(route.moduleName)}
                 </span>
             </div>
             ${pathFields.length  ? `<div class="rd-section"><div class="rd-section-title"><i class="fa-solid fa-route"></i> Parâmetros de rota</div><div class="rd-fields">${pathFields.map(renderFieldRow).join('')}</div></div>` : ''}
@@ -517,20 +540,34 @@ window.onload = function () {
             }
             const rows = items.map(it => {
                 const options = (it.providers || []).map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
-                
-                // Opção "Nenhum" (para desativar/limpar) se houver providers
                 const noneOption = `<option value="">-- Selecione --</option>`;
-                
+
+                // Verifica se o provedor ativo pertence a um módulo desativado
+                const activeProvider = it.active || '';
+                // Tenta mapear o provider para um nome de módulo (ex: "Email" de "sweflow/email")
+                const providerModuleKey = Object.keys(moduleState).find(k =>
+                    activeProvider.toLowerCase().includes(k.toLowerCase())
+                );
+                const providerDisabled = providerModuleKey !== undefined && moduleState[providerModuleKey] === false;
+
+                const disabledBadge = providerDisabled
+                    ? `<span class="toggle-tag" style="background:#fdeaea;color:#b3261e;margin-left:6px;">
+                           <i class="fa-solid fa-power-off"></i> Módulo desativado
+                       </span>`
+                    : '';
+
                 return `
-                <div class="toggle-card">
+                <div class="toggle-card ${providerDisabled ? 'cap-module-disabled' : ''}">
                     <div class="toggle-info">
                         <span class="toggle-name">${it.capability}</span>
                         <span class="toggle-tag">Ativo: ${it.active || 'nenhum'}</span>
+                        ${disabledBadge}
                     </div>
                     <div class="cap-select-group">
                         <label class="cap-select-label"><i class="fa-solid fa-plug"></i> Provedor</label>
                         <div class="cap-select-wrap">
-                            <select data-capability="${it.capability}" class="capability-select">
+                            <select data-capability="${it.capability}" class="capability-select"
+                                    ${providerDisabled ? 'disabled title="Habilite o módulo para alterar o provedor"' : ''}>
                                 ${noneOption}
                                 ${options}
                             </select>
@@ -540,7 +577,7 @@ window.onload = function () {
 
             }).join('');
             el.innerHTML = rows;
-            el.querySelectorAll('select.capability-select').forEach(sel => {
+            el.querySelectorAll('select.capability-select:not([disabled])').forEach(sel => {
                 sel.addEventListener('change', async () => {
                     const cap = sel.getAttribute('data-capability');
                     const plugin = sel.value;
@@ -551,6 +588,7 @@ window.onload = function () {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ capability: cap, plugin })
                         });
+                        const body = await res.json().catch(() => ({}));
                         if (!res.ok) {
                             showErrorModal(body.error || body.message || 'Falha ao definir provedor.', 'Erro');
                         } else {
@@ -918,23 +956,47 @@ window.onload = function () {
 
     function renderFeatureToggles(modules) {
         if (!modulesToggleList) return;
-        moduleState = {};
 
-        modulesToggleList.innerHTML = modules.map(mod => {
+        // Ordena alfabeticamente para garantir ordem estável
+        const sorted = [...modules].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+
+        // Atualiza moduleState
+        sorted.forEach(mod => { moduleState[mod.name] = mod.enabled !== false; });
+
+        // Se já existe o mesmo conjunto de módulos renderizados, só atualiza estado (sem recriar DOM)
+        const existing = modulesToggleList.querySelectorAll('[data-module]');
+        const existingNames = [...existing].map(el => el.getAttribute('data-module'));
+        const newNames = sorted.map(m => m.name);
+        const sameSet = existingNames.length === newNames.length && newNames.every((n, i) => n === existingNames[i]);
+
+        if (sameSet) {
+            existing.forEach(input => {
+                const name = input.getAttribute('data-module');
+                const enabled = moduleState[name] ?? true;
+                input.checked = enabled;
+                const tag = input.closest('.toggle-card')?.querySelector('.toggle-tag');
+                if (tag) tag.textContent = enabled ? 'Ativo' : 'Inativo';
+            });
+            updateEmailCardState();
+            fetchAuthPolicy();
+            return;
+        }
+
+        // Primeira renderização ou conjunto de módulos mudou
+        modulesToggleList.innerHTML = sorted.map(mod => {
             const enabled = mod.enabled !== false;
-            moduleState[mod.name] = enabled;
+            const modName = esc(mod.name);
             return `
                 <div class="toggle-card">
                     <div class="toggle-info">
-                        <span class="toggle-name">${mod.name}</span>
+                        <span class="toggle-name">${modName}</span>
                         <span class="toggle-tag">${enabled ? 'Ativo' : 'Inativo'}</span>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" data-module="${mod.name}" ${enabled ? 'checked' : ''} />
+                        <input type="checkbox" data-module="${modName}" ${enabled ? 'checked' : ''} />
                         <span class="slider"></span>
                     </label>
-                </div>
-            `;
+                </div>`;
         }).join('');
 
         modulesToggleList.querySelectorAll('input[type="checkbox"]').forEach(input => {
@@ -963,8 +1025,9 @@ window.onload = function () {
                     if (!res.ok) {
                         throw new Error(body.error || body.message || 'Erro ao atualizar módulo');
                     }
-                    fetchModulesState();
-                    fetchMetrics();
+                    await fetchMetrics();
+                    await fetchModulesState();
+                    await loadCapabilities();
                 } catch (err) {
                     e.target.checked = !enabled; // rollback
                     showErrorModal(err.message || 'Erro ao atualizar módulo.', 'Erro');
@@ -1033,36 +1096,38 @@ window.onload = function () {
         const statePill        = document.getElementById('email-module-state');
         const openEmailModalBtn = document.getElementById('open-email-modal');
         const openHistoryBtn   = document.getElementById('open-email-history');
+        // Cobre todos os botões de e-mail na página
+        const allEmailBtns = document.querySelectorAll(
+            '#open-email-modal, #open-email-modal2, #open-email-history, #open-email-modal-hero'
+        );
         if (!statePill || !openEmailModalBtn) return;
 
         if (emailModuleEnabled) {
             statePill.textContent = 'Habilitado';
-            statePill.style.backgroundColor = '#e5f7ee';
-            statePill.style.color = '#0f7b3b';
-            openEmailModalBtn.classList.remove('disabled');
-            openEmailModalBtn.disabled = false;
-            openEmailModalBtn.title = 'Enviar e-mail personalizado';
-            if (openHistoryBtn) {
-                openHistoryBtn.classList.remove('disabled');
-                openHistoryBtn.disabled = false;
-                openHistoryBtn.title = 'Ver histórico de e-mails';
-            }
+            statePill.style.backgroundColor = '';
+            statePill.style.color = '';
+            statePill.className = 'dash-badge';
+            allEmailBtns.forEach(btn => {
+                btn.classList.remove('disabled');
+                btn.disabled = false;
+                btn.removeAttribute('title');
+                btn.style.pointerEvents = '';
+            });
         } else {
             const label = installed ? 'Desabilitado' : 'Não instalado';
             const tip   = installed
-                ? 'Módulo de E-mail desabilitado. Habilite em "Funcionalidades" para enviar.'
+                ? 'Módulo de E-mail desabilitado. Habilite em "Funcionalidades" para usar.'
                 : 'Módulo de E-mail não instalado. Instale pelo Marketplace.';
             statePill.textContent = label;
-            statePill.style.backgroundColor = '#fdeaea';
-            statePill.style.color = '#b3261e';
-            openEmailModalBtn.classList.add('disabled');
-            openEmailModalBtn.disabled = true;
-            openEmailModalBtn.title = tip;
-            if (openHistoryBtn) {
-                openHistoryBtn.classList.add('disabled');
-                openHistoryBtn.disabled = true;
-                openHistoryBtn.title = tip;
-            }
+            statePill.style.backgroundColor = 'rgba(248,113,113,0.12)';
+            statePill.style.color = '#f87171';
+            statePill.style.borderColor = 'rgba(248,113,113,0.25)';
+            allEmailBtns.forEach(btn => {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+                btn.title = tip;
+                btn.style.pointerEvents = 'none';
+            });
         }
 
         updateAuthVerifyUI(authRequireEmailVerification, false);
@@ -1171,38 +1236,63 @@ window.onload = function () {
 
 
     // Inicialização: verifica sessão via API antes de carregar o resto
-    fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
-        .then(async (res) => {
-            if (handleUnauthorized(res.status)) return null; // redireciona para / se 401/403
+    (async function init() {
+        // Função de fetch autenticado — usa cookie (dashboard nativo) ou Bearer token (localStorage)
+        // NÃO sobrescreve window.fetch globalmente para evitar vazamento de token
+        function apiFetch(url, opts = {}) {
+            const token = localStorage.getItem('dash_token') || localStorage.getItem('access_token');
+            const headers = Object.assign(
+                { Accept: 'application/json' },
+                token ? { 'Authorization': 'Bearer ' + token } : {},
+                opts.headers || {}
+            );
+            return fetch(url, Object.assign({}, opts, {
+                headers,
+                credentials: opts.credentials ?? 'same-origin',
+            }));
+        }
+
+        // Expõe para uso nos outros métodos do dashboard
+        window._apiFetch = apiFetch;
+
+        let data = null;
+        try {
+            const res = await apiFetch('/api/dashboard/metrics');
+            if (handleUnauthorized(res.status)) return;
             const body = await res.json();
-            if (!res.ok) return null;
-            return body;
-        })
-        .then(async data => {
-            if (!data) return;
-            renderMetrics(data);
-            // Carrega avatar do topbar imediatamente
-            fetch('/api/perfil', { credentials: 'same-origin' })
-                .then(r => r.ok ? r.json() : null)
-                .then(d => {
-                    if (d?.usuario?.url_avatar) updateTopbarAvatar(d.usuario.url_avatar);
-                    const heroName = document.getElementById('hero-username');
-                    if (heroName && d?.usuario) {
-                        const name = d.usuario.nome_completo?.split(' ')[0] || d.usuario.username || 'usuário';
-                        heroName.textContent = name;
-                    }
-                })
-                .catch(() => {});
-            // Sequencial: evita conexões simultâneas no php -S (single-thread)
+            if (!res.ok) {
+                console.error('[dashboard] /api/dashboard/metrics falhou:', res.status, body);
+                return;
+            }
+            data = body;
+        } catch (err) {
+            console.error('[dashboard] Erro ao carregar métricas:', err);
+            return;
+        }
+
+        if (!data) return;
+        renderMetrics(data);
+
+        apiFetch('/api/perfil')
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (d?.usuario?.url_avatar) updateTopbarAvatar(d.usuario.url_avatar);
+                const heroName = document.getElementById('hero-username');
+                if (heroName && d?.usuario) {
+                    const name = d.usuario.nome_completo?.split(' ')[0] || d.usuario.username || 'usuário';
+                    heroName.textContent = name;
+                }
+            })
+            .catch(() => {});
+
+        await fetchModulesState();
+        await loadCapabilities();
+
+        setInterval(async () => {
+            await fetchMetrics();
             await fetchModulesState();
-            await loadCapabilities();
-            // Polling a cada 30s — sequencial
-            setInterval(async () => {
-                await fetchMetrics();
-                await fetchModulesState();
-            }, 30000);
-        })
-        .catch(() => {});
+        }, 30000);
+    })();
 
     // ── Nav scroll shadow ─────────────────────────────────────────────
     const topbar = document.getElementById('dash-topbar');
@@ -1254,43 +1344,87 @@ window.onload = function () {
 
     async function loadEmailHistory(q = '') {
         if (!historyList) return;
-        historyList.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Carregando...</p>';
+        historyList.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:40px;color:var(--text-muted,#64748b);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:1.2rem;color:#818cf8;"></i>
+                <span>Carregando histórico...</span>
+            </div>`;
         try {
             const url = '/api/email/history' + (q ? '?q=' + encodeURIComponent(q) : '');
             const res = await fetch(url, { credentials: 'same-origin' });
             const data = await res.json();
             const items = data.items || [];
             if (!items.length) {
-                historyList.innerHTML = q
-                    ? '<p style="color:#888;text-align:center;padding:24px;">Nenhum resultado para "' + q + '".</p>'
-                    : '<p style="color:#888;text-align:center;padding:24px;">Nenhum e-mail enviado ainda.</p>';
+                historyList.innerHTML = `
+                    <div style="text-align:center;padding:48px 24px;color:var(--text-muted,#64748b);">
+                        <i class="fa-solid fa-inbox" style="font-size:2.5rem;color:#334155;margin-bottom:14px;display:block;"></i>
+                        <p style="font-size:1rem;font-weight:600;margin:0 0 6px;">${q ? 'Nenhum resultado encontrado' : 'Nenhum e-mail enviado ainda'}</p>
+                        <p style="font-size:0.88rem;margin:0;">${q ? `Tente outro termo de busca.` : 'Os disparos realizados aparecerão aqui.'}</p>
+                    </div>`;
                 return;
             }
             historyList.innerHTML = items.map(item => {
-                const statusColor = item.status === 'enviado' ? '#27ae60' : '#e74c3c';
-                const statusIcon  = item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle';
-                const errorHint   = item.error ? `<small style="color:#e74c3c;display:block;margin-top:2px;font-size:.8rem;">${item.error}</small>` : '';
+                const ok      = item.status === 'enviado';
+                const color   = ok ? '#4ade80' : '#f87171';
+                const bg      = ok ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
+                const border  = ok ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)';
+                const icon    = ok ? 'fa-circle-check' : 'fa-circle-xmark';
+                const label   = ok ? 'Enviado' : esc(item.status);
+                const errorHint = item.error
+                    ? `<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#f87171;">
+                           <i class="fa-solid fa-triangle-exclamation"></i>
+                           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;">${esc(item.error)}</span>
+                       </div>` : '';
                 return `
-                <div class="toggle-card" style="cursor:pointer;margin-bottom:8px;" data-id="${item.id}" role="button" tabindex="0">
-                    <div class="toggle-info" style="flex:1;min-width:0;">
-                        <span class="toggle-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${item.subject || '(sem assunto)'}</span>
-                        <span class="toggle-tag" style="color:${statusColor};font-weight:600;">
-                            <i class="fa-solid ${statusIcon}"></i> ${item.status}
-                        </span>
-                        ${errorHint}
-                        <small style="color:#888;">${fmtDate(item.created_at)}</small>
+                <div class="email-hist-card" data-id="${esc(String(item.id))}" role="button" tabindex="0"
+                     style="display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:14px;
+                            border:1px solid var(--border-card,rgba(255,255,255,0.07));
+                            background:var(--bg-card,rgba(255,255,255,0.03));
+                            cursor:pointer;margin-bottom:10px;transition:background .15s,border-color .15s;">
+                    <div style="width:42px;height:42px;border-radius:11px;background:${bg};border:1px solid ${border};
+                                display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fa-solid ${icon}" style="color:${color};font-size:1.15rem;"></i>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="color:#bbb;margin-left:8px;"></i>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:1rem;font-weight:700;color:var(--text-primary,#f1f5f9);
+                                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;">
+                            ${esc(item.subject) || '<em style="opacity:.6">Sem assunto</em>'}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <span style="font-size:0.82rem;font-weight:700;color:${color};
+                                         background:${bg};border:1px solid ${border};
+                                         padding:2px 10px;border-radius:999px;">
+                                <i class="fa-solid ${icon}" style="font-size:0.75em;margin-right:3px;"></i>${label}
+                            </span>
+                            <span style="font-size:0.82rem;color:var(--text-muted,#64748b);">
+                                <i class="fa-regular fa-clock" style="margin-right:4px;"></i>${fmtDate(item.created_at)}
+                            </span>
+                        </div>
+                        ${errorHint}
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="color:#475569;font-size:0.85rem;flex-shrink:0;"></i>
                 </div>`;
             }).join('');
 
-            historyList.querySelectorAll('[data-id]').forEach(el => {
+            historyList.querySelectorAll('.email-hist-card').forEach(el => {
                 const open = () => openEmailDetail(el.dataset.id);
                 el.addEventListener('click', open);
                 el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
+                el.addEventListener('mouseenter', () => {
+                    el.style.background = 'var(--bg-hover,rgba(255,255,255,0.06))';
+                    el.style.borderColor = 'rgba(99,102,241,0.3)';
+                });
+                el.addEventListener('mouseleave', () => {
+                    el.style.background = 'var(--bg-card,rgba(255,255,255,0.03))';
+                    el.style.borderColor = 'var(--border-card,rgba(255,255,255,0.07))';
+                });
             });
         } catch {
-            historyList.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:24px;">Erro ao carregar histórico.</p>';
+            historyList.innerHTML = `
+                <div style="text-align:center;padding:40px;color:#f87171;">
+                    <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
+                    <p style="margin:0;font-size:0.95rem;">Erro ao carregar histórico. Tente novamente.</p>
+                </div>`;
         }
     }
 
@@ -1311,20 +1445,20 @@ window.onload = function () {
                 <div style="display:grid;gap:12px;">
                     <div class="input-group" style="margin:0;">
                         <label>Assunto</label>
-                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;">${item.subject || '(sem assunto)'}</div>
+                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;">${esc(item.subject) || '(sem assunto)'}</div>
                     </div>
                     <div class="input-group" style="margin:0;">
                         <label>Destinatários</label>
-                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;">${emails || '--'}</div>
+                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;">${esc(emails) || '--'}</div>
                     </div>
                     <div style="display:flex;gap:16px;flex-wrap:wrap;">
                         <div><label style="font-size:.8rem;color:#888;">Status</label><br>
-                            <span style="color:${statusColor};font-weight:600;"><i class="fa-solid ${item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${item.status}</span>
+                            <span style="color:${statusColor};font-weight:600;"><i class="fa-solid ${item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${esc(item.status)}</span>
                         </div>
                         <div><label style="font-size:.8rem;color:#888;">Data/Hora</label><br>
                             <span>${fmtDate(item.created_at)}</span>
                         </div>
-                        ${item.error ? `<div style="flex:1;"><label style="font-size:.8rem;color:#e74c3c;">Erro</label><br><span style="color:#e74c3c;font-size:.9rem;">${item.error}</span></div>` : ''}
+                        ${item.error ? `<div style="flex:1;"><label style="font-size:.8rem;color:#e74c3c;">Erro</label><br><span style="color:#e74c3c;font-size:.9rem;">${esc(item.error)}</span></div>` : ''}
                     </div>
                     <div class="input-group" style="margin:0;">
                         <label>Conteúdo do e-mail</label>
@@ -1334,7 +1468,7 @@ window.onload = function () {
                     </div>
                 </div>`;
         } catch (err) {
-            detailBody.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:24px;">${err.message}</p>`;
+            detailBody.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:24px;">${esc(err.message)}</p>`;
         }
     }
 
@@ -1791,28 +1925,28 @@ window.onload = function () {
         updateTopbarAvatar(u.url_avatar);
 
         const avatarHtml = u.url_avatar
-            ? `<img class="perfil-avatar" src="${u.url_avatar}" alt="Avatar" onerror="this.style.display='none'" />`
+            ? `<img class="perfil-avatar" src="${esc(u.url_avatar)}" alt="Avatar" onerror="this.style.display='none'" />`
             : `<div class="perfil-avatar-placeholder"><i class="fa-solid fa-user"></i></div>`;
         const capaHtml = u.url_capa
-            ? `<img class="perfil-capa" src="${u.url_capa}" alt="Capa" onerror="this.style.display='none'" />`
+            ? `<img class="perfil-capa" src="${esc(u.url_capa)}" alt="Capa" onerror="this.style.display='none'" />`
             : '';
-        const nivelClass = u.nivel_acesso || 'usuario';
-        const nivelLabel = { usuario: 'Usuário', moderador: 'Moderador', admin: 'Admin', admin_system: 'Admin System' }[nivelClass] || nivelClass;
+        const nivelClass = esc(u.nivel_acesso || 'usuario');
+        const nivelLabel = { usuario: 'Usuário', moderador: 'Moderador', admin: 'Admin', admin_system: 'Admin System' }[u.nivel_acesso] || esc(u.nivel_acesso);
 
         body.innerHTML = `
             ${capaHtml}
             <div class="perfil-header">
                 ${avatarHtml}
                 <div>
-                    <div class="perfil-nome">${u.nome_completo || '--'}</div>
-                    <div class="perfil-username">@${u.username || '--'}</div>
+                    <div class="perfil-nome">${esc(u.nome_completo) || '--'}</div>
+                    <div class="perfil-username">@${esc(u.username) || '--'}</div>
                     <span class="nivel-badge ${nivelClass}">${nivelLabel}</span>
                 </div>
             </div>
             <div class="perfil-grid">
                 <div class="perfil-field">
                     <label><i class="fa-solid fa-envelope"></i> E-mail</label>
-                    <span>${u.email || '--'}</span>
+                    <span>${esc(u.email) || '--'}</span>
                 </div>
                 <div class="perfil-field">
                     <label><i class="fa-solid fa-circle-check"></i> Status</label>
@@ -1827,7 +1961,7 @@ window.onload = function () {
                     <span>${u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '--'}</span>
                 </div>
             </div>
-            ${u.biografia ? `<div class="perfil-field" style="grid-column:1/-1"><label><i class="fa-solid fa-quote-left"></i> Biografia</label><span>${u.biografia}</span></div>` : ''}
+            ${u.biografia ? `<div class="perfil-field" style="grid-column:1/-1"><label><i class="fa-solid fa-quote-left"></i> Biografia</label><span>${esc(u.biografia)}</span></div>` : ''}
         `;
     }
 

@@ -8,8 +8,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Src\\": "src/",
-            "SweflowModules\\Email\\": "src/Modules/Email/src/"
+            "Src\\": "src/"
         }
     },
     "autoload-dev": {

@@ -131,18 +131,7 @@ class AuthPageMiddleware implements MiddlewareInterface
     private function redirecionar(bool $limparCookie): Response
     {
         if ($limparCookie && isset($_COOKIE['auth_token'])) {
-            $appUrl  = $_ENV['APP_URL'] ?? '';
-            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                || strncmp($appUrl, 'https://', 8) === 0;
-
-            @setcookie('auth_token', '', [
-                'expires'  => time() - 3600,
-                'path'     => '/',
-                'httponly' => true,
-                'secure'   => $isHttps,
-                'samesite' => 'Lax',
-            ]);
+            @setcookie('auth_token', '', \Src\Kernel\Support\CookieConfig::options(time() - 3600));
         }
 
         // Clientes JSON recebem 401

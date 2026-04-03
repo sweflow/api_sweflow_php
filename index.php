@@ -106,40 +106,67 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 // Serve arquivos estáticos diretamente de /public
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$publicPath = __DIR__ . '/public' . $uri;
-if ($uri !== '/' && is_file($publicPath)) {
-    $ext = pathinfo($publicPath, PATHINFO_EXTENSION);
-    $mime = [
-        'css' => 'text/css',
-        'js' => 'application/javascript',
-        'png' => 'image/png',
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'gif' => 'image/gif',
-        'svg' => 'image/svg+xml',
-        'ico' => 'image/x-icon',
-        'woff2' => 'font/woff2',
-        'woff' => 'font/woff',
-        'ttf' => 'font/ttf',
-    ][$ext] ?? 'application/octet-stream';
-    header_remove('X-Powered-By');
-    header('Content-Type: ' . $mime);
-    header('X-Content-Type-Options: nosniff');
-    header('X-Frame-Options: DENY');
-    header('X-XSS-Protection: 1; mode=block');
-    header('Referrer-Policy: strict-origin-when-cross-origin');
-    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
-    header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
-    $appUrl = $_ENV['APP_URL'] ?? '';
-    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-        || strncmp($appUrl, 'https://', 8) === 0;
-    if ($isHttps) {
-        header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+if ($uri !== '/') {
+    $baseReal   = realpath(__DIR__ . '/public');
+    $targetReal = $baseReal !== false ? realpath($baseReal . $uri) : false;
+
+    // ── Path traversal: garante containment dentro de /public ────────────
+    $dentroDoPublic = $baseReal !== false
+        && $targetReal !== false
+        && str_starts_with($targetReal, $baseReal . DIRECTORY_SEPARATOR)
+        && is_file($targetReal);
+
+    if ($dentroDoPublic) {
+        $ext = strtolower(pathinfo($targetReal, PATHINFO_EXTENSION));
+
+        // ── Whitelist de extensões permitidas ────────────────────────────
+        $mimeMap = [
+            'css'   => 'text/css',
+            'js'    => 'application/javascript',
+            'png'   => 'image/png',
+            'jpg'   => 'image/jpeg',
+            'jpeg'  => 'image/jpeg',
+            'gif'   => 'image/gif',
+            'svg'   => 'image/svg+xml',
+            'ico'   => 'image/x-icon',
+            'woff2' => 'font/woff2',
+            'woff'  => 'font/woff',
+            'ttf'   => 'font/ttf',
+            'webp'  => 'image/webp',
+            'html'  => 'text/html; charset=utf-8',
+        ];
+
+        if (!array_key_exists($ext, $mimeMap)) {
+            http_response_code(403);
+            exit;
+        }
+
+        // ── Bloqueia extensões sensíveis mesmo que passem pelo realpath ──
+        if (preg_match('/\.(env|log|ini|sql|bak|sh|php|phtml|phar|key|pem|crt|cfg|conf|json|lock|xml|yaml|yml)$/i', $targetReal)) {
+            http_response_code(403);
+            exit;
+        }
+
+        $appUrl  = $_ENV['APP_URL'] ?? '';
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            || strncmp($appUrl, 'https://', 8) === 0;
+
+        header_remove('X-Powered-By');
+        header('Content-Type: ' . $mimeMap[$ext]);
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+        header('X-XSS-Protection: 1; mode=block');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+        header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
+        if ($isHttps) {
+            header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+        }
+        if (ob_get_level() > 0) ob_end_clean();
+        readfile($targetReal);
+        exit;
     }
-    if (ob_get_level() > 0) ob_end_clean();
-    readfile($publicPath);
-    exit;
 }
 
 function isDbConnectionError(\Throwable $e): bool

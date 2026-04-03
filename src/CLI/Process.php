@@ -17,9 +17,22 @@ final class Process
     private string $output = '';
     private int $exitCode  = -1;
 
+    /**
+     * @param array $command Argumentos como array — NUNCA passar string com input do usuário.
+     *                       Cada elemento é passado literalmente ao SO sem interpolação de shell.
+     */
     public function __construct(array $command)
     {
-        $this->command = $command;
+        if (empty($command)) {
+            throw new \InvalidArgumentException('Process: command array não pode ser vazio.');
+        }
+        // Garante que todos os elementos são strings — impede objetos/closures maliciosos
+        foreach ($command as $arg) {
+            if (!is_string($arg) && !is_int($arg)) {
+                throw new \InvalidArgumentException('Process: todos os argumentos devem ser strings ou inteiros.');
+            }
+        }
+        $this->command = array_values($command);
     }
 
     /**

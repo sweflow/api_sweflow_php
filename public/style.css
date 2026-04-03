@@ -1581,19 +1581,31 @@ html:has(.dash-body.dark),
     gap: 8px;
     padding: 12px 18px;
     min-height: 48px;
-    background: rgba(255,255,255,0.04);
-    color: #cbd5e1;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(99,102,241,0.1);
+    color: #a5b4fc;
+    border: 1px solid rgba(99,102,241,0.25);
     border-radius: 10px;
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
     font-family: inherit;
     text-decoration: none;
     touch-action: manipulation;
 }
-.dash-btn-ghost:hover { background: rgba(255,255,255,0.09); color: #f1f5f9; }
+.dash-btn-ghost:hover { background: rgba(99,102,241,0.2); color: #c7d2fe; border-color: rgba(99,102,241,0.45); }
+.dash-btn-ghost:disabled,
+.dash-btn-ghost.disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.dash-btn-primary:disabled,
+.dash-btn-primary.disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    pointer-events: none;
+}
 
 /* ── Metric cards ────────────────────────────────────────── */
 .dash-cards {
@@ -1708,6 +1720,20 @@ html:has(.dash-body.dark),
     padding: 14px 18px;
     background: linear-gradient(135deg, rgba(79,70,229,0.12), rgba(124,58,237,0.08));
     border: 1px solid rgba(79,70,229,0.2);
+    border-radius: 12px 12px 0 0;
+}
+.rt-module-toggle {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid rgba(79,70,229,0.2);
+    border-radius: 12px;
+    transition: background .15s, border-radius .2s;
+}
+.rt-module-toggle:hover {
+    background: linear-gradient(135deg, rgba(79,70,229,0.2), rgba(124,58,237,0.14));
+}
+.rt-module-toggle[aria-expanded="true"] {
     border-radius: 12px 12px 0 0;
 }
 .rt-module-name {
@@ -3464,6 +3490,16 @@ input.input-error { border-color: #e74c3c !important; }
     opacity: 0.4;
 }
 
+/* Card com módulo provedor desativado */
+#capabilities .cap-module-disabled {
+    opacity: 0.7;
+    border-left: 3px solid #f87171;
+    background: rgba(248,113,113,0.04);
+}
+.dark #capabilities .cap-module-disabled {
+    background: rgba(248,113,113,0.07);
+}
+
 /* ── Dark mode ───────────────────────────────────────────────────── */
 .dark #capabilities .cap-select-label {
     color: var(--text-muted, #475569);
@@ -3499,3 +3535,32 @@ input.input-error { border-color: #e74c3c !important; }
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5l5 5 5-5' stroke='%23a5b4fc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
+
+/* ── Modal Histórico de E-mails ─────────────────────────── */
+.email-history-modal .modal-header {
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-card, rgba(255,255,255,0.07));
+    margin-bottom: 0;
+}
+.email-history-modal #email-history-search:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129,140,248,0.15);
+}
+.email-hist-card:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 2px;
+}
+/* Modo claro */
+.dash-body:not(.dark) .email-hist-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+.dash-body:not(.dark) .email-hist-card:hover {
+    background: #f8faff !important;
+    border-color: rgba(99,102,241,0.3) !important;
+}
+.dash-body:not(.dark) #email-history-search {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}

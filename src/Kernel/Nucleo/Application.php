@@ -59,7 +59,15 @@ class Application
     public function run(): void
     {
         try {
-            $request  = RequestFactory::fromGlobals();
+            $request = RequestFactory::fromGlobals();
+
+            // Bloqueia HTTP quando COOKIE_SECURE=true e COOKIE_HTTPONLY=true
+            if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
+                $enforcer = new \Src\Kernel\Middlewares\HttpsEnforcerMiddleware();
+                $enforcer->handle($request, fn($r) => null)->Enviar();
+                return;
+            }
+
             $response = $this->router->dispatch($request);
 
             // Observabilidade: loga 401, 403, 429 automaticamente para Fail2Ban e análise

@@ -182,19 +182,29 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
     }
 
     /**
-     * Resolve e valida a coluna permitida
+     * Resolve e valida a coluna permitida contra allowlist explícita.
+     *
+     * SECURITY: $colunaBanco nunca vem de input do usuário — é sempre
+     * resolvido a partir de $colunasPermitidas (mapa interno) ou $colunaId
+     * (constante da classe). O formato é validado como segunda camada de defesa.
      */
     protected function resolverColuna(string $coluna): string
     {
+        // Camada 1: allowlist — só colunas explicitamente mapeadas passam
         if ($coluna === $this->colunaId) {
-            return $this->colunaId;
-        }
-
-        if (!isset($this->colunasPermitidas[$coluna])) {
+            $colunaBanco = $this->colunaId;
+        } elseif (isset($this->colunasPermitidas[$coluna])) {
+            $colunaBanco = $this->colunasPermitidas[$coluna];
+        } else {
             throw new InvalidArgumentException('Coluna inválida para busca');
         }
 
-        return $this->colunasPermitidas[$coluna];
+        // Camada 2: valida formato — só letras, números e underscore
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $colunaBanco)) {
+            throw new InvalidArgumentException('Nome de coluna com formato inválido.');
+        }
+
+        return $colunaBanco;
     }
 
     /**

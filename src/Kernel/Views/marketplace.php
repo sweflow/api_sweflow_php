@@ -232,7 +232,7 @@
                 <div class="dash-dropdown-menu" id="dd-conta">
                     <a href="/dashboard/usuarios" class="dash-dd-item"><i class="fa-solid fa-users"></i> Usuários</a>
                     <div class="dash-dd-divider"></div>
-                    <a href="#" id="logout-btn" class="dash-dd-item dash-dd-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+                    <button type="button" id="logout-btn" class="dash-dd-item dash-dd-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                 </div>
             </div>
         </nav>
@@ -268,7 +268,7 @@
                     <div class="dash-sidenav-section">
                         <a href="/dashboard" class="dash-sidenav-link"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
                         <a href="/" class="dash-sidenav-link"><i class="fa-solid fa-arrow-left"></i> Voltar ao início</a>
-                        <a href="#" id="sb-logout" class="dash-sidenav-link dash-sidenav-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+                        <button type="button" id="sb-logout" class="dash-sidenav-link dash-sidenav-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                     </div>
                 </nav>
             </div>
@@ -316,11 +316,11 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="confirm-title"><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;" aria-hidden="true"></i> Confirmar remoção</h2>
-                <button class="modal-close" onclick="closeModal('confirm-modal')" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button class="modal-close" data-close="confirm-modal" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
             </div>
             <p id="confirm-message" style="font-size:1.05rem;line-height:1.6;margin:8px 0 20px;"></p>
             <div class="form-actions" style="justify-content:flex-end;">
-                <button class="btn ghost" onclick="closeModal('confirm-modal')" style="font-size:1rem;padding:12px 20px;">Cancelar</button>
+                <button class="btn ghost" data-close="confirm-modal" style="font-size:1rem;padding:12px 20px;">Cancelar</button>
                 <button class="btn" id="confirm-btn" style="background:#dc2626;color:#fff;font-size:1rem;padding:12px 20px;border:none;">
                     <i class="fa-solid fa-trash" aria-hidden="true"></i> Remover
                 </button>
@@ -333,11 +333,11 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="success-title"><i class="fa-solid fa-circle-check" style="color:#10b981;" aria-hidden="true"></i> Operação concluída</h2>
-                <button class="modal-close" onclick="closeModal('success-modal')" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button class="modal-close" data-close="success-modal" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
             </div>
             <p id="success-message" style="font-size:1.05rem;line-height:1.6;margin:8px 0 20px;"></p>
             <div class="form-actions" style="justify-content:flex-end;">
-                <button class="btn primary" onclick="closeModal('success-modal')" style="font-size:1rem;padding:12px 24px;">OK</button>
+                <button class="btn primary" data-close="success-modal" style="font-size:1rem;padding:12px 24px;">OK</button>
             </div>
         </div>
     </div>
@@ -351,6 +351,10 @@
     function closeModal(id) {
         document.getElementById(id).classList.remove('show');
     }
+    document.addEventListener('click', (e) => {
+        const target = e.target.closest('[data-close]');
+        if (target) closeModal(target.dataset.close);
+    });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));

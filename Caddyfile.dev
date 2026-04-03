@@ -1,0 +1,40 @@
+# ============================================================
+# Caddyfile.dev — Sweflow API (Desenvolvimento Local com HTTPS)
+#
+# Pré-requisito: mkcert instalado
+#   Ubuntu:  sudo apt install mkcert libnss3-tools
+#   Mac:     brew install mkcert
+#   Windows: choco install mkcert
+#
+# Setup inicial (uma vez):
+#   mkcert -install
+#   mkcert localhost 127.0.0.1
+#   # Gera: localhost+1.pem e localhost+1-key.pem
+#
+# Uso:
+#   caddy run --config Caddyfile.dev
+#
+# Acesse: https://localhost (porta 443) ou https://localhost:2443
+# ============================================================
+
+{
+    # Desativa telemetria em dev
+    admin off
+}
+
+localhost:2443 {
+    tls ./localhost+1.pem ./localhost+1-key.pem
+
+    reverse_proxy localhost:3005 {
+        header_up Host              {host}
+        header_up X-Real-IP         {remote_host}
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    log {
+        output stdout
+        format console
+        level  DEBUG
+    }
+}

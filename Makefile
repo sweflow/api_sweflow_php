@@ -7,6 +7,7 @@
         up-pg up-mysql up-all \
         install migrate seed test \
         shell-pg shell-mysql \
+        caddy-start caddy-stop caddy-reload caddy-dev \
         clean reset
 
 # Detecta docker compose v2 ou v1
@@ -82,6 +83,31 @@ setup: ## Setup completo: sobe banco, instala deps, migra e sobe servidor
 	@echo "  php -S localhost:$${APP_PORT:-3005} index.php"
 
 # ── Limpeza ──────────────────────────────────────────────
+
+caddy-start: ## Inicia Caddy em produção (HTTPS automático)
+	sudo caddy start --config Caddyfile
+
+caddy-stop: ## Para o Caddy
+	sudo caddy stop
+
+caddy-reload: ## Recarrega config do Caddy sem downtime
+	sudo caddy reload --config Caddyfile
+
+caddy-dev: ## Inicia Caddy em desenvolvimento com HTTPS local (requer mkcert)
+	@if [ ! -f localhost+1.pem ]; then \
+		echo "▶ Gerando certificado local com mkcert..."; \
+		mkcert -install; \
+		mkcert localhost 127.0.0.1; \
+	fi
+	caddy run --config Caddyfile.dev
+
+caddy-install: ## Instala o Caddy no Ubuntu/Debian
+	sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+	curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+	curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+	sudo apt update && sudo apt install caddy
+	sudo mkdir -p /var/log/caddy
+	@echo "✓ Caddy instalado. Configure o Caddyfile e rode: make caddy-start"
 
 clean: ## Remove cache e arquivos temporários
 	rm -rf storage/ratelimit/*.json storage/modules_cache.php

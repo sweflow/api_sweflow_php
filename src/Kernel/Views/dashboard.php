@@ -86,7 +86,7 @@
                 <a href="#" id="open-meu-perfil"    class="dash-dd-item"><i class="fa-solid fa-circle-user"></i> Meu perfil</a>
                 <a href="#" id="open-criar-usuario" class="dash-dd-item"><i class="fa-solid fa-user-plus"></i> Novo usuário</a>
                 <div class="dash-dd-divider"></div>
-                <a href="#" id="logout-btn" class="dash-dd-item dash-dd-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+                <button type="button" id="logout-btn" class="dash-dd-item dash-dd-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
             </div>
         </div>
     </nav>
@@ -137,7 +137,7 @@
                 </div>
                 <div class="dash-sidenav-section">
                     <a href="/" class="dash-sidenav-link"><i class="fa-solid fa-arrow-left"></i> Voltar ao início</a>
-                    <a href="#" id="sb-logout" class="dash-sidenav-link dash-sidenav-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+                    <button type="button" id="sb-logout" class="dash-sidenav-link dash-sidenav-danger"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
                 </div>
             </nav>
         </div>
@@ -394,13 +394,28 @@
 
 <!-- Histórico de e-mails -->
 <div class="modal-overlay" id="email-history-modal">
-    <div class="modal" style="max-width:780px;width:95vw;">
-        <div class="modal-header"><h2><i class="fa-solid fa-clock-rotate-left"></i> Histórico de e-mails</h2>
-            <button class="modal-close" id="email-history-close"><i class="fa-solid fa-xmark"></i></button></div>
-        <div style="padding:0 0 10px;">
-            <input type="search" id="email-history-search" placeholder="Buscar por assunto, destinatário, status..."
-                   style="width:100%;padding:10px 12px;border:1px solid #d5daf2;border-radius:10px;font-size:.95rem;box-sizing:border-box;" /></div>
-        <div id="email-history-list" style="max-height:55vh;overflow-y:auto;"><p style="color:#888;text-align:center;padding:24px;">Carregando...</p></div>
+    <div class="modal email-history-modal" style="max-width:820px;width:95vw;">
+        <div class="modal-header">
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(79,70,229,0.2),rgba(124,58,237,0.15));display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color:#818cf8;font-size:1.2rem;"></i>
+                </div>
+                <div>
+                    <h2 style="margin:0;font-size:1.25rem;font-weight:800;">Histórico de e-mails</h2>
+                    <p style="margin:0;font-size:0.85rem;color:var(--text-muted,#64748b);">Registros de todos os disparos realizados</p>
+                </div>
+            </div>
+            <button class="modal-close" id="email-history-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="padding:16px 0 8px;">
+            <div style="position:relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#64748b;font-size:0.9rem;pointer-events:none;"></i>
+                <input type="search" id="email-history-search"
+                       placeholder="Buscar por assunto, destinatário ou status..."
+                       style="width:100%;padding:11px 14px 11px 40px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:12px;font-size:0.95rem;box-sizing:border-box;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;transition:border-color .15s;" />
+            </div>
+        </div>
+        <div id="email-history-list" style="max-height:58vh;overflow-y:auto;padding-right:2px;"></div>
     </div>
 </div>
 
@@ -588,6 +603,7 @@
     </div>
 </div>
 
+<script src="/assets/nav-init.js?v=<?= time() ?>"></script>
 <script src="/assets/dashboard.js?v=<?= time() ?>"></script>
 <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
 // Conecta botões extras ao dashboard.js (open-email-modal-hero, open-email-modal2, sidebar links)

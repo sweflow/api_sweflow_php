@@ -1,0 +1,104 @@
+# ============================================================
+# Caddyfile — Sweflow API (Produção)
+#
+# Instalação do Caddy:
+#   Ubuntu/Debian:
+#     sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+#     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+#     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+#     sudo apt update && sudo apt install caddy
+#
+# Uso:
+#   sudo caddy run --config Caddyfile          # foreground
+#   sudo caddy start --config Caddyfile        # background
+#   sudo caddy reload --config Caddyfile       # reload sem downtime
+#   sudo caddy stop                            # para
+#
+# O Caddy obtém e renova certificados TLS automaticamente via Let's Encrypt.
+# Requer que a porta 80 e 443 estejam abertas e o domínio aponte para este servidor.
+# ============================================================
+
+{
+    # E-mail para notificações do Let's Encrypt (troque pelo seu)
+    email admin@typper.shop
+
+    # Logs estruturados
+    log {
+        output file /var/log/caddy/sweflow.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+        level  INFO
+    }
+}
+
+api.typper.shop {
+    # ── TLS automático (Let's Encrypt) ───────────────────
+    tls {
+        protocols tls1.2 tls1.3
+        ciphers TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    }
+
+    # ── Headers de segurança ─────────────────────────────
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options           "DENY"
+        X-Content-Type-Options    "nosniff"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=(), payment=()"
+        -Server
+        -X-Powered-By
+    }
+
+    # ── Redireciona HTTP → HTTPS (automático no Caddy) ───
+    # O Caddy já faz isso por padrão — não precisa configurar.
+
+    # ── Rate limiting (requer caddy-ratelimit plugin) ────
+    # Se não tiver o plugin, remova este bloco.
+    # Instale com: xcaddy build --with github.com/mholt/caddy-ratelimit
+    # rate_limit {
+    #     zone api_global {
+    #         key {remote_host}
+    #         events 60
+    #         window 10s
+    #     }
+    # }
+
+    # ── Proxy reverso para o PHP ─────────────────────────
+    reverse_proxy localhost:3005 {
+        header_up Host              {host}
+        header_up X-Real-IP         {remote_host}
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+
+        # Timeouts
+        transport http {
+            dial_timeout       10s
+            response_header_timeout 30s
+            read_buffer_size   8kb
+            write_buffer_size  8kb
+        }
+
+        # Health check
+        health_uri     /api/status
+        health_interval 30s
+        health_timeout  5s
+    }
+
+    # ── Bloqueia acesso a arquivos sensíveis ─────────────
+    @sensitive {
+        path /.env* /.git* /*.json /*.lock /*.md /*.sh /*.sql /*.yml /*.yaml
+    }
+    respond @sensitive 404
+
+    # ── Logs de acesso ───────────────────────────────────
+    log {
+        output file /var/log/caddy/sweflow-access.log {
+            roll_size 50mb
+            roll_keep 10
+        }
+        format json
+    }
+}

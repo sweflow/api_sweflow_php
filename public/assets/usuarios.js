@@ -348,7 +348,7 @@ async function openDetail(uuid) {
         wrap.outerHTML = '<img class="u-detail-avatar" id="detail-avatar-wrap" src="'
             + escHtml(u.url_avatar) + '" alt="Avatar" '
             + 'onerror="this.className=\'u-detail-avatar-ph\';this.outerHTML=\'<div class=u-detail-avatar-ph id=detail-avatar-wrap>'
-            + initials(u.nome_completo) + '</div>\';" />';
+            + escHtml(initials(u.nome_completo)) + '</div>\';" />';
     } else {
         var w2 = document.getElementById('detail-avatar-wrap');
         w2.className   = 'u-detail-avatar-ph';

@@ -12,3 +12,7 @@
 .env.docker.local
 docker/postgres/data/
 docker/mysql/data/
+
+# Caddy — certificados locais gerados pelo mkcert
+*.pem
+*.key

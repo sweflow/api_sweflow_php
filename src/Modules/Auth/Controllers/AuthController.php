@@ -42,6 +42,13 @@ class AuthController
         // /api/auth/login é exclusivo para admin_system — token assinado com JWT_API_SECRET
         $startTime = microtime(true);
 
+        if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
+            return Response::json([
+                'status'  => 'error',
+                'message' => 'Login requer conexão segura (HTTPS).',
+            ], 403);
+        }
+
         try {
             $this->refreshRepositorio()->purgeExpired();
             $this->blacklistRepositorio()->purgeExpired();
@@ -107,6 +114,13 @@ class AuthController
     public function loginPublic(): Response
     {
         $startTime = microtime(true);
+
+        if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
+            return Response::json([
+                'status'  => 'error',
+                'message' => 'Login requer conexão segura (HTTPS).',
+            ], 403);
+        }
 
         try {
             $this->refreshRepositorio()->purgeExpired();
@@ -616,35 +630,7 @@ class AuthController
 
     private function definirCookieAuth(string $token, int $expiraEm): void
     {
-        $envSecure  = $this->boolEnv($_ENV['COOKIE_SECURE'] ?? getenv('COOKIE_SECURE') ?? 'false');
-        $envSameSite = $this->resolverSameSite($_ENV['COOKIE_SAMESITE'] ?? getenv('COOKIE_SAMESITE') ?? 'Lax');
-        $domain     = trim($_ENV['COOKIE_DOMAIN'] ?? getenv('COOKIE_DOMAIN') ?? '');
-        // Remove protocolo caso COOKIE_DOMAIN tenha sido configurado com https:// ou http://
-        $domain = preg_replace('#^https?://#', '', $domain);
-
-        // Detecta HTTPS por qualquer uma das fontes disponíveis
-        $appUrl  = $_ENV['APP_URL'] ?? getenv('APP_URL') ?? '';
-        $isHttps = strncmp($appUrl, 'https://', 8) === 0                                          // APP_URL começa com https
-            || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')                          // PHP nativo
-            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')                            // Nginx/proxy
-            || (($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '') === 'on')                                 // Alguns proxies
-            || (($_SERVER['REQUEST_SCHEME'] ?? '') === 'https');                                    // Apache mod_rewrite
-
-        $secure   = $envSecure && $isHttps;
-        $sameSite = (!$secure && $envSameSite === 'None') ? 'Lax' : $envSameSite;
-
-        $opcoes = [
-            'expires'  => $expiraEm,
-            'path'     => '/',
-            'secure'   => $secure,
-            'httponly' => true,
-            'samesite' => $sameSite,
-        ];
-
-        if ($domain !== '') {
-            $opcoes['domain'] = $domain;
-        }
-
+        $opcoes = \Src\Kernel\Support\CookieConfig::options($expiraEm);
         setcookie('auth_token', $token, $opcoes);
     }
 

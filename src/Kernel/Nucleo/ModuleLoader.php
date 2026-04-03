@@ -40,12 +40,9 @@ class ModuleLoader
         $this->discoverStorageModules($root);
         $this->discoverComposerProviders($root);
 
-        // Remove providers de módulos explicitamente desinstalados (state = false)
-        foreach ($this->providers as $name => $_) {
-            if (array_key_exists($name, $this->enabled) && $this->enabled[$name] === false) {
-                unset($this->providers[$name]);
-            }
-        }
+        // Não remove providers desativados — apenas persiste o estado false.
+        // O dashboard precisa ver todos os módulos, inclusive os desativados.
+        // O roteamento já respeita isEnabled() ao registrar rotas.
 
         $this->enabled = array_intersect_key($this->enabled, $this->providers);
 
@@ -187,11 +184,6 @@ class ModuleLoader
     {
         $moduleDir = rtrim($modulesPath, '/\\') . DIRECTORY_SEPARATOR . $module;
         if (!is_dir($moduleDir)) {
-            return;
-        }
-
-        // Se o módulo foi explicitamente desinstalado (state = false), não registra
-        if (array_key_exists($module, $this->enabled) && $this->enabled[$module] === false) {
             return;
         }
 

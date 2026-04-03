@@ -165,18 +165,7 @@ class AuthHybridMiddleware implements MiddlewareInterface
     private function limparCookieAuth(): void
     {
         if (isset($_COOKIE['auth_token'])) {
-            $appUrl  = $_ENV['APP_URL'] ?? '';
-            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                || strncmp($appUrl, 'https://', 8) === 0;
-
-            @setcookie('auth_token', '', [
-                'expires'  => time() - 3600,
-                'path'     => '/',
-                'httponly' => true,
-                'secure'   => $isHttps,
-                'samesite' => 'Lax',
-            ]);
+            @setcookie('auth_token', '', \Src\Kernel\Support\CookieConfig::options(time() - 3600));
         }
     }
 }

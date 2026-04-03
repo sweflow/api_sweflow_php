@@ -122,8 +122,20 @@ export async function login(loginVal, senha) {
 }
 
 export async function logout() {
-    try { await http('POST', '/api/auth/logout'); } catch { /* ignora */ }
-    finally { storage.clear(); }
+    const token = getToken();
+    try {
+        if (token) {
+            await fetch(`${API_BASE}/api/auth/logout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+        }
+    } catch { /* ignora erros de rede */ }
+    storage.clear();
 }
 
 // ── Perfil ────────────────────────────────────────────────────────────────
