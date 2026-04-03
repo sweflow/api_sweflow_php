@@ -503,15 +503,30 @@
 
 <!-- Detalhe e-mail -->
 <div class="modal-overlay" id="email-detail-modal">
-    <div class="modal email-modal" style="max-width:780px;width:95vw;">
-        <div class="modal-header"><h2><i class="fa-solid fa-envelope-open-text"></i> Detalhes do e-mail</h2>
-            <button class="modal-close" id="email-detail-close"><i class="fa-solid fa-xmark"></i></button></div>
-        <div id="email-detail-body" style="overflow-y:auto;max-height:65vh;"></div>
-        <div class="form-actions" style="justify-content:flex-end;margin-top:16px;gap:8px;">
-            <button class="btn ghost" id="email-detail-edit"><i class="fa-solid fa-pen"></i> Editar e reenviar</button>
-            <button class="btn ghost" id="email-detail-resend"><i class="fa-solid fa-rotate-right"></i> Reenviar</button>
-            <button class="btn ghost" id="email-detail-discard" style="display:none;color:#f59e0b;border-color:rgba(245,158,11,0.3);"><i class="fa-solid fa-trash-can"></i> Descartar rascunho</button>
-            <button class="btn" style="background:#e74c3c;color:#fff;" id="email-detail-delete"><i class="fa-solid fa-trash"></i> Excluir</button>
+    <div class="modal email-modal" style="max-width:980px;width:96vw;">
+        <div class="modal-header email-modal-header">
+            <div class="email-modal-title-wrap">
+                <div class="email-modal-icon">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                </div>
+                <div>
+                    <h2 class="email-modal-title">Detalhes do e-mail</h2>
+                    <p class="email-modal-sub" id="email-detail-subtitle">Visualizando registro</p>
+                </div>
+            </div>
+            <div class="email-modal-actions">
+                <button class="modal-close" id="email-detail-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div id="email-detail-body" style="overflow-y:auto;max-height:60vh;padding:0 26px 8px;"></div>
+        <div class="email-form-footer">
+            <div id="detail-resend-feedback" class="email-feedback" aria-live="polite"></div>
+            <div class="email-form-btns">
+                <button class="btn ghost" id="email-detail-discard" style="display:none;color:#f59e0b;border-color:rgba(245,158,11,0.3);"><i class="fa-solid fa-trash-can"></i> Descartar rascunho</button>
+                <button class="btn ghost" id="email-detail-resend"><i class="fa-solid fa-rotate-right"></i> Reenviar</button>
+                <button class="btn ghost" id="email-detail-edit"><i class="fa-solid fa-pen"></i> Editar e reenviar</button>
+                <button class="btn" style="background:#e74c3c;color:#fff;" id="email-detail-delete"><i class="fa-solid fa-trash"></i> Excluir</button>
+            </div>
         </div>
     </div>
 </div>

@@ -1465,96 +1465,110 @@ window.onload = function () {
 
     async function openEmailDetail(id, isDraft = false) {
         currentHistoryId = id;
-        if (detailBody) detailBody.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Carregando...</p>';
+        if (detailBody) detailBody.innerHTML = '<p style="color:var(--text-muted,#64748b);text-align:center;padding:32px;">Carregando...</p>';
+
+        // Feedback movido para o footer — limpa ao abrir
+        const detailFb = document.getElementById('detail-resend-feedback');
+        if (detailFb) { detailFb.textContent = ''; detailFb.className = 'email-feedback'; }
+
         if (detailModal) detailModal.classList.add('show');
 
+        // Subtítulo
+        const subtitle = document.getElementById('email-detail-subtitle');
+        if (subtitle) subtitle.textContent = isDraft ? 'Rascunho local' : 'Visualizando registro';
+
         // Ajusta botões conforme tipo
-        if (detailResend) {
-            detailResend.style.display = isDraft ? 'none' : '';
-        }
-        if (detailEdit) {
-            detailEdit.innerHTML = isDraft
-                ? '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail'
-                : '<i class="fa-solid fa-pen"></i> Editar e reenviar';
-        }
-        if (detailDelete) {
-            detailDelete.style.display = '';
-        }
-        if (detailDiscard) {
-            detailDiscard.style.display = isDraft ? '' : 'none';
-        }
+        if (detailResend)  detailResend.style.display  = isDraft ? 'none' : '';
+        if (detailEdit)    detailEdit.innerHTML = isDraft
+            ? '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail'
+            : '<i class="fa-solid fa-pen"></i> Editar e reenviar';
+        if (detailDelete)  detailDelete.style.display  = '';
+        if (detailDiscard) detailDiscard.style.display = isDraft ? '' : 'none';
 
         if (isDraft) {
             const draft = getDrafts().find(d => d.id === id);
             if (!draft) {
-                detailBody.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:24px;">Rascunho não encontrado.</p>';
+                if (detailBody) detailBody.innerHTML = '<p style="color:#f87171;text-align:center;padding:24px;">Rascunho não encontrado.</p>';
                 return;
             }
-            detailBody.innerHTML = `
-                <div style="display:grid;gap:12px;">
-                    <div class="input-group" style="margin:0;">
-                        <label>Assunto</label>
-                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;">${esc(draft.subject) || '(sem assunto)'}</div>
-                    </div>
-                    <div class="input-group" style="margin:0;">
-                        <label>Destinatário(s)</label>
-                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;">${esc(draft.to) || '<em style="color:#e74c3c;">Nenhum destinatário informado</em>'}</div>
-                    </div>
-                    <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                        <div><label style="font-size:.8rem;color:#888;">Status</label><br>
-                            <span style="color:#f59e0b;font-weight:600;"><i class="fa-solid fa-file-pen"></i> Rascunho</span>
-                        </div>
-                        <div><label style="font-size:.8rem;color:#888;">Salvo em</label><br>
-                            <span>${fmtDate(draft.created_at)}</span>
-                        </div>
-                    </div>
-                    <div class="input-group" style="margin:0;">
-                        <label>Conteúdo do e-mail</label>
-                        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:16px;background:#fff;max-height:300px;overflow-y:auto;">
-                            ${draft.html || '<em style="color:#888;">Sem conteúdo</em>'}
-                        </div>
-                    </div>
-                </div>`;
+            if (detailBody) detailBody.innerHTML = buildDetailFields({
+                para:    draft.to || '',
+                assunto: draft.subject || '',
+                logo:    draft.logo_url || '',
+                status:  '<span style="color:#f59e0b;font-weight:700;"><i class="fa-solid fa-file-pen"></i> Rascunho</span>',
+                data:    fmtDate(draft.created_at),
+                html:    draft.html || '',
+                error:   null,
+            });
             return;
         }
 
         try {
-            const res = await fetch(`/api/email/history/${id}`, { credentials: 'same-origin' });
+            const res  = await fetch(`/api/email/history/${id}`, { credentials: 'same-origin' });
             const item = await res.json();
             if (!res.ok) throw new Error(item.error || 'Erro ao carregar.');
 
-            const emails = recipientEmails(item.recipients);
-            const statusColor = item.status === 'enviado' ? '#27ae60' : '#e74c3c';
+            const statusOk    = item.status === 'enviado';
+            const statusColor = statusOk ? '#4ade80' : '#f87171';
+            const statusIcon  = statusOk ? 'fa-circle-check' : 'fa-circle-xmark';
+            const statusLabel = esc(item.status);
 
-            detailBody.innerHTML = `
-                <div style="display:grid;gap:12px;">
-                    <div class="input-group" style="margin:0;">
-                        <label>Assunto</label>
-                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;">${esc(item.subject) || '(sem assunto)'}</div>
-                    </div>
-                    <div class="input-group" style="margin:0;">
-                        <label>Destinatários</label>
-                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;">${esc(emails) || '--'}</div>
-                    </div>
-                    <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                        <div><label style="font-size:.8rem;color:#888;">Status</label><br>
-                            <span style="color:${statusColor};font-weight:600;"><i class="fa-solid ${item.status === 'enviado' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${esc(item.status)}</span>
-                        </div>
-                        <div><label style="font-size:.8rem;color:#888;">Data/Hora</label><br>
-                            <span>${fmtDate(item.created_at)}</span>
-                        </div>
-                        ${item.error ? `<div style="flex:1;"><label style="font-size:.8rem;color:#e74c3c;">Erro</label><br><span style="color:#e74c3c;font-size:.9rem;">${esc(item.error)}</span></div>` : ''}
-                    </div>
-                    <div class="input-group" style="margin:0;">
-                        <label>Conteúdo do e-mail</label>
-                        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:16px;background:#fff;max-height:300px;overflow-y:auto;">
-                            ${item.html || '<em style="color:#888;">Sem conteúdo</em>'}
-                        </div>
-                    </div>
-                </div>`;
+            if (detailBody) detailBody.innerHTML = buildDetailFields({
+                para:    recipientEmails(item.recipients),
+                assunto: item.subject || '',
+                logo:    item.logo_url || '',
+                status:  `<span style="color:${statusColor};font-weight:700;"><i class="fa-solid ${statusIcon}"></i> ${statusLabel}</span>`,
+                data:    fmtDate(item.created_at),
+                html:    item.html || '',
+                error:   item.error || null,
+            });
         } catch (err) {
-            detailBody.innerHTML = `<p style="color:#e74c3c;text-align:center;padding:24px;">${esc(err.message)}</p>`;
+            if (detailBody) detailBody.innerHTML = `<p style="color:#f87171;text-align:center;padding:24px;">${esc(err.message)}</p>`;
         }
+    }
+
+    function buildDetailFields({ para, assunto, logo, status, data, html, error }) {
+        const fieldRow = (icon, label, content) => `
+            <div class="email-field-row" style="align-items:flex-start;min-height:50px;">
+                <div class="email-field-label" style="padding-top:14px;">
+                    <i class="fa-solid ${icon}"></i>
+                    <span>${label}</span>
+                </div>
+                <div style="flex:1;padding:12px 0;color:var(--text-primary,#f1f5f9);font-size:0.97rem;word-break:break-word;">${content}</div>
+            </div>`;
+
+        const errorRow = error ? `
+            <div class="email-field-divider"></div>
+            ${fieldRow('fa-triangle-exclamation', 'Erro', `<span style="color:#f87171;">${esc(error)}</span>`)}` : '';
+
+        const logoRow = logo ? `
+            <div class="email-field-divider"></div>
+            ${fieldRow('fa-image', 'Logo', `<span style="color:var(--text-muted,#64748b);font-size:0.9rem;">${esc(logo)}</span>`)}` : '';
+
+        return `
+        <div class="email-fields" style="margin-top:16px;">
+            ${fieldRow('fa-at', 'Para', para ? esc(para) : '<em style="color:var(--text-muted,#64748b);">Nenhum destinatário</em>')}
+            <div class="email-field-divider"></div>
+            ${fieldRow('fa-heading', 'Assunto', assunto ? esc(assunto) : '<em style="color:var(--text-muted,#64748b);">Sem assunto</em>')}
+            ${logoRow}
+            <div class="email-field-divider"></div>
+            <div class="email-field-row">
+                <div class="email-field-label"><i class="fa-solid fa-circle-info"></i><span>Status</span></div>
+                <div style="flex:1;padding:12px 0;">${status}</div>
+                <div style="padding:12px 0 12px 24px;font-size:0.88rem;color:var(--text-muted,#64748b);">
+                    <i class="fa-regular fa-clock" style="margin-right:4px;"></i>${data}
+                </div>
+            </div>
+            ${errorRow}
+        </div>
+        <div style="padding:16px 0 8px;">
+            <div style="font-size:0.82rem;font-weight:700;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">
+                <i class="fa-solid fa-envelope" style="color:#818cf8;margin-right:6px;"></i>Conteúdo
+            </div>
+            <div class="email-editor" style="max-height:280px;overflow-y:auto;pointer-events:none;user-select:text;">
+                ${html || '<em style="color:var(--text-muted,#64748b);">Sem conteúdo</em>'}
+            </div>
+        </div>`;
     }
 
     function closeEmailDetail() {
@@ -1616,16 +1630,8 @@ window.onload = function () {
             detailResend.disabled = true;
             detailResend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Reenviando...';
 
-            // Feedback element inside detail modal
-            let fb = document.getElementById('detail-resend-feedback');
-            if (!fb && detailBody) {
-                fb = document.createElement('div');
-                fb.id = 'detail-resend-feedback';
-                fb.className = 'login-feedback';
-                fb.style.marginTop = '12px';
-                detailBody.appendChild(fb);
-            }
-            if (fb) { fb.textContent = ''; fb.className = 'login-feedback'; }
+            const fb = document.getElementById('detail-resend-feedback');
+            if (fb) { fb.textContent = ''; fb.className = 'email-feedback'; }
 
             try {
                 const res = await fetch(`/api/email/history/${currentHistoryId}/resend`, {
@@ -1634,33 +1640,23 @@ window.onload = function () {
                 const data = await res.json();
 
                 if (data.module_disabled) {
-                    // Fecha o detalhe e mostra modal de módulo desabilitado
                     closeEmailDetail();
                     historyModal?.classList.remove('show');
                     showEmailDisabledModal();
-                    loadEmailHistory(); // atualiza histórico com entrada "falhou"
-                    return;
-                }
-
-                if (!res.ok) {
-                    if (fb) {
-                        fb.textContent = data.error || 'Falha ao reenviar.';
-                        fb.className = 'login-feedback error';
-                    }
                     loadEmailHistory();
                     return;
                 }
 
-                if (fb) {
-                    fb.textContent = 'E-mail reenviado com sucesso.';
-                    fb.className = 'login-feedback success';
+                if (!res.ok) {
+                    if (fb) { fb.textContent = data.error || 'Falha ao reenviar.'; fb.className = 'email-feedback error'; }
+                    loadEmailHistory();
+                    return;
                 }
+
+                if (fb) { fb.textContent = 'E-mail reenviado com sucesso.'; fb.className = 'email-feedback success'; }
                 setTimeout(() => { closeEmailDetail(); loadEmailHistory(); }, 800);
             } catch (err) {
-                if (fb) {
-                    fb.textContent = err.message || 'Erro de conexão.';
-                    fb.className = 'login-feedback error';
-                }
+                if (fb) { fb.textContent = err.message || 'Erro de conexão.'; fb.className = 'email-feedback error'; }
             } finally {
                 detailResend.disabled = false;
                 detailResend.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Reenviar';
@@ -1702,14 +1698,7 @@ window.onload = function () {
                 detailEdit.disabled = true;
                 detailEdit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
                 let fb = document.getElementById('detail-resend-feedback');
-                if (!fb && detailBody) {
-                    fb = document.createElement('div');
-                    fb.id = 'detail-resend-feedback';
-                    fb.className = 'login-feedback';
-                    fb.style.marginTop = '12px';
-                    detailBody.appendChild(fb);
-                }
-                if (fb) { fb.textContent = ''; fb.className = 'login-feedback'; }
+                if (fb) { fb.textContent = ''; fb.className = 'email-feedback'; }
                 try {
                     const payload = {
                         to:       draft.to,
@@ -1733,10 +1722,10 @@ window.onload = function () {
                     if (!res.ok) throw new Error(data.error || data.message || 'Falha ao enviar.');
                     // Remove rascunho após envio
                     saveDrafts(getDrafts().filter(d => d.id !== currentHistoryId));
-                    if (fb) { fb.textContent = 'E-mail enviado com sucesso.'; fb.className = 'login-feedback success'; }
+                    if (fb) { fb.textContent = 'E-mail enviado com sucesso.'; fb.className = 'email-feedback success'; }
                     setTimeout(() => { closeEmailDetail(); loadEmailHistory(); }, 800);
                 } catch (err) {
-                    if (fb) { fb.textContent = err.message || 'Erro ao enviar.'; fb.className = 'login-feedback error'; }
+                    if (fb) { fb.textContent = err.message || 'Erro ao enviar.'; fb.className = 'email-feedback error'; }
                 } finally {
                     detailEdit.disabled = false;
                     detailEdit.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail';
