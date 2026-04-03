@@ -355,13 +355,13 @@
             </div>
             <div class="email-editor" id="email-editor" contenteditable="true" aria-label="Editor de e-mail"></div>
             <div class="email-preview" id="email-preview" hidden></div>
-            <div class="form-actions" style="justify-content:flex-end;">
-                <button type="button" class="btn ghost" id="email-cancel">Cancelar</button>
-                <button type="button" class="btn ghost" id="email-draft"><i class="fa-solid fa-floppy-disk"></i> Rascunho</button>
-                <button type="submit" class="btn primary" id="email-send"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
-            </div>
             <div id="email-feedback" class="login-feedback" aria-live="polite"></div>
         </form>
+        <div class="email-modal-footer">
+            <button type="button" class="btn ghost" id="email-cancel">Cancelar</button>
+            <button type="button" class="btn ghost" id="email-draft"><i class="fa-solid fa-floppy-disk"></i> Rascunho</button>
+            <button type="button" class="btn primary" id="email-send" onclick="document.getElementById('email-form').requestSubmit()"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+        </div>
     </div>
 </div>
 

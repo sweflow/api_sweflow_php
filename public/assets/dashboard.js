@@ -610,12 +610,14 @@ window.onload = function () {
     function openEmailModal() {
         if (!emailModal) return;
         emailModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
         if (emailEditor) emailEditor.focus();
     }
 
     function closeEmailModal() {
         if (!emailModal) return;
         emailModal.classList.remove('show');
+        document.body.style.overflow = '';
         if (emailFeedback) {
             emailFeedback.textContent = '';
             emailFeedback.className = 'login-feedback';
