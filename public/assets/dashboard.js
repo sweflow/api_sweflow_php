@@ -609,7 +609,6 @@ window.onload = function () {
     function openEmailModal() {
         if (!emailModal) return;
         emailModal.classList.add('show');
-        restoreDraft();
         if (emailEditor) emailEditor.focus();
     }
 
@@ -924,7 +923,6 @@ window.onload = function () {
                 emailFeedback.textContent = 'E-mail enviado com sucesso.';
                 emailFeedback.className = 'email-feedback success';
             }
-            try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
             setTimeout(closeEmailModal, 800);
         } catch (err) {
             if (emailFeedback) {
@@ -1325,6 +1323,7 @@ window.onload = function () {
     const detailBody        = document.getElementById('email-detail-body');
     const detailEdit        = document.getElementById('email-detail-edit');
     const detailResend      = document.getElementById('email-detail-resend');
+    const detailDiscard     = document.getElementById('email-detail-discard');
     const detailDelete      = document.getElementById('email-detail-delete');
     const deleteModal       = document.getElementById('email-delete-modal');
     const deleteClose       = document.getElementById('email-delete-close');
@@ -1355,7 +1354,19 @@ window.onload = function () {
             const url = '/api/email/history' + (q ? '?q=' + encodeURIComponent(q) : '');
             const res = await fetch(url, { credentials: 'same-origin' });
             const data = await res.json();
-            const items = data.items || [];
+            const remoteItems = data.items || [];
+
+            // Injeta rascunhos locais no topo, filtrando pela busca se houver
+            const allDrafts = getDrafts();
+            const drafts = q
+                ? allDrafts.filter(d =>
+                    (d.subject || '').toLowerCase().includes(q.toLowerCase()) ||
+                    (d.to || '').toLowerCase().includes(q.toLowerCase()) ||
+                    'rascunho'.includes(q.toLowerCase()))
+                : allDrafts;
+
+            const items = [...drafts, ...remoteItems];
+
             if (!items.length) {
                 historyList.innerHTML = `
                     <div style="text-align:center;padding:48px 24px;color:var(--text-muted,#64748b);">
@@ -1366,19 +1377,20 @@ window.onload = function () {
                 return;
             }
             historyList.innerHTML = items.map(item => {
+                const isDraft = item.status === 'rascunho';
                 const ok      = item.status === 'enviado';
-                const color   = ok ? '#4ade80' : '#f87171';
-                const bg      = ok ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
-                const border  = ok ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)';
-                const icon    = ok ? 'fa-circle-check' : 'fa-circle-xmark';
-                const label   = ok ? 'Enviado' : esc(item.status);
+                const color   = isDraft ? '#f59e0b' : (ok ? '#4ade80' : '#f87171');
+                const bg      = isDraft ? 'rgba(245,158,11,0.1)' : (ok ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)');
+                const border  = isDraft ? 'rgba(245,158,11,0.2)' : (ok ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)');
+                const icon    = isDraft ? 'fa-file-pen' : (ok ? 'fa-circle-check' : 'fa-circle-xmark');
+                const label   = isDraft ? 'Rascunho' : (ok ? 'Enviado' : esc(item.status));
                 const errorHint = item.error
                     ? `<div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#f87171;">
                            <i class="fa-solid fa-triangle-exclamation"></i>
                            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;">${esc(item.error)}</span>
                        </div>` : '';
                 return `
-                <div class="email-hist-card" data-id="${esc(String(item.id))}" role="button" tabindex="0"
+                <div class="email-hist-card" data-id="${esc(String(item.id))}" data-draft="${isDraft ? '1' : '0'}" role="button" tabindex="0"
                      style="display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:14px;
                             border:1px solid var(--border-card,rgba(255,255,255,0.07));
                             background:var(--bg-card,rgba(255,255,255,0.03));
@@ -1409,7 +1421,7 @@ window.onload = function () {
             }).join('');
 
             historyList.querySelectorAll('.email-hist-card').forEach(el => {
-                const open = () => openEmailDetail(el.dataset.id);
+                const open = () => openEmailDetail(el.dataset.id, el.dataset.draft === '1');
                 el.addEventListener('click', open);
                 el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
                 el.addEventListener('mouseenter', () => {
@@ -1430,10 +1442,60 @@ window.onload = function () {
         }
     }
 
-    async function openEmailDetail(id) {
+    async function openEmailDetail(id, isDraft = false) {
         currentHistoryId = id;
         if (detailBody) detailBody.innerHTML = '<p style="color:#888;text-align:center;padding:24px;">Carregando...</p>';
         if (detailModal) detailModal.classList.add('show');
+
+        // Ajusta botões conforme tipo
+        if (detailResend) {
+            detailResend.style.display = isDraft ? 'none' : '';
+        }
+        if (detailEdit) {
+            detailEdit.innerHTML = isDraft
+                ? '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail'
+                : '<i class="fa-solid fa-pen"></i> Editar e reenviar';
+        }
+        if (detailDelete) {
+            detailDelete.style.display = '';
+        }
+        if (detailDiscard) {
+            detailDiscard.style.display = isDraft ? '' : 'none';
+        }
+
+        if (isDraft) {
+            const draft = getDrafts().find(d => d.id === id);
+            if (!draft) {
+                detailBody.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:24px;">Rascunho não encontrado.</p>';
+                return;
+            }
+            detailBody.innerHTML = `
+                <div style="display:grid;gap:12px;">
+                    <div class="input-group" style="margin:0;">
+                        <label>Assunto</label>
+                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;">${esc(draft.subject) || '(sem assunto)'}</div>
+                    </div>
+                    <div class="input-group" style="margin:0;">
+                        <label>Destinatário(s)</label>
+                        <div style="padding:8px 12px;background:#f8f8f8;border-radius:6px;border:1px solid #e0e0e0;word-break:break-all;">${esc(draft.to) || '<em style="color:#e74c3c;">Nenhum destinatário informado</em>'}</div>
+                    </div>
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                        <div><label style="font-size:.8rem;color:#888;">Status</label><br>
+                            <span style="color:#f59e0b;font-weight:600;"><i class="fa-solid fa-file-pen"></i> Rascunho</span>
+                        </div>
+                        <div><label style="font-size:.8rem;color:#888;">Salvo em</label><br>
+                            <span>${fmtDate(draft.created_at)}</span>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin:0;">
+                        <label>Conteúdo do e-mail</label>
+                        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:16px;background:#fff;max-height:300px;overflow-y:auto;">
+                            ${draft.html || '<em style="color:#888;">Sem conteúdo</em>'}
+                        </div>
+                    </div>
+                </div>`;
+            return;
+        }
 
         try {
             const res = await fetch(`/api/email/history/${id}`, { credentials: 'same-origin' });
@@ -1588,12 +1650,85 @@ window.onload = function () {
     if (detailEdit) {
         detailEdit.addEventListener('click', async () => {
             if (!currentHistoryId) return;
+
+            // Rascunho local: abre modal de e-mail para editar/enviar
+            if (currentHistoryId.startsWith('draft_')) {
+                const draft = getDrafts().find(d => d.id === currentHistoryId);
+                if (!draft) return;
+
+                if (!draft.to || !draft.to.trim()) {
+                    // Sem destinatário: abre modal para editar, com aviso
+                    if (emailTo) emailTo.value = '';
+                    if (emailSubject) emailSubject.value = draft.subject || '';
+                    if (emailLogo) emailLogo.value = draft.logo_url || '';
+                    if (emailEditor) emailEditor.innerHTML = draft.html || '';
+                    closeEmailDetail();
+                    historyModal?.classList.remove('show');
+                    if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
+                    openEmailModal();
+                    // Avisa após abrir
+                    setTimeout(() => {
+                        if (emailFeedback) {
+                            emailFeedback.textContent = 'Informe o destinatário antes de enviar.';
+                            emailFeedback.className = 'email-feedback error';
+                        }
+                        emailTo?.focus();
+                    }, 100);
+                    return;
+                }
+
+                // Tem destinatário: envia direto
+                detailEdit.disabled = true;
+                detailEdit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+                let fb = document.getElementById('detail-resend-feedback');
+                if (!fb && detailBody) {
+                    fb = document.createElement('div');
+                    fb.id = 'detail-resend-feedback';
+                    fb.className = 'login-feedback';
+                    fb.style.marginTop = '12px';
+                    detailBody.appendChild(fb);
+                }
+                if (fb) { fb.textContent = ''; fb.className = 'login-feedback'; }
+                try {
+                    const payload = {
+                        to:       draft.to,
+                        subject:  draft.subject || '',
+                        html:     draft.html || '',
+                        logo_url: draft.logo_url || '',
+                    };
+                    const res = await fetch('/api/email/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        credentials: 'same-origin',
+                    });
+                    const data = await res.json();
+                    if (data.module_disabled) {
+                        closeEmailDetail();
+                        historyModal?.classList.remove('show');
+                        showEmailDisabledModal();
+                        return;
+                    }
+                    if (!res.ok) throw new Error(data.error || data.message || 'Falha ao enviar.');
+                    // Remove rascunho após envio
+                    saveDrafts(getDrafts().filter(d => d.id !== currentHistoryId));
+                    if (fb) { fb.textContent = 'E-mail enviado com sucesso.'; fb.className = 'login-feedback success'; }
+                    setTimeout(() => { closeEmailDetail(); loadEmailHistory(); }, 800);
+                } catch (err) {
+                    if (fb) { fb.textContent = err.message || 'Erro ao enviar.'; fb.className = 'login-feedback error'; }
+                } finally {
+                    detailEdit.disabled = false;
+                    detailEdit.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail';
+                }
+                return;
+            }
+
+            // Item do histórico remoto: comportamento original (editar e reenviar)
             try {
                 const res = await fetch(`/api/email/history/${currentHistoryId}`, { credentials: 'same-origin' });
                 const item = await res.json();
                 if (!res.ok) throw new Error(item.error || 'Erro.');
 
-                // Populate email form with history data
                 if (emailTo) emailTo.value = recipientEmails(item.recipients);
                 if (emailSubject) emailSubject.value = item.subject || '';
                 if (emailLogo) emailLogo.value = item.logo_url || '';
@@ -1610,6 +1745,14 @@ window.onload = function () {
     }
 
     if (detailDelete) detailDelete.addEventListener('click', openDeleteConfirm);
+    if (detailDiscard) {
+        detailDiscard.addEventListener('click', () => {
+            if (!currentHistoryId || !currentHistoryId.startsWith('draft_')) return;
+            saveDrafts(getDrafts().filter(d => d.id !== currentHistoryId));
+            closeEmailDetail();
+            loadEmailHistory();
+        });
+    }
     if (deleteClose) deleteClose.addEventListener('click', closeDeleteConfirm);
     if (deleteCancel) deleteCancel.addEventListener('click', closeDeleteConfirm);
     // No overlay click-to-close for delete confirm
@@ -1619,6 +1762,14 @@ window.onload = function () {
             if (!currentHistoryId) return;
             deleteConfirm.disabled = true;
             try {
+                // Rascunho local: remove do localStorage
+                if (currentHistoryId.startsWith('draft_')) {
+                    saveDrafts(getDrafts().filter(d => d.id !== currentHistoryId));
+                    closeDeleteConfirm();
+                    closeEmailDetail();
+                    loadEmailHistory();
+                    return;
+                }
                 const res = await fetch(`/api/email/history/${currentHistoryId}`, {
                     method: 'DELETE', credentials: 'same-origin'
                 });
@@ -1648,32 +1799,40 @@ window.onload = function () {
     if (emailClose) emailClose.addEventListener('click', closeEmailModal);
     if (emailCancel) emailCancel.addEventListener('click', closeEmailModal);
 
-    // ── Rascunho ──────────────────────────────────────────────────────────────
-    const DRAFT_KEY = 'sweflow-email-draft';
+    // ── Rascunho (salvo no histórico local) ───────────────────────────────────
+    const DRAFT_KEY = 'sweflow-email-drafts';
     const emailDraftBtn = document.getElementById('email-draft-btn');
 
-    function saveDraft() {        const draft = {
-            to:      emailTo?.value      || '',
-            subject: emailSubject?.value || '',
-            body:    emailEditor?.innerHTML || '',
-        };
-        try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (_) {}
+    function getDrafts() {
+        try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]'); } catch (_) { return []; }
+    }
+    function saveDrafts(drafts) {
+        try { localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts)); } catch (_) {}
+    }
+
+    function saveDraft() {
+        const to      = emailTo?.value.trim()      || '';
+        const subject = emailSubject?.value.trim() || '';
+        const body    = emailEditor?.innerHTML      || '';
+        if (!to && !subject && !body) return;
+
+        const drafts = getDrafts();
+        drafts.unshift({
+            id:         'draft_' + Date.now(),
+            status:     'rascunho',
+            to,
+            subject,
+            html:       body,
+            logo_url:   emailLogo?.value || '',
+            created_at: new Date().toISOString(),
+        });
+        saveDrafts(drafts);
+
         if (emailFeedback) {
-            emailFeedback.textContent = 'Rascunho salvo.';
+            emailFeedback.textContent = 'Rascunho salvo no histórico.';
             emailFeedback.className = 'email-feedback success';
             setTimeout(() => { if (emailFeedback) { emailFeedback.textContent = ''; emailFeedback.className = 'email-feedback'; } }, 2500);
         }
-    }
-
-    function restoreDraft() {
-        try {
-            const raw = localStorage.getItem(DRAFT_KEY);
-            if (!raw) return;
-            const draft = JSON.parse(raw);
-            if (emailTo && draft.to)           emailTo.value = draft.to;
-            if (emailSubject && draft.subject) emailSubject.value = draft.subject;
-            if (emailEditor && draft.body)     emailEditor.innerHTML = draft.body;
-        } catch (_) {}
     }
 
     if (emailDraftBtn) emailDraftBtn.addEventListener('click', saveDraft);
