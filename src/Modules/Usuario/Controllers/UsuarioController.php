@@ -242,6 +242,11 @@ class UsuarioController
             }
             $dados = $this->sanitizarCamposUsuario($body);
             if (isset($body['nivel_acesso'])) {
+                // Impede que o usuário logado altere seu próprio nível de acesso
+                $authUser = $request->attribute('auth_user');
+                if ($authUser && $authUser->getUuid()->toString() === $uuid) {
+                    return Response::json(['status' => 'error', 'message' => 'Você não pode alterar seu próprio nível de acesso.'], 403);
+                }
                 $nivelError = $this->sanitizarNivelAcesso($body['nivel_acesso'], $dados);
                 if ($nivelError !== null) {
                     return $nivelError;
@@ -300,6 +305,10 @@ class UsuarioController
     public function deletar(Request $request, string $uuid): Response
     {
         try {
+            $authUser = $request->attribute('auth_user');
+            if ($authUser && $authUser->getUuid()->toString() === $uuid) {
+                return Response::json(['status' => 'error', 'message' => 'Você não pode excluir sua própria conta por aqui.'], 403);
+            }
             $this->service->deletar($uuid);
             return Response::json(['status' => 'success', 'message' => 'Usuário removido.']);
         } catch (DomainException | ModuleDomainException $e) {

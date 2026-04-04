@@ -3,10 +3,28 @@
  * Usado em: dashboard (via inline), marketplace.php, usuarios.php
  */
 (function () {
+
+    // ── Avatar helper — sem innerHTML ─────────────────────────────────
+    function setAvatarIcon(el) {
+        el.textContent = '';
+        const i = document.createElement('i');
+        i.className = 'fa-solid fa-circle-user';
+        el.appendChild(i);
+    }
+
+    function setAvatarImg(el, url) {
+        el.textContent = '';
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Avatar';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        img.onerror = () => setAvatarIcon(el);
+        el.appendChild(img);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
 
         // ── Sidebar toggle ────────────────────────────────────────────
-        // Usa flag para evitar registro duplo quando o inline script do dashboard já registrou
         if (!window.__sidebarToggleInit) {
             window.__sidebarToggleInit = true;
             const toggle   = document.getElementById('sidebar-toggle');
@@ -76,16 +94,18 @@
             // Aplica imediatamente do cache
             try {
                 const saved = localStorage.getItem('dash-avatar-url');
-                if (saved) {
-                    const img = document.createElement('img');
-                    img.src = saved;
-                    img.alt = 'Avatar';
-                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
-                    img.onerror = () => { avatar.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
-                    avatar.innerHTML = '';
-                    avatar.appendChild(img);
-                }
+                if (saved) setAvatarImg(avatar, saved);
             } catch (_) {}
+
+            // Abre modal de perfil se existir na página, senão redireciona ao dashboard
+            avatar.addEventListener('click', () => {
+                const modal = document.getElementById('meu-perfil-modal');
+                if (modal) {
+                    document.getElementById('open-meu-perfil')?.click();
+                } else {
+                    window.location.href = '/dashboard';
+                }
+            });
 
             // Confirma com a API
             fetch('/api/perfil', { credentials: 'same-origin' })
@@ -96,13 +116,7 @@
                     try { localStorage.setItem('dash-avatar-url', url); } catch (_) {}
                     const current = avatar.querySelector('img');
                     if (current && current.src === url) return;
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = 'Avatar';
-                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
-                    img.onerror = () => { avatar.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
-                    avatar.innerHTML = '';
-                    avatar.appendChild(img);
+                    setAvatarImg(avatar, url);
                 }).catch(() => {});
         }
 

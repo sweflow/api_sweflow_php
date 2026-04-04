@@ -74,25 +74,25 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                     }
                 } else {
                     // INSERT
-                        $sql = "INSERT INTO {$this->tabela} 
-                            (uuid, nome_completo, email, username, senha_hash, url_avatar, url_capa, biografia, nivel_acesso, ativo, status_verificacao, token_verificacao_email, criado_em) 
-                            VALUES (:uuid, :nome_completo, :email, :username, :senha_hash, :url_avatar, :url_capa, :biografia, :nivel_acesso, :ativo, :status_verificacao, :token_verificacao_email, :criado_em)";
+                    $sql = "INSERT INTO {$this->tabela} 
+                        (uuid, nome_completo, email, username, senha_hash, url_avatar, url_capa, biografia, nivel_acesso, ativo, status_verificacao, token_verificacao_email, criado_em) 
+                        VALUES (:uuid, :nome_completo, :email, :username, :senha_hash, :url_avatar, :url_capa, :biografia, :nivel_acesso, :ativo, :status_verificacao, :token_verificacao_email, :criado_em)";
 
-                        $stmt = $this->pdo->prepare($sql);
-                        $stmt->bindValue(':uuid', $uuid);
-                        $stmt->bindValue(':nome_completo', $usuario->getNomeCompleto());
-                        $stmt->bindValue(':email', $usuario->getEmail());
-                        $stmt->bindValue(':username', $usuario->getUsername());
-                        $stmt->bindValue(':senha_hash', $usuario->getSenhaHash());
-                        $stmt->bindValue(':url_avatar', $usuario->getUrlAvatar());
-                        $stmt->bindValue(':url_capa', $usuario->getUrlCapa());
-                        $stmt->bindValue(':biografia', $usuario->getBiografia());
-                        $stmt->bindValue(':nivel_acesso', $usuario->getNivelAcesso());
-                        $stmt->bindValue(':ativo', $usuario->isAtivo() ? 1 : 0, PDO::PARAM_INT);
-                        $stmt->bindValue(':status_verificacao', $usuario->getStatusVerificacao());
-                        $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
-                        $stmt->bindValue(':criado_em', $agora);
-                        $stmt->execute();
+                    $stmt = $this->pdo->prepare($sql);
+                    $stmt->bindValue(':uuid', $uuid);
+                    $stmt->bindValue(':nome_completo', $usuario->getNomeCompleto());
+                    $stmt->bindValue(':email', $usuario->getEmail());
+                    $stmt->bindValue(':username', $usuario->getUsername());
+                    $stmt->bindValue(':senha_hash', $usuario->getSenhaHash());
+                    $stmt->bindValue(':url_avatar', $usuario->getUrlAvatar());
+                    $stmt->bindValue(':url_capa', $usuario->getUrlCapa());
+                    $stmt->bindValue(':biografia', $usuario->getBiografia());
+                    $stmt->bindValue(':nivel_acesso', $usuario->getNivelAcesso());
+                    $stmt->bindValue(':ativo', $usuario->isAtivo() ? 1 : 0, PDO::PARAM_INT);
+                    $stmt->bindValue(':status_verificacao', $usuario->getStatusVerificacao());
+                    $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
+                    $stmt->bindValue(':criado_em', $agora);
+                    $stmt->execute();
                 }
 
                 $this->pdo->commit();

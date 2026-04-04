@@ -1,3 +1,7 @@
+// ── Trusted Types — política registrada em trusted-types-policy.js ──────────
+// Carregado antes deste script via <script nonce="..."> nas views PHP.
+// Permite innerHTML com HTML sanitizado via esc() e bloqueia XSS externo.
+
 // ── XSS protection helper ─────────────────────────────────────────────────
 // Use esc() em TODOS os dados vindos da API antes de inserir em innerHTML.
 function esc(str) {
@@ -7,7 +11,38 @@ function esc(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;');
+        .replace(/'/g, '&#x27;')
+        .replace(/\//g, '&#x2F;')
+        // Line/paragraph separators — podem quebrar strings JS em contextos inline
+        .replace(/\u2028/g, '&#x2028;')
+        .replace(/\u2029/g, '&#x2029;');
+}
+
+// ── DOM helpers — sem innerHTML para conteúdo simples ────────────────────
+/**
+ * Define o conteúdo de um botão com ícone Font Awesome + texto.
+ * Usa createElement em vez de innerHTML — compatível com Trusted Types sem política.
+ * @param {HTMLElement} el  - o botão
+ * @param {string} icon     - classe FA, ex: 'fa-solid fa-check'
+ * @param {string} text     - texto visível
+ */
+function setBtn(el, icon, text) {
+    if (!el) return;
+    el.textContent = '';
+    const i = document.createElement('i');
+    i.className = icon;
+    el.appendChild(i);
+    el.appendChild(document.createTextNode(' ' + text));
+}
+
+/**
+ * Cria um elemento <p> de estado (loading/erro) sem innerHTML.
+ */
+function makeStatusP(text, color) {
+    const p = document.createElement('p');
+    p.style.cssText = `color:${color};text-align:center;padding:32px;`;
+    p.textContent = text;
+    return p;
 }
 
 window.onload = function () {
@@ -47,6 +82,21 @@ window.onload = function () {
     const emailLogo = document.getElementById('email-logo');
     const emailEditor = document.getElementById('email-editor');
     const emailPreview = document.getElementById('email-preview');
+
+    /** Insere HTML no editor/preview sanitizando via DOMPurify. */
+    function setEditorHtml(el, html) {
+        if (!el) return;
+        if (!html) { el.innerHTML = ''; return; }
+        el.innerHTML = window.DOMPurify
+            ? DOMPurify.sanitize(html, {
+                ALLOWED_TAGS: ['div','span','p','br','b','i','u','strong','em','h1','h2','h3','h4','h5','h6',
+                               'ul','ol','li','table','thead','tbody','tr','th','td','img','a','hr','blockquote'],
+                ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel'],
+                FORBID_ATTR:  ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
+                ALLOW_DATA_ATTR: false,
+              })
+            : '';
+    }
     const emailPreviewBtn = document.getElementById('email-preview-btn');
     const emailFullscreenBtn = document.getElementById('email-fullscreen-btn');
     const emailToolbar = document.getElementById('email-toolbar');
@@ -242,6 +292,7 @@ window.onload = function () {
             const res = await fetch('/api/modules/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
                 // API expects { name, enabled } — NOT { module }
                 body: JSON.stringify({ name, enabled: !(moduleState[name] ?? true) })
             });
@@ -495,14 +546,14 @@ window.onload = function () {
 
         // Botão copiar URI
         document.getElementById('rd-copy')?.addEventListener('click', () => {
-            navigator.clipboard.writeText(route.uri).then(() => {
-                const btn = document.getElementById('rd-copy');
-                if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!'; setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800); }
-            }).catch(() => {
+            const btn = document.getElementById('rd-copy');
+            const copyDone = () => {
+                if (btn) { setBtn(btn, 'fa-solid fa-check', 'Copiado!'); setTimeout(() => setBtn(btn, 'fa-solid fa-copy', 'Copiar'), 1800); }
+            };
+            navigator.clipboard.writeText(route.uri).then(copyDone).catch(() => {
                 const ta = document.createElement('textarea');
                 ta.value = route.uri; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-                const btn = document.getElementById('rd-copy');
-                if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!'; setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800); }
+                copyDone();
             });
         });
 
@@ -510,14 +561,14 @@ window.onload = function () {
         body.querySelectorAll('.rd-copy-json-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const json = btn.getAttribute('data-json');
-                navigator.clipboard.writeText(json).then(() => {
-                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
-                    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800);
-                }).catch(() => {
+                const copyDone = () => {
+                    setBtn(btn, 'fa-solid fa-check', 'Copiado!');
+                    setTimeout(() => setBtn(btn, 'fa-solid fa-copy', 'Copiar'), 1800);
+                };
+                navigator.clipboard.writeText(json).then(copyDone).catch(() => {
                     const ta = document.createElement('textarea');
                     ta.value = json; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
-                    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar'; }, 1800);
+                    copyDone();
                 });
             });
         });
@@ -531,7 +582,7 @@ window.onload = function () {
         if (!el) return;
         el.textContent = 'Carregando...';
         try {
-            const res = await fetch('/api/capabilities');
+            const res = await fetch('/api/capabilities', { credentials: 'same-origin' });
             const data = await res.json();
             const items = data.items || [];
             if (items.length === 0) {
@@ -586,6 +637,7 @@ window.onload = function () {
                         const res = await fetch('/api/capabilities/provider', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
                             body: JSON.stringify({ capability: cap, plugin })
                         });
                         const body = await res.json().catch(() => ({}));
@@ -633,7 +685,7 @@ window.onload = function () {
         }
         if (emailSend) {
             emailSend.disabled = false;
-            emailSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
+            setBtn(emailSend, 'fa-solid fa-paper-plane', 'Enviar');
         }
     }
 
@@ -904,11 +956,13 @@ window.onload = function () {
         if (!emailForm || !emailEditor || !emailSubject) return;
 
         const recipients = extractEmailsFromText(emailTo?.value || '').map(e => ({ email: e, name: e }));
+        const rawHtml = emailEditor.innerHTML.trim();
         const payload = {
             recipients,
             subject: emailSubject.value.trim(),
             logo_url: emailLogo?.value.trim() || '',
-            html: emailEditor.innerHTML.trim(),
+            // Sanitiza o HTML do editor antes de enviar — previne Stored XSS
+            html: window.DOMPurify ? window.DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } }) : rawHtml,
         };
 
         if (!payload.recipients.length || !payload.subject || !payload.html) {
@@ -921,7 +975,7 @@ window.onload = function () {
 
         if (emailSend) {
             emailSend.disabled = true;
-            emailSend.innerHTML = 'Enviando...';
+            emailSend.textContent = 'Enviando...';
         }
 
         try {
@@ -953,7 +1007,7 @@ window.onload = function () {
         } finally {
             if (emailSend) {
                 emailSend.disabled = false;
-                emailSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar';
+                setBtn(emailSend, 'fa-solid fa-paper-plane', 'Enviar');
             }
         }
     }
@@ -1040,6 +1094,7 @@ window.onload = function () {
                     const res = await fetch('/api/modules/toggle', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
                         body: JSON.stringify({ name, enabled })
                     });
                     const body = await res.json();
@@ -1199,7 +1254,7 @@ window.onload = function () {
         }
         updateAuthVerifyUI(authRequireEmailVerification, true);
         try {
-            const res = await fetch('/api/auth/email-verification');
+            const res = await fetch('/api/auth/email-verification', { credentials: 'same-origin' });
             if (handleUnauthorized(res.status)) return;
             const body = await res.json();
             if (!res.ok) throw new Error(body.error || body.message || 'Não foi possível obter a política.');
@@ -1224,6 +1279,7 @@ window.onload = function () {
             const res = await fetch('/api/auth/email-verification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
                 body: JSON.stringify({ require_verification: enabled })
             });
             const body = await res.json();
@@ -1312,7 +1368,7 @@ window.onload = function () {
         setInterval(async () => {
             await fetchMetrics();
             await fetchModulesState();
-        }, 30000);
+        }, 10000);
     })();
 
     // ── Nav scroll shadow ─────────────────────────────────────────────
@@ -1466,7 +1522,7 @@ window.onload = function () {
 
     async function openEmailDetail(id, isDraft = false) {
         currentHistoryId = id;
-        if (detailBody) detailBody.innerHTML = '<p style="color:var(--text-muted,#64748b);text-align:center;padding:32px;">Carregando...</p>';
+        if (detailBody) { detailBody.textContent = ''; detailBody.appendChild(makeStatusP('Carregando...', 'var(--text-muted,#64748b)')); }
 
         // Feedback movido para o footer — limpa ao abrir
         const detailFb = document.getElementById('detail-resend-feedback');
@@ -1482,14 +1538,14 @@ window.onload = function () {
         if (detailResend)    detailResend.style.display    = isDraft ? 'none' : '';
         if (detailEdit)      detailEdit.style.display      = isDraft ? 'none' : '';
         if (detailDraftEdit) detailDraftEdit.style.display = isDraft ? '' : 'none';
-        if (detailEdit)      detailEdit.innerHTML = '<i class="fa-solid fa-pen"></i> Editar e reenviar';
+        if (detailEdit)      setBtn(detailEdit, 'fa-solid fa-pen', 'Editar e reenviar');
         if (detailDelete)    detailDelete.style.display    = '';
         if (detailDiscard)   detailDiscard.style.display   = isDraft ? '' : 'none';
 
         if (isDraft) {
             const draft = getDrafts().find(d => d.id === id);
             if (!draft) {
-                if (detailBody) detailBody.innerHTML = '<p style="color:#f87171;text-align:center;padding:24px;">Rascunho não encontrado.</p>';
+                if (detailBody) { detailBody.textContent = ''; detailBody.appendChild(makeStatusP('Rascunho não encontrado.', '#f87171')); }
                 return;
             }
             if (detailBody) detailBody.innerHTML = buildDetailFields({
@@ -1501,6 +1557,7 @@ window.onload = function () {
                 html:    draft.html || '',
                 error:   null,
             });
+            setEmailPreviewHtml(detailBody, draft.html || '');
             return;
         }
 
@@ -1523,8 +1580,33 @@ window.onload = function () {
                 html:    item.html || '',
                 error:   item.error || null,
             });
+            setEmailPreviewHtml(detailBody, item.html || '');
         } catch (err) {
-            if (detailBody) detailBody.innerHTML = `<p style="color:#f87171;text-align:center;padding:24px;">${esc(err.message)}</p>`;
+            if (detailBody) { detailBody.textContent = ''; detailBody.appendChild(makeStatusP(esc(err.message), '#f87171')); }
+        }
+    }
+
+    /** Popula o preview de e-mail com HTML sanitizado via DOMPurify. */
+    function setEmailPreviewHtml(container, html) {
+        const frame = container ? container.querySelector('.email-preview-frame') : null;
+        if (!frame) return;
+        if (!html) {
+            const em = document.createElement('em');
+            em.style.color = 'var(--text-muted,#64748b)';
+            em.textContent = 'Sem conteúdo';
+            frame.replaceChildren(em);
+            return;
+        }
+        if (window.DOMPurify) {
+            frame.innerHTML = DOMPurify.sanitize(html, {
+                ALLOWED_TAGS: ['div','span','p','br','b','i','u','strong','em','h1','h2','h3','h4','h5','h6',
+                               'ul','ol','li','table','thead','tbody','tr','th','td','img','a','hr','blockquote'],
+                ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel'],
+                FORBID_ATTR:  ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
+                ALLOW_DATA_ATTR: false,
+            });
+        } else {
+            frame.textContent = html; // fallback seguro: mostra como texto
         }
     }
 
@@ -1566,9 +1648,7 @@ window.onload = function () {
             <div style="font-size:0.82rem;font-weight:700;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">
                 <i class="fa-solid fa-envelope" style="color:#818cf8;margin-right:6px;"></i>Conteúdo
             </div>
-            <div class="email-editor" style="max-height:280px;overflow-y:auto;pointer-events:none;user-select:text;">
-                ${html || '<em style="color:var(--text-muted,#64748b);">Sem conteúdo</em>'}
-            </div>
+            <div class="email-preview-frame" style="max-height:280px;overflow-y:auto;pointer-events:none;user-select:text;border:1px solid var(--border-card,rgba(255,255,255,0.07));border-radius:8px;padding:12px;background:var(--bg-input,#fff);"></div>
         </div>`;
     }
 
@@ -1629,7 +1709,7 @@ window.onload = function () {
         detailResend.addEventListener('click', async () => {
             if (!currentHistoryId) return;
             detailResend.disabled = true;
-            detailResend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Reenviando...';
+            setBtn(detailResend, 'fa-solid fa-spinner fa-spin', 'Reenviando...');
 
             const fb = document.getElementById('detail-resend-feedback');
             if (fb) { fb.textContent = ''; fb.className = 'email-feedback'; }
@@ -1660,7 +1740,7 @@ window.onload = function () {
                 if (fb) { fb.textContent = err.message || 'Erro de conexão.'; fb.className = 'email-feedback error'; }
             } finally {
                 detailResend.disabled = false;
-                detailResend.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Reenviar';
+                setBtn(detailResend, 'fa-solid fa-rotate-right', 'Reenviar');
             }
         });
     }
@@ -1673,7 +1753,7 @@ window.onload = function () {
             if (emailTo)      emailTo.value         = draft.to       || '';
             if (emailSubject) emailSubject.value    = draft.subject  || '';
             if (emailLogo)    emailLogo.value       = draft.logo_url || '';
-            if (emailEditor)  emailEditor.innerHTML = draft.html     || '';
+            if (emailEditor)  setEditorHtml(emailEditor, draft.html || '');
             closeEmailDetail();
             historyModal?.classList.remove('show');
             if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
@@ -1695,7 +1775,7 @@ window.onload = function () {
                     if (emailTo) emailTo.value = '';
                     if (emailSubject) emailSubject.value = draft.subject || '';
                     if (emailLogo) emailLogo.value = draft.logo_url || '';
-                    if (emailEditor) emailEditor.innerHTML = draft.html || '';
+                    if (emailEditor) setEditorHtml(emailEditor, draft.html || '');
                     closeEmailDetail();
                     historyModal?.classList.remove('show');
                     if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
@@ -1713,7 +1793,7 @@ window.onload = function () {
 
                 // Tem destinatário: envia direto
                 detailEdit.disabled = true;
-                detailEdit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+                setBtn(detailEdit, 'fa-solid fa-spinner fa-spin', 'Enviando...');
                 let fb = document.getElementById('detail-resend-feedback');
                 if (fb) { fb.textContent = ''; fb.className = 'email-feedback'; }
                 try {
@@ -1745,7 +1825,7 @@ window.onload = function () {
                     if (fb) { fb.textContent = err.message || 'Erro ao enviar.'; fb.className = 'email-feedback error'; }
                 } finally {
                     detailEdit.disabled = false;
-                    detailEdit.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Enviar e-mail';
+                    setBtn(detailEdit, 'fa-solid fa-paper-plane', 'Enviar e-mail');
                 }
                 return;
             }
@@ -1759,7 +1839,7 @@ window.onload = function () {
                 if (emailTo) emailTo.value = recipientEmails(item.recipients);
                 if (emailSubject) emailSubject.value = item.subject || '';
                 if (emailLogo) emailLogo.value = item.logo_url || '';
-                if (emailEditor) emailEditor.innerHTML = item.html || '';
+                if (emailEditor) setEditorHtml(emailEditor, item.html || '');
 
                 closeEmailDetail();
                 historyModal?.classList.remove('show');
@@ -1840,7 +1920,8 @@ window.onload = function () {
     function saveDraft() {
         const to      = emailTo?.value.trim()      || '';
         const subject = emailSubject?.value.trim() || '';
-        const body    = emailEditor?.innerHTML      || '';
+        const rawBody = emailEditor?.innerHTML      || '';
+        const body    = window.DOMPurify ? window.DOMPurify.sanitize(rawBody, { USE_PROFILES: { html: true } }) : rawBody;
         if (!to && !subject && !body) return;
 
         const drafts = getDrafts();
@@ -2086,7 +2167,8 @@ window.onload = function () {
     async function carregarMeuPerfil() {
         const body = document.getElementById('meu-perfil-body');
         if (!body) return;
-        body.innerHTML = '<p style="color:#888;text-align:center;">Carregando...</p>';
+        body.textContent = '';
+        body.appendChild(makeStatusP('Carregando...', '#888'));
         try {
             const res = await fetch('/api/perfil', { credentials: 'same-origin' });
             const data = await res.json();
@@ -2094,37 +2176,44 @@ window.onload = function () {
             perfilAtual = data.usuario;
             renderMeuPerfil(perfilAtual);
         } catch (e) {
-            body.innerHTML = `<p style="color:#e74c3c;text-align:center;">${e.message}</p>`;
+            body.textContent = '';
+            body.appendChild(makeStatusP(e.message, '#e74c3c'));
         }
     }
 
     function updateTopbarAvatar(url) {
         const el = document.getElementById('topbar-avatar');
         if (!el) return;
-        // Persiste no localStorage para carregamento instantâneo no próximo refresh
         if (url) {
             try { localStorage.setItem('dash-avatar-url', url); } catch(_) {}
         } else {
             try { localStorage.removeItem('dash-avatar-url'); } catch(_) {}
         }
-        // Evita piscar se a URL já é a mesma
         const current = el.querySelector('img');
         if (url) {
             if (current && current.src === url) return;
             if (!current) {
-                el.innerHTML = '';
+                el.textContent = '';
                 const img = document.createElement('img');
                 img.src = url;
                 img.alt = 'Avatar';
                 img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
-                img.onerror = () => { el.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
+                img.onerror = () => {
+                    el.textContent = '';
+                    const ic = document.createElement('i');
+                    ic.className = 'fa-solid fa-circle-user';
+                    el.appendChild(ic);
+                };
                 el.appendChild(img);
             } else {
                 current.src = url;
             }
         } else {
             if (!current) return;
-            el.innerHTML = '<i class="fa-solid fa-circle-user"></i>';
+            el.textContent = '';
+            const ic = document.createElement('i');
+            ic.className = 'fa-solid fa-circle-user';
+            el.appendChild(ic);
         }
     }
 
@@ -2270,7 +2359,7 @@ window.onload = function () {
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+            setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Salvando...');
             fb.textContent = ''; fb.className = 'login-feedback';
 
             try {
@@ -2311,7 +2400,7 @@ window.onload = function () {
                 fb.className = 'login-feedback error';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+                setBtn(btn, 'fa-solid fa-floppy-disk', 'Salvar');
             }
         });
     }
@@ -2349,7 +2438,7 @@ window.onload = function () {
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Alterando...';
+            setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Alterando...');
             fb.textContent = ''; fb.className = 'login-feedback';
 
             try {
@@ -2374,7 +2463,7 @@ window.onload = function () {
                 fb.className = 'login-feedback error';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-key"></i> Alterar senha';
+                setBtn(btn, 'fa-solid fa-key', 'Alterar senha');
             }
         });
     }
@@ -2425,7 +2514,7 @@ window.onload = function () {
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Criando...';
+            setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Criando...');
             fb.textContent = ''; fb.className = 'login-feedback';
 
             try {
@@ -2439,6 +2528,7 @@ window.onload = function () {
                 if (!res.ok) throw new Error(data.message || 'Erro ao criar usuário.');
                 fb.textContent = 'Usuário criado com sucesso.';
                 fb.className = 'login-feedback success';
+                fetchMetrics();
                 setTimeout(() => {
                     closeModal('criar-usuario-modal');
                     criarUsuarioForm.reset();
@@ -2457,7 +2547,7 @@ window.onload = function () {
                 fb.className = 'login-feedback error';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Criar usuário';
+                setBtn(btn, 'fa-solid fa-user-plus', 'Criar usuário');
             }
         });
     }

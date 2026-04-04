@@ -82,19 +82,32 @@ class Response
     private static function securityHeaders(bool $isApi = true): array
     {
         if ($isApi) {
-            $csp = "default-src 'none'; frame-ancestors 'none'";
+            // API pura: política máxima — nenhum recurso permitido, base-uri none (sem <base> tag em JSON)
+            $csp = "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
         } else {
             $nonce = \Src\Kernel\Nonce::get();
-            $csp   = "default-src 'self'; script-src 'self' 'nonce-{$nonce}'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+            // Página HTML: scripts via nonce, estilos do CDN permitido, sem object/embed
+            // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
+            // trusted-types inclui 'dompurify' para que o DOMPurify possa criar sua política interna.
+            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
         }
 
         $headers = [
-            'X-Content-Type-Options'  => 'nosniff',
-            'X-Frame-Options'         => 'DENY',
-            'X-XSS-Protection'        => '1; mode=block',
-            'Referrer-Policy'         => 'strict-origin-when-cross-origin',
-            'Permissions-Policy'      => 'geolocation=(), microphone=(), camera=()',
-            'Content-Security-Policy' => $csp,
+            'X-Content-Type-Options'          => 'nosniff',
+            'X-Frame-Options'                 => 'DENY',
+            // X-XSS-Protection removido: deprecated desde 2019, ignorado por browsers modernos
+            // e pode causar vulnerabilidades em browsers legados. O CSP cobre XSS adequadamente.
+            // API usa no-referrer — não há motivo para enviar referrer em chamadas de API
+            // HTML usa strict-origin-when-cross-origin — melhor equilíbrio para páginas
+            'Referrer-Policy'                 => $isApi ? 'no-referrer' : 'strict-origin-when-cross-origin',
+            'Permissions-Policy'              => 'geolocation=(), microphone=(), camera=()',
+            'Content-Security-Policy'         => $csp,
+            // CORP/COEP/COOP: isolamento de processo — protege contra Spectre/XS-Leaks
+            // COEP usa 'credentialless' em vez de 'require-corp' para permitir CDNs externos
+            // sem exigir que eles enviem Cross-Origin-Resource-Policy: cross-origin
+            'Cross-Origin-Resource-Policy'    => $isApi ? 'same-origin' : 'same-site',
+            'Cross-Origin-Opener-Policy'      => 'same-origin',
+            'Cross-Origin-Embedder-Policy'    => $isApi ? 'require-corp' : 'credentialless',
         ];
 
         if (\Src\Kernel\Support\CookieConfig::isHttps()) {

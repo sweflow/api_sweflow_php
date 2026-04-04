@@ -9,6 +9,10 @@ use DomainException;
 
 class UsuarioService implements UsuarioServiceInterface
 {
+    public function __construct(
+        private UsuarioRepositoryInterface $repository
+    ) {}
+
     public function emailExiste(string $email): bool
     {
         return $this->repository->emailExiste($email);
@@ -18,9 +22,6 @@ class UsuarioService implements UsuarioServiceInterface
     {
         return $this->repository->usernameExiste($username);
     }
-    public function __construct(
-        private UsuarioRepositoryInterface $repository
-    ) {}
 
     public function criar(Usuario $usuario): void
     {
@@ -87,9 +88,8 @@ class UsuarioService implements UsuarioServiceInterface
         } catch (\RuntimeException $e) {
             // Erro de persistência (ex: nenhuma linha afetada)
             throw new DomainException($e->getMessage(), 500, $e);
-        } catch (\Throwable $e) {
-            throw new DomainException($e->getMessage(), 500, $e);
         }
+        // DomainException propaga normalmente — não captura aqui para preservar o código HTTP original
     }
 
     // Salva o token de verificação de e-mail
@@ -127,10 +127,6 @@ class UsuarioService implements UsuarioServiceInterface
 
     public function limparTokenRecuperacaoSenha(string $uuid): void
     {
-        $usuario = $this->repository->buscarPorUuid($uuid);
-        if (!$usuario) {
-            throw new DomainException('Usuário não encontrado.');
-        }
         $this->repository->limparTokenRecuperacaoSenha($uuid);
     }
 
@@ -141,7 +137,6 @@ class UsuarioService implements UsuarioServiceInterface
         if (!$usuario) {
             throw new DomainException('Usuário não encontrado.');
         }
-        //$usuario->setStatusVerificacao('Verificado');
         $this->repository->marcarEmailComoVerificado($uuid);
     }
 

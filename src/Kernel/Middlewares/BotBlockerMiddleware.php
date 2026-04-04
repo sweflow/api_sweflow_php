@@ -30,9 +30,12 @@ class BotBlockerMiddleware implements MiddlewareInterface
         'libwww-perl', 'lwp-trivial', 'scrapy',
     ];
 
+    private string $env;
+
     public function __construct(private ?ThreatScorer $scorer = null)
     {
         $this->scorer ??= new ThreatScorer();
+        $this->env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
     }
 
     public function handle(Request $request, callable $next): Response
@@ -43,13 +46,8 @@ class BotBlockerMiddleware implements MiddlewareInterface
 
         $scorer = $this->scorer;
 
-        // Loopback em desenvolvimento nunca é bloqueado
-        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
         $isLoopback = in_array($ip, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)
                       || strncmp($ip, '127.', 4) === 0;
-        if ($env !== 'production' && $isLoopback) {
-            return $next($request);
-        }
 
         // 1. Bloqueia por score acumulado (comportamento anterior)
         if ($scorer->shouldBlock($ip)) {
@@ -57,18 +55,23 @@ class BotBlockerMiddleware implements MiddlewareInterface
             return $this->blockResponse();
         }
 
-        // 2. Bloqueia User-Agents de ferramentas conhecidas
+        // 2. Bloqueia User-Agents de ferramentas conhecidas (sempre, mesmo em loopback)
         if ($this->isMaliciousUserAgent($ua)) {
             $scorer->add($ip, ThreatScorer::SCORE_MALICIOUS_UA);
             $this->log('bot.blocked.ua', $ip, $uri, $ua);
             return $this->blockResponse();
         }
 
-        // 3. API sem User-Agent
+        // 3. API sem User-Agent (sempre, mesmo em loopback)
         if (str_starts_with($uri, '/api/') && trim($ua) === '') {
             $scorer->add($ip, ThreatScorer::SCORE_NO_UA);
             $this->log('bot.blocked.no_ua', $ip, $uri, '');
             return $this->blockResponse();
+        }
+
+        // Loopback em desenvolvimento: pula delay progressivo
+        if ($this->env !== 'production' && $isLoopback) {
+            return $next($request);
         }
 
         // 4. Delay progressivo para IPs com score elevado mas abaixo do threshold de bloqueio
@@ -101,8 +104,7 @@ class BotBlockerMiddleware implements MiddlewareInterface
 
     private function log(string $event, string $ip, string $uri, string $ua): void
     {
-        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
-        if ($env === 'testing') {
+        if ($this->env === 'testing') {
             return;
         }
         $line = json_encode([

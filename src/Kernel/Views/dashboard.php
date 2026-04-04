@@ -1,37 +1,85 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title><?= htmlspecialchars($titulo ?? 'Dashboard', ENT_QUOTES, 'UTF-8') ?></title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
-        html, body { margin: 0; padding: 0; }
-        html.will-dark, html.will-dark body, html.will-dark .dash-body {
+        html, body { margin: 0; padding: 0; background: #f8fafc; }
+        /* Pré-aplica variáveis dark antes do CSS externo carregar — elimina flash */
+        html.will-dark .dash-body {
+            --bg-page:        #0b0d18;
+            --bg-topbar:      rgba(11,13,24,0.92);
+            --bg-sidebar:     #0d0f1a;
+            --bg-card:        #161929;
+            --bg-dropdown:    #12141f;
+            --bg-input:       rgba(255,255,255,0.04);
+            --bg-hover:       rgba(255,255,255,0.05);
+            --bg-hero:        linear-gradient(135deg,rgba(79,70,229,0.12) 0%,rgba(124,58,237,0.08) 100%);
+            --text-primary:   #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted:     #475569;
+            --text-nav:       #cbd5e1;
+            --text-nav-hover: #f1f5f9;
+            --border-color:   rgba(255,255,255,0.07);
+            --border-topbar:  rgba(255,255,255,0.06);
+            --border-sidebar: rgba(255,255,255,0.05);
+            --border-card:    rgba(255,255,255,0.06);
+            --border-input:   rgba(255,255,255,0.09);
             background: #0b0d18 !important;
             color: #f1f5f9 !important;
         }
+        html.will-dark body,
+        html.will-dark .dash-topbar,
+        html.will-dark .dash-sidebar,
+        html.will-dark .dash-main,
+        html.will-dark .dash-layout { background: #0b0d18 !important; }
+        html.will-dark .dash-card   { background: #161929 !important; }
+        html.dash-no-transition *, html.dash-no-transition *::before, html.dash-no-transition *::after {
+            transition: none !important;
+        }
     </style>
     <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
-        if (localStorage.getItem('dash-dark-mode') === '1') {
-            document.documentElement.classList.add('will-dark', 'dash-no-transition');
-        } else {
+        (function() {
+            var dark = localStorage.getItem('dash-dark-mode') === '1';
             document.documentElement.classList.add('dash-no-transition');
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            if (localStorage.getItem('dash-dark-mode') === '1') {
-                document.body.classList.add('dark');
-                var icon = document.getElementById('theme-icon');
-                if (icon) icon.className = 'fa-solid fa-sun';
-            }
-            document.documentElement.classList.remove('will-dark');
-            requestAnimationFrame(function() {
+            if (dark) document.documentElement.classList.add('will-dark');
+            document.addEventListener('DOMContentLoaded', function() {
+                if (dark) {
+                    document.body.classList.add('dark');
+                    var icon = document.getElementById('theme-icon');
+                    if (icon) icon.className = 'fa-solid fa-sun';
+                }
+                document.documentElement.classList.remove('will-dark');
                 requestAnimationFrame(function() {
-                    document.documentElement.classList.remove('dash-no-transition');
+                    requestAnimationFrame(function() {
+                        document.documentElement.classList.remove('dash-no-transition');
+                    });
                 });
+                // Pré-aplica avatar do cache antes do nav-init.js carregar
+                try {
+                    var avatarUrl = localStorage.getItem('dash-avatar-url');
+                    if (avatarUrl) {
+                        var el = document.getElementById('topbar-avatar');
+                        if (el) {
+                            el.textContent = '';
+                            var img = document.createElement('img');
+                            img.src = avatarUrl;
+                            img.alt = 'Avatar';
+                            img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                            img.onerror = function() { el.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
+                            el.appendChild(img);
+                        }
+                    }
+                } catch(_) {}
             });
-        });
+        })();
     </script>
-    <link rel="stylesheet" href="/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/style.css') ?>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/assets/js/trusted-types-policy.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/trusted-types-policy.js') ?>"></script>
+    <link rel="stylesheet" href="/assets/css/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body class="dash-body">
@@ -101,13 +149,42 @@
             </div>
         </button>
         <div class="dash-avatar-wrap" id="topbar-avatar-wrap">
-            <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil">
-                <i class="fa-solid fa-circle-user"></i>
-            </div>
+            <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil"></div>
             <span class="dash-avatar-status"></span>
         </div>
     </div>
 </header>
+<script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+(function(){
+    var el = document.getElementById('topbar-avatar');
+    if (!el) return;
+    try {
+        var url = localStorage.getItem('dash-avatar-url');
+        if (url) {
+            var img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Avatar';
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+            img.onerror = function() {
+                el.innerHTML = '';
+                var ic = document.createElement('i');
+                ic.className = 'fa-solid fa-circle-user';
+                el.appendChild(ic);
+                localStorage.removeItem('dash-avatar-url');
+            };
+            el.appendChild(img);
+        } else {
+            var ic = document.createElement('i');
+            ic.className = 'fa-solid fa-circle-user';
+            el.appendChild(ic);
+        }
+    } catch(_) {
+        var ic2 = document.createElement('i');
+        ic2.className = 'fa-solid fa-circle-user';
+        el.appendChild(ic2);
+    }
+})();
+</script>
 
 <!-- ── LAYOUT ─────────────────────────────────────────────────────── -->
 <div class="dash-layout">
@@ -154,7 +231,7 @@
                     <img src="/favicon.ico" alt="Sweflow API" class="dash-hero-logo" />
                     <span class="dash-hero-brand-name">Sweflow <span style="color:#818cf8">API</span></span>
                 </div>
-                <h1 class="dash-hero-title">Olá, <span id="hero-username">...</span> 👋</h1>
+                <h1 class="dash-hero-title">Dashboard <span id="hero-username"></span></h1>
                 <p class="dash-hero-sub">Monitoramento em tempo real do núcleo da API.</p>
             </div>
         </section>
@@ -702,99 +779,8 @@
     </div>
 </div>
 
-<script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
-// Seta flag ANTES de nav-init.js ser parseado, para que ele não registre listener duplicado
-window.__sidebarToggleInit = true;
-</script>
-<script src="/assets/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/nav-init.js') ?>"></script>
-<script src="/assets/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/dashboard.js') ?>"></script>
-<script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>"><?php // inline dashboard init ?>
-
-// Conecta botões extras ao dashboard.js (open-email-modal-hero, open-email-modal2, sidebar links)
-document.addEventListener('DOMContentLoaded', function () {
-    // Fecha modal de rota
-    const rdClose = document.getElementById('route-detail-close');
-    if (rdClose) {
-        rdClose.addEventListener('click', () => {
-            const ov = document.getElementById('route-detail-modal');
-            if (ov) { ov.classList.remove('show'); ov.setAttribute('aria-hidden', 'true'); }
-        });
-    }
-    document.getElementById('route-detail-modal')?.addEventListener('click', function(e) {
-        if (e.target === this) { this.classList.remove('show'); this.setAttribute('aria-hidden', 'true'); }
-    });
-
-    // Dark mode — gerenciado pelo nav-init.js (evita listener duplicado)
-
-    // Sidebar toggle
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const sidebar       = document.getElementById('dash-sidebar');
-    const backdrop      = document.getElementById('sidebar-backdrop');
-    if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            sidebar.classList.toggle('open');
-            backdrop?.classList.toggle('show');
-        });
-        backdrop?.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            backdrop.classList.remove('show');
-        });
-        document.querySelectorAll('.dash-sidenav-link[href^="#"]').forEach(a => {
-            a.addEventListener('click', () => {
-                if (window.innerWidth < 1024) {
-                    sidebar.classList.remove('open');
-                    backdrop?.classList.remove('show');
-                }
-            });
-        });
-    }
-
-    // Dropdowns topbar — gerenciados pelo nav-init.js (evita listener duplicado)
-
-    // Smooth scroll links
-    document.querySelectorAll('a[href^="#"]').forEach(a => {
-        const href = a.getAttribute('href');
-        if (!href || href === '#') return;
-        a.addEventListener('click', e => {
-            const t = document.querySelector(href);
-            if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-        });
-    });
-
-    // Botões extras de e-mail apontam para o mesmo modal
-    ['open-email-modal-hero', 'open-email-modal2'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', () => document.getElementById('open-email-modal')?.click());
-    });
-
-    // Sidebar links de perfil/criar usuário/logout
-    const sbPerfil = document.getElementById('sb-meu-perfil');
-    const sbCriar  = document.getElementById('sb-criar-user');
-    const sbLogout = document.getElementById('sb-logout');
-    if (sbPerfil) sbPerfil.addEventListener('click', e => { e.preventDefault(); document.getElementById('open-meu-perfil')?.click(); });
-    if (sbCriar)  sbCriar.addEventListener('click',  e => { e.preventDefault(); document.getElementById('open-criar-usuario')?.click(); });
-    if (sbLogout) sbLogout.addEventListener('click',  e => { e.preventDefault(); document.getElementById('logout-btn')?.click(); });
-
-    // Avatar topbar → perfil + carrega foto
-    const avatar = document.getElementById('topbar-avatar');
-    if (avatar) {
-        avatar.addEventListener('click', () => document.getElementById('open-meu-perfil')?.click());
-        // Tenta carregar foto do usuário logado
-        fetch('/api/auth/me', { credentials: 'same-origin' })
-            .then(r => r.ok ? r.json() : null)
-            .then(data => {
-                const user = data?.user ?? data;
-                if (user?.avatar_url) {
-                    avatar.innerHTML = `<img src="${user.avatar_url}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
-                } else if (user?.nome || user?.username) {
-                    const initials = ((user.nome || user.username || '?')[0]).toUpperCase();
-                    avatar.innerHTML = `<span style="font-size:1.1rem;font-weight:800;">${initials}</span>`;
-                }
-            })
-            .catch(() => {});
-    }
-});
-</script>
+<script src="/assets/js/dashboard-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard-init.js') ?>"></script>
+<script src="/assets/js/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/nav-init.js') ?>"></script>
+<script src="/assets/js/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard.js') ?>"></script>
 </body>
 </html>

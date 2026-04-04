@@ -331,7 +331,8 @@ $container->bind(AuditLogger::class, static function () use ($container) {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             }
         } catch (\Throwable) {}
-        return new AuditLogger($pdo);
+        $ctx = $container->make(\Src\Kernel\Support\RequestContext::class);
+        return new AuditLogger($pdo, $ctx);
     } catch (\Throwable) {
         return new AuditLogger(null);
     }

@@ -3,185 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Marketplace de Módulos — Sweflow</title>
-    <link rel="stylesheet" href="/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/style.css') ?>">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
-        html, body { margin: 0; padding: 0; }
-        html.will-dark, html.will-dark body, html.will-dark .dash-body { background: #0b0d18 !important; color: #f1f5f9 !important; }
+        html, body { margin: 0; padding: 0; background: #f8fafc; }
+        html.will-dark .dash-body {
+            --bg-page:        #0b0d18;
+            --bg-topbar:      rgba(11,13,24,0.92);
+            --bg-sidebar:     #0d0f1a;
+            --bg-card:        #161929;
+            --bg-dropdown:    #12141f;
+            --bg-input:       rgba(255,255,255,0.04);
+            --bg-hover:       rgba(255,255,255,0.05);
+            --bg-hero:        linear-gradient(135deg,rgba(79,70,229,0.12) 0%,rgba(124,58,237,0.08) 100%);
+            --text-primary:   #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted:     #475569;
+            --text-nav:       #cbd5e1;
+            --text-nav-hover: #f1f5f9;
+            --border-color:   rgba(255,255,255,0.07);
+            --border-topbar:  rgba(255,255,255,0.06);
+            --border-sidebar: rgba(255,255,255,0.05);
+            --border-card:    rgba(255,255,255,0.06);
+            --border-input:   rgba(255,255,255,0.09);
+            background: #0b0d18 !important;
+            color: #f1f5f9 !important;
+        }
+        html.will-dark body,
+        html.will-dark .dash-topbar,
+        html.will-dark .dash-sidebar,
+        html.will-dark .dash-main,
+        html.will-dark .dash-layout { background: #0b0d18 !important; }
+        html.will-dark .dash-card   { background: #161929 !important; }
+        html.dash-no-transition *, html.dash-no-transition *::before, html.dash-no-transition *::after {
+            transition: none !important;
+        }
     </style>
     <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
-        if (localStorage.getItem('dash-dark-mode') === '1') {
-            document.documentElement.classList.add('will-dark', 'dash-no-transition');
-        } else {
+        (function() {
+            var dark = localStorage.getItem('dash-dark-mode') === '1';
             document.documentElement.classList.add('dash-no-transition');
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            if (localStorage.getItem('dash-dark-mode') === '1') document.body.classList.add('dark');
-            document.documentElement.classList.remove('will-dark');
-            requestAnimationFrame(function() { requestAnimationFrame(function() { document.documentElement.classList.remove('dash-no-transition'); }); });
-        });
-    </script><script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
-        if (localStorage.getItem('dash-dark-mode') === '1') {
-            document.documentElement.classList.add('will-dark', 'dash-no-transition');
-        } else {
-            document.documentElement.classList.add('dash-no-transition');
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            if (localStorage.getItem('dash-dark-mode') === '1') document.body.classList.add('dark');
-            document.documentElement.classList.remove('will-dark');
-            requestAnimationFrame(function() { requestAnimationFrame(function() { document.documentElement.classList.remove('dash-no-transition'); }); });
-        });
+            if (dark) document.documentElement.classList.add('will-dark');
+            document.addEventListener('DOMContentLoaded', function() {
+                if (dark) document.body.classList.add('dark');
+                document.documentElement.classList.remove('will-dark');
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        document.documentElement.classList.remove('dash-no-transition');
+                    });
+                });
+                try {
+                    var avatarUrl = localStorage.getItem('dash-avatar-url');
+                    if (avatarUrl) {
+                        var el = document.getElementById('topbar-avatar');
+                        if (el) {
+                            el.textContent = '';
+                            var img = document.createElement('img');
+                            img.src = avatarUrl;
+                            img.alt = 'Avatar';
+                            img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                            img.onerror = function() { el.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
+                            el.appendChild(img);
+                        }
+                    }
+                } catch(_) {}
+            });
+        })();
     </script>
-    <style>
-        /* ── Marketplace — usa variáveis do tema (light/dark) ── */
-        .mp-hero {
-            background: linear-gradient(135deg, rgba(79,70,229,0.12) 0%, rgba(124,58,237,0.08) 100%);
-            border: 1px solid rgba(79,70,229,0.2);
-            border-radius: 16px;
-            padding: 36px 32px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-        .mp-hero-text h1 {
-            color: var(--text-primary);
-            font-size: 1.8rem;
-            margin: 0 0 8px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .mp-hero-text h1 i { color: #818cf8; }
-        .mp-hero-text p { color: var(--text-secondary); font-size: 1rem; margin: 0; }
-        .mp-hero-badge {
-            background: var(--bg-card);
-            border: 1px solid var(--border-card);
-            border-radius: 12px;
-            padding: 14px 20px;
-            text-align: center;
-            min-width: 110px;
-        }
-        .mp-hero-badge .badge-num { font-size: 2rem; font-weight: 800; color: #818cf8; display: block; }
-        .mp-hero-badge .badge-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
-
-        .mp-search-wrap {
-            background: var(--bg-card);
-            border: 1px solid var(--border-card);
-            border-radius: 14px;
-            padding: 18px 22px;
-            margin-bottom: 24px;
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .mp-search-wrap label { font-weight: 700; font-size: 1rem; color: var(--text-secondary); white-space: nowrap; }
-        .mp-search-input {
-            flex: 1;
-            min-width: 220px;
-            padding: 13px 16px;
-            font-size: 1rem;
-            border: 1px solid var(--border-input);
-            border-radius: 10px;
-            background: var(--bg-input);
-            color: var(--text-primary);
-            transition: border-color 0.15s, box-shadow 0.15s;
-            outline: none;
-            font-family: inherit;
-        }
-        .mp-search-input::placeholder { color: var(--text-muted); }
-        .mp-search-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.18); background: rgba(79,70,229,0.04); }
-        .mp-search-btn {
-            padding: 13px 22px;
-            font-size: 1rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 9px;
-            transition: opacity 0.15s, transform 0.1s;
-            white-space: nowrap;
-            font-family: inherit;
-            box-shadow: 0 4px 14px rgba(79,70,229,0.3);
-            touch-action: manipulation;
-        }
-        .mp-search-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-
-        .mp-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-        }
-        .pkg-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-card);
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-            overflow: hidden;
-            position: relative;
-        }
-        .pkg-card:hover { border-color: rgba(79,70,229,0.4); box-shadow: 0 12px 36px rgba(0,0,0,0.15); transform: translateY(-3px); }
-        .pkg-card.installed { border-color: rgba(34,197,94,0.25); }
-        .pkg-card.installed:hover { border-color: rgba(34,197,94,0.45); box-shadow: 0 12px 36px rgba(34,197,94,0.1); }
-        .pkg-card::before { content: ''; display: block; height: 4px; background: linear-gradient(90deg, #4f46e5, #818cf8); }
-        .pkg-card.installed::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
-        .pkg-card-body { padding: 22px 22px 16px; flex: 1; display: flex; flex-direction: column; gap: 14px; }
-        .pkg-header { display: flex; align-items: flex-start; gap: 14px; }
-        .pkg-icon {
-            width: 48px; height: 48px; border-radius: 12px;
-            background: rgba(79,70,229,0.12); display: flex; align-items: center;
-            justify-content: center; font-size: 1.4rem; color: #818cf8; flex-shrink: 0;
-        }
-        .pkg-card.installed .pkg-icon { background: rgba(34,197,94,0.1); color: #22c55e; }
-        .pkg-title-wrap { flex: 1; min-width: 0; }
-        .pkg-name { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; word-break: break-word; line-height: 1.3; }
-        .pkg-vendor { font-size: 0.82rem; color: var(--text-muted); font-family: monospace; }
-        .pkg-status-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; flex-shrink: 0;
-        }
-        .pkg-status-badge.installed { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
-        .pkg-status-badge.available { background: rgba(79,70,229,0.1); color: #818cf8; border: 1px solid rgba(79,70,229,0.2); }
-        .pkg-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.65; margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-        .pkg-meta { display: flex; gap: 16px; flex-wrap: wrap; }
-        .pkg-meta-item { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; color: var(--text-secondary); font-weight: 500; }
-        .pkg-meta-item i { color: var(--text-muted); font-size: 0.82rem; }
-        .pkg-meta-item strong { color: var(--text-primary); }
-        .pkg-card-footer { padding: 14px 22px 18px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--bg-card); }
-        .pkg-packagist-link { font-size: 0.88rem; color: #818cf8; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
-        .pkg-packagist-link:hover { color: #a5b4fc; text-decoration: underline; }
-        .pkg-btn {
-            padding: 11px 20px; font-size: 0.97rem; font-weight: 700; border: none; border-radius: 10px;
-            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-            transition: all 0.15s; min-width: 120px; justify-content: center; font-family: inherit;
-            touch-action: manipulation;
-        }
-        .pkg-btn.install { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; box-shadow: 0 4px 14px rgba(79,70,229,0.3); }
-        .pkg-btn.install:hover { opacity: 0.9; transform: translateY(-1px); }
-        .pkg-btn.remove { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
-        .pkg-btn.remove:hover { background: rgba(239,68,68,0.18); }
-        .pkg-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-        .mp-state { grid-column: 1/-1; background: var(--bg-card); border-radius: 16px; padding: 56px 32px; text-align: center; border: 1px dashed var(--border-card); }
-        .mp-state i { font-size: 3rem; color: var(--text-muted); margin-bottom: 16px; display: block; }
-        .mp-state p { font-size: 1rem; color: var(--text-secondary); margin: 0; }
-        .mp-state strong { color: var(--text-primary); }
-        @media (max-width: 900px) {
-            .mp-hero { padding: 24px 18px; }
-            .mp-hero-text h1 { font-size: 1.4rem; }
-            .mp-grid { grid-template-columns: 1fr; }
-            .mp-search-wrap { padding: 14px; }
-        }
-    </style>
+    <link rel="stylesheet" href="/assets/css/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css') ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/css/marketplace.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/css/marketplace.css') ?>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/assets/js/trusted-types-policy.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/trusted-types-policy.js') ?>"></script>
 </head>
 <body class="dash-body">
     <!-- TOPBAR -->
@@ -244,13 +138,14 @@
                 </div>
             </button>
             <div class="dash-avatar-wrap" id="topbar-avatar-wrap">
-                <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil">
-                    <i class="fa-solid fa-circle-user"></i>
-                </div>
+                <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil"></div>
                 <span class="dash-avatar-status"></span>
             </div>
         </div>
     </header>
+    <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+    (function(){var el=document.getElementById('topbar-avatar');if(!el)return;try{var url=localStorage.getItem('dash-avatar-url');if(url){var img=document.createElement('img');img.src=url;img.alt='Avatar';img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;';img.onerror=function(){el.innerHTML='';var ic=document.createElement('i');ic.className='fa-solid fa-circle-user';el.appendChild(ic);localStorage.removeItem('dash-avatar-url');};el.appendChild(img);}else{var ic=document.createElement('i');ic.className='fa-solid fa-circle-user';el.appendChild(ic);}}catch(_){var ic2=document.createElement('i');ic2.className='fa-solid fa-circle-user';el.appendChild(ic2);}})();
+    </script>
 
     <div class="dash-layout">
         <!-- SIDEBAR -->
@@ -259,11 +154,7 @@
                 <nav class="dash-sidenav">
                     <div class="dash-sidenav-section">
                         <span class="dash-sidenav-label">Configuração</span>
-                        <a href="/modules/marketplace"     class="dash-sidenav-link dash-sidenav-active"><i class="fa-solid fa-store"></i> Marketplace</a>
-                    </div>
-                    <div class="dash-sidenav-section">
-                        <span class="dash-sidenav-label">Conta</span>
-                        <a href="/dashboard/usuarios" class="dash-sidenav-link"><i class="fa-solid fa-users"></i> Usuários</a>
+                        <a href="/modules/marketplace" class="dash-sidenav-link dash-sidenav-active"><i class="fa-solid fa-store"></i> Marketplace</a>
                     </div>
                     <div class="dash-sidenav-section">
                         <a href="/dashboard" class="dash-sidenav-link"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
@@ -311,6 +202,27 @@
         </main>
     </div><!-- /.dash-layout -->
 
+    <!-- Modal: Confirmar instalação -->
+    <div class="modal-overlay" id="install-modal" role="dialog" aria-modal="true" aria-labelledby="install-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="install-title"><i class="fa-solid fa-download" style="color:#818cf8;" aria-hidden="true"></i> Confirmar instalação</h2>
+                <button class="modal-close" data-close="install-modal" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <p id="install-message" style="font-size:1.05rem;line-height:1.6;margin:8px 0 14px;"></p>
+            <div class="mp-install-warning">
+                <i class="fa-solid fa-circle-info"></i>
+                A instalação irá baixar e registrar o módulo na plataforma. O processo pode levar alguns segundos.
+            </div>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button class="btn ghost" data-close="install-modal" style="font-size:1rem;padding:12px 20px;">Cancelar</button>
+                <button class="btn" id="install-confirm-btn" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:1rem;padding:12px 22px;border:none;">
+                    <i class="fa-solid fa-download" aria-hidden="true"></i> Instalar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Confirmar remoção -->
     <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
         <div class="modal">
@@ -342,232 +254,82 @@
         </div>
     </div>
 
-    <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
-    function openModal(id) {
-        const el = document.getElementById(id);
-        el.classList.add('show');
-        el.querySelector('button')?.focus();
-    }
-    function closeModal(id) {
-        document.getElementById(id).classList.remove('show');
-    }
-    document.addEventListener('click', (e) => {
-        const target = e.target.closest('[data-close]');
-        if (target) closeModal(target.dataset.close);
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
-        }
-    });
+    <!-- Modal: Detalhes do módulo -->
+    <div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
+        <div class="modal pkg-detail-modal">
+            <div class="modal-header">
+                <h2 id="detail-modal-title"><i class="fa-solid fa-puzzle-piece" style="color:#818cf8;" aria-hidden="true"></i> Detalhes do módulo</h2>
+                <button class="modal-close" data-close="detail-modal" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <div id="detail-modal-body"></div>
+        </div>
+    </div>
 
-    (function () {
-        const grid        = document.getElementById('pkg-grid');
-        const qInput      = document.getElementById('q');
-        const searchBtn   = document.getElementById('search');
-        const totalCount  = document.getElementById('total-count');
-        let currentPkg    = null;
-        let currentAction = null;
-        let currentBtn    = null;
+<!-- Meu Perfil -->
+<div class="modal-overlay" id="meu-perfil-modal">
+    <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
+        <div class="modal-header perfil-modal-header">
+            <h2><i class="fa-solid fa-circle-user"></i> Meu perfil</h2>
+            <button class="modal-close" id="meu-perfil-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="meu-perfil-body" style="display:flex;flex-direction:column;gap:20px;"><p style="color:#888;text-align:center;padding:24px;">Carregando...</p></div>
+        <div class="perfil-modal-actions">
+            <button class="btn ghost perfil-action-btn" id="meu-perfil-alterar-senha"><i class="fa-solid fa-key"></i> Alterar senha</button>
+            <button class="btn primary perfil-action-btn" id="meu-perfil-editar"><i class="fa-solid fa-pen"></i> Editar dados</button>
+        </div>
+    </div>
+</div>
+<!-- Editar Perfil -->
+<div class="modal-overlay" id="editar-perfil-modal">
+    <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
+        <div class="modal-header perfil-modal-header">
+            <h2><i class="fa-solid fa-pen"></i> Editar dados</h2>
+            <button class="modal-close" id="editar-perfil-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="editar-perfil-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:72vh;padding-right:2px;">
+            <div class="input-group"><label for="ep-nome">Nome completo</label><input type="text" id="ep-nome" placeholder="Seu nome completo" /></div>
+            <div class="input-group"><label for="ep-username">Username</label><input type="text" id="ep-username" placeholder="seu.username" autocomplete="off" /><small id="ep-username-feedback" class="hint"></small></div>
+            <div class="input-group"><label for="ep-email">E-mail</label><input type="email" id="ep-email" placeholder="email@exemplo.com" /><small id="ep-email-feedback" class="hint"></small><small class="hint">Para alterar o e-mail, informe sua senha atual abaixo.</small></div>
+            <div class="input-group" id="ep-senha-email-group" style="display:none;"><label for="ep-senha-email">Senha atual</label><input type="password" id="ep-senha-email" placeholder="Senha atual" autocomplete="current-password" /></div>
+            <div class="input-group"><label for="ep-avatar">URL do avatar</label><input type="url" id="ep-avatar" placeholder="https://..." /><div id="ep-avatar-preview" style="margin-top:6px;display:none;"><img id="ep-avatar-img" src="" alt="Preview" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #e0e0e0;" /></div></div>
+            <div class="input-group"><label for="ep-capa">URL da capa</label><input type="url" id="ep-capa" placeholder="https://..." /><div id="ep-capa-preview" style="margin-top:6px;display:none;"><img id="ep-capa-img" src="" alt="Preview capa" style="width:100%;max-height:80px;object-fit:cover;border-radius:8px;border:2px solid #e0e0e0;" /></div></div>
+            <div class="input-group"><label for="ep-bio">Biografia</label><textarea id="ep-bio" rows="3" placeholder="Fale um pouco sobre você..." style="padding:10px;border:1px solid #d5daf2;border-radius:10px;font-size:1rem;resize:vertical;"></textarea></div>
+            <div id="ep-feedback" class="login-feedback" aria-live="polite"></div>
+        </form>
+        <div class="perfil-modal-actions">
+            <button type="button" class="btn ghost perfil-action-btn" id="editar-perfil-cancel">Cancelar</button>
+            <button type="submit" form="editar-perfil-form" class="btn primary perfil-action-btn" id="editar-perfil-save"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        </div>
+    </div>
+</div>
+<!-- Alterar Senha -->
+<div class="modal-overlay" id="alterar-senha-modal">
+    <div class="modal" style="max-width:460px;width:95vw;">
+        <div class="modal-header"><h2><i class="fa-solid fa-key"></i> Alterar senha</h2>
+            <button class="modal-close" id="alterar-senha-close"><i class="fa-solid fa-xmark"></i></button></div>
+        <form id="alterar-senha-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="input-group"><label for="as-atual">Senha atual</label><input type="password" id="as-atual" placeholder="Senha atual" autocomplete="current-password" /></div>
+            <div class="input-group"><label for="as-nova">Nova senha</label><input type="password" id="as-nova" placeholder="Nova senha" autocomplete="new-password" /></div>
+            <div class="input-group"><label for="as-confirmar">Confirmar nova senha</label><input type="password" id="as-confirmar" placeholder="Confirmar nova senha" autocomplete="new-password" /></div>
+            <div id="as-regras" class="senha-regras">
+                <div class="regra" id="as-r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
+                <div class="regra" id="as-r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
+                <div class="regra" id="as-r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
+                <div class="regra" id="as-r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
+                <div class="regra" id="as-r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
+                <div class="regra" id="as-r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
+            </div>
+            <div id="as-feedback" class="login-feedback" aria-live="polite"></div>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button type="button" class="btn ghost" id="alterar-senha-cancel">Cancelar</button>
+                <button type="submit" class="btn primary" id="alterar-senha-save" disabled><i class="fa-solid fa-key"></i> Alterar senha</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-        // ── Helpers ──────────────────────────────────────────────────────
-        function shortName(fullName) {
-            return fullName.split('/').pop() ?? fullName;
-        }
-
-        function iconForPkg(name) {
-            const n = name.toLowerCase();
-            if (n.includes('email') || n.includes('mail'))   return 'fa-envelope';
-            if (n.includes('auth') || n.includes('login'))   return 'fa-shield-halved';
-            if (n.includes('payment') || n.includes('pay'))  return 'fa-credit-card';
-            if (n.includes('storage') || n.includes('file')) return 'fa-hard-drive';
-            if (n.includes('notification'))                   return 'fa-bell';
-            if (n.includes('user') || n.includes('usuario')) return 'fa-users';
-            if (n.includes('log') || n.includes('audit'))    return 'fa-clipboard-list';
-            if (n.includes('cache'))                          return 'fa-bolt';
-            if (n.includes('queue') || n.includes('job'))    return 'fa-layer-group';
-            if (n.includes('api'))                            return 'fa-plug';
-            return 'fa-puzzle-piece';
-        }
-
-        // ── Card template ─────────────────────────────────────────────────
-        function card(pkg) {
-            const name      = pkg.name      || '';
-            const desc      = pkg.description || 'Sem descrição disponível.';
-            const dls       = (pkg.downloads || 0).toLocaleString('pt-BR');
-            const installed = pkg.installed  || false;
-            const url       = pkg.url        || '';
-            const repo      = pkg.repository || '';
-            const icon      = iconForPkg(name);
-            const vendor    = name.includes('/') ? name.split('/')[0] : '';
-            const pkgShort  = shortName(name);
-
-            const statusBadge = installed
-                ? `<span class="pkg-status-badge installed" aria-label="Módulo instalado"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Instalado</span>`
-                : `<span class="pkg-status-badge available" aria-label="Disponível para instalação"><i class="fa-solid fa-circle-dot" aria-hidden="true"></i> Disponível</span>`;
-
-            const actionBtn = installed
-                ? `<button class="pkg-btn remove" data-pkg="${name}" data-action="uninstall" aria-label="Remover módulo ${pkgShort}">
-                       <i class="fa-solid fa-trash" aria-hidden="true"></i> Remover
-                   </button>`
-                : `<button class="pkg-btn install" data-pkg="${name}" data-action="install" aria-label="Instalar módulo ${pkgShort}">
-                       <i class="fa-solid fa-download" aria-hidden="true"></i> Instalar
-                   </button>`;
-
-            const externalLinks = [];
-            if (url)  externalLinks.push(`<a href="${url}"  target="_blank" rel="noopener noreferrer" class="pkg-packagist-link" aria-label="Ver ${pkgShort} no Packagist"><i class="fa-solid fa-box-open" aria-hidden="true"></i> Packagist</a>`);
-            if (repo) externalLinks.push(`<a href="${repo}" target="_blank" rel="noopener noreferrer" class="pkg-packagist-link" aria-label="Ver repositório de ${pkgShort}"><i class="fa-brands fa-github" aria-hidden="true"></i> Repositório</a>`);
-
-            return `
-            <article class="pkg-card ${installed ? 'installed' : ''}" role="listitem" aria-label="Módulo ${pkgShort}">
-                <div class="pkg-card-body">
-                    <div class="pkg-header">
-                        <div class="pkg-icon" aria-hidden="true">
-                            <i class="fa-solid ${icon}"></i>
-                        </div>
-                        <div class="pkg-title-wrap">
-                            <h2 class="pkg-name">${pkgShort}</h2>
-                            ${vendor ? `<span class="pkg-vendor">${name}</span>` : ''}
-                        </div>
-                        ${statusBadge}
-                    </div>
-
-                    <p class="pkg-desc">${desc}</p>
-
-                    <div class="pkg-meta">
-                        <span class="pkg-meta-item">
-                            <i class="fa-solid fa-download" aria-hidden="true"></i>
-                            <strong>${dls}</strong> downloads
-                        </span>
-                    </div>
-                </div>
-
-                <div class="pkg-card-footer">
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                        ${externalLinks.join('')}
-                    </div>
-                    ${actionBtn}
-                </div>
-            </article>`;
-        }
-
-        // ── Render ────────────────────────────────────────────────────────
-        function setLoading() {
-            grid.innerHTML = `
-                <div class="mp-state" role="status" aria-live="polite">
-                    <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-                    <p><strong>Buscando módulos no Packagist...</strong><br>Aguarde um momento.</p>
-                </div>`;
-            if (totalCount) totalCount.textContent = '—';
-        }
-
-        function renderPkgs(pkgs) {
-            if (!grid) return;
-            if (totalCount) totalCount.textContent = pkgs.length;
-
-            if (!pkgs || pkgs.length === 0) {
-                grid.innerHTML = `
-                    <div class="mp-state" role="status">
-                        <i class="fa-solid fa-box-open" aria-hidden="true"></i>
-                        <p><strong>Nenhum módulo encontrado.</strong><br>Tente outro termo de busca.</p>
-                    </div>`;
-                return;
-            }
-
-            grid.innerHTML = pkgs.map(p => card(p)).join('');
-
-            grid.querySelectorAll('button[data-pkg]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    currentPkg    = btn.getAttribute('data-pkg');
-                    currentAction = btn.getAttribute('data-action');
-                    currentBtn    = btn;
-
-                    if (currentAction === 'uninstall') {
-                        document.getElementById('confirm-message').textContent =
-                            `Tem certeza que deseja remover o módulo "${shortName(currentPkg)}"? Esta ação não pode ser desfeita.`;
-                        openModal('confirm-modal');
-                    } else {
-                        document.getElementById('confirm-btn').click();
-                    }
-                });
-            });
-        }
-
-        // ── Fetch ─────────────────────────────────────────────────────────
-        async function fetchPkgs(query) {
-            try {
-                const res  = await fetch('/api/system/marketplace?q=' + encodeURIComponent(query ?? ''));
-                const data = await res.json();
-                return data.results || [];
-            } catch {
-                return [];
-            }
-        }
-
-        // ── Confirm action ────────────────────────────────────────────────
-        document.getElementById('confirm-btn').addEventListener('click', async () => {
-            closeModal('confirm-modal');
-            if (!currentPkg || !currentAction) return;
-
-            const btn = currentBtn;
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = currentAction === 'install'
-                    ? '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Instalando...'
-                    : '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Removendo...';
-            }
-
-            try {
-                const endpoint = currentAction === 'install'
-                    ? '/api/system/modules/install'
-                    : '/api/system/modules/uninstall';
-
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ package: currentPkg }),
-                });
-                const out = await res.json().catch(() => ({}));
-
-                if (res.ok) {
-                    document.getElementById('success-message').textContent =
-                        out.message || 'Operação realizada com sucesso.';
-                    openModal('success-modal');
-                    setLoading();
-                    const pkgs = await fetchPkgs(qInput.value.trim());
-                    renderPkgs(pkgs);
-                } else {
-                    alert('Falha: ' + (out.message || res.status));
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = currentAction === 'install'
-                            ? '<i class="fa-solid fa-download" aria-hidden="true"></i> Instalar'
-                            : '<i class="fa-solid fa-trash" aria-hidden="true"></i> Remover';
-                    }
-                }
-            } catch {
-                alert('Erro de conexão. Tente novamente.');
-                if (btn) btn.disabled = false;
-            }
-        });
-
-        // ── Events ────────────────────────────────────────────────────────
-        if (searchBtn) {
-            searchBtn.addEventListener('click', async () => {
-                setLoading();
-                const pkgs = await fetchPkgs(qInput.value.trim());
-                renderPkgs(pkgs);
-            });
-        }
-        if (qInput) {
-            qInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchBtn?.click(); });
-        }
-
-        // ── Init ──────────────────────────────────────────────────────────
-        setLoading();
-        fetchPkgs('').then(renderPkgs);
-    })();
-    </script>
-    <script src="/assets/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/nav-init.js') ?>"></script>
+    <script src="/assets/js/marketplace.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/marketplace.js') ?>"></script>
+<script src="/assets/js/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard.js') ?>"></script>
+    <script src="/assets/js/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/nav-init.js') ?>"></script>
 </body>
 </html>

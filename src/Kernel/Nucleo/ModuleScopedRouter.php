@@ -81,7 +81,7 @@ class ModuleScopedRouter implements RouterInterface
     {
         $guard = function ($request, $next) {
             if (!$this->modules->isEnabled($this->module)) {
-                return Response::json(['erro' => 'Módulo desabilitado'], 404);
+                return Response::json(['error' => 'Módulo desabilitado'], 404);
             }
             return $next($request);
         };

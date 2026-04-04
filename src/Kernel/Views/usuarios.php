@@ -4,26 +4,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Gerenciar Usuários — Sweflow</title>
-    <link rel="stylesheet" href="/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/style.css') ?>">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="/assets/usuarios.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/usuarios.css') ?>">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
-        html, body { margin: 0; padding: 0; }
-        html.will-dark, html.will-dark body, html.will-dark .dash-body { background: #0b0d18 !important; color: #f1f5f9 !important; }
+        html, body { margin: 0; padding: 0; background: #f8fafc; }
+        html.will-dark .dash-body {
+            --bg-page:        #0b0d18;
+            --bg-topbar:      rgba(11,13,24,0.92);
+            --bg-sidebar:     #0d0f1a;
+            --bg-card:        #161929;
+            --bg-dropdown:    #12141f;
+            --bg-input:       rgba(255,255,255,0.04);
+            --bg-hover:       rgba(255,255,255,0.05);
+            --bg-hero:        linear-gradient(135deg,rgba(79,70,229,0.12) 0%,rgba(124,58,237,0.08) 100%);
+            --text-primary:   #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted:     #475569;
+            --text-nav:       #cbd5e1;
+            --text-nav-hover: #f1f5f9;
+            --border-color:   rgba(255,255,255,0.07);
+            --border-topbar:  rgba(255,255,255,0.06);
+            --border-sidebar: rgba(255,255,255,0.05);
+            --border-card:    rgba(255,255,255,0.06);
+            --border-input:   rgba(255,255,255,0.09);
+            background: #0b0d18 !important;
+            color: #f1f5f9 !important;
+        }
+        html.will-dark body,
+        html.will-dark .dash-topbar,
+        html.will-dark .dash-sidebar,
+        html.will-dark .dash-main,
+        html.will-dark .dash-layout { background: #0b0d18 !important; }
+        html.will-dark .dash-card   { background: #161929 !important; }
+        html.dash-no-transition *, html.dash-no-transition *::before, html.dash-no-transition *::after {
+            transition: none !important;
+        }
     </style>
     <script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
-        if (localStorage.getItem('dash-dark-mode') === '1') {
-            document.documentElement.classList.add('will-dark', 'dash-no-transition');
-        } else {
+        (function() {
+            var dark = localStorage.getItem('dash-dark-mode') === '1';
             document.documentElement.classList.add('dash-no-transition');
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            if (localStorage.getItem('dash-dark-mode') === '1') document.body.classList.add('dark');
-            document.documentElement.classList.remove('will-dark');
-            requestAnimationFrame(function() { requestAnimationFrame(function() { document.documentElement.classList.remove('dash-no-transition'); }); });
-        });
+            if (dark) document.documentElement.classList.add('will-dark');
+            document.addEventListener('DOMContentLoaded', function() {
+                if (dark) document.body.classList.add('dark');
+                document.documentElement.classList.remove('will-dark');
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        document.documentElement.classList.remove('dash-no-transition');
+                    });
+                });
+                try {
+                    var avatarUrl = localStorage.getItem('dash-avatar-url');
+                    if (avatarUrl) {
+                        var el = document.getElementById('topbar-avatar');
+                        if (el) {
+                            el.textContent = '';
+                            var img = document.createElement('img');
+                            img.src = avatarUrl;
+                            img.alt = 'Avatar';
+                            img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                            img.onerror = function() { el.innerHTML = '<i class="fa-solid fa-circle-user"></i>'; };
+                            el.appendChild(img);
+                        }
+                    }
+                } catch(_) {}
+            });
+        })();
     </script>
+    <link rel="stylesheet" href="/assets/css/style.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/css/style.css') ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/css/usuarios.css?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/css/usuarios.css') ?>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/assets/js/trusted-types-policy.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/trusted-types-policy.js') ?>"></script>
 </head>
 <body class="dash-body">
 
@@ -87,13 +140,14 @@
             </div>
         </button>
         <div class="dash-avatar-wrap" id="topbar-avatar-wrap">
-            <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil">
-                <i class="fa-solid fa-circle-user"></i>
-            </div>
+            <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil"></div>
             <span class="dash-avatar-status"></span>
         </div>
     </div>
 </header>
+<script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+(function(){var el=document.getElementById('topbar-avatar');if(!el)return;try{var url=localStorage.getItem('dash-avatar-url');if(url){var img=document.createElement('img');img.src=url;img.alt='Avatar';img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;';img.onerror=function(){el.innerHTML='';var ic=document.createElement('i');ic.className='fa-solid fa-circle-user';el.appendChild(ic);localStorage.removeItem('dash-avatar-url');};el.appendChild(img);}else{var ic=document.createElement('i');ic.className='fa-solid fa-circle-user';el.appendChild(ic);}}catch(_){var ic2=document.createElement('i');ic2.className='fa-solid fa-circle-user';el.appendChild(ic2);}})();
+</script>
 
 <div class="dash-layout">
     <!-- SIDEBAR -->
@@ -122,7 +176,12 @@
                 <h1 class="dash-hero-title"><i class="fa-solid fa-users"></i> Gerenciar Usuários</h1>
                 <p class="dash-hero-sub">Visualize, edite e gerencie todos os usuários da plataforma.</p>
             </div>
-            <div id="u-header-stats" class="dash-hero-actions"></div>
+            <div class="dash-hero-actions">
+                <div id="u-header-stats"></div>
+                <button class="dash-btn-primary" id="open-criar-usuario">
+                    <i class="fa-solid fa-user-plus"></i> Novo usuário
+                </button>
+            </div>
         </section>
 
         <!-- Bulk bar -->
@@ -173,9 +232,6 @@
                         </tr>
                     </thead>
                     <tbody id="usuarios-tbody">
-                        <tr><td colspan="7" class="u-loading-cell">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i> Carregando...
-                        </td></tr>
                     </tbody>
                 </table>
             </div>
@@ -293,7 +349,153 @@
     <span id="toast-msg"></span>
 </div>
 
-<script src="/assets/usuarios.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/usuarios.js') ?>"></script>
-<script src="/assets/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/nav-init.js') ?>"></script>
+<!-- Modal: Criar Usuário -->
+<div class="modal-overlay" id="criar-usuario-modal">
+    <div class="modal dash-modal cu-modal" style="max-width:680px;width:96vw;max-height:92vh;overflow-y:auto;">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-user-plus"></i> Novo usuário</h2>
+            <button class="modal-close" id="criar-usuario-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="criar-usuario-form" autocomplete="off" class="cu-form">
+            <div class="cu-row">
+                <div class="cu-field">
+                    <label class="cu-label" for="cu-nome">Nome completo <span class="cu-req">*</span></label>
+                    <div class="cu-input-wrap">
+                        <span class="cu-icon"><i class="fa-solid fa-id-card"></i></span>
+                        <input type="text" id="cu-nome" class="cu-input" placeholder="Nome completo" required />
+                    </div>
+                </div>
+                <div class="cu-field">
+                    <label class="cu-label" for="cu-username">Username <span class="cu-req">*</span></label>
+                    <div class="cu-input-wrap">
+                        <span class="cu-icon"><i class="fa-solid fa-at"></i></span>
+                        <input type="text" id="cu-username" class="cu-input" placeholder="usuario.exemplo" autocomplete="off" required />
+                    </div>
+                    <small id="cu-username-feedback" class="cu-hint"></small>
+                </div>
+            </div>
+            <div class="cu-row">
+                <div class="cu-field">
+                    <label class="cu-label" for="cu-email">E-mail <span class="cu-req">*</span></label>
+                    <div class="cu-input-wrap">
+                        <span class="cu-icon"><i class="fa-solid fa-envelope"></i></span>
+                        <input type="email" id="cu-email" class="cu-input" placeholder="email@exemplo.com" required />
+                    </div>
+                    <small id="cu-email-feedback" class="cu-hint"></small>
+                </div>
+                <div class="cu-field">
+                    <label class="cu-label" for="cu-nivel">Nível de acesso</label>
+                    <div class="cu-input-wrap">
+                        <span class="cu-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                        <select id="cu-nivel" class="cu-input cu-select">
+                            <option value="usuario">Usuário</option>
+                            <option value="moderador">Moderador</option>
+                            <option value="admin">Admin</option>
+                            <option value="admin_system">Admin System</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="cu-row">
+                <div class="cu-field">
+                    <label class="cu-label" for="cu-senha">Senha <span class="cu-req">*</span></label>
+                    <div class="cu-input-wrap">
+                        <span class="cu-icon"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="cu-senha" class="cu-input" placeholder="Senha segura" autocomplete="new-password" required />
+                    </div>
+                </div>
+                <div class="cu-field">
+                    <label class="cu-label" for="cu-confirmar">Confirmar senha <span class="cu-req">*</span></label>
+                    <div class="cu-input-wrap">
+                        <span class="cu-icon"><i class="fa-solid fa-lock-open"></i></span>
+                        <input type="password" id="cu-confirmar" class="cu-input" placeholder="Confirmar senha" autocomplete="new-password" required />
+                    </div>
+                </div>
+            </div>
+            <div id="cu-regras" class="cu-rules">
+                <div class="cu-rule" id="cu-r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
+                <div class="cu-rule" id="cu-r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
+                <div class="cu-rule" id="cu-r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
+                <div class="cu-rule" id="cu-r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
+                <div class="cu-rule" id="cu-r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
+                <div class="cu-rule" id="cu-r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
+            </div>
+            <div id="cu-feedback" class="lm-feedback" aria-live="polite"></div>
+            <div class="cu-actions">
+                <button type="button" class="dash-btn-ghost" id="criar-usuario-cancel">Cancelar</button>
+                <button type="submit" class="dash-btn-primary" id="criar-usuario-save" disabled>
+                    <i class="fa-solid fa-user-plus"></i> Criar usuário
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Meu Perfil -->
+<div class="modal-overlay" id="meu-perfil-modal">
+    <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
+        <div class="modal-header perfil-modal-header">
+            <h2><i class="fa-solid fa-circle-user"></i> Meu perfil</h2>
+            <button class="modal-close" id="meu-perfil-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="meu-perfil-body" style="display:flex;flex-direction:column;gap:20px;"><p style="color:#888;text-align:center;padding:24px;">Carregando...</p></div>
+        <div class="perfil-modal-actions">
+            <button class="btn ghost perfil-action-btn" id="meu-perfil-alterar-senha"><i class="fa-solid fa-key"></i> Alterar senha</button>
+            <button class="btn primary perfil-action-btn" id="meu-perfil-editar"><i class="fa-solid fa-pen"></i> Editar dados</button>
+        </div>
+    </div>
+</div>
+<!-- Editar Perfil -->
+<div class="modal-overlay" id="editar-perfil-modal">
+    <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
+        <div class="modal-header perfil-modal-header">
+            <h2><i class="fa-solid fa-pen"></i> Editar dados</h2>
+            <button class="modal-close" id="editar-perfil-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="editar-perfil-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:72vh;padding-right:2px;">
+            <div class="input-group"><label for="ep-nome">Nome completo</label><input type="text" id="ep-nome" placeholder="Seu nome completo" /></div>
+            <div class="input-group"><label for="ep-username">Username</label><input type="text" id="ep-username" placeholder="seu.username" autocomplete="off" /><small id="ep-username-feedback" class="hint"></small></div>
+            <div class="input-group"><label for="ep-email">E-mail</label><input type="email" id="ep-email" placeholder="email@exemplo.com" /><small id="ep-email-feedback" class="hint"></small><small class="hint">Para alterar o e-mail, informe sua senha atual abaixo.</small></div>
+            <div class="input-group" id="ep-senha-email-group" style="display:none;"><label for="ep-senha-email">Senha atual</label><input type="password" id="ep-senha-email" placeholder="Senha atual" autocomplete="current-password" /></div>
+            <div class="input-group"><label for="ep-avatar">URL do avatar</label><input type="url" id="ep-avatar" placeholder="https://..." /><div id="ep-avatar-preview" style="margin-top:6px;display:none;"><img id="ep-avatar-img" src="" alt="Preview" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #e0e0e0;" /></div></div>
+            <div class="input-group"><label for="ep-capa">URL da capa</label><input type="url" id="ep-capa" placeholder="https://..." /><div id="ep-capa-preview" style="margin-top:6px;display:none;"><img id="ep-capa-img" src="" alt="Preview capa" style="width:100%;max-height:80px;object-fit:cover;border-radius:8px;border:2px solid #e0e0e0;" /></div></div>
+            <div class="input-group"><label for="ep-bio">Biografia</label><textarea id="ep-bio" rows="3" placeholder="Fale um pouco sobre você..." style="padding:10px;border:1px solid #d5daf2;border-radius:10px;font-size:1rem;resize:vertical;"></textarea></div>
+            <div id="ep-feedback" class="login-feedback" aria-live="polite"></div>
+        </form>
+        <div class="perfil-modal-actions">
+            <button type="button" class="btn ghost perfil-action-btn" id="editar-perfil-cancel">Cancelar</button>
+            <button type="submit" form="editar-perfil-form" class="btn primary perfil-action-btn" id="editar-perfil-save"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        </div>
+    </div>
+</div>
+<!-- Alterar Senha -->
+<div class="modal-overlay" id="alterar-senha-modal">
+    <div class="modal" style="max-width:460px;width:95vw;">
+        <div class="modal-header"><h2><i class="fa-solid fa-key"></i> Alterar senha</h2>
+            <button class="modal-close" id="alterar-senha-close"><i class="fa-solid fa-xmark"></i></button></div>
+        <form id="alterar-senha-form" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="input-group"><label for="as-atual">Senha atual</label><input type="password" id="as-atual" placeholder="Senha atual" autocomplete="current-password" /></div>
+            <div class="input-group"><label for="as-nova">Nova senha</label><input type="password" id="as-nova" placeholder="Nova senha" autocomplete="new-password" /></div>
+            <div class="input-group"><label for="as-confirmar">Confirmar nova senha</label><input type="password" id="as-confirmar" placeholder="Confirmar nova senha" autocomplete="new-password" /></div>
+            <div id="as-regras" class="senha-regras">
+                <div class="regra" id="as-r-len"><i class="fa-solid fa-circle-xmark"></i> Mínimo 8 caracteres</div>
+                <div class="regra" id="as-r-upper"><i class="fa-solid fa-circle-xmark"></i> Uma letra maiúscula</div>
+                <div class="regra" id="as-r-lower"><i class="fa-solid fa-circle-xmark"></i> Uma letra minúscula</div>
+                <div class="regra" id="as-r-num"><i class="fa-solid fa-circle-xmark"></i> Um número</div>
+                <div class="regra" id="as-r-special"><i class="fa-solid fa-circle-xmark"></i> Um caractere especial</div>
+                <div class="regra" id="as-r-match"><i class="fa-solid fa-circle-xmark"></i> Senhas coincidem</div>
+            </div>
+            <div id="as-feedback" class="login-feedback" aria-live="polite"></div>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button type="button" class="btn ghost" id="alterar-senha-cancel">Cancelar</button>
+                <button type="submit" class="btn primary" id="alterar-senha-save" disabled><i class="fa-solid fa-key"></i> Alterar senha</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/assets/js/usuarios.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/usuarios.js') ?>"></script>
+<script src="/assets/js/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard.js') ?>"></script>
+<script src="/assets/js/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/nav-init.js') ?>"></script>
 </body>
 </html>

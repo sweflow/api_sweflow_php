@@ -18,13 +18,15 @@ use Src\Kernel\Support\IpResolver;
 class AuditLogger
 {
     private ?PDO $pdo;
+    private ?RequestContext $context;
 
     // Limiar de falhas de login por IP antes de emitir alerta
     private int $loginFailThreshold = 10;
 
-    public function __construct(?PDO $pdo = null)
+    public function __construct(?PDO $pdo = null, ?RequestContext $context = null)
     {
-        $this->pdo = $pdo;
+        $this->pdo     = $pdo;
+        $this->context = $context;
     }
 
     /**
@@ -69,6 +71,7 @@ class AuditLogger
         $line = json_encode([
             'timestamp'  => date('Y-m-d\TH:i:sP'),
             'type'       => 'SECURITY_RESPONSE',
+            'request_id' => $this->context?->getRequestId(),
             'event'      => $eventMap[$statusCode],
             'status'     => $statusCode,
             'ip'         => $ip,
@@ -132,10 +135,11 @@ class AuditLogger
     private function emitirAlerta(string $tipo, array $dados): void
     {
         $line = json_encode([
-            'timestamp' => date('Y-m-d\TH:i:sP'),
-            'type'      => 'SECURITY_ALERT',
-            'alert'     => $tipo,
-            'dados'     => $dados,
+            'timestamp'  => date('Y-m-d\TH:i:sP'),
+            'type'       => 'SECURITY_ALERT',
+            'request_id' => $this->context?->getRequestId(),
+            'alert'      => $tipo,
+            'dados'      => $dados,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
@@ -224,6 +228,7 @@ class AuditLogger
         $line = json_encode([
             'timestamp'    => date('Y-m-d\TH:i:sP'),
             'type'         => 'AUDIT',
+            'request_id'   => $this->context?->getRequestId(),
             'evento'       => $evento,
             'usuario_uuid' => $usuarioUuid,
             'ip'           => $ip,

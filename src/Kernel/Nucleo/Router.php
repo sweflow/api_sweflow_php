@@ -59,7 +59,7 @@ class Router implements RouterInterface
     {
         $matched = $this->match($request->getMethod(), $request->getUri());
         if ($matched === null) {
-            return Response::json(['erro' => 'Rota não encontrada'], 404);
+            return Response::json(['error' => 'Rota não encontrada'], 404);
         }
 
         $request->params = $matched['params'];

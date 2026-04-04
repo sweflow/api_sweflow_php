@@ -17,6 +17,7 @@ var searchTimer   = null;
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 var tbody         = document.getElementById('usuarios-tbody');
+var tableWrap     = document.querySelector('.u-table-card');
 var pagination    = document.getElementById('pagination');
 var pageInfo      = document.getElementById('page-info');
 var searchInput   = document.getElementById('search-input');
@@ -34,7 +35,7 @@ var headerStats   = document.getElementById('u-header-stats');
 function apiHeaders() {
     var token = document.cookie.split(';').map(function (c) { return c.trim(); })
         .find(function (c) { return c.startsWith('auth_token='); });
-    var t = token ? token.split('=')[1] : '';
+    var t = token ? token.split('=').slice(1).join('=') : '';
     return {
         'Content-Type': 'application/json',
         'Authorization': t ? 'Bearer ' + t : ''
@@ -47,6 +48,22 @@ async function apiFetch(method, url, body) {
     var res  = await fetch(url, opts);
     var data = await res.json().catch(function () { return {}; });
     return { ok: res.ok, status: res.status, data: data };
+}
+
+function showLoading(msg) {
+    msg = msg || 'Carregando...';
+    var existing = document.getElementById('u-loading-overlay');
+    if (existing) { existing.querySelector('.u-loading-inner').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + msg; return; }
+    var overlay = document.createElement('div');
+    overlay.id = 'u-loading-overlay';
+    overlay.innerHTML = '<div class="u-loading-inner"><i class="fa-solid fa-circle-notch fa-spin"></i> ' + msg + '</div>';
+    if (tableWrap) tableWrap.appendChild(overlay);
+    tbody.innerHTML = '<tr><td colspan="7" style="height:120px;border:none;"></td></tr>';
+}
+
+function hideLoading() {
+    var overlay = document.getElementById('u-loading-overlay');
+    if (overlay) overlay.remove();
 }
 
 function toast(msg, type) {
@@ -91,16 +108,6 @@ function statusBadge(ativo) {
     return '<span class="u-status u-status-inativo"><i class="fa-solid fa-circle-xmark"></i> Inativo</span>';
 }
 
-function avatarCell(u) {
-    var ini = initials(u.nome_completo);
-    if (u.url_avatar) {
-        return '<img class="u-avatar" src="' + escHtml(u.url_avatar) + '" alt="Avatar" loading="lazy" '
-             + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';" />'
-             + '<div class="u-avatar-ph" style="display:none;">' + ini + '</div>';
-    }
-    return '<div class="u-avatar-ph">' + ini + '</div>';
-}
-
 function initials(name) {
     return (name || '?').split(' ').slice(0, 2).map(function (w) { return w[0] || ''; }).join('').toUpperCase();
 }
@@ -134,8 +141,7 @@ async function fetchMe() {
 async function loadUsers(page) {
     page = page || 1;
     currentPage = page;
-    tbody.innerHTML = '<tr><td colspan="7" class="u-loading-cell">'
-        + '<i class="fa-solid fa-circle-notch fa-spin"></i> Carregando...</td></tr>';
+    showLoading('Carregando...');
     pagination.innerHTML = '';
     pageInfo.textContent = '';
 
@@ -145,8 +151,8 @@ async function loadUsers(page) {
 
     var r = await apiFetch('GET', '/api/usuarios?' + params.toString());
     if (!r.ok) {
-        tbody.innerHTML = '<tr><td colspan="7" class="u-loading-cell">'
-            + '<i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar usuarios.</td></tr>';
+        hideLoading();
+        tbody.innerHTML = '<tr><td colspan="7" class="u-loading-cell"><div class="u-loading-inner"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar usuarios.</div></td></tr>';
         return;
     }
 
@@ -154,6 +160,7 @@ async function loadUsers(page) {
     totalUsers = r.data.total != null ? r.data.total : allUsers.length;
     totalPages = r.data.total_paginas || Math.ceil(totalUsers / perPage) || 1;
 
+    hideLoading();
     renderStats();
     renderTable();
     renderPagination();
@@ -178,74 +185,145 @@ function renderStats() {
 // ── Render table ───────────────────────────────────────────────────────────
 function renderTable() {
     if (!allUsers.length) {
-        tbody.innerHTML = '<tr><td colspan="7"><div class="u-empty">'
-            + '<i class="fa-solid fa-users-slash"></i>'
-            + '<p>Nenhum usuario encontrado.</p></div></td></tr>';
+        var emptyRow = document.createElement('tr');
+        var emptyTd  = document.createElement('td');
+        emptyTd.colSpan = 7;
+        emptyTd.innerHTML = '<div class="u-empty"><i class="fa-solid fa-users-slash"></i><p>Nenhum usuario encontrado.</p></div>';
+        emptyRow.appendChild(emptyTd);
+        tbody.replaceChildren(emptyRow);
         return;
     }
 
-    tbody.innerHTML = allUsers.map(function (u) {
-        var isMe   = u.uuid === meUuid;
-        var ativo  = u.ativo !== false;
-        var rowCls = selectedUuids.has(u.uuid) ? 'u-selected' : '';
-        var chk    = selectedUuids.has(u.uuid) ? 'checked' : '';
-        var dis    = isMe ? 'disabled' : '';
-        var uuid   = escHtml(u.uuid);
-        var uname  = escHtml(u.username);
+    var fragment = document.createDocumentFragment();
 
-        return '<tr class="' + rowCls + '" data-uuid="' + uuid + '">'
-            // checkbox
-            + '<td><input type="checkbox" class="u-cb row-cb" data-uuid="' + uuid + '" ' + chk + ' /></td>'
-            // user cell
-            + '<td><div class="u-user-cell" data-uuid="' + uuid + '" title="Ver detalhes">'
-            +   avatarCell(u)
-            +   '<div><div class="u-username">@' + uname + '</div>'
-            +   '<div class="u-fullname">' + escHtml(u.nome_completo) + '</div></div>'
-            + '</div></td>'
-            // email
-            + '<td class="u-hide-sm" style="color:#555;font-size:.95rem;">' + escHtml(u.email) + '</td>'
-            // nivel
-            + '<td>' + nivelBadge(u.nivel_acesso) + '</td>'
-            // status
-            + '<td>' + statusBadge(ativo) + '</td>'
-            // date
-            + '<td class="u-hide-md" style="color:#888;font-size:.88rem;">' + fmtDate(u.criado_em) + '</td>'
-            // actions
-            + '<td><div class="u-actions">'
-            +   '<button class="u-action-btn" title="Ver detalhes" data-action="detail" data-uuid="' + uuid + '">'
-            +     '<i class="fa-solid fa-eye"></i></button>'
-            +   '<button class="u-action-btn" title="Alterar nivel" data-action="nivel" data-uuid="' + uuid + '">'
-            +     '<i class="fa-solid fa-user-shield"></i></button>'
-            +   '<button class="u-action-btn ' + (ativo ? 'u-act-danger' : 'u-act-success') + '" '
-            +     'title="' + (ativo ? 'Desativar' : 'Ativar') + '" data-action="toggle" '
-            +     'data-uuid="' + uuid + '" data-ativo="' + ativo + '" ' + dis + '>'
-            +     '<i class="fa-solid ' + (ativo ? 'fa-ban' : 'fa-circle-check') + '"></i></button>'
-            +   '<button class="u-action-btn u-act-danger" title="Excluir" data-action="delete" '
-            +     'data-uuid="' + uuid + '" data-username="' + uname + '" ' + dis + '>'
-            +     '<i class="fa-solid fa-trash"></i></button>'
-            + '</div></td>'
-            + '</tr>';
-    }).join('');
+    allUsers.forEach(function (u) {
+        var isMe  = u.uuid === meUuid;
+        var ativo = u.ativo !== false;
+        var tr    = document.createElement('tr');
+        if (selectedUuids.has(u.uuid)) tr.classList.add('u-selected');
+        tr.dataset.uuid = u.uuid;
 
-    // Events
-    tbody.querySelectorAll('.u-user-cell').forEach(function (el) {
-        el.addEventListener('click', function () { openDetail(el.dataset.uuid); });
-    });
-    tbody.querySelectorAll('.row-cb').forEach(function (cb) {
-        cb.addEventListener('change', function () { toggleSelect(cb.dataset.uuid, cb.checked); });
-    });
-    tbody.querySelectorAll('[data-action]').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var a = btn.dataset.action;
-            var id = btn.dataset.uuid;
-            if (a === 'detail') openDetail(id);
-            if (a === 'nivel')  openNivelModal(id);
-            if (a === 'toggle') toggleAtivo(id, btn.dataset.ativo === 'true');
-            if (a === 'delete') openDeleteModal(id, btn.dataset.username);
-        });
+        // ── col 1: checkbox ──
+        var tdCb = document.createElement('td');
+        var cb   = document.createElement('input');
+        cb.type      = 'checkbox';
+        cb.className = 'u-cb row-cb';
+        cb.dataset.uuid = u.uuid;
+        if (selectedUuids.has(u.uuid)) cb.checked = true;
+        if (isMe) cb.disabled = true;
+        cb.addEventListener('change', function () { toggleSelect(u.uuid, cb.checked); });
+        tdCb.appendChild(cb);
+        tr.appendChild(tdCb);
+
+        // ── col 2: user cell ──
+        var tdUser  = document.createElement('td');
+        var userDiv = document.createElement('div');
+        userDiv.className  = 'u-user-cell';
+        userDiv.dataset.uuid = u.uuid;
+        userDiv.title      = 'Ver detalhes';
+        userDiv.addEventListener('click', function () { openDetail(u.uuid); });
+
+        // avatar
+        if (u.url_avatar) {
+            var img = document.createElement('img');
+            img.className = 'u-avatar';
+            img.src       = u.url_avatar;
+            img.alt       = 'Avatar';
+            img.loading   = 'lazy';
+            img.addEventListener('error', function () {
+                img.style.display = 'none';
+                ph.style.display  = 'flex';
+            });
+            var ph = document.createElement('div');
+            ph.className   = 'u-avatar-ph';
+            ph.style.display = 'none';
+            ph.textContent = initials(u.nome_completo);
+            userDiv.appendChild(img);
+            userDiv.appendChild(ph);
+        } else {
+            var ph2 = document.createElement('div');
+            ph2.className   = 'u-avatar-ph';
+            ph2.textContent = initials(u.nome_completo);
+            userDiv.appendChild(ph2);
+        }
+
+        var infoDiv  = document.createElement('div');
+        var unameDiv = document.createElement('div');
+        unameDiv.className   = 'u-username';
+        unameDiv.textContent = '@' + (u.username || '');
+        var nameDiv  = document.createElement('div');
+        nameDiv.className   = 'u-fullname';
+        nameDiv.textContent = u.nome_completo || '';
+        infoDiv.appendChild(unameDiv);
+        infoDiv.appendChild(nameDiv);
+        userDiv.appendChild(infoDiv);
+        tdUser.appendChild(userDiv);
+        tr.appendChild(tdUser);
+
+        // ── col 3: email ──
+        var tdEmail = document.createElement('td');
+        tdEmail.className   = 'u-hide-sm';
+        tdEmail.style.cssText = 'color:#555;font-size:.95rem;';
+        tdEmail.textContent = u.email || '';
+        tr.appendChild(tdEmail);
+
+        // ── col 4: nivel ──
+        var tdNivel = document.createElement('td');
+        tdNivel.innerHTML = nivelBadge(u.nivel_acesso);
+        tr.appendChild(tdNivel);
+
+        // ── col 5: status ──
+        var tdStatus = document.createElement('td');
+        tdStatus.innerHTML = statusBadge(ativo);
+        tr.appendChild(tdStatus);
+
+        // ── col 6: data ──
+        var tdDate = document.createElement('td');
+        tdDate.className   = 'u-hide-md';
+        tdDate.style.cssText = 'color:#888;font-size:.88rem;';
+        tdDate.textContent = fmtDate(u.criado_em);
+        tr.appendChild(tdDate);
+
+        // ── col 7: actions ──
+        var tdAct  = document.createElement('td');
+        var actDiv = document.createElement('div');
+        actDiv.className = 'u-actions';
+
+        function makeBtn(icon, title, extraCls, handler) {
+            var btn = document.createElement('button');
+            btn.className = 'u-action-btn' + (extraCls ? ' ' + extraCls : '');
+            btn.title     = title;
+            btn.type      = 'button';
+            var i = document.createElement('i');
+            i.className = 'fa-solid ' + icon;
+            btn.appendChild(i);
+            btn.addEventListener('click', function (e) { e.stopPropagation(); handler(); });
+            return btn;
+        }
+
+        actDiv.appendChild(makeBtn('fa-eye',         'Ver detalhes', '',             function () { openDetail(u.uuid); }));
+        actDiv.appendChild(makeBtn('fa-user-shield', 'Alterar nivel','',             function () { openNivelModal(u.uuid); }));
+
+        var toggleBtn = makeBtn(
+            ativo ? 'fa-ban' : 'fa-circle-check',
+            ativo ? 'Desativar' : 'Ativar',
+            ativo ? 'u-act-danger' : 'u-act-success',
+            function () { toggleAtivo(u.uuid, ativo); }
+        );
+        if (isMe) toggleBtn.disabled = true;
+        actDiv.appendChild(toggleBtn);
+
+        var delBtn = makeBtn('fa-trash', 'Excluir', 'u-act-danger', function () { openDeleteModal(u.uuid, u.username); });
+        if (isMe) delBtn.disabled = true;
+        actDiv.appendChild(delBtn);
+
+        tdAct.appendChild(actDiv);
+        tr.appendChild(tdAct);
+
+        fragment.appendChild(tr);
     });
 
+    tbody.replaceChildren(fragment);
     updateSelectAllState();
 }
 
@@ -312,6 +390,7 @@ function updateSelectAllState() {
 
 function selectAll(checked) {
     allUsers.forEach(function (u) {
+        if (u.uuid === meUuid) return; // nunca seleciona o próprio usuário
         if (checked) selectedUuids.add(u.uuid);
         else selectedUuids.delete(u.uuid);
     });
@@ -396,6 +475,10 @@ if (detailClose) detailClose.addEventListener('click', function () { closeModal(
 function openNivelModal(uuid) {
     var u = allUsers.find(function (x) { return x.uuid === uuid; });
     if (!u) return;
+    if (uuid === meUuid) {
+        toast('Você não pode alterar seu próprio nível de acesso.', 'error');
+        return;
+    }
     pendingNivelUuid = uuid;
     document.getElementById('nivel-username').textContent = '@' + u.username;
     document.getElementById('nivel-select-input').value   = u.nivel_acesso || 'usuario';
@@ -511,7 +594,8 @@ var bulkDeleteConfirm = document.getElementById('bulk-delete-confirm-btn');
 if (bulkDeleteClose)   bulkDeleteClose.addEventListener('click',  function () { closeModal('bulk-delete-modal'); });
 if (bulkDeleteCancel)  bulkDeleteCancel.addEventListener('click', function () { closeModal('bulk-delete-modal'); });
 if (bulkDeleteConfirm) bulkDeleteConfirm.addEventListener('click', async function () {
-    var uuids = Array.from(selectedUuids);
+    var uuids = Array.from(selectedUuids).filter(function (id) { return id !== meUuid; });
+    if (!uuids.length) { closeModal('bulk-delete-modal'); return; }
     var fb    = document.getElementById('bulk-delete-feedback');
     var btn   = document.getElementById('bulk-delete-confirm-btn');
     btn.disabled   = true;

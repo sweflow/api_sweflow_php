@@ -37,7 +37,7 @@
 .dash-body .u-table tbody tr { border-bottom-color: var(--border-color); }
 .dash-body .u-table tbody tr:hover td { background: var(--bg-hover); }
 .dash-body .u-table tbody tr.u-selected td { background: rgba(79,70,229,0.08); }
-.dash-body .u-table td { color: var(--text-primary); }
+.dash-body .u-table td { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; }
 .dash-body .u-username { color: var(--text-primary); }
 .dash-body .u-fullname { color: var(--text-secondary); }
 .dash-body .u-table-footer { border-top-color: var(--border-color); }
@@ -239,13 +239,14 @@
 }
 
 /* ── Table card ── */
-.u-table-card { padding: 0; overflow: hidden; }
+.u-table-card { padding: 0; overflow: hidden; position: relative; }
 .u-table-wrap { overflow-x: auto; }
 
 .u-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 1rem;
+    table-layout: fixed;
 }
 .u-table thead tr {
     background: linear-gradient(135deg, #1a1f3b, #2c3166);
@@ -259,9 +260,11 @@
     text-transform: uppercase;
     letter-spacing: .6px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.u-th-cb { width: 44px; }
-.u-th-actions { width: 160px; }
+.u-th-cb      { width: 44px; }
+.u-th-actions { width: 180px; }
 
 .u-table tbody tr {
     border-bottom: 1px solid #f0f2f8;
@@ -275,6 +278,16 @@
     padding: 14px 16px;
     vertical-align: middle;
     color: #2c3e50;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Células que precisam de wrap (user cell e actions) */
+.u-table td:nth-child(2),
+.u-table td:last-child {
+    white-space: normal;
+    overflow: visible;
 }
 
 /* ── User cell ── */
@@ -283,7 +296,7 @@
     align-items: center;
     gap: 12px;
     cursor: pointer;
-    min-width: 180px;
+    min-width: 0;
 }
 .u-user-cell:hover .u-username { color: #3c3f73; text-decoration: underline; }
 
@@ -314,11 +327,17 @@
     font-size: 1rem;
     color: #1a1f3b;
     line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .u-fullname {
     font-size: 0.85rem;
     color: #7f8c8d;
     margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ── Nivel badge ── */
@@ -357,6 +376,8 @@
     display: flex;
     gap: 6px;
     align-items: center;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
 }
 .u-action-btn {
     width: 36px;
@@ -412,13 +433,23 @@
 .u-page-info { font-size: 0.95rem; color: #7f8c8d; font-weight: 600; }
 
 /* ── Empty / loading ── */
-.u-loading-cell {
-    text-align: center;
-    padding: 48px 24px;
+#u-loading-overlay {
+    position: absolute;
+    inset: 0;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+.u-loading-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: #aaa;
     font-size: 1.05rem;
 }
-.u-loading-cell i { font-size: 1.5rem; margin-right: 8px; }
+.u-loading-inner i { font-size: 1.5rem; }
 .u-empty {
     text-align: center;
     padding: 56px 24px;

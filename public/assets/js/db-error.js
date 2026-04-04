@@ -3,11 +3,18 @@
     var label = document.getElementById('retry-label');
     if (!btn) return;
 
+    function setSpinnerLabel(text) {
+        label.textContent = '';
+        var span = document.createElement('span');
+        span.className = 'btn-spinner';
+        label.appendChild(span);
+        label.appendChild(document.createTextNode(' ' + text));
+    }
+
     btn.addEventListener('click', function () {
-        // Estado: carregando
         btn.disabled = true;
         btn.classList.remove('btn-offline');
-        label.innerHTML = '<span class="btn-spinner"></span> Verificando...';
+        setSpinnerLabel('Verificando...');
 
         fetch('/api/db-status?_=' + Date.now(), { cache: 'no-store' })
             .then(function (r) {
@@ -17,8 +24,7 @@
             })
             .then(function (data) {
                 if (data.conectado) {
-                    // Banco voltou — redireciona
-                    label.innerHTML = '<span class="btn-spinner"></span> Conectado! Redirecionando...';
+                    setSpinnerLabel('Conectado! Redirecionando...');
                     var destino = (document.referrer && document.referrer !== window.location.href)
                         ? document.referrer
                         : '/';

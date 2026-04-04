@@ -7,6 +7,7 @@ use PDO;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\AuditLogger;
 use Src\Kernel\Support\IpResolver;
+use Src\Kernel\Support\RequestContext;
 use Src\Kernel\Support\ThreatScorer;
 use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
@@ -24,16 +25,17 @@ class AuthController
     private ?AuditLogger $auditLogger = null;
 
     public function __construct(
-        private ?EmailSenderInterface $emailService
+        private ?EmailSenderInterface $emailService,
+        private ?RequestContext $requestContext = null
     ) {}
 
     private function audit(): AuditLogger
     {
         if ($this->auditLogger === null) {
             try {
-                $this->auditLogger = new AuditLogger($this->pdo());
+                $this->auditLogger = new AuditLogger($this->pdo(), $this->requestContext);
             } catch (\Throwable) {
-                $this->auditLogger = new AuditLogger(null);
+                $this->auditLogger = new AuditLogger(null, $this->requestContext);
             }
         }
         return $this->auditLogger;
@@ -395,7 +397,7 @@ class AuthController
         $body = $this->corpoDaRequisicao();
         $refresh = $body['refresh_token'] ?? '';
         if ($refresh === '') {
-            return Response::json(['erro' => 'Refresh token não fornecido'], 400);
+            return Response::json(['error' => 'Refresh token não fornecido'], 400);
         }
 
         try {
@@ -404,7 +406,7 @@ class AuthController
 
             $usuario = $this->repositorio()->buscarPorUuid($payload->sub ?? '');
             if (!$usuario) {
-                return Response::json(['erro' => 'Usuário não encontrado'], 404);
+                return Response::json(['error' => 'Usuário não encontrado'], 404);
             }
 
             $this->servico()->revogarRefreshPorJti($payload->jti ?? '');
@@ -421,9 +423,9 @@ class AuthController
                 'refresh_expires_in' => $tokens['refresh_expira_em']
             ]);
         } catch (DomainException $e) {
-            return Response::json(['erro' => $e->getMessage()], $e->getCode() ?: 401);
+            return Response::json(['error' => $e->getMessage()], $e->getCode() ?: 401);
         } catch (\Throwable $e) {
-            return Response::json(['erro' => 'Erro ao renovar token'], 500);
+            return Response::json(['error' => 'Erro ao renovar token'], 500);
         }
     }
 
