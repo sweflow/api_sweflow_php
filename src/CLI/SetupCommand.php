@@ -190,15 +190,23 @@ class SetupCommand
             echo "⚠ PM2 não encontrado. Pulando reinício do PM2.\n";
         }
 
-        // Recarrega Caddy sem downtime
+        // Recarrega Caddy sem downtime — sincroniza /etc/caddy/Caddyfile primeiro
         $caddyfile = dirname(__DIR__, 2) . '/Caddyfile';
         if ($this->commandExists('caddy') && is_file($caddyfile)) {
+            $this->runProcess(['sudo', 'cp', $caddyfile, '/etc/caddy/Caddyfile']);
             echo "▶ Recarregando Caddy...\n";
-            $exitCode = (new Process(['sudo', 'caddy', 'reload', '--config', $caddyfile]))->passthru();
+            // Tenta via systemd primeiro, senão usa caddy reload direto
+            $check = new Process(['sudo', 'systemctl', 'is-active', 'caddy']);
+            $check->run();
+            if (trim($check->getOutput()) === 'active') {
+                $exitCode = (new Process(['sudo', 'systemctl', 'reload', 'caddy']))->passthru();
+            } else {
+                $exitCode = (new Process(['sudo', 'caddy', 'reload', '--config', '/etc/caddy/Caddyfile']))->passthru();
+            }
             if ($exitCode === 0) {
                 echo "✔ Caddy recarregado sem downtime.\n";
             } else {
-                echo "✖ Falha ao recarregar Caddy. Tente: sudo caddy reload --config {$caddyfile}\n";
+                echo "✖ Falha ao recarregar Caddy.\n";
             }
         } else {
             echo "⚠ Caddy não encontrado ou Caddyfile ausente. Pulando.\n";
@@ -257,7 +265,7 @@ class SetupCommand
         // Substitui a porta no Caddyfile dinamicamente conforme APP_PORT/.env
         $caddyContent = file_get_contents($caddyfile);
         $caddyContent = preg_replace(
-            '/reverse_proxy\s+127\.0\.0\.1:\d+/',
+            '/reverse_proxy\s+[\w.]+:\d+/',
             "reverse_proxy {$host}:{$port}",
             $caddyContent
         );
@@ -276,6 +284,10 @@ class SetupCommand
         // Garante que o diretório de logs existe
         $this->runProcess(['sudo', 'mkdir', '-p', '/var/log/caddy']);
 
+        // Copia o Caddyfile para /etc/caddy/ para o systemd usar o config correto
+        echo "▶ Sincronizando Caddyfile com /etc/caddy/Caddyfile...\n";
+        $this->runProcess(['sudo', 'cp', $caddyfile, '/etc/caddy/Caddyfile']);
+
         // Inicia o servidor PHP em background se não estiver rodando
         $pidFile    = $root . '/storage/server.pid';
         $pm2Running = $this->commandExists('pm2') && (new Process(['pm2', 'describe', 'sweflow-api']))->run();
@@ -286,22 +298,38 @@ class SetupCommand
             echo "✔ Servidor já está rodando (PM2 ou php -S)\n";
         }
 
-        // Inicia o Caddy
-        echo "▶ Iniciando Caddy em produção...\n";
-        $exitCode = (new Process(['sudo', 'caddy', 'start', '--config', $caddyfile]))->passthru();
+        // Se o systemd gerencia o Caddy, recarrega via systemd — senão inicia direto
+        $systemdActive = false;
+        $check = new Process(['sudo', 'systemctl', 'is-active', 'caddy']);
+        $check->run();
+        if (trim($check->getOutput()) === 'active') {
+            echo "▶ Recarregando Caddy via systemd...\n";
+            $this->runProcess(['sudo', 'systemctl', 'reload', 'caddy']);
+            $systemdActive = true;
+        } else {
+            // Para instância anterior iniciada manualmente se existir
+            (new Process(['sudo', 'caddy', 'stop']))->run();
 
-        if ($exitCode !== 0) {
-            echo "✖ Caddy falhou ao iniciar (exit code {$exitCode}). Verifique o Caddyfile.\n";
-            echo "  Teste manualmente: sudo caddy validate --config {$caddyfile}\n";
-            return;
+            echo "▶ Iniciando Caddy em produção...\n";
+            $exitCode = (new Process(['sudo', 'caddy', 'start', '--config', '/etc/caddy/Caddyfile']))->passthru();
+            if ($exitCode !== 0) {
+                echo "✖ Caddy falhou ao iniciar (exit code {$exitCode}). Verifique o Caddyfile.\n";
+                echo "  Teste manualmente: sudo caddy validate --config /etc/caddy/Caddyfile\n";
+                return;
+            }
         }
 
         $domain = (string)($_ENV['APP_URL'] ?? 'https://seu-dominio.com');
         echo "✔ Caddy iniciado!\n";
         echo "  API disponível em: {$domain}\n";
         echo "  TLS gerenciado automaticamente pelo Let's Encrypt.\n";
-        echo "  Para recarregar config: sudo caddy reload --config {$caddyfile}\n";
-        echo "  Para parar: sudo caddy stop\n";
+        if ($systemdActive) {
+            echo "  Para recarregar: sudo systemctl reload caddy\n";
+            echo "  Para parar:      sudo systemctl stop caddy\n";
+        } else {
+            echo "  Para recarregar: sudo caddy reload --config /etc/caddy/Caddyfile\n";
+            echo "  Para parar:      sudo caddy stop\n";
+        }
     }
 
     private function startCaddyDev(): void
