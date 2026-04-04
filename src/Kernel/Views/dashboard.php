@@ -149,7 +149,7 @@
             </div>
         </button>
         <div class="dash-avatar-wrap" id="topbar-avatar-wrap">
-            <div class="dash-avatar" id="topbar-avatar" title="Meu perfil" role="button" tabindex="0" aria-label="Meu perfil"></div>
+            <button type="button" class="dash-avatar" id="topbar-avatar" title="Meu perfil" aria-label="Meu perfil"></button>
             <span class="dash-avatar-status"></span>
         </div>
     </div>
