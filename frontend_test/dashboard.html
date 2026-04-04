@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — Sweflow Frontend Test</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/assets/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code&display=swap" rel="stylesheet">
@@ -74,137 +74,47 @@
     </div>
 </div>
 
-<script type="module">
-import { isLogado, getUsuario, getToken, getPerfil, logout } from './api.js';
-
-// Guard — redireciona se não estiver logado
-if (!isLogado()) window.location.href = 'index.html';
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-const nivelLabel = {
-    usuario:      'Usuário',
-    moderador:    'Moderador',
-    admin:        'Admin',
-    admin_system: 'Admin System',
-};
-
-function inicialDo(nome) {
-    return (nome || '?').trim().charAt(0).toUpperCase();
-}
-
-function formatarData(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
-}
-
-// ── Sidebar ───────────────────────────────────────────────────────────────
-
-function renderSidebar(u) {
-    const avatarEl = document.getElementById('sidebar-avatar');
-    if (u.url_avatar) {
-        avatarEl.innerHTML = `<img src="${u.url_avatar}" alt="Avatar" onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user\\'></i>'">`;
-    } else {
-        avatarEl.textContent = inicialDo(u.nome_completo);
-    }
-    document.getElementById('sidebar-name').textContent = u.nome_completo || u.username || '—';
-    const levelEl = document.getElementById('sidebar-level');
-    levelEl.textContent = nivelLabel[u.nivel_acesso] || u.nivel_acesso;
-    levelEl.className = `sidebar-user-level level-${u.nivel_acesso}`;
-}
-
-// ── Sections ──────────────────────────────────────────────────────────────
-
-function renderPerfil(u) {
-    const avatarHtml = u.url_avatar
-        ? `<img src="${u.url_avatar}" alt="Avatar" onerror="this.parentElement.innerHTML='${inicialDo(u.nome_completo)}'">` 
-        : inicialDo(u.nome_completo);
-
-    const capaHtml = u.url_capa
-        ? `<img src="${u.url_capa}" alt="Capa" style="width:100%;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--border);margin-bottom:20px;">`
-        : '';
-
-    return `
+<!-- Template: Perfil -->
+<template id="tpl-perfil">
     <div class="fade-in">
-        ${capaHtml}
+        <img class="perfil-capa" style="width:100%;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--border);margin-bottom:20px;" hidden>
         <div class="card">
             <div class="profile-hero">
-                <div class="profile-avatar-lg">${avatarHtml}</div>
+                <div class="profile-avatar-lg"></div>
                 <div>
-                    <div class="profile-name">${u.nome_completo || '—'}</div>
-                    <div class="profile-username">@${u.username || '—'}</div>
-                    <span class="sidebar-user-level level-${u.nivel_acesso}">
-                        ${nivelLabel[u.nivel_acesso] || u.nivel_acesso}
-                    </span>
+                    <div class="profile-name"></div>
+                    <div class="profile-username"></div>
+                    <span class="sidebar-user-level"></span>
                 </div>
             </div>
-
             <div class="profile-grid">
                 <div class="profile-field">
                     <div class="profile-field-label"><i class="fa-solid fa-envelope"></i> E-mail</div>
-                    <div class="profile-field-value">${u.email || '—'}</div>
+                    <div class="profile-field-value pf-email"></div>
                 </div>
                 <div class="profile-field">
                     <div class="profile-field-label"><i class="fa-solid fa-circle-check"></i> Status</div>
-                    <div class="profile-field-value" style="color:${u.ativo ? 'var(--success)' : 'var(--danger)'}">
-                        ${u.ativo ? '✔ Ativo' : '✖ Inativo'}
-                    </div>
+                    <div class="profile-field-value pf-status"></div>
                 </div>
                 <div class="profile-field">
                     <div class="profile-field-label"><i class="fa-solid fa-shield-check"></i> E-mail verificado</div>
-                    <div class="profile-field-value" style="color:${u.verificado_email ? 'var(--success)' : '#fbbf24'}">
-                        ${u.verificado_email ? '✔ Verificado' : '⚠ Não verificado'}
-                    </div>
+                    <div class="profile-field-value pf-verificado"></div>
                 </div>
                 <div class="profile-field">
                     <div class="profile-field-label"><i class="fa-solid fa-calendar"></i> Membro desde</div>
-                    <div class="profile-field-value">${formatarData(u.criado_em)}</div>
+                    <div class="profile-field-value pf-criado"></div>
                 </div>
-                ${u.biografia ? `
-                <div class="profile-field" style="grid-column:1/-1">
+                <div class="profile-field pf-bio-wrap" style="grid-column:1/-1" hidden>
                     <div class="profile-field-label"><i class="fa-solid fa-quote-left"></i> Biografia</div>
-                    <div class="profile-field-value">${u.biografia}</div>
-                </div>` : ''}
+                    <div class="profile-field-value pf-bio"></div>
+                </div>
             </div>
         </div>
-    </div>`;
-}
+    </div>
+</template>
 
-function renderToken() {
-    const token = getToken() || '';
-    const partes = token.split('.');
-    let info = '';
-    try {
-        const payload = JSON.parse(atob(partes[1].replace(/-/g,'+').replace(/_/g,'/')));
-        const exp = payload.exp ? new Date(payload.exp * 1000).toLocaleString('pt-BR') : '—';
-        const iat = payload.iat ? new Date(payload.iat * 1000).toLocaleString('pt-BR') : '—';
-        info = `
-        <div class="stats-row" style="margin-top:20px;">
-            <div class="stat-card">
-                <div class="stat-icon purple"><i class="fa-solid fa-user-tag"></i></div>
-                <div>
-                    <div class="stat-value" style="font-size:1rem;">${payload.nivel_acesso || '—'}</div>
-                    <div class="stat-label">Nível de acesso</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon green"><i class="fa-solid fa-clock"></i></div>
-                <div>
-                    <div class="stat-value" style="font-size:0.85rem;">${iat}</div>
-                    <div class="stat-label">Emitido em</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon amber"><i class="fa-solid fa-hourglass-end"></i></div>
-                <div>
-                    <div class="stat-value" style="font-size:0.85rem;">${exp}</div>
-                    <div class="stat-label">Expira em</div>
-                </div>
-            </div>
-        </div>`;
-    } catch {}
-
-    return `
+<!-- Template: Token -->
+<template id="tpl-token">
     <div class="fade-in">
         <div class="card">
             <div class="card-title"><i class="fa-solid fa-key"></i> Access Token JWT</div>
@@ -212,86 +122,36 @@ function renderToken() {
                 Este é o token enviado no header <code style="color:var(--brand-light)">Authorization: Bearer ...</code> em cada requisição.
             </p>
             <div class="token-box" id="token-box">
-                ${token}
+                <span class="token-value"></span>
                 <button class="copy-btn" id="copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button>
             </div>
-            ${info}
+            <div class="stats-row token-info" style="margin-top:20px;" hidden>
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i class="fa-solid fa-user-tag"></i></div>
+                    <div>
+                        <div class="stat-value tk-nivel" style="font-size:1rem;"></div>
+                        <div class="stat-label">Nível de acesso</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fa-solid fa-clock"></i></div>
+                    <div>
+                        <div class="stat-value tk-iat" style="font-size:0.85rem;"></div>
+                        <div class="stat-label">Emitido em</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon amber"><i class="fa-solid fa-hourglass-end"></i></div>
+                    <div>
+                        <div class="stat-value tk-exp" style="font-size:0.85rem;"></div>
+                        <div class="stat-label">Expira em</div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>`;
-}
+    </div>
+</template>
 
-// ── Navigation ────────────────────────────────────────────────────────────
-
-const sections = {
-    perfil: { title: 'Meu Perfil', sub: 'Dados da sua conta' },
-    token:  { title: 'Token de Acesso', sub: 'JWT atual da sessão' },
-};
-
-let perfilData = null;
-
-async function showSection(name) {
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.section === name));
-    document.getElementById('topbar-title').textContent = sections[name].title;
-    document.getElementById('topbar-sub').textContent   = sections[name].sub;
-
-    const content = document.getElementById('content');
-
-    if (name === 'perfil') {
-        if (!perfilData) {
-            content.innerHTML = `<div class="loading-overlay"><span class="spinner" style="border-color:rgba(79,70,229,0.3);border-top-color:var(--brand);"></span> Carregando...</div>`;
-            try {
-                const res = await getPerfil();
-                perfilData = res.usuario || res;
-                renderSidebar(perfilData);
-            } catch (e) {
-                content.innerHTML = `<div class="loading-overlay" style="color:var(--danger)"><i class="fa-solid fa-circle-exclamation"></i> ${e.message}</div>`;
-                return;
-            }
-        }
-        content.innerHTML = renderPerfil(perfilData);
-    }
-
-    if (name === 'token') {
-        content.innerHTML = renderToken();
-        document.getElementById('copy-btn')?.addEventListener('click', () => {
-            navigator.clipboard.writeText(getToken() || '');
-            const btn = document.getElementById('copy-btn');
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
-            setTimeout(() => btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar', 2000);
-        });
-    }
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────
-
-// Preenche sidebar com dados do localStorage enquanto carrega da API
-const cached = getUsuario();
-if (cached) renderSidebar(cached);
-
-// Nav clicks
-document.querySelectorAll('.nav-item[data-section]').forEach(btn => {
-    btn.addEventListener('click', () => showSection(btn.dataset.section));
-});
-
-// Refresh
-document.getElementById('refresh-btn').addEventListener('click', () => {
-    perfilData = null;
-    const active = document.querySelector('.nav-item.active')?.dataset.section || 'perfil';
-    showSection(active);
-});
-
-// Logout
-document.getElementById('logout-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('logout-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Saindo...';
-    await logout();
-    window.location.href = 'index.html';
-});
-
-// Carrega seção inicial
-showSection('perfil');
-</script>
-
+<script type="module" src="/assets/js/dashboard.js"></script>
 </body>
 </html>

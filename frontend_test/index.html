@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Sweflow Frontend Test</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/assets/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code&display=swap" rel="stylesheet">
@@ -62,53 +62,6 @@
     </div>
 </div>
 
-<script type="module">
-import { login, isLogado } from './api.js';
-
-// Redireciona se já estiver logado
-if (isLogado()) window.location.href = 'dashboard.html';
-
-const form     = document.getElementById('login-form');
-const feedback = document.getElementById('feedback');
-const btnText  = document.getElementById('btn-text');
-const submitBtn = document.getElementById('submit-btn');
-
-function setFeedback(msg, type = 'error') {
-    feedback.textContent = msg;
-    feedback.className = `feedback ${type}`;
-}
-
-function setLoading(on) {
-    submitBtn.disabled = on;
-    btnText.innerHTML = on
-        ? '<span class="spinner"></span> Entrando...'
-        : 'Entrar';
-}
-
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    feedback.className = 'feedback';
-
-    const loginVal = document.getElementById('login').value.trim();
-    const senhaVal = document.getElementById('senha').value;
-
-    if (!loginVal || !senhaVal) {
-        setFeedback('Preencha todos os campos.');
-        return;
-    }
-
-    setLoading(true);
-    try {
-        await login(loginVal, senhaVal);
-        setFeedback('Login realizado! Redirecionando...', 'success');
-        setTimeout(() => window.location.href = 'dashboard.html', 600);
-    } catch (err) {
-        setFeedback(err.message || 'Credenciais inválidas.');
-    } finally {
-        setLoading(false);
-    }
-});
-</script>
-
+<script type="module" src="/assets/js/login.js"></script>
 </body>
 </html>
