@@ -25,7 +25,7 @@
 localhost:2443 {
     tls ./localhost+1.pem ./localhost+1-key.pem
 
-    reverse_proxy localhost:3005 {
+    reverse_proxy 127.0.0.1:3005 {
         header_up Host              {host}
         header_up X-Real-IP         {remote_host}
         header_up X-Forwarded-For   {remote_host}

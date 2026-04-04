@@ -713,8 +713,9 @@ class SetupCommand
     {
         $this->reloadEnv();
         $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
-        echo "Iniciando servidor em http://0.0.0.0:{$port} (foreground — Ctrl+C para parar)\n";
-        (new Process([PHP_BINARY, '-S', '0.0.0.0:' . $port, 'index.php']))->passthru();
+        $host = $_ENV['APP_HOST'] ?? '127.0.0.1';
+        echo "Iniciando servidor em http://{$host}:{$port} (foreground — Ctrl+C para parar)\n";
+        (new Process([PHP_BINARY, '-S', "{$host}:{$port}", 'index.php']))->passthru();
     }
 
     private function startPhpServerBackground(): void
@@ -722,6 +723,7 @@ class SetupCommand
         $this->reloadEnv();
         $root    = dirname(__DIR__, 2);
         $port    = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $host    = $_ENV['APP_HOST'] ?? '127.0.0.1';
         $logFile = $root . '/storage/server.log';
         $pidFile = $root . '/storage/server.pid';
 
@@ -735,7 +737,7 @@ class SetupCommand
             2 => ['file', $logFile, 'a'],
         ];
         $proc = proc_open(
-            [PHP_BINARY, '-S', '0.0.0.0:' . $port, $root . '/index.php'],
+            [PHP_BINARY, '-S', "{$host}:{$port}", $root . '/index.php'],
             $descriptors,
             $pipes,
             $root
@@ -752,7 +754,7 @@ class SetupCommand
 
         if ($pid !== '' && is_numeric($pid)) {
             file_put_contents($pidFile, $pid);
-            echo "✔ Servidor iniciado em background (PID {$pid}) em http://0.0.0.0:{$port}\n";
+            echo "✔ Servidor iniciado em background (PID {$pid}) em http://{$host}:{$port}\n";
             echo "  Logs: {$logFile}\n";
             echo "  Para parar: opção 12 do menu\n";
         } else {
@@ -765,6 +767,7 @@ class SetupCommand
         $this->reloadEnv();
         $root = dirname(__DIR__, 2);
         $port = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $host = $_ENV['APP_HOST'] ?? '127.0.0.1';
 
         // Instala PM2 automaticamente se não encontrado
         if (!$this->commandExists('pm2')) {
@@ -797,11 +800,11 @@ class SetupCommand
             '--name', 'sweflow-api',
             '--cwd', $root,
             '--',
-            '-S', '0.0.0.0:' . $port,
+            '-S', "{$host}:{$port}",
             $root . '/index.php',
         ]);
         $this->runProcess(['pm2', 'save']);
-        echo "✔ PM2 iniciado em http://0.0.0.0:{$port}\n";
+        echo "✔ PM2 iniciado em http://{$host}:{$port}\n";
         echo "  Logs:    pm2 logs sweflow-api\n";
         echo "  Status:  pm2 status\n";
         echo "  Parar:   opção 12 do menu\n";
