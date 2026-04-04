@@ -208,7 +208,7 @@ class Router implements RouterInterface
         $firstArg = $args[0] ?? null;
         $type = $firstParam->getType();
         if ($firstArg === null) {
-            $firstArg = ($type && !$type->isBuiltin() && is_a($type->getName(), Request::class, true)) ? $request : [];
+            $firstArg = ($type instanceof \ReflectionNamedType && !$type->isBuiltin() && is_a($type->getName(), Request::class, true)) ? $request : [];
         }
 
         if ($paramsCount === 1) {

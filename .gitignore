@@ -16,3 +16,13 @@ docker/mysql/data/
 # Caddy — certificados locais gerados pelo mkcert
 *.pem
 *.key
+
+# Tokens e credenciais geradas localmente
+_token.txt
+_token_clean.txt
+*.token.txt
+gerar_jwt.php
+
+# Scripts de debug locais
+_debug_*.php
+_debug_*.txt

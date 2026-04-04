@@ -98,12 +98,20 @@
             } catch (_) {}
 
             // Abre modal de perfil se existir na página, senão redireciona ao dashboard
-            avatar.addEventListener('click', () => {
+            const handleAvatarActivate = () => {
                 const modal = document.getElementById('meu-perfil-modal');
                 if (modal) {
                     document.getElementById('open-meu-perfil')?.click();
                 } else {
                     window.location.href = '/dashboard';
+                }
+            };
+
+            avatar.addEventListener('click', handleAvatarActivate);
+            avatar.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleAvatarActivate();
                 }
             });
 
