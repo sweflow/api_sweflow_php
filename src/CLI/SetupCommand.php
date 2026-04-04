@@ -64,6 +64,8 @@ class SetupCommand
         echo "16) Subir PM2 + Caddy em produção (recomendado para produção)\n";
         echo "17) Reiniciar PM2 + Caddy\n";
         echo "18) Parar PM2 + Caddy\n";
+        echo "19) Fazer backup do banco de dados\n";
+        echo "20) Importar backup do banco de dados\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -90,6 +92,8 @@ class SetupCommand
             '16' => fn() => $this->startPm2WithCaddy(),
             '17' => fn() => $this->restartPm2WithCaddy(),
             '18' => fn() => $this->stopPm2WithCaddy(),
+            '19' => fn() => $this->backupDatabase(),
+            '20' => fn() => $this->restoreDatabase(),
         ];
 
         if ($choice === '0') {
@@ -1061,6 +1065,129 @@ class SetupCommand
 
         $new = implode("\n", $lines) . "\n";
         file_put_contents($envPath, $new);
+    }
+
+    private function backupDatabase(): void
+    {
+        $this->reloadEnv();
+        $driver = strtolower((string)($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql'));
+        $host   = (string)($_ENV['DB_HOST']    ?? 'localhost');
+        $port   = (string)($_ENV['DB_PORT']    ?? ($driver === 'postgresql' || $driver === 'pgsql' ? '5432' : '3306'));
+        $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
+        $user   = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
+        $pass   = (string)($_ENV['DB_SENHA']   ?? $_ENV['DB_PASSWORD'] ?? '');
+
+        $root      = dirname(__DIR__, 2);
+        $backupDir = $root . '/storage/backups';
+        if (!is_dir($backupDir)) {
+            mkdir($backupDir, 0750, true);
+        }
+
+        $timestamp = date('Y-m-d_His');
+        $file      = "{$backupDir}/{$db}_{$timestamp}.sql";
+
+        echo "▶ Fazendo backup do banco [{$driver}] {$db}...\n";
+
+        if ($driver === 'postgresql' || $driver === 'pgsql') {
+            if (!$this->commandExists('pg_dump')) {
+                echo "✖ pg_dump não encontrado. Instale: sudo apt install postgresql-client\n";
+                return;
+            }
+            $env  = ['PGPASSWORD' => $pass];
+            $cmd  = ['pg_dump', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '-F', 'p', '--no-password', '-f', $file];
+            $proc = new Process($cmd, null, $env);
+            $proc->passthru();
+            $ok = $proc->isSuccessful();
+        } else {
+            if (!$this->commandExists('mysqldump')) {
+                echo "✖ mysqldump não encontrado. Instale: sudo apt install mysql-client\n";
+                return;
+            }
+            $cmd  = ['mysqldump', "-h{$host}", "-P{$port}", "-u{$user}", "-p{$pass}", '--single-transaction', '--routines', '--triggers', $db];
+            $proc = proc_open($cmd, [1 => ['file', $file, 'w'], 2 => STDERR], $pipes);
+            $ok   = $proc && proc_close($proc) === 0;
+        }
+
+        if ($ok && is_file($file) && filesize($file) > 0) {
+            $size = round(filesize($file) / 1024, 1);
+            echo "✔ Backup salvo em: {$file} ({$size} KB)\n";
+        } else {
+            echo "✖ Falha ao gerar backup.\n";
+            if (is_file($file)) unlink($file);
+        }
+    }
+
+    private function restoreDatabase(): void
+    {
+        $this->reloadEnv();
+        $driver = strtolower((string)($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql'));
+        $host   = (string)($_ENV['DB_HOST']    ?? 'localhost');
+        $port   = (string)($_ENV['DB_PORT']    ?? ($driver === 'postgresql' || $driver === 'pgsql' ? '5432' : '3306'));
+        $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
+        $user   = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
+        $pass   = (string)($_ENV['DB_SENHA']   ?? $_ENV['DB_PASSWORD'] ?? '');
+
+        $root      = dirname(__DIR__, 2);
+        $backupDir = $root . '/storage/backups';
+
+        // Lista backups disponíveis ordenados do mais recente ao mais antigo
+        $files = glob("{$backupDir}/*.sql") ?: [];
+        if (empty($files)) {
+            echo "✖ Nenhum backup encontrado em {$backupDir}\n";
+            echo "  Faça um backup primeiro (opção 19).\n";
+            return;
+        }
+
+        usort($files, fn($a, $b) => filemtime($b) - filemtime($a));
+
+        echo "\nBackups disponíveis:\n";
+        foreach ($files as $i => $f) {
+            $size = round(filesize($f) / 1024, 1);
+            $date = date('d/m/Y H:i:s', (int)filemtime($f));
+            echo "  " . ($i + 1) . ") " . basename($f) . " ({$size} KB — {$date})\n";
+        }
+
+        $choice = (int)$this->prompt("\nEscolha o número do backup para restaurar (0 para cancelar)");
+        if ($choice === 0 || !isset($files[$choice - 1])) {
+            echo "Cancelado.\n";
+            return;
+        }
+
+        $file = $files[$choice - 1];
+        echo "\n⚠ ATENÇÃO: Isso irá SOBRESCREVER todos os dados do banco [{$db}].\n";
+        $confirm = $this->prompt("Digite CONFIRMAR para prosseguir");
+        if ($confirm !== 'CONFIRMAR') {
+            echo "Cancelado.\n";
+            return;
+        }
+
+        echo "▶ Restaurando backup em [{$driver}] {$db}...\n";
+
+        if ($driver === 'postgresql' || $driver === 'pgsql') {
+            if (!$this->commandExists('psql')) {
+                echo "✖ psql não encontrado. Instale: sudo apt install postgresql-client\n";
+                return;
+            }
+            $env  = ['PGPASSWORD' => $pass];
+            $cmd  = ['psql', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '--no-password', '-f', $file];
+            $proc = new Process($cmd, null, $env);
+            $proc->passthru();
+            $ok = $proc->isSuccessful();
+        } else {
+            if (!$this->commandExists('mysql')) {
+                echo "✖ mysql não encontrado. Instale: sudo apt install mysql-client\n";
+                return;
+            }
+            $cmd  = ['mysql', "-h{$host}", "-P{$port}", "-u{$user}", "-p{$pass}", $db];
+            $proc = proc_open($cmd, [0 => ['file', $file, 'r'], 1 => STDOUT, 2 => STDERR], $pipes);
+            $ok   = $proc && proc_close($proc) === 0;
+        }
+
+        if ($ok) {
+            echo "✔ Banco restaurado com sucesso a partir de: " . basename($file) . "\n";
+        } else {
+            echo "✖ Falha ao restaurar o backup.\n";
+        }
     }
 
 }

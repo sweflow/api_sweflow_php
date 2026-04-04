@@ -2,6 +2,7 @@
 /vendor/
 /storage/ratelimit/
 /storage/modules_cache.php
+/storage/backups/
 
 # Ignore arquivos:
 .env
