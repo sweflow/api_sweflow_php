@@ -19,10 +19,8 @@
 # ============================================================
 
 {
-    # E-mail para notificações do Let's Encrypt (troque pelo seu)
     email admin@typper.shop
 
-    # Logs estruturados
     log {
         output file /var/log/caddy/sweflow.log {
             roll_size 10mb
@@ -45,18 +43,15 @@ api.typper.shop {
 
     # ── Headers de segurança ─────────────────────────────
     header {
-        # HSTS — força HTTPS por 1 ano, inclui subdomínios e preload
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        # CSP é enviado pelo PHP com nonce dinâmico — não definir aqui
         X-Content-Type-Options    "nosniff"
         Referrer-Policy           "strict-origin-when-cross-origin"
         Permissions-Policy        "geolocation=(), microphone=(), camera=(), payment=()"
-        # Remove headers que revelam tecnologia
         -Server
         -X-Powered-By
     }
 
-    # ── Bloqueia User-Agents de scanners conhecidos ──────────
+    # ── Bloqueia User-Agents de scanners conhecidos ──────
     @malicious_ua {
         header User-Agent *sqlmap*
         header User-Agent *nikto*
@@ -85,19 +80,18 @@ api.typper.shop {
     respond @sensitive 404
 
     # ── Proxy reverso para o PHP ─────────────────────────
+    # IMPORTANTE: header_up X-Forwarded-Proto "https" é obrigatório.
+    # O Caddy não adiciona esse header automaticamente na conexão interna
+    # Caddy→PHP (que é HTTP). Sem ele, o HttpsEnforcerMiddleware do PHP
+    # bloqueia todas as requisições com 403.
     reverse_proxy 127.0.0.1:3005 {
-        header_up Host {host}
+        header_up X-Forwarded-Proto "https"
+        header_up X-Real-IP         {remote_host}
 
-        # Timeouts — proteção contra Slowloris e conexões lentas
         transport http {
             dial_timeout            10s
             response_header_timeout 30s
         }
-
-        # Health check
-        health_uri      /api/status
-        health_interval 30s
-        health_timeout  5s
     }
 
     # ── Logs de acesso ───────────────────────────────────
