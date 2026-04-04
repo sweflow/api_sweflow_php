@@ -1071,8 +1071,9 @@ class SetupCommand
     {
         $this->reloadEnv();
         $driver = strtolower((string)($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql'));
+        $isPg   = $driver === 'postgresql' || $driver === 'pgsql';
         $host   = (string)($_ENV['DB_HOST']    ?? 'localhost');
-        $port   = (string)($_ENV['DB_PORT']    ?? ($driver === 'postgresql' || $driver === 'pgsql' ? '5432' : '3306'));
+        $port   = (string)($_ENV['DB_PORT']    ?? ($isPg ? '5432' : '3306'));
         $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
         $user   = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
         $pass   = (string)($_ENV['DB_SENHA']   ?? $_ENV['DB_PASSWORD'] ?? '');
@@ -1088,24 +1089,15 @@ class SetupCommand
 
         echo "▶ Fazendo backup do banco [{$driver}] {$db}...\n";
 
-        if ($driver === 'postgresql' || $driver === 'pgsql') {
-            if (!$this->commandExists('pg_dump')) {
-                echo "✖ pg_dump não encontrado. Instale: sudo apt install postgresql-client\n";
-                return;
-            }
-            $env  = ['PGPASSWORD' => $pass];
-            $cmd  = ['pg_dump', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '-F', 'p', '--no-password', '-f', $file];
-            $proc = new Process($cmd, null, $env);
-            $proc->passthru();
-            $ok = $proc->isSuccessful();
+        // Detecta se o banco está rodando em Docker
+        $container = $this->findDbContainer($isPg);
+
+        if ($container !== null) {
+            echo "  Usando docker exec no container [{$container}]...\n";
+            $ok = $this->backupViaDocker($container, $isPg, $db, $user, $pass, $file);
         } else {
-            if (!$this->commandExists('mysqldump')) {
-                echo "✖ mysqldump não encontrado. Instale: sudo apt install mysql-client\n";
-                return;
-            }
-            $cmd  = ['mysqldump', "-h{$host}", "-P{$port}", "-u{$user}", "-p{$pass}", '--single-transaction', '--routines', '--triggers', $db];
-            $proc = proc_open($cmd, [1 => ['file', $file, 'w'], 2 => STDERR], $pipes);
-            $ok   = $proc && proc_close($proc) === 0;
+            // Fallback: ferramentas locais
+            $ok = $this->backupViaLocal($isPg, $host, $port, $db, $user, $pass, $file);
         }
 
         if ($ok && is_file($file) && filesize($file) > 0) {
@@ -1121,8 +1113,9 @@ class SetupCommand
     {
         $this->reloadEnv();
         $driver = strtolower((string)($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql'));
+        $isPg   = $driver === 'postgresql' || $driver === 'pgsql';
         $host   = (string)($_ENV['DB_HOST']    ?? 'localhost');
-        $port   = (string)($_ENV['DB_PORT']    ?? ($driver === 'postgresql' || $driver === 'pgsql' ? '5432' : '3306'));
+        $port   = (string)($_ENV['DB_PORT']    ?? ($isPg ? '5432' : '3306'));
         $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
         $user   = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
         $pass   = (string)($_ENV['DB_SENHA']   ?? $_ENV['DB_PASSWORD'] ?? '');
@@ -1130,7 +1123,6 @@ class SetupCommand
         $root      = dirname(__DIR__, 2);
         $backupDir = $root . '/storage/backups';
 
-        // Lista backups disponíveis ordenados do mais recente ao mais antigo
         $files = glob("{$backupDir}/*.sql") ?: [];
         if (empty($files)) {
             echo "✖ Nenhum backup encontrado em {$backupDir}\n";
@@ -1154,33 +1146,24 @@ class SetupCommand
         }
 
         $file = $files[$choice - 1];
-        echo "\n⚠ ATENÇÃO: Isso irá SOBRESCREVER todos os dados do banco [{$db}].\n";
-        $confirm = $this->prompt("Digite CONFIRMAR para prosseguir");
-        if ($confirm !== 'CONFIRMAR') {
+        echo "\nℹ Modo seguro ativo: dados existentes serão preservados.\n";
+        echo "  Apenas registros que ainda não existem no banco serão inseridos.\n";
+        $confirm = $this->prompt("Confirmar restore? (s/N)");
+        if (strtolower(trim($confirm)) !== 's') {
             echo "Cancelado.\n";
             return;
         }
 
         echo "▶ Restaurando backup em [{$driver}] {$db}...\n";
+        echo "  Modo seguro: dados existentes serão preservados, apenas novos dados serão inseridos.\n";
 
-        if ($driver === 'postgresql' || $driver === 'pgsql') {
-            if (!$this->commandExists('psql')) {
-                echo "✖ psql não encontrado. Instale: sudo apt install postgresql-client\n";
-                return;
-            }
-            $env  = ['PGPASSWORD' => $pass];
-            $cmd  = ['psql', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '--no-password', '-f', $file];
-            $proc = new Process($cmd, null, $env);
-            $proc->passthru();
-            $ok = $proc->isSuccessful();
+        $container = $this->findDbContainer($isPg);
+
+        if ($container !== null) {
+            echo "  Usando docker exec no container [{$container}]...\n";
+            $ok = $this->restoreViaDocker($container, $isPg, $db, $user, $pass, $file);
         } else {
-            if (!$this->commandExists('mysql')) {
-                echo "✖ mysql não encontrado. Instale: sudo apt install mysql-client\n";
-                return;
-            }
-            $cmd  = ['mysql', "-h{$host}", "-P{$port}", "-u{$user}", "-p{$pass}", $db];
-            $proc = proc_open($cmd, [0 => ['file', $file, 'r'], 1 => STDOUT, 2 => STDERR], $pipes);
-            $ok   = $proc && proc_close($proc) === 0;
+            $ok = $this->restoreViaLocal($isPg, $host, $port, $db, $user, $pass, $file);
         }
 
         if ($ok) {
@@ -1188,6 +1171,122 @@ class SetupCommand
         } else {
             echo "✖ Falha ao restaurar o backup.\n";
         }
+    }
+
+    /** Encontra o container Docker do banco (postgres ou mysql) em execução. */
+    private function findDbContainer(bool $isPg): ?string
+    {
+        if (!$this->commandExists('docker')) {
+            return null;
+        }
+        $image = $isPg ? 'postgres' : 'mysql';
+        $proc  = new Process(['docker', 'ps', '--filter', "ancestor={$image}", '--format', '{{.Names}}']);
+        $proc->run();
+        $name = trim($proc->getOutput());
+        if ($name !== '') {
+            return explode("\n", $name)[0];
+        }
+        // Tenta pelo nome do container definido no docker-compose
+        $proc2 = new Process(['docker', 'ps', '--format', '{{.Names}}']);
+        $proc2->run();
+        foreach (explode("\n", trim($proc2->getOutput())) as $line) {
+            $line = trim($line);
+            if ($isPg && str_contains(strtolower($line), 'postgres')) return $line;
+            if (!$isPg && str_contains(strtolower($line), 'mysql'))    return $line;
+        }
+        return null;
+    }
+
+    private function backupViaDocker(string $container, bool $isPg, string $db, string $user, string $pass, string $file): bool
+    {
+        if ($isPg) {
+            // --inserts + --on-conflict-do-nothing: gera INSERT ... ON CONFLICT DO NOTHING
+            // --section=data: exporta apenas dados, sem CREATE TABLE/INDEX (evita erros "already exists" no restore)
+            $cmd = ['docker', 'exec', '-e', "PGPASSWORD={$pass}", $container, 'pg_dump', '-U', $user, '-d', $db, '-F', 'p', '--inserts', '--on-conflict-do-nothing', '--section=data'];
+        } else {
+            // --insert: gera INSERT em vez de COPY; --skip-add-drop-table: não gera DROP TABLE
+            $cmd = ['docker', 'exec', $container, 'mysqldump', "-u{$user}", "-p{$pass}", '--single-transaction', '--routines', '--triggers', '--insert-ignore', '--skip-add-drop-table', $db];
+        }
+
+        // Captura stdout e salva no arquivo
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['file', $file, 'w'], 2 => STDERR];
+        $proc = proc_open($cmd, $descriptors, $pipes); // NOSONAR — array de argumentos, sem injeção de shell
+        if (!is_resource($proc)) return false;
+        fclose($pipes[0]);
+        return proc_close($proc) === 0;
+    }
+
+    private function restoreViaDocker(string $container, bool $isPg, string $db, string $user, string $pass, string $file): bool
+    {
+        if ($isPg) {
+            $cmd = ['docker', 'exec', '-i', '-e', "PGPASSWORD={$pass}", $container, 'psql', '-U', $user, '-d', $db];
+        } else {
+            $cmd = ['docker', 'exec', '-i', $container, 'mysql', "-u{$user}", "-p{$pass}", $db];
+        }
+
+        $descriptors = [0 => ['file', $file, 'r'], 1 => STDOUT, 2 => STDERR];
+        $proc = proc_open($cmd, $descriptors, $pipes); // NOSONAR — array de argumentos, sem injeção de shell
+        if (!is_resource($proc)) return false;
+        return proc_close($proc) === 0;
+    }
+
+    private function backupViaLocal(bool $isPg, string $host, string $port, string $db, string $user, string $pass, string $file): bool
+    {
+        if ($isPg) {
+            if (!$this->commandExists('pg_dump')) {
+                echo "✖ pg_dump não encontrado. Instale: sudo apt install postgresql-client\n";
+                return false;
+            }
+            putenv("PGPASSWORD={$pass}");
+            $proc = new Process(['pg_dump', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '-F', 'p', '--inserts', '--on-conflict-do-nothing', '--section=data', '--no-password', '-f', $file]);
+            $proc->passthru();
+            $ok = $proc->isSuccessful();
+            putenv('PGPASSWORD');
+            return $ok;
+        }
+
+        if (!$this->commandExists('mysqldump')) {
+            echo "✖ mysqldump não encontrado. Instale: sudo apt install mysql-client\n";
+            return false;
+        }
+        $cnf = tempnam(sys_get_temp_dir(), 'sweflow_');
+        file_put_contents($cnf, "[client]\npassword={$pass}\n");
+        $cmd = ['mysqldump', "--defaults-extra-file={$cnf}", "-h{$host}", "-P{$port}", "-u{$user}", '--single-transaction', '--routines', '--triggers', '--insert-ignore', '--skip-add-drop-table', "--result-file={$file}", $db];
+        $proc = new Process($cmd);
+        $proc->passthru();
+        $ok = $proc->isSuccessful();
+        unlink($cnf);
+        return $ok;
+    }
+
+    private function restoreViaLocal(bool $isPg, string $host, string $port, string $db, string $user, string $pass, string $file): bool
+    {
+        if ($isPg) {
+            if (!$this->commandExists('psql')) {
+                echo "✖ psql não encontrado. Instale: sudo apt install postgresql-client\n";
+                return false;
+            }
+            putenv("PGPASSWORD={$pass}");
+            $proc = new Process(['psql', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '--no-password', '-f', $file]);
+            $proc->passthru();
+            $ok = $proc->isSuccessful();
+            putenv('PGPASSWORD');
+            return $ok;
+        }
+
+        if (!$this->commandExists('mysql')) {
+            echo "✖ mysql não encontrado. Instale: sudo apt install mysql-client\n";
+            return false;
+        }
+        $cnf = tempnam(sys_get_temp_dir(), 'sweflow_');
+        file_put_contents($cnf, "[client]\npassword={$pass}\n");
+        $descriptors = [0 => ['file', $file, 'r'], 1 => STDOUT, 2 => STDERR];
+        $cmd  = ['mysql', "--defaults-extra-file={$cnf}", "-h{$host}", "-P{$port}", "-u{$user}", $db];
+        $proc = proc_open($cmd, $descriptors, $pipes); // NOSONAR
+        if (!is_resource($proc)) { unlink($cnf); return false; }
+        $ok = proc_close($proc) === 0;
+        unlink($cnf);
+        return $ok;
     }
 
 }
