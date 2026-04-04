@@ -242,14 +242,26 @@ class SetupCommand
 
     private function startCaddyProduction(): void
     {
-        $root = dirname(__DIR__, 2);
+        $this->reloadEnv();
+        $root      = dirname(__DIR__, 2);
         $caddyfile = $root . '/Caddyfile';
+        $port      = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
+        $host      = $_ENV['APP_HOST'] ?? '127.0.0.1';
 
         if (!is_file($caddyfile)) {
             echo "✖ Caddyfile não encontrado em {$root}\n";
             echo "  Certifique-se de que o arquivo Caddyfile existe na raiz do projeto.\n";
             return;
         }
+
+        // Substitui a porta no Caddyfile dinamicamente conforme APP_PORT/.env
+        $caddyContent = file_get_contents($caddyfile);
+        $caddyContent = preg_replace(
+            '/reverse_proxy\s+127\.0\.0\.1:\d+/',
+            "reverse_proxy {$host}:{$port}",
+            $caddyContent
+        );
+        file_put_contents($caddyfile, $caddyContent);
 
         // Instala o Caddy se não estiver disponível
         if (!$this->commandExists('caddy')) {
@@ -264,10 +276,8 @@ class SetupCommand
         // Garante que o diretório de logs existe
         $this->runProcess(['sudo', 'mkdir', '-p', '/var/log/caddy']);
 
-        // Inicia o servidor PHP em background se não estiver rodando (via php -S)
-        // Se PM2 estiver gerenciando, não sobe um segundo processo
-        $port    = preg_replace('/[^0-9]/', '', (string)($_ENV['APP_PORT'] ?? '3005')) ?: '3005';
-        $pidFile = $root . '/storage/server.pid';
+        // Inicia o servidor PHP em background se não estiver rodando
+        $pidFile    = $root . '/storage/server.pid';
         $pm2Running = $this->commandExists('pm2') && (new Process(['pm2', 'describe', 'sweflow-api']))->run();
         if (!$pm2Running && !is_file($pidFile)) {
             echo "▶ Iniciando servidor PHP em background na porta {$port}...\n";

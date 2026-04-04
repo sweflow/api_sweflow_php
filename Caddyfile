@@ -86,16 +86,12 @@ api.typper.shop {
 
     # ── Proxy reverso para o PHP ─────────────────────────
     reverse_proxy 127.0.0.1:3005 {
-        header_up Host              {host}
-        header_up X-Real-IP         {remote_host}
-        header_up X-Forwarded-For   {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+        header_up Host {host}
 
         # Timeouts — proteção contra Slowloris e conexões lentas
         transport http {
             dial_timeout            10s
             response_header_timeout 30s
-            read_buffer_size        4096
         }
 
         # Health check
