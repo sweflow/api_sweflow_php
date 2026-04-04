@@ -1219,7 +1219,7 @@ class SetupCommand
     private function restoreViaDocker(string $container, bool $isPg, string $db, string $user, string $pass, string $file): bool
     {
         if ($isPg) {
-            $cmd = ['docker', 'exec', '-i', '-e', "PGPASSWORD={$pass}", $container, 'psql', '-U', $user, '-d', $db];
+            $cmd = ['docker', 'exec', '-i', '-e', "PGPASSWORD={$pass}", $container, 'psql', '-U', $user, '-d', $db]; // NOSONAR — senha lida do .env em runtime, não hardcoded
         } else {
             $cmd = ['docker', 'exec', '-i', $container, 'mysql', "-u{$user}", "-p{$pass}", $db];
         }
