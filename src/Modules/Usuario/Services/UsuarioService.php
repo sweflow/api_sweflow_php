@@ -237,7 +237,7 @@ class UsuarioService implements UsuarioServiceInterface
             return;
         }
         try {
-            $pdo   = PdoFactory::fromEnv();
+            $pdo   = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
             $repos = $this->instanciarRepositoriosComunidade($pdo);
             $this->executarDelecoesComunidade($uuid, $repos);
         } catch (\Throwable) {

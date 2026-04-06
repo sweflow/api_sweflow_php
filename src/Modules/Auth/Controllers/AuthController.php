@@ -18,7 +18,6 @@ use Src\Kernel\Contracts\EmailSenderInterface;
 class AuthController
 {
     private ?AuthService $authService = null;
-    private ?\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface $usuarioRepository = null;
     private ?RefreshTokenRepository $refreshTokenRepository = null;
     private ?AccessTokenBlacklistRepository $accessBlacklist = null;
     private ?PDO $pdo = null;
@@ -26,7 +25,8 @@ class AuthController
 
     public function __construct(
         private ?EmailSenderInterface $emailService,
-        private ?RequestContext $requestContext = null
+        private ?RequestContext $requestContext = null,
+        private ?UserRepositoryInterface $userRepository = null
     ) {}
 
     private function audit(): AuditLogger
@@ -577,12 +577,15 @@ class AuthController
 
     private function repositorio(): \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface
     {
-        if ($this->usuarioRepository === null) {
-            $this->usuarioRepository = new \Src\Modules\Usuario\Repositories\UsuarioRepository($this->pdo());
+        // userRepository é injetado via container com o PDO correto
+        // baseado no connection.php do módulo Usuario (core ou modules)
+        if ($this->userRepository === null) {
+            throw new \RuntimeException('UserRepositoryInterface não foi injetado no AuthController.');
         }
-
-        return $this->usuarioRepository;
+        return $this->userRepository;
     }
+
+    private ?\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface $usuarioRepository = null;
 
     private function refreshRepositorio(): ?RefreshTokenRepository
     {
@@ -598,29 +601,8 @@ class AuthController
         if ($this->pdo instanceof PDO) {
             return $this->pdo;
         }
-
-        $dbType = $_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? 'mysql';
-        if ($dbType === 'postgresql') {
-            $dbType = 'pgsql';
-        }
-
-        $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $nome = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? '';
-        $usuario = $_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? '';
-        $senha = $_ENV['DB_SENHA'] ?? $_ENV['DB_PASSWORD'] ?? '';
-        $porta = $_ENV['DB_PORT'] ?? ($dbType === 'pgsql' ? '5432' : '3306');
-
-        $dsn = $dbType === 'pgsql'
-            ? "pgsql:host={$host};port={$porta};dbname={$nome}"
-            : "mysql:host={$host};port={$porta};dbname={$nome}";
-
-        $opcoes = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_TIMEOUT => 3,
-        ];
-
-        $this->pdo = new PDO($dsn, $usuario, $senha, $opcoes);
+        // Auth usa sempre a conexão core (refresh_tokens, revoked_access_tokens, audit_logs)
+        $this->pdo = \Src\Kernel\Database\PdoFactory::fromEnv('DB');
         return $this->pdo;
     }
 

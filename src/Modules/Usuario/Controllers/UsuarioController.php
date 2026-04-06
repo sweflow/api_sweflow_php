@@ -23,7 +23,7 @@ class UsuarioController
     private function pdo(): \PDO
     {
         if ($this->pdo === null) {
-            $this->pdo = \Src\Kernel\Database\PdoFactory::fromEnv();
+            $this->pdo = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
         }
         return $this->pdo;
     }

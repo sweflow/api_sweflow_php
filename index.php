@@ -348,11 +348,27 @@ $container->bind(AuditLogger::class, static function () use ($container) {
 // Registra implementações dos contratos do Kernel.
 // Estes bindings conectam o kernel aos módulos — único lugar onde isso acontece.
 // O desenvolvedor de módulos não precisa tocar aqui.
-$container->bind(
-    \Src\Kernel\Contracts\UserRepositoryInterface::class,
-    \Src\Modules\Usuario\Repositories\UsuarioRepository::class,
-    true
-);
+
+// Determina qual PDO usar para o módulo Usuario baseado no connection.php
+(static function () use ($container): void {
+    $conn   = \Src\Kernel\Database\ModuleConnectionResolver::readConnectionFile('Usuario');
+    $pdoKey = ($conn === 'modules' && PdoFactory::hasSecondaryConnection()) ? 'pdo.modules' : \PDO::class;
+
+    // UserRepositoryInterface (kernel) — usado pelo AuthController e outros
+    $container->bind(
+        \Src\Kernel\Contracts\UserRepositoryInterface::class,
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository($container->make($pdoKey)),
+        true
+    );
+
+    // UsuarioRepositoryInterface (módulo) — usado pelo UsuarioService/UsuarioController
+    $container->bind(
+        \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository($container->make($pdoKey)),
+        true
+    );
+})();
+
 $container->bind(
     \Src\Kernel\Contracts\TokenBlacklistInterface::class,
     \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
@@ -719,7 +735,7 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules) {
 
     $usuarios = ['total' => null];
     try {
-        $repo = $container->make(\Src\Modules\Usuario\Repositories\UsuarioRepository::class);
+        $repo = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
         $usuarios['total'] = $repo->contar();
     } catch (\Throwable $e) {
         // silently fail

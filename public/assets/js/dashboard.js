@@ -2249,6 +2249,12 @@ window.onload = function () {
         }
     }
 
+    function updateHeroName(nomeCompleto, username) {
+        const el = document.getElementById('hero-username');
+        if (!el) return;
+        el.textContent = nomeCompleto?.split(' ')[0] || username || 'usuário';
+    }
+
     function updateTopbarAvatar(url) {
         const el = document.getElementById('topbar-avatar');
         if (!el) return;

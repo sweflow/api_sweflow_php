@@ -232,7 +232,7 @@
                     <img src="/favicon.ico" alt="Sweflow API" class="dash-hero-logo" />
                     <span class="dash-hero-brand-name">Sweflow <span style="color:#818cf8">API</span></span>
                 </div>
-                <h1 class="dash-hero-title">Dashboard <span id="hero-username"></span></h1>
+                <h1 class="dash-hero-title">Olá, <span id="hero-username">...</span> 👋</h1>
                 <p class="dash-hero-sub">Monitoramento em tempo real do núcleo da API.</p>
             </div>
         </section>
