@@ -528,7 +528,7 @@ class ModuleLoader
             return $this->container->make($providerClass);
         }
 
-        $preference = $tempProvider instanceof ModuleProviderInterface
+        $preference = ($tempProvider instanceof ModuleProviderInterface && method_exists($tempProvider, 'preferredConnection'))
             ? $tempProvider->preferredConnection()
             : 'auto';
 
