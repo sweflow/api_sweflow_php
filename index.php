@@ -481,11 +481,14 @@ $router->post('/api/system/modules/uninstall', [\Src\Kernel\Controllers\SystemMo
 ]);
 
 // Modules Management API (Dashboard toggles)
-$router->get('/api/system/modules', [\Src\Kernel\Controllers\StatusController::class, 'modules'], [
-    AuthHybridMiddleware::class,
-    AdminOnlyMiddleware::class,
-]);
-$router->post('/api/system/modules/toggle', [\Src\Kernel\Controllers\StatusController::class, 'toggle'], [
+$router->get('/api/system/modules', function () use ($modules) {
+    $states = $modules->states();
+    $list = [];
+    foreach ($states as $name => $enabled) {
+        $list[] = ['name' => $name, 'enabled' => $enabled];
+    }
+    return Response::json(['modules' => $list]);
+}, [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);

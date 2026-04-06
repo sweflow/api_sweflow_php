@@ -16,7 +16,7 @@ class ModuleLoader
     private string $stateFile;
     private string $cacheFile;
     /** @var string[] */
-    private array $protectedModules = [];
+    private array $protectedModules = ['Auth', 'Usuario'];
 
     public function __construct(ContainerInterface $container)
     {
@@ -306,20 +306,14 @@ class ModuleLoader
     public function getModules(): array
     {
         $modules = [];
-        // Precisamos garantir que as rotas foram registradas para que o describe() funcione corretamente.
-        // O registerRoutes() é chamado no boot da Application, mas o StatusController (que chama getModules via LeitorModulos)
-        // é executado em uma requisição separada.
-        // Se o Application já deu boot, as rotas já foram registradas nas instâncias de providers em memória.
-        // O container mantém o ModuleLoader como singleton, então $this->providers deve ter o estado correto.
-        
         foreach ($this->providers as $name => $provider) {
             $desc = $provider->describe();
             $modules[] = [
-                'name' => $name,
-                'enabled' => $this->isEnabled($name),
-                'protected' => $this->isProtected($name),
+                'name'        => $name,
+                'enabled'     => $this->isEnabled($name),
+                'protected'   => $this->isProtected($name),
                 'description' => $desc['description'] ?? '',
-                'routes' => $desc['routes'] ?? [],
+                'routes'      => $desc['routes'] ?? [],
             ];
         }
         return $modules;

@@ -56,7 +56,7 @@ window.onload = function () {
     const modulesToggleList = document.getElementById('modules-toggle-list');
     const protectedModules = ['Auth', 'Usuario'];
     let moduleState = {};
-    let emailModuleEnabled = true;
+    let emailModuleEnabled = false;
     let authRequireEmailVerification = false;
     const disableModal = document.getElementById('disable-modal');
     const disableModalName = document.getElementById('disable-modal-name');
@@ -173,7 +173,7 @@ window.onload = function () {
     }
 
     // ── Reusable error modal (replaces all alert() calls) ────────────────
-    function showErrorModal(message, title = 'Erro') {
+    function showErrorModal(message, title = 'Erro', action = null) {
         const modal   = document.getElementById('error-modal');
         const titleEl = document.getElementById('error-modal-title');
         const msgEl   = document.getElementById('error-modal-message');
@@ -185,10 +185,25 @@ window.onload = function () {
         if (titleEl) titleEl.textContent = title;
         if (msgEl)   msgEl.textContent   = message;
 
+        // Botão de ação extra (ex: "Ir para Marketplace")
+        let actionBtn = modal.querySelector('.error-modal-action');
+        if (action && action.label && action.href) {
+            if (!actionBtn) {
+                actionBtn = document.createElement('a');
+                actionBtn.className = 'btn primary error-modal-action';
+                actionBtn.style.marginRight = '8px';
+                if (okBtn && okBtn.parentNode) okBtn.parentNode.insertBefore(actionBtn, okBtn);
+            }
+            actionBtn.textContent = action.label;
+            actionBtn.href = action.href;
+            actionBtn.style.display = 'inline-flex';
+        } else if (actionBtn) {
+            actionBtn.style.display = 'none';
+        }
+
         const close = () => { modal.classList.remove('show'); modal.style.zIndex = ''; };
         if (okBtn)    okBtn.onclick    = close;
         if (closeBtn) closeBtn.onclick = close;
-        // No overlay click-to-close
         modal.style.zIndex = '3000';
         requestAnimationFrame(() => modal.classList.add('show'));
     }
@@ -1287,19 +1302,67 @@ window.onload = function () {
     function updateAuthVerifyUI(state, loading = false) {
         if (!authVerifyToggle || !authVerifyTag) return;
         const disabledByModule = !emailModuleEnabled;
+        const emailNotInstalled = !('Email' in moduleState);
         const effectiveState = disabledByModule ? false : state;
+        const marketplaceLink = document.getElementById('auth-verify-marketplace-link');
+        const switchLabel = authVerifyToggle.closest('label.switch');
+
         authVerifyToggle.checked = effectiveState;
         authVerifyToggle.disabled = loading || disabledByModule;
+
+        // Overlay no switch para capturar cliques quando desabilitado
+        if (switchLabel) {
+            let overlay = switchLabel.querySelector('.switch-disabled-overlay');
+            if (disabledByModule && !loading) {
+                if (!overlay) {
+                    overlay = document.createElement('span');
+                    overlay.className = 'switch-disabled-overlay';
+                    overlay.style.cssText = 'position:absolute;inset:0;cursor:not-allowed;z-index:1;';
+                    switchLabel.style.position = 'relative';
+                    switchLabel.appendChild(overlay);
+                }
+                overlay.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (emailNotInstalled) {
+                        showErrorModal(
+                            'O módulo de E-mail não está instalado. Instale-o pelo Marketplace para usar esta funcionalidade.',
+                            'Módulo não instalado',
+                            { label: 'Ir para Marketplace', href: '/modules/marketplace' }
+                        );
+                    } else {
+                        showErrorModal(
+                            'O módulo de E-mail está desabilitado. Habilite-o em "Funcionalidades" para usar esta opção.',
+                            'Módulo desabilitado'
+                        );
+                    }
+                };
+            } else if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        // Mostra/esconde link do marketplace
+        if (marketplaceLink) {
+            marketplaceLink.style.display = emailNotInstalled ? 'inline-flex' : 'none';
+        }
+
         if (loading) {
             authVerifyTag.textContent = 'Sincronizando...';
             authVerifyTag.style.backgroundColor = '#fff3cd';
             authVerifyTag.style.color = '#8a6d3b';
             return;
         }
-        if (disabledByModule) {
-            authVerifyTag.textContent = 'Requer módulo E-mail';
+        if (emailNotInstalled) {
+            authVerifyTag.textContent = 'Módulo E-mail não instalado';
             authVerifyTag.style.backgroundColor = '#fdeaea';
             authVerifyTag.style.color = '#b3261e';
+            return;
+        }
+        if (disabledByModule) {
+            authVerifyTag.textContent = 'Módulo E-mail desabilitado';
+            authVerifyTag.style.backgroundColor = '#fff3cd';
+            authVerifyTag.style.color = '#8a6d3b';
             return;
         }
         if (effectiveState) {
@@ -1335,6 +1398,17 @@ window.onload = function () {
 
     async function persistAuthPolicy(enabled) {
         if (!authVerifyToggle) return;
+        const emailNotInstalled = !('Email' in moduleState);
+        if (emailNotInstalled && enabled) {
+            showErrorModal(
+                'O módulo de E-mail não está instalado. Instale-o pelo Marketplace para usar esta funcionalidade.',
+                'Módulo não instalado',
+                { label: 'Ir para Marketplace', href: '/modules/marketplace' }
+            );
+            updateAuthVerifyUI(authRequireEmailVerification, false);
+            authVerifyToggle.checked = false;
+            return;
+        }
         if (!emailModuleEnabled && enabled) {
             showErrorModal('Ative o módulo de E-mail para exigir verificação por e-mail.', 'Módulo desabilitado');
             updateAuthVerifyUI(authRequireEmailVerification, false);
@@ -2462,8 +2536,9 @@ window.onload = function () {
 
                 fb.textContent = 'Dados salvos com sucesso.';
                 fb.className = 'login-feedback success';
-                // Atualiza avatar do topbar imediatamente
+                // Atualiza avatar e nome do hero imediatamente
                 updateTopbarAvatar(avatar);
+                updateHeroName(nome, username);
                 setTimeout(async () => {
                     closeModal('editar-perfil-modal');
                     await carregarMeuPerfil();

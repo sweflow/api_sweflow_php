@@ -290,6 +290,9 @@
                     <span class="toggle-name">Login só após e-mail verificado</span>
                     <span class="toggle-tag" id="auth-verify-tag">Carregando...</span>
                     <small style="color:#64748b;">Exige <code>verificado_email = true</code> para novos logins.</small>
+                    <a id="auth-verify-marketplace-link" href="/modules/marketplace" style="display:none;margin-top:6px;font-size:0.82rem;color:#7c5cff;text-decoration:none;">
+                        <i class="fa-solid fa-store"></i> Instalar módulo de E-mail no Marketplace
+                    </a>
                 </div>
                 <label class="switch">
                     <input type="checkbox" id="require-email-verification" />
