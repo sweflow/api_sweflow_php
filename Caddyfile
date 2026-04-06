@@ -1,39 +1,15 @@
-# ============================================================
-# Caddyfile — Sweflow API (Produção)
-#
-# Variáveis lidas de /etc/caddy/sweflow.env (gerado por ci/caddy-env.sh):
-#   APP_PORT     — porta do PHP           (ex: 8000)
-#   APP_HOST     — bind do PHP            (ex: 127.0.0.1)
-#   CADDY_EMAIL  — email para Let's Encrypt
-#
-# NOTA: o nome do site (domínio) não suporta variável de ambiente no Caddy v2.
-# Para trocar o domínio, edite a linha abaixo e rode: sudo systemctl reload caddy
-# ============================================================
-
 {
     email {$CADDY_EMAIL:admin@vupi.us}
-
-    log {
-        output file /var/log/caddy/sweflow.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-        format json
-        level  INFO
-    }
 }
 
 api.vupi.us {
-    # ── TLS automático (Let's Encrypt) ───────────────────
     tls {
         protocols tls1.2 tls1.3
         ciphers TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     }
 
-    # ── Compressão ───────────────────────────────────────
     encode zstd gzip
 
-    # ── Headers de segurança ─────────────────────────────
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options    "nosniff"
@@ -43,7 +19,6 @@ api.vupi.us {
         -X-Powered-By
     }
 
-    # ── Bloqueia User-Agents de scanners conhecidos ──────
     @malicious_ua {
         header User-Agent *sqlmap*
         header User-Agent *nikto*
@@ -65,15 +40,11 @@ api.vupi.us {
     }
     respond @malicious_ua 403
 
-    # ── Bloqueia acesso a arquivos sensíveis ─────────────
     @sensitive {
         path /.env* /.git* /*.json /*.lock /*.md /*.sh /*.sql /*.yml /*.yaml
     }
     respond @sensitive 404
 
-    # ── Proxy reverso para o PHP ─────────────────────────
-    # APP_HOST e APP_PORT vêm de /etc/caddy/sweflow.env via systemd EnvironmentFile
-    # IMPORTANTE: X-Forwarded-Proto "https" é obrigatório para o PHP reconhecer HTTPS
     reverse_proxy {$APP_HOST:127.0.0.1}:{$APP_PORT:8000} {
         header_up X-Forwarded-Proto "https"
         header_up X-Real-IP         {remote_host}
@@ -82,14 +53,5 @@ api.vupi.us {
             dial_timeout            10s
             response_header_timeout 30s
         }
-    }
-
-    # ── Logs de acesso ───────────────────────────────────
-    log {
-        output file /var/log/caddy/sweflow-access.log {
-            roll_size 50mb
-            roll_keep 10
-        }
-        format json
     }
 }
