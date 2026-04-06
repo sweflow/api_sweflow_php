@@ -58,7 +58,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                     $stmt->bindValue(':url_capa',                $usuario->getUrlCapa());
                     $stmt->bindValue(':biografia',               $usuario->getBiografia());
                     $stmt->bindValue(':nivel_acesso',            $usuario->getNivelAcesso());
-                    $stmt->bindValue(':ativo',                   $usuario->isAtivo() ? 1 : 0, PDO::PARAM_INT);
+                    $stmt->bindValue(':ativo',                   $usuario->isAtivo(), PDO::PARAM_BOOL);
                     $stmt->bindValue(':status_verificacao',      $usuario->getStatusVerificacao());
                     $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
                     $stmt->bindValue(':uuid',                    $uuid);
@@ -83,7 +83,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                     $stmt->bindValue(':url_capa',                $usuario->getUrlCapa());
                     $stmt->bindValue(':biografia',               $usuario->getBiografia());
                     $stmt->bindValue(':nivel_acesso',            $usuario->getNivelAcesso());
-                    $stmt->bindValue(':ativo',                   $usuario->isAtivo() ? 1 : 0, PDO::PARAM_INT);
+                    $stmt->bindValue(':ativo',                   $usuario->isAtivo(), PDO::PARAM_BOOL);
                     $stmt->bindValue(':status_verificacao',      $usuario->getStatusVerificacao());
                     $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
                     $stmt->bindValue(':criado_em',               $agora);
@@ -180,11 +180,12 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
     public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void
     {
         if ($verificado) {
-            $sql = "UPDATE {$this->tabela} SET verificado_email = 1, token_verificacao_email = NULL WHERE {$this->colunaId} = :uuid";
+            $sql = "UPDATE {$this->tabela} SET verificado_email = :v, token_verificacao_email = NULL WHERE {$this->colunaId} = :uuid";
         } else {
-            $sql = "UPDATE {$this->tabela} SET verificado_email = 0 WHERE {$this->colunaId} = :uuid";
+            $sql = "UPDATE {$this->tabela} SET verificado_email = :v WHERE {$this->colunaId} = :uuid";
         }
         $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':v', $verificado, PDO::PARAM_BOOL);
         $stmt->bindValue(':uuid', $uuid);
         $stmt->execute();
     }
@@ -334,13 +335,14 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
         return $this->executarQuery(function () use ($limite, $offset) {
             $sql = "SELECT username, atualizado_em, criado_em
                     FROM {$this->tabela}
-                    WHERE ativo = 1
+                    WHERE ativo = :ativo
                       AND username IS NOT NULL
                       AND username <> ''
                     ORDER BY criado_em DESC
                     LIMIT :limite OFFSET :offset";
 
             $stmt = $this->pdo->prepare($sql);
+            $stmt->bindValue(':ativo', true, PDO::PARAM_BOOL);
             $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();

@@ -21,39 +21,42 @@ class RefreshTokenRepository
 
     public function store(string $jti, string $userUuid, string $hashedToken, DateTimeImmutable $expiresAt): void
     {
-        $sql = "INSERT INTO {$this->table} (jti, user_uuid, token_hash, expires_at, revoked) VALUES (:jti, :user_uuid, :token_hash, :expires_at, 0)";
+        $sql = "INSERT INTO {$this->table} (jti, user_uuid, token_hash, expires_at, revoked) VALUES (:jti, :user_uuid, :token_hash, :expires_at, :revoked)";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':jti', $jti);
         $stmt->bindValue(':user_uuid', $userUuid);
         $stmt->bindValue(':token_hash', $hashedToken);
         $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:s'));
+        $stmt->bindValue(':revoked', false, PDO::PARAM_BOOL);
         $stmt->execute();
 
-        // Enforce max active refresh tokens per user (keep newest by expires_at)
         $this->trimForUser($userUuid, $this->maxPerUser);
     }
 
     public function revokeByJti(string $jti): void
     {
-        $sql = "UPDATE {$this->table} SET revoked = 1 WHERE jti = :jti";
+        $sql = "UPDATE {$this->table} SET revoked = :revoked WHERE jti = :jti";
         $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':revoked', true, PDO::PARAM_BOOL);
         $stmt->bindValue(':jti', $jti);
         $stmt->execute();
     }
 
     public function revokeByUser(string $userUuid): void
     {
-        $sql = "UPDATE {$this->table} SET revoked = 1 WHERE user_uuid = :user_uuid";
+        $sql = "UPDATE {$this->table} SET revoked = :revoked WHERE user_uuid = :user_uuid";
         $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':revoked', true, PDO::PARAM_BOOL);
         $stmt->bindValue(':user_uuid', $userUuid);
         $stmt->execute();
     }
 
     public function findValidByJti(string $jti): ?array
     {
-        $sql = "SELECT * FROM {$this->table} WHERE jti = :jti AND revoked = 0 AND expires_at > NOW() LIMIT 1";
+        $sql = "SELECT * FROM {$this->table} WHERE jti = :jti AND revoked = :revoked AND expires_at > NOW() LIMIT 1";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':jti', $jti);
+        $stmt->bindValue(':revoked', false, PDO::PARAM_BOOL);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row !== false ? $row : null;
