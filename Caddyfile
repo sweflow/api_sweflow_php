@@ -14,12 +14,29 @@
 #   sudo caddy reload --config Caddyfile       # reload sem downtime
 #   sudo caddy stop                            # para
 #
+# Variáveis lidas do ambiente (exportadas antes de iniciar o Caddy):
+#   APP_URL      — domínio da API         (ex: api.vupi.us)
+#   APP_PORT     — porta do PHP           (ex: 3005)
+#   APP_HOST     — bind do PHP            (ex: 127.0.0.1)
+#   CADDY_EMAIL  — email para Let's Encrypt (ex: admin@vupi.us)
+#
+# Como exportar do .env antes de iniciar:
+#   export $(grep -v '^#' .env | xargs)
+#   sudo -E caddy start --config Caddyfile
+#
+# Ou via systemd (recomendado): adicione EnvironmentFile= no caddy.service
+#   sudo systemctl edit caddy
+#   → [Service]
+#   → EnvironmentFile=/caminho/para/.env
+#
 # O Caddy escuta nas portas 80 (redirect HTTP→HTTPS) e 443 (HTTPS) automaticamente.
 # Requer que as portas 80 e 443 estejam abertas e o domínio aponte para este servidor.
 # ============================================================
 
 {
-    email admin@typper.shop
+    # Email para notificações do Let's Encrypt
+    # Lê de CADDY_EMAIL ou usa fallback
+    email {$CADDY_EMAIL:admin@vupi.us}
 
     log {
         output file /var/log/caddy/sweflow.log {
@@ -31,7 +48,8 @@
     }
 }
 
-api.vupi.us {
+# Domínio lido de APP_DOMAIN (sem https://) — fallback: api.vupi.us
+{$APP_DOMAIN:api.vupi.us} {
     # ── TLS automático (Let's Encrypt) ───────────────────
     tls {
         protocols tls1.2 tls1.3
@@ -80,11 +98,12 @@ api.vupi.us {
     respond @sensitive 404
 
     # ── Proxy reverso para o PHP ─────────────────────────
+    # Porta lida de APP_PORT (fallback: 3005) e host de APP_HOST (fallback: 127.0.0.1)
     # IMPORTANTE: header_up X-Forwarded-Proto "https" é obrigatório.
     # O Caddy não adiciona esse header automaticamente na conexão interna
     # Caddy→PHP (que é HTTP). Sem ele, o HttpsEnforcerMiddleware do PHP
     # bloqueia todas as requisições com 403.
-    reverse_proxy 127.0.0.1:3005 {
+    reverse_proxy {$APP_HOST:127.0.0.1}:{$APP_PORT:3005} {
         header_up X-Forwarded-Proto "https"
         header_up X-Real-IP         {remote_host}
 
