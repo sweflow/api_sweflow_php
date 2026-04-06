@@ -203,6 +203,7 @@
                 <div class="dash-sidenav-section">
                     <span class="dash-sidenav-label">Configuração</span>
                     <a href="#capabilities"        class="dash-sidenav-link"><i class="fa-solid fa-plug"></i> Capacidades</a>
+                    <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
                 </div>
@@ -319,6 +320,22 @@
                 <h2 class="dash-section-title"><i class="fa-solid fa-plug"></i> Capacidades</h2>
             </div>
             <div id="capabilities-list"><span class="dash-loading">Carregando...</span></div>
+        </section>
+
+        <!-- Migrations -->
+        <section class="dash-card dash-section" id="migrations">
+            <div class="dash-section-header">
+                <div>
+                    <h2 class="dash-section-title"><i class="fa-solid fa-database"></i> Migrations</h2>
+                    <p class="dash-section-sub">Status das migrations por banco de dados.</p>
+                </div>
+                <div class="dash-section-actions">
+                    <button class="dash-btn-ghost" id="migrations-refresh-btn">
+                        <i class="fa-solid fa-rotate-right"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+            <div id="migrations-list"><span class="dash-loading">Carregando...</span></div>
         </section>
 
     </main>

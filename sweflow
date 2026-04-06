@@ -19,4 +19,4 @@ if (file_exists(__DIR__ . '/.env')) {
     $dotenv->load();
 }
 
-(new Src\CLI\CommandRunner())->run($argv);
+(new Src\CLI\CommandRunner())->run(array_slice($argv, 1));

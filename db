@@ -1,43 +1,17 @@
+#!/usr/bin/env php
 <?php
 require __DIR__ . '/vendor/autoload.php';
 
 use Dotenv\Dotenv;
-use Src\Kernel\Database\PdoFactory;
-use Src\Kernel\Support\DB\Migrator;
-use Src\Kernel\Support\DB\PluginMigrator;
-
-$argv = $_SERVER['argv'] ?? [];
-$cmd = $argv[1] ?? 'help';
-$arg1 = $argv[2] ?? null;
+use Src\CLI\CommandRunner;
 
 if (file_exists(__DIR__ . '/.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 }
 
-$pdo = PdoFactory::fromEnv();
-$runner = new Migrator($pdo, __DIR__);
-$pluginRunner = new PluginMigrator($pdo, __DIR__);
+$argv = $_SERVER['argv'] ?? [];
+array_shift($argv); // remove o nome do script
 
-switch ($cmd) {
-    case 'migrate':
-    case 'db:migrate':
-        $runner->migrate();
-        $pluginRunner->migrateAll();
-        break;
-    case 'rollback':
-    case 'db:rollback':
-        $runner->rollback();
-        break;
-    case 'seed':
-    case 'db:seed':
-        $runner->seed();
-        $pluginRunner->seedAll();
-        break;
-    case 'help':
-    default:
-        echo "php db migrate\n";
-        echo "php db rollback\n";
-        echo "php db seed\n";
-        break;
-}
+$runner = new CommandRunner();
+exit($runner->run($argv));

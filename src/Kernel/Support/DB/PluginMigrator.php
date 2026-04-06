@@ -24,6 +24,27 @@ class PluginMigrator
         }
     }
 
+    /**
+     * Roda apenas as migrations de plugins externos — sem o kernel.
+     * Usado quando o kernel já foi rodado no banco core separadamente.
+     */
+    public function migratePluginsOnly(): void
+    {
+        foreach ($this->discoverPlugins() as $plugin) {
+            $this->migratePlugin($plugin);
+        }
+    }
+
+    public function discoverPluginsPublic(): array
+    {
+        return $this->discoverPlugins();
+    }
+
+    public function migratePluginPublic(array $plugin): void
+    {
+        $this->migratePlugin($plugin);
+    }
+
     public function seedAll(): void
     {
         foreach ($this->discoverPlugins() as $plugin) {

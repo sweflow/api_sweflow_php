@@ -7,56 +7,103 @@ use Src\Kernel\Support\DB\Migrator;
 use Src\Kernel\Support\DB\PluginMigrator;
 
 /**
- * CLI: php sweflow migrate [--seed] [--rollback]
+ * CLI: php sweflow migrate [opções]
  *
- * Ordem de execução:
- *   1. Migrations do kernel  (src/Kernel/Database/migrations/*.sql)
- *   2. Migrations de módulos (src/Modules/*\/Database/Migrations/*.php)
- *   3. Migrations de plugins (vendor/sweflow/*\/src/Modules/*\/Database/Migrations/*.php)
- *   4. Seeders (se --seed)
- *
- * Plugins instalados em src/Modules/ são cobertos pelo passo 2 automaticamente.
+ * Opções:
+ *   --seed              Executa seeders após migrations
+ *   --rollback          Reverte a última migration (conexão core)
+ *   --rollback --modules  Reverte a última migration (conexão modules)
+ *   --core              Executa apenas módulos com conexão 'core'
+ *   --modules           Executa apenas módulos com conexão 'modules'
+ *   --status            Exibe status de todas as migrations
+ *   --status --json     Retorna status em JSON (para CI/CD e dashboard)
  */
 class MigrateCommand
 {
     public function run(array $args): int
     {
-        $seed     = in_array('--seed', $args, true);
-        $rollback = in_array('--rollback', $args, true);
+        $seed        = in_array('--seed',     $args, true);
+        $rollback    = in_array('--rollback', $args, true);
+        $onlyCore    = in_array('--core',     $args, true);
+        $onlyModules = in_array('--modules',  $args, true);
+        $status      = in_array('--status',   $args, true);
+        $asJson      = in_array('--json',     $args, true);
 
-        echo "\n\033[1;36m=== Sweflow Migrate ===\033[0m\n\n";
+        // Suprime header quando saída é JSON puro
+        if (!$asJson) {
+            echo "\n\033[1;36m=== Sweflow Migrate ===\033[0m\n\n";
+        }
 
         try {
-            $pdo  = PdoFactory::fromEnv();
+            $pdo  = PdoFactory::fromEnv('DB');
             $root = dirname(__DIR__, 2);
 
-            $migrator       = new Migrator($pdo, $root);
-            $pluginMigrator = new PluginMigrator($pdo, $root);
+            $pdoModules = PdoFactory::hasSecondaryConnection()
+                ? PdoFactory::fromEnv('DB2')
+                : $pdo;
 
+            $migrator       = new Migrator($pdo, $root, $pdoModules);
+            $pluginMigrator = new PluginMigrator($pdoModules, $root);
+
+            // ── Status ────────────────────────────────────────────────────────
+            if ($status) {
+                if (!$asJson) {
+                    echo "\033[1m[migrate:status]\033[0m\n";
+                }
+                $migrator->status($asJson);
+                if (!$asJson) {
+                    echo "\n";
+                }
+                return 0;
+            }
+
+            // ── Rollback ──────────────────────────────────────────────────────
             if ($rollback) {
-                echo "Revertendo última migration...\n";
-                $migrator->rollback();
+                $conn = $onlyModules ? 'modules' : 'core';
+                echo "\033[1mRevertendo última migration [{$conn}]...\033[0m\n";
+                $migrator->rollback($conn);
                 echo "\n\033[32m✓ Rollback concluído.\033[0m\n\n";
                 return 0;
             }
 
-            // 1. Kernel (audit_logs, login_attempts, etc.)
-            echo "\033[1m[1/3] Migrations do kernel\033[0m\n";
-            $this->runKernelMigrations($pdo);
+            // ── Migrations ────────────────────────────────────────────────────
 
-            // 2. Módulos em src/Modules/ (nativos + plugins instalados aqui)
-            echo "\n\033[1m[2/3] Migrations dos módulos (src/Modules/)\033[0m\n";
-            $migrator->migrate();
+            // 1. Kernel — sempre no banco core
+            if (!$onlyModules) {
+                echo "\033[1m[1/3] Migrations do kernel [core]\033[0m\n";
+                $this->runKernelMigrations($pdo);
+            }
 
-            // 3. Plugins em vendor/sweflow/
-            echo "\n\033[1m[3/3] Migrations de plugins (vendor/sweflow/)\033[0m\n";
-            $pluginMigrator->migrateAll();
+            // 2. Módulos — cada um usa sua conexão definida em connection.php
+            $label = $onlyCore ? 'core' : ($onlyModules ? 'modules' : 'todas');
+            echo "\n\033[1m[2/3] Migrations dos módulos [{$label}]\033[0m\n";
+
+            if ($onlyCore) {
+                $migrator->migrateCore();
+            } elseif ($onlyModules) {
+                $migrator->migrateModules();
+            } else {
+                $migrator->migrate();
+            }
+
+            // 3. Plugins em vendor/sweflow/ — usa conexão de módulos, sem rodar kernel SQL
+            if (!$onlyCore) {
+                $connLabel = PdoFactory::hasSecondaryConnection() ? 'DB2' : 'DB';
+                echo "\n\033[1m[3/3] Migrations de plugins (vendor/sweflow/) [{$connLabel}]\033[0m\n";
+                $pluginMigrator->migratePluginsOnly();
+            }
 
             // 4. Seeders
             if ($seed) {
-                echo "\n\033[1m[Seeders] Executando seeders\033[0m\n";
-                $migrator->seed();
-                $pluginMigrator->seedAll();
+                echo "\n\033[1m[Seeders]\033[0m\n";
+                if ($onlyCore) {
+                    $migrator->seedCore();
+                } elseif ($onlyModules) {
+                    $migrator->seedModules();
+                } else {
+                    $migrator->seed();
+                    $pluginMigrator->seedAll();
+                }
             }
 
             echo "\n\033[32m✓ Concluído.\033[0m\n\n";
@@ -69,8 +116,7 @@ class MigrateCommand
     }
 
     /**
-     * Executa os arquivos .sql em src/Kernel/Database/migrations/
-     * Idempotente: registra na tabela migrations para não re-executar.
+     * Executa os arquivos .sql em src/Kernel/Database/migrations/ — sempre no banco core.
      */
     private function runKernelMigrations(\PDO $pdo): void
     {
@@ -91,7 +137,6 @@ class MigrateCommand
         foreach ($files as $file) {
             $name = basename($file);
 
-            // Verifica se já foi executada
             try {
                 $stmt = $pdo->prepare("SELECT 1 FROM migrations WHERE migration = :m LIMIT 1");
                 $stmt->execute([':m' => 'kernel/' . $name]);
@@ -99,11 +144,9 @@ class MigrateCommand
                     echo "  ⊘ kernel/$name (já executada)\n";
                     continue;
                 }
-            } catch (\Throwable) {
-                // Tabela migrations ainda não existe — será criada pelo Migrator
-            }
+            } catch (\Throwable) {}
 
-            $sql = file_get_contents($file);
+            $sql      = file_get_contents($file);
             if ($sql === false) continue;
 
             $hasError = false;
@@ -112,8 +155,7 @@ class MigrateCommand
                 try {
                     $pdo->exec($statement . ';');
                 } catch (\Throwable $e) {
-                    $msg = $e->getMessage();
-                    // Ignora erros inofensivos (já existe, warnings genéricos sem detalhe)
+                    $msg     = $e->getMessage();
                     $ignorar = str_contains($msg, 'already exists')
                         || $msg === 'SQLSTATE[HY000]: General error: ';
                     if (!$ignorar) {
@@ -124,7 +166,6 @@ class MigrateCommand
             }
 
             if (!$hasError) {
-                // Registra como executada
                 try {
                     $ins = $pdo->prepare("INSERT INTO migrations (module, migration) VALUES ('kernel', :m)");
                     $ins->execute([':m' => 'kernel/' . $name]);

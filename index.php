@@ -286,9 +286,16 @@ $container = new Container();
 $container->bind(ContainerInterface::class, $container, true);
 
 try {
-    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv(), true);
+    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv('DB'), true);
 
-    $migrator = new PluginMigrator(PdoFactory::fromEnv(), __DIR__);
+    // Segunda conexão para módulos externos (DB2_*).
+    // Se DB2_NOME não estiver definido, módulos externos usam a mesma conexão do core.
+    $container->bind('pdo.modules', static fn() => PdoFactory::hasSecondaryConnection()
+        ? PdoFactory::fromEnv('DB2')
+        : PdoFactory::fromEnv('DB'),
+    true);
+
+    $migrator = new PluginMigrator(PdoFactory::fromEnv('DB'), __DIR__);
     $container->bind(PluginMigrator::class, $migrator, true);
 } catch (\Throwable $e) {
     if (isDbConnectionError($e)) {
@@ -412,6 +419,32 @@ $router->get('/api/system/modules', [\Src\Kernel\Controllers\StatusController::c
     AdminOnlyMiddleware::class,
 ]);
 $router->post('/api/system/modules/toggle', [\Src\Kernel\Controllers\StatusController::class, 'toggle'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Migrations status API
+$router->get('/api/system/migrations/status', function () use ($container) {
+    try {
+        $pdo  = $container->make(\PDO::class);
+        $root = dirname(__FILE__);
+
+        $pdoModules = null;
+        try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
+
+        $migrator = new \Src\Kernel\Support\DB\Migrator($pdo, $root, $pdoModules);
+
+        // Captura output do status como JSON
+        ob_start();
+        $migrator->status(true);
+        $json = ob_get_clean();
+
+        $data = json_decode($json, true) ?? ['core' => [], 'modules' => []];
+        return Response::json(['status' => 'ok', 'migrations' => $data]);
+    } catch (\Throwable $e) {
+        return Response::json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+}, [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);

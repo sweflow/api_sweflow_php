@@ -7,14 +7,14 @@ use Src\Kernel\Nucleo\PluginManager;
 
 class CommandRunner
 {
-    public function run(array $argv): void
+    public function run(array $argv): int
     {
-        $command = $argv[1] ?? null;
+        $command = $argv[0] ?? null;
         if (!$command) {
             $this->printHelp();
-            return;
+            return 0;
         }
-        $this->dispatch($command, $argv);
+        return $this->dispatch($command, $argv);
     }
 
     private function printHelp(): void
@@ -22,7 +22,7 @@ class CommandRunner
         echo "Sweflow CLI\n";
         echo "Comandos disponíveis:\n";
         echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
-        echo "  migrate [--seed] [--rollback]\n";
+        echo "  migrate [--seed] [--rollback] [--core] [--modules] [--status] [--status --json]\n";
         echo "  make:module Nome\n";
         echo "  make:plugin Nome\n";
         echo "  plugin:inspect\n";
@@ -37,11 +37,11 @@ class CommandRunner
         echo "  plugin:provider:set <capability> <plugin>\n";
     }
 
-    private function dispatch(string $command, array $argv): void
+    private function dispatch(string $command, array $argv): int
     {
         match (true) {
             $command === 'setup'              => (new SetupCommand())->handle($argv),
-            $command === 'migrate'            => exit((new MigrateCommand())->run(array_slice($argv, 2))),
+            $command === 'migrate'            => null, // tratado abaixo
             $command === 'make:module'        => $this->handleMakeModule($argv),
             $command === 'make:plugin'        => $this->handleMakePlugin($argv),
             $command === 'plugin:inspect'     => (new PluginInspectCommand())->handle(),
@@ -53,8 +53,14 @@ class CommandRunner
                                               => $this->handlePluginLifecycle($command, $argv),
             $command === 'capability:list'    => (new CapabilityListCommand())->handle($argv[2] ?? null),
             $command === 'plugin:provider:set'=> $this->handleProviderSet($argv),
-            default                           => print("Comando não encontrado\n"),
+            default                           => print("Comando não encontrado: {$command}\n"),
         };
+
+        if ($command === 'migrate') {
+            return (new MigrateCommand())->run(array_slice($argv, 1));
+        }
+
+        return 0;
     }
 
     private function handleMakeModule(array $argv): void

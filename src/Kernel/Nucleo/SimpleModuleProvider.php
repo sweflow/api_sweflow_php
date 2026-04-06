@@ -151,6 +151,7 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'name'        => $this->name,
             'description' => $this->metadata['description'] ?? '',
             'version'     => $this->metadata['version'] ?? '1.0.0',
+            'connection'  => $this->preferredConnection(),
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
@@ -205,5 +206,33 @@ class SimpleModuleProvider implements ModuleProviderInterface
     public function onUninstall(): void
     {
         // Default empty implementation for simple modules
+    }
+
+    /**
+     * Lê o arquivo Database/connection.php do módulo para determinar a conexão.
+     * Se não existir, retorna 'auto' (core decide baseado na origem do módulo).
+     *
+     * Para definir a conexão no seu módulo, crie:
+     *   src/Modules/SeuModulo/Database/connection.php
+     * com o conteúdo:
+     *   <?php return 'core';    // usa DB_*
+     *   <?php return 'modules'; // usa DB2_*
+     */
+    public function preferredConnection(): string
+    {
+        $candidates = [
+            $this->path . '/Database/connection.php',
+            $this->path . '/src/Database/connection.php',
+            $this->path . '/database/connection.php',
+        ];
+        foreach ($candidates as $file) {
+            if (is_file($file)) {
+                $value = include $file;
+                if (is_string($value) && in_array($value, ['core', 'modules', 'auto'], true)) {
+                    return $value;
+                }
+            }
+        }
+        return 'auto';
     }
 }

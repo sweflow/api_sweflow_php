@@ -126,7 +126,8 @@ class ModuleLoader
                 continue;
             }
             try {
-                $provider = $this->container->make($providerClass);
+                // Módulos externos (Composer) usam a conexão secundária pdo.modules
+                $provider = $this->makeWithModulesPdo($providerClass);
                 if ($provider instanceof ModuleProviderInterface) {
                     $name = method_exists($provider, 'getName') ? $provider->getName() : (new \ReflectionClass($provider))->getShortName();
 
@@ -509,5 +510,83 @@ class ModuleLoader
             $dir = dirname($dir);
         }
         return null;
+    }
+
+    /**
+     * Instancia um provider de módulo externo usando a conexão correta.
+     *
+     * Lógica de decisão (controlada pelo core):
+     *   1. Instancia o provider com a conexão principal para ler preferredConnection()
+     *   2. Se preferredConnection() === 'core' → usa PDO::class
+     *   3. Se preferredConnection() === 'modules' ou 'auto' (externo) → usa pdo.modules
+     *   4. Se pdo.modules não estiver configurado → cai para PDO::class com aviso
+     */
+    private function makeWithModulesPdo(string $providerClass): object
+    {
+        // Primeira instância com conexão principal só para ler a preferência
+        try {
+            $tempProvider = $this->container->make($providerClass);
+        } catch (\Throwable) {
+            return $this->container->make($providerClass);
+        }
+
+        $preference = $tempProvider instanceof ModuleProviderInterface
+            ? $tempProvider->preferredConnection()
+            : 'auto';
+
+        // Core valida e decide — o módulo apenas declara preferência
+        $useModulesConnection = match ($preference) {
+            'core'    => false,
+            'modules' => true,
+            default   => true, // 'auto' para módulos externos = pdo.modules
+        };
+
+        if (!$useModulesConnection) {
+            $this->logConnection($providerClass, 'core (declarado pelo módulo)');
+            return $tempProvider;
+        }
+
+        try {
+            $modulesPdo = $this->container->make('pdo.modules');
+        } catch (\Throwable) {
+            $this->logConnection($providerClass, 'core (pdo.modules não disponível — fallback)');
+            return $tempProvider;
+        }
+
+        // Verifica se pdo.modules é diferente de PDO::class (segunda conexão real)
+        $corePdo = null;
+        try { $corePdo = $this->container->make(\PDO::class); } catch (\Throwable) {}
+
+        if ($modulesPdo === $corePdo) {
+            $this->logConnection($providerClass, 'core (DB2_* não configurado — usando conexão principal)');
+            return $tempProvider;
+        }
+
+        // Recria com container derivado usando pdo.modules como PDO::class
+        $derived = clone $this->container;
+        $derived->bind(\PDO::class, static fn() => $modulesPdo, true);
+
+        $this->logConnection($providerClass, 'modules (DB2_*)');
+
+        try {
+            return $derived->make($providerClass);
+        } catch (\Throwable) {
+            return $tempProvider;
+        }
+    }
+
+    private function logConnection(string $providerClass, string $connection): void
+    {
+        if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
+            $short = basename(str_replace('\\', '/', $providerClass));
+            // Tenta obter o driver da conexão usada para log mais rico
+            $driver = '';
+            try {
+                $pdoKey = str_contains($connection, 'modules') ? 'pdo.modules' : \PDO::class;
+                $pdo    = $this->container->make($pdoKey);
+                $driver = ' [' . $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) . ']';
+            } catch (\Throwable) {}
+            error_log("[ModuleLoader] {$short} → conexão: {$connection}{$driver}");
+        }
     }
 }

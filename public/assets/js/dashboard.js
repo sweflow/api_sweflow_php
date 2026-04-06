@@ -260,6 +260,14 @@ window.onload = function () {
             const modDesc    = esc(mod.description || 'Sem descrição disponível para este módulo.');
             const modVersion = esc(mod.version || '1.0.0');
 
+            // Badge de conexão de banco
+            const conn = mod.connection || 'auto';
+            const connLabel = conn === 'core' ? 'DB (core)' : conn === 'modules' ? 'DB2 (modules)' : 'auto';
+            const connIcon  = conn === 'modules' ? 'fa-database' : 'fa-database';
+            const connColor = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
+            const connBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;color:${connColor};font-weight:600;">
+                <i class="fa-solid ${connIcon}" style="font-size:0.72rem;"></i>${connLabel}</span>`;
+
             return `
             <div class="module-card ${cardStatusClass}">
                 <div class="module-header">
@@ -276,6 +284,7 @@ window.onload = function () {
                 <div class="module-stats">
                     <div class="stat-item"><i class="fa-solid fa-route"></i> ${routeCount} ${routeText}</div>
                     <div class="stat-item">${isProtected ? '<i class="fa-solid fa-lock"></i> Core' : '<i class="fa-solid fa-puzzle-piece"></i> Extensão'}</div>
+                    <div class="stat-item">${connBadge}</div>
                 </div>
                 <div class="module-footer">${actionElement}</div>
             </div>`;
@@ -657,6 +666,64 @@ window.onload = function () {
             el.innerHTML = '<div class="muted">Erro ao carregar capacidades.</div>';
         }
     }
+
+    async function loadMigrations() {
+        const el = document.getElementById('migrations-list');
+        if (!el) return;
+        el.innerHTML = '<span class="dash-loading">Carregando...</span>';
+        try {
+            const res  = await fetch('/api/system/migrations/status', { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!res.ok) { el.innerHTML = '<div class="muted">Erro ao carregar migrations.</div>'; return; }
+
+            const migs = data.migrations || { core: [], modules: [] };
+            const conns = ['core', 'modules'];
+            let html = '';
+
+            for (const conn of conns) {
+                const items = migs[conn] || [];
+                if (!items.length) continue;
+
+                const connColor = conn === 'core' ? '#4ade80' : '#818cf8';
+                const connLabel = conn === 'core' ? 'DB (core)' : 'DB2 (modules)';
+                html += `<div class="mig-group">
+                    <div class="mig-group-header">
+                        <i class="fa-solid fa-database" style="color:${connColor}"></i>
+                        <span style="color:${connColor};font-weight:700;">${connLabel}</span>
+                        <span class="mig-count">${items.length} migration${items.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="mig-rows">`;
+
+                for (const m of items) {
+                    const isDone    = m.status === 'done';
+                    const isChanged = m.changed;
+                    const icon  = isChanged ? 'fa-triangle-exclamation' : (isDone ? 'fa-circle-check' : 'fa-circle');
+                    const color = isChanged ? '#f59e0b' : (isDone ? '#4ade80' : '#94a3b8');
+                    const label = isChanged ? 'alterada' : (isDone ? 'executada' : 'pendente');
+                    const warn  = isChanged
+                        ? `<span class="mig-warn">⚠ Crie uma nova migration para alterar o schema</span>`
+                        : '';
+                    html += `<div class="mig-row ${isChanged ? 'mig-changed' : (isDone ? 'mig-done' : 'mig-pending')}">
+                        <i class="fa-solid ${icon}" style="color:${color};flex-shrink:0;"></i>
+                        <span class="mig-name">${esc(m.module)}/<strong>${esc(m.name)}</strong></span>
+                        <span class="mig-status" style="color:${color}">${label}</span>
+                        ${warn}
+                    </div>`;
+                }
+                html += `</div></div>`;
+            }
+
+            if (!html) {
+                html = '<div class="muted" style="padding:24px;text-align:center;">Nenhuma migration encontrada.</div>';
+            }
+            el.innerHTML = html;
+        } catch (e) {
+            el.innerHTML = '<div class="muted">Erro ao carregar migrations.</div>';
+        }
+    }
+
+    // Botão de refresh
+    document.getElementById('migrations-refresh-btn')?.addEventListener('click', loadMigrations);
 
     function openEmailModal() {
         if (!emailModal) return;
@@ -1364,6 +1431,7 @@ window.onload = function () {
 
         await fetchModulesState();
         await loadCapabilities();
+        await loadMigrations();
 
         setInterval(async () => {
             await fetchMetrics();

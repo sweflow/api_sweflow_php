@@ -31,6 +31,20 @@ interface ModuleProviderInterface
      */
     public function setName(string $name): void;
 
+    /**
+     * Declara qual conexão de banco este módulo prefere usar.
+     *
+     * Valores aceitos:
+     *   'core'    — usa PDO::class (banco principal: Auth, Usuario, Email)
+     *   'modules' — usa pdo.modules (banco secundário DB2_*, se configurado)
+     *   'auto'    — o core decide: módulos nativos usam 'core', externos usam 'modules'
+     *
+     * O core sempre valida e controla — o módulo apenas declara preferência.
+     * Se 'modules' for declarado mas DB2_* não estiver configurado, o core
+     * usa automaticamente a conexão principal sem erro.
+     */
+    public function preferredConnection(): string;
+
     public function onInstall(): void;
     public function onEnable(): void;
     public function onDisable(): void;

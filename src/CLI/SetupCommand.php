@@ -49,8 +49,8 @@ class SetupCommand
         echo "1)  Preparar .env (copiar EXEMPLO.env -> .env)\n";
         echo "2)  Subir banco via docker-compose (recomendado)\n";
         echo "3)  Criar banco via docker run (container avulso)\n";
-        echo "4)  Rodar migrations (módulos + plugins)\n";
-        echo "5)  Rodar seeders (módulos + plugins)\n";
+        echo "4)  Rodar migrations (todas as conexões)\n";
+        echo "5)  Rodar seeders (todas as conexões)\n";
         echo "6)  Subir servidor PHP em background (nohup)\n";
         echo "7)  Subir servidor com PM2 (instala se necessário)\n";
         echo "8)  Validar conexão com banco\n";
@@ -66,6 +66,9 @@ class SetupCommand
         echo "18) Parar PM2 + Caddy\n";
         echo "19) Fazer backup do banco de dados\n";
         echo "20) Importar backup do banco de dados\n";
+        echo "21) Status das migrations\n";
+        echo "22) Rodar migrations apenas conexão core (DB)\n";
+        echo "23) Rodar migrations apenas conexão modules (DB2)\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -94,6 +97,9 @@ class SetupCommand
             '18' => fn() => $this->stopPm2WithCaddy(),
             '19' => fn() => $this->backupDatabase(),
             '20' => fn() => $this->restoreDatabase(),
+            '21' => fn() => $this->migrateStatus(),
+            '22' => fn() => $this->migrateCore(),
+            '23' => fn() => $this->migrateModules(),
         ];
 
         if ($choice === '0') {
@@ -601,19 +607,24 @@ class SetupCommand
     private function migrateAll(): void
     {
         $this->reloadEnv();
-        $pdo = PdoFactory::fromEnv();
+        $pdo  = PdoFactory::fromEnv('DB');
         $root = dirname(__DIR__, 2);
-        $runner = new Migrator($pdo, $root);
-        $pluginRunner = new PluginMigrator($pdo, $root);
 
-        echo "Rodando migrations (módulos em src/Modules/)...\n";
+        $pdoModules = PdoFactory::hasSecondaryConnection()
+            ? PdoFactory::fromEnv('DB2')
+            : $pdo;
+
+        $runner       = new Migrator($pdo, $root, $pdoModules);
+        $pluginRunner = new PluginMigrator($pdoModules, $root);
+
+        echo "Rodando migrations do kernel [core]...\n";
+        $this->runKernelMigrations($pdo);
+
+        echo "Rodando migrations dos módulos (cada um usa sua conexão definida)...\n";
         $runner->migrate();
 
-        echo "Rodando migrations (plugins em vendor/sweflow/)...\n";
-        $pluginRunner->migrateAll();
-
-        echo "Rodando migrations do kernel (tabelas de segurança)...\n";
-        $this->runKernelMigrations($pdo);
+        echo "Rodando migrations de plugins (vendor/sweflow/)...\n";
+        $pluginRunner->migratePluginsOnly();
 
         echo "✔ Migrations finalizadas\n";
     }
@@ -668,12 +679,19 @@ class SetupCommand
     private function seedAll(): void
     {
         $this->reloadEnv();
-        $pdo = PdoFactory::fromEnv();
-        $runner = new Migrator($pdo, dirname(__DIR__, 2));
-        $pluginRunner = new PluginMigrator($pdo, dirname(__DIR__, 2));
-        echo "Rodando seeders (módulos)...\n";
+        $pdo  = PdoFactory::fromEnv('DB');
+        $root = dirname(__DIR__, 2);
+
+        $pdoModules = PdoFactory::hasSecondaryConnection()
+            ? PdoFactory::fromEnv('DB2')
+            : $pdo;
+
+        $runner       = new Migrator($pdo, $root, $pdoModules);
+        $pluginRunner = new PluginMigrator($pdoModules, $root);
+
+        echo "Rodando seeders dos módulos (cada um usa sua conexão definida)...\n";
         $runner->seed();
-        echo "Rodando seeders (plugins)...\n";
+        echo "Rodando seeders de plugins...\n";
         $pluginRunner->seedAll();
         echo "✔ Seeders finalizados\n";
     }
@@ -742,7 +760,7 @@ class SetupCommand
     {
         $this->reloadEnv();
         try {
-            $pdo = PdoFactory::fromEnv();
+            $pdo = PdoFactory::fromEnv('DB');
             $pdo->query('SELECT 1');
             $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
             echo "✔ Conexão OK (driver: {$driver})\n";
@@ -1287,6 +1305,47 @@ class SetupCommand
         $ok = proc_close($proc) === 0;
         unlink($cnf);
         return $ok;
+    }
+
+    private function migrateStatus(): void
+    {
+        $this->reloadEnv();
+        $pdo        = PdoFactory::fromEnv('DB');
+        $root       = dirname(__DIR__, 2);
+        $pdoModules = PdoFactory::hasSecondaryConnection() ? PdoFactory::fromEnv('DB2') : $pdo;
+        $migrator   = new Migrator($pdo, $root, $pdoModules);
+        echo "\n[migrate:status]\n";
+        $migrator->status();
+        echo "\n";
+    }
+
+    private function migrateCore(): void
+    {
+        $this->reloadEnv();
+        $pdo        = PdoFactory::fromEnv('DB');
+        $root       = dirname(__DIR__, 2);
+        $pdoModules = PdoFactory::hasSecondaryConnection() ? PdoFactory::fromEnv('DB2') : $pdo;
+        $migrator   = new Migrator($pdo, $root, $pdoModules);
+        echo "\nRodando migrations do kernel [core]...\n";
+        $this->runKernelMigrations($pdo);
+        echo "\nRodando migrations dos módulos [core]...\n";
+        $migrator->migrateCore();
+        echo "✔ Migrations core finalizadas\n";
+    }
+
+    private function migrateModules(): void
+    {
+        $this->reloadEnv();
+        $pdo          = PdoFactory::fromEnv('DB');
+        $root         = dirname(__DIR__, 2);
+        $pdoModules   = PdoFactory::hasSecondaryConnection() ? PdoFactory::fromEnv('DB2') : $pdo;
+        $migrator     = new Migrator($pdo, $root, $pdoModules);
+        $pluginRunner = new PluginMigrator($pdoModules, $root);
+        echo "\nRodando migrations dos módulos [modules]...\n";
+        $migrator->migrateModules();
+        echo "\nRodando migrations de plugins (vendor/sweflow/) [modules]...\n";
+        $pluginRunner->migratePluginsOnly();
+        echo "✔ Migrations modules finalizadas\n";
     }
 
 }
