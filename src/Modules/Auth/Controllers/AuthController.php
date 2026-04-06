@@ -109,6 +109,15 @@ class AuthController
             $this->enforceMinResponseTime($startTime, 200);
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
             return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
+        } catch (\RuntimeException $e) {
+            $this->enforceMinResponseTime($startTime, 200);
+            error_log('[AuthController::login] ' . get_class($e) . ': ' . $e->getMessage());
+            $code = $e->getCode();
+            if ($code === 503) {
+                $userMessage = explode("\n", $e->getMessage())[0];
+                return Response::json(['status' => 'error', 'message' => $userMessage, 'code' => 'DB_CONFIG_ERROR'], 503);
+            }
+            return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
         } catch (\Throwable $e) {
             $this->enforceMinResponseTime($startTime, 200);
             error_log('[AuthController::login] ' . get_class($e) . ': ' . $e->getMessage());
@@ -192,14 +201,20 @@ class AuthController
             $this->enforceMinResponseTime($startTime, 200);
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
             return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
-        } catch (\Throwable $e) {
-            // Garante delay mesmo em erros de banco/infra
+        } catch (\RuntimeException $e) {
+            // Erros de configuração de banco (DB2 não configurado, etc.) — exibe mensagem clara
             $this->enforceMinResponseTime($startTime, 200);
             error_log('[AuthController::loginPublic] ' . get_class($e) . ': ' . $e->getMessage());
-            return Response::json([
-                'status'  => 'error',
-                'message' => 'Erro interno.',
-            ], 500);
+            $code = $e->getCode();
+            if ($code === 503) {
+                $userMessage = explode("\n", $e->getMessage())[0];
+                return Response::json(['status' => 'error', 'message' => $userMessage, 'code' => 'DB_CONFIG_ERROR'], 503);
+            }
+            return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
+        } catch (\Throwable $e) {
+            $this->enforceMinResponseTime($startTime, 200);
+            error_log('[AuthController::loginPublic] ' . get_class($e) . ': ' . $e->getMessage());
+            return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
         }
     }
 

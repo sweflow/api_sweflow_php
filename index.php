@@ -399,21 +399,23 @@ $container->bind(AuditLogger::class, static function () use ($container) {
 // O desenvolvedor de módulos não precisa tocar aqui.
 
 // Determina qual PDO usar para o módulo Usuario baseado no connection.php
+// O ModuleConnectionResolver lança RuntimeException(503) se a conexão declarada não estiver configurada.
 (static function () use ($container): void {
-    $conn   = \Src\Kernel\Database\ModuleConnectionResolver::readConnectionFile('Usuario');
-    $pdoKey = ($conn === 'modules' && PdoFactory::hasSecondaryConnection()) ? 'pdo.modules' : \PDO::class;
-
     // UserRepositoryInterface (kernel) — usado pelo AuthController e outros
     $container->bind(
         \Src\Kernel\Contracts\UserRepositoryInterface::class,
-        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository($container->make($pdoKey)),
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+        ),
         true
     );
 
     // UsuarioRepositoryInterface (módulo) — usado pelo UsuarioService/UsuarioController
     $container->bind(
         \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
-        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository($container->make($pdoKey)),
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+        ),
         true
     );
 })();

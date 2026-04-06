@@ -23,28 +23,51 @@ class Handler
 
     private function render(Throwable $e): Response
     {
-        $status = $this->getStatusCode($e);
+        $status  = $this->getStatusCode($e);
         $message = $e->getMessage();
 
         if ($this->isDbConnectionError($e) && !$this->wantsJson()) {
             return Response::html($this->dbErrorHtml(), 503);
         }
-        
+
+        // Erros de configuração de banco (RuntimeException com código 503)
+        // são sempre exibidos — são problemas operacionais, não bugs de código.
+        // A mensagem já é segura (gerada internamente, sem dados sensíveis).
+        $isConfigError = $e instanceof \RuntimeException
+            && $e->getCode() === 503
+            && (
+                str_contains($message, 'conexão secundária') ||
+                str_contains($message, 'conexão principal') ||
+                str_contains($message, 'DB2_') ||
+                str_contains($message, 'connection.php') ||
+                str_contains($message, 'não conseguiu conectar')
+            );
+
+        if ($isConfigError) {
+            // Simplifica a mensagem para o usuário — remove instruções técnicas de .env
+            $userMessage = explode("\n", $message)[0]; // só a primeira linha
+            return Response::json([
+                'status'  => 'error',
+                'message' => $userMessage,
+                'code'    => 'DB_CONFIG_ERROR',
+            ], 503);
+        }
+
         // Em produção, escondemos detalhes de erros 500
         if ($status === 500 && !$this->isDebug()) {
             $message = 'Erro interno no servidor.';
         }
 
         $body = [
-            'status' => 'error',
+            'status'  => 'error',
             'message' => $message,
         ];
 
         if ($this->isDebug()) {
             $body['exception'] = get_class($e);
-            $body['file'] = $e->getFile();
-            $body['line'] = $e->getLine();
-            $body['trace'] = explode("\n", $e->getTraceAsString());
+            $body['file']      = $e->getFile();
+            $body['line']      = $e->getLine();
+            $body['trace']     = explode("\n", $e->getTraceAsString());
         }
 
         return Response::json($body, $status);
