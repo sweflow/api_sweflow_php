@@ -1,41 +1,16 @@
 # ============================================================
 # Caddyfile — Sweflow API (Produção)
 #
-# Instalação do Caddy:
-#   Ubuntu/Debian:
-#     sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-#     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-#     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-#     sudo apt update && sudo apt install caddy
-#
-# Uso:
-#   sudo caddy run --config Caddyfile          # foreground
-#   sudo caddy start --config Caddyfile        # background
-#   sudo caddy reload --config Caddyfile       # reload sem downtime
-#   sudo caddy stop                            # para
-#
-# Variáveis lidas do ambiente (exportadas antes de iniciar o Caddy):
-#   APP_URL      — domínio da API         (ex: api.vupi.us)
-#   APP_PORT     — porta do PHP           (ex: 3005)
+# Variáveis lidas de /etc/caddy/sweflow.env (gerado por ci/caddy-env.sh):
+#   APP_PORT     — porta do PHP           (ex: 8000)
 #   APP_HOST     — bind do PHP            (ex: 127.0.0.1)
-#   CADDY_EMAIL  — email para Let's Encrypt (ex: admin@vupi.us)
+#   CADDY_EMAIL  — email para Let's Encrypt
 #
-# Como exportar do .env antes de iniciar:
-#   export $(grep -v '^#' .env | xargs)
-#   sudo -E caddy start --config Caddyfile
-#
-# Ou via systemd (recomendado): adicione EnvironmentFile= no caddy.service
-#   sudo systemctl edit caddy
-#   → [Service]
-#   → EnvironmentFile=/caminho/para/.env
-#
-# O Caddy escuta nas portas 80 (redirect HTTP→HTTPS) e 443 (HTTPS) automaticamente.
-# Requer que as portas 80 e 443 estejam abertas e o domínio aponte para este servidor.
+# NOTA: o nome do site (domínio) não suporta variável de ambiente no Caddy v2.
+# Para trocar o domínio, edite a linha abaixo e rode: sudo systemctl reload caddy
 # ============================================================
 
 {
-    # Email para notificações do Let's Encrypt
-    # Lê de CADDY_EMAIL ou usa fallback
     email {$CADDY_EMAIL:admin@vupi.us}
 
     log {
@@ -48,8 +23,7 @@
     }
 }
 
-# Domínio lido de APP_DOMAIN (sem https://) — fallback: api.vupi.us
-{$APP_DOMAIN:api.vupi.us} {
+api.vupi.us {
     # ── TLS automático (Let's Encrypt) ───────────────────
     tls {
         protocols tls1.2 tls1.3
@@ -98,12 +72,9 @@
     respond @sensitive 404
 
     # ── Proxy reverso para o PHP ─────────────────────────
-    # Porta lida de APP_PORT (fallback: 3005) e host de APP_HOST (fallback: 127.0.0.1)
-    # IMPORTANTE: header_up X-Forwarded-Proto "https" é obrigatório.
-    # O Caddy não adiciona esse header automaticamente na conexão interna
-    # Caddy→PHP (que é HTTP). Sem ele, o HttpsEnforcerMiddleware do PHP
-    # bloqueia todas as requisições com 403.
-    reverse_proxy {$APP_HOST:127.0.0.1}:{$APP_PORT:3005} {
+    # APP_HOST e APP_PORT vêm de /etc/caddy/sweflow.env via systemd EnvironmentFile
+    # IMPORTANTE: X-Forwarded-Proto "https" é obrigatório para o PHP reconhecer HTTPS
+    reverse_proxy {$APP_HOST:127.0.0.1}:{$APP_PORT:8000} {
         header_up X-Forwarded-Proto "https"
         header_up X-Real-IP         {remote_host}
 

@@ -34,7 +34,7 @@ get_env() {
 }
 
 APP_DOMAIN=$(get_env "APP_DOMAIN" "api.vupi.us")
-APP_PORT=$(get_env "APP_PORT" "3005")
+APP_PORT=$(get_env "APP_PORT" "8000")
 APP_HOST=$(get_env "APP_HOST" "127.0.0.1")
 CADDY_EMAIL=$(get_env "CADDY_EMAIL" "admin@vupi.us")
 
