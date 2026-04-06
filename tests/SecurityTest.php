@@ -36,6 +36,7 @@ function req(string $method, string $url, array $body = [], array $extraHeaders 
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HEADER         => true,
+        CURLOPT_USERAGENT      => 'SweflowSecurityTest/1.0 (internal)',
         CURLOPT_HTTPHEADER     => array_merge(
             ['Content-Type: application/json', 'Accept: application/json'],
             $extraHeaders
@@ -65,6 +66,7 @@ function reqRaw(string $method, string $url, string $rawBody, array $extraHeader
         CURLOPT_CUSTOMREQUEST  => strtoupper($method),
         CURLOPT_TIMEOUT        => 10,
         CURLOPT_HEADER         => true,
+        CURLOPT_USERAGENT      => 'SweflowSecurityTest/1.0 (internal)',
         CURLOPT_POSTFIELDS     => $rawBody,
         CURLOPT_HTTPHEADER     => array_merge(['Content-Type: application/json', 'Accept: application/json'], $extraHeaders),
     ]);

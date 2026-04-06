@@ -77,14 +77,15 @@ function initPage() {
     }
 
     async function checkSession() {
-        if (localStorage.getItem(SESSION_FLAG) !== '1') {
-            updateLoginLabels(false);
-            return false;
-        }
         try {
             const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-            if (res.ok) { updateLoginLabels(true); return true; }
-            if (res.status === 401 || res.status === 403) localStorage.removeItem(SESSION_FLAG);
+            if (res.ok) {
+                try { localStorage.setItem(SESSION_FLAG, '1'); } catch(_) {}
+                updateLoginLabels(true);
+                return true;
+            }
+            // Sessão inválida — limpa flag
+            try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
         } catch (_) {}
         updateLoginLabels(false);
         return false;
@@ -94,14 +95,15 @@ function initPage() {
     async function handleLoginClick(e) {
         e.preventDefault();
         e.stopPropagation();
-        if (localStorage.getItem(SESSION_FLAG) !== '1') { openModal(); return; }
         try {
             const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-            if (res.ok) { window.location.href = '/dashboard'; return; }
-            localStorage.removeItem(SESSION_FLAG);
-        } catch (_) {
-            localStorage.removeItem(SESSION_FLAG);
-        }
+            if (res.ok) {
+                try { localStorage.setItem(SESSION_FLAG, '1'); } catch(_) {}
+                window.location.href = '/dashboard';
+                return;
+            }
+            try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
+        } catch (_) {}
         openModal();
     }
 
@@ -279,7 +281,7 @@ function initPage() {
         });
     })();
 
-    updateLoginLabels(localStorage.getItem(SESSION_FLAG) === '1');
+    updateLoginLabels(false); // estado inicial — checkSession() corrige se houver sessão ativa
     checkSession();
 }
 

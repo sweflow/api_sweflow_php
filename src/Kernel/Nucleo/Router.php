@@ -139,15 +139,25 @@ class Router implements RouterInterface
 
         $instance = $definition;
         if (is_string($definition)) {
-            // Se há args, tenta instanciar passando-os ao construtor
-            if (!empty($args) && class_exists($definition)) {
-                try {
-                    $instance = new $definition(...array_values($args));
-                } catch (\Throwable) {
+            try {
+                if (!empty($args) && class_exists($definition)) {
+                    try {
+                        $instance = new $definition(...array_values($args));
+                    } catch (\Throwable) {
+                        $instance = $this->container->make($definition);
+                    }
+                } else {
                     $instance = $this->container->make($definition);
                 }
-            } else {
-                $instance = $this->container->make($definition);
+            } catch (\Throwable $e) {
+                // Falha ao instanciar middleware — se for rota de página, redireciona para /
+                // Se for rota de API, propaga o erro
+                $uri = $request->getUri();
+                $isPage = !str_starts_with($uri, '/api/');
+                if ($isPage) {
+                    return new Response('', 302, ['Location' => '/']);
+                }
+                throw $e;
             }
         }
 
