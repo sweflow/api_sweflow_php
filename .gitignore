@@ -28,3 +28,6 @@ gerar_jwt.php
 # Scripts de debug locais
 _debug_*.php
 _debug_*.txt
+diagnostico.php
+_test_*.php
+_check_*.php

@@ -1,7 +1,7 @@
-# ============================================================
-# Fail2Ban — Sweflow API
+﻿# ============================================================
+# Fail2Ban â€” Sweflow API
 #
-# Instalação:
+# InstalaÃ§Ã£o:
 #   sudo cp ci/fail2ban/jail.local /etc/fail2ban/jail.local
 #   sudo cp ci/fail2ban/filter.d/sweflow-api.conf /etc/fail2ban/filter.d/sweflow-api.conf
 #   sudo cp ci/fail2ban/filter.d/sweflow-nginx.conf /etc/fail2ban/filter.d/sweflow-nginx.conf
@@ -10,34 +10,34 @@
 # ============================================================
 
 [DEFAULT]
-bantime  = 600       ; 10 minutos de ban padrão
+bantime  = 600       ; 10 minutos de ban padrÃ£o
 findtime = 300       ; janela de 5 minutos para contar falhas
-maxretry = 10        ; máximo de falhas antes de banir
+maxretry = 10        ; mÃ¡ximo de falhas antes de banir
 banaction = iptables-multiport
 banaction_allports = iptables-allports
 
-# ── Ban por rate limit no Nginx (429) ────────────────────
+# â”€â”€ Ban por rate limit no Nginx (429) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 [sweflow-nginx-ratelimit]
 enabled  = true
 port     = http,https
 filter   = sweflow-nginx
-logpath  = /var/log/nginx/api.typper.shop.access.log
-maxretry = 20        ; 20 respostas 429 em 5 min → ban
+logpath  = /var/log/nginx/api.vupi.us.access.log
+maxretry = 20        ; 20 respostas 429 em 5 min â†’ ban
 findtime = 300
 bantime  = 1800      ; 30 minutos
 
-# ── Ban por falhas de autenticação no Nginx (401/403) ────
+# â”€â”€ Ban por falhas de autenticaÃ§Ã£o no Nginx (401/403) â”€â”€â”€â”€
 [sweflow-nginx-auth]
 enabled  = true
 port     = http,https
 filter   = sweflow-nginx-auth
-logpath  = /var/log/nginx/api.typper.shop.access.log
+logpath  = /var/log/nginx/api.vupi.us.access.log
 maxretry = 15
 findtime = 300
 bantime  = 3600      ; 1 hora
 
-# ── Ban por eventos de segurança no PHP (stderr) ─────────
-# Lê o log do PHP built-in server / PM2 / journald
+# â”€â”€ Ban por eventos de seguranÃ§a no PHP (stderr) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# LÃª o log do PHP built-in server / PM2 / journald
 [sweflow-api-brute]
 enabled  = true
 port     = http,https
@@ -47,7 +47,7 @@ maxretry = 10
 findtime = 300
 bantime  = 3600      ; 1 hora
 
-# ── Ban por rate limit detectado pelo PHP ─────────────────
+# â”€â”€ Ban por rate limit detectado pelo PHP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 [sweflow-api-ratelimit]
 enabled  = true
 port     = http,https
@@ -57,7 +57,7 @@ maxretry = 30
 findtime = 300
 bantime  = 1800      ; 30 minutos
 
-# ── Ban por bots (User-Agent malicioso + honeypot) ────────
+# â”€â”€ Ban por bots (User-Agent malicioso + honeypot) â”€â”€â”€â”€â”€â”€â”€â”€
 [sweflow-bot]
 enabled  = true
 port     = http,https

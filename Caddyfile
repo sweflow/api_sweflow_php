@@ -31,7 +31,7 @@
     }
 }
 
-api.typper.shop {
+api.vupi.us {
     # ── TLS automático (Let's Encrypt) ───────────────────
     tls {
         protocols tls1.2 tls1.3
