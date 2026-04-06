@@ -60,13 +60,15 @@ class CapabilityResolver
                 $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
                 
                 if (is_file($pluginJson)) {
-                    $pj = json_decode(file_get_contents($pluginJson), true) ?: [];
+                    $raw = file_get_contents($pluginJson);
+                    $pj = $raw ? (json_decode($raw, true) ?: []) : [];
                     $provides = $pj['provides'] ?? [];
                 } else {
                     // Support composer.json (modern modules)
                     $composerJson = $path . DIRECTORY_SEPARATOR . 'composer.json';
                     if (is_file($composerJson)) {
-                        $cj = json_decode(file_get_contents($composerJson), true) ?: [];
+                        $raw = file_get_contents($composerJson);
+                        $cj = $raw ? (json_decode($raw, true) ?: []) : [];
                         $provides = $cj['extra']['sweflow']['provides'] ?? [];
                     }
                 }
@@ -103,12 +105,14 @@ class CapabilityResolver
                 $provides = [];
                 $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
                 if (is_file($pluginJson)) {
-                    $pj = json_decode(file_get_contents($pluginJson), true) ?: [];
+                    $raw = file_get_contents($pluginJson);
+                    $pj = $raw ? (json_decode($raw, true) ?: []) : [];
                     $provides = $pj['provides'] ?? [];
                 } else {
                     $composerJson = $path . DIRECTORY_SEPARATOR . 'composer.json';
                     if (is_file($composerJson)) {
-                        $cj = json_decode(file_get_contents($composerJson), true) ?: [];
+                        $raw = file_get_contents($composerJson);
+                        $cj = $raw ? (json_decode($raw, true) ?: []) : [];
                         $provides = $cj['extra']['sweflow']['provides'] ?? [];
                     }
                 }
@@ -151,13 +155,51 @@ class CapabilityResolver
 
     private function read(): array
     {
-        $json = file_get_contents($this->file);
+        if (!is_file($this->file)) {
+            return [];
+        }
+        $fp = fopen($this->file, 'r');
+        if (!$fp) {
+            return [];
+        }
+        flock($fp, LOCK_SH);
+        $json = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
         $data = $json ? json_decode($json, true) : [];
         return is_array($data) ? $data : [];
     }
 
     private function write(array $map): void
     {
-        file_put_contents($this->file, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $fp = fopen($this->file, 'c+');
+        if (!$fp) {
+            return;
+        }
+
+        // Tenta LOCK_NB (non-blocking) com retry para evitar deadlock
+        // Se outro processo estiver escrevendo, aguarda até 500ms antes de desistir
+        $locked  = false;
+        $retries = 5;
+        while ($retries-- > 0) {
+            if (flock($fp, LOCK_EX | LOCK_NB)) {
+                $locked = true;
+                break;
+            }
+            usleep(100_000); // 100ms
+        }
+
+        if (!$locked) {
+            // Não conseguiu o lock — descarta a escrita para não corromper o arquivo
+            fclose($fp);
+            return;
+        }
+
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 }

@@ -200,7 +200,7 @@ function requestWantsJson(string $uri): bool
     return $xrw === 'xmlhttprequest';
 }
 
-function renderDbConnectionError(string $uri): void
+function renderDbConnectionError(string $uri, string $reason = ''): void
 {
     if (requestWantsJson($uri)) {
         if (!headers_sent()) {
@@ -211,10 +211,10 @@ function renderDbConnectionError(string $uri): void
             header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
         }
         if (ob_get_level() > 0) ob_end_clean();
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Banco de dados indisponível. Tente novamente em instantes.',
-        ], JSON_UNESCAPED_UNICODE);
+        $msg = $reason === 'timeout'
+            ? 'Banco de dados não respondeu dentro do tempo limite. Verifique host/porta no .env.'
+            : 'Banco de dados indisponível. Tente novamente em instantes.';
+        echo json_encode(['status' => 'error', 'message' => $msg], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -237,6 +237,15 @@ function renderDbConnectionError(string $uri): void
     ];
     $html = strtr($html, $replacements);
 
+    // Injeta ?reason=timeout na URL do botão "Tentar novamente" para o JS exibir o badge correto
+    if ($reason === 'timeout') {
+        $html = str_replace(
+            "var params = new URLSearchParams(window.location.search);",
+            "var params = new URLSearchParams('reason=timeout');",
+            $html
+        );
+    }
+
     if (!headers_sent()) {
         http_response_code(503);
         header('Content-Type: text/html; charset=utf-8');
@@ -252,6 +261,46 @@ function renderDbConnectionError(string $uri): void
 if (!isset($GLOBALS['__raw_input'])) {
     $GLOBALS['__raw_input'] = file_get_contents('php://input');
 }
+
+// ── Captura Fatal Errors (ex: max_execution_time) e exibe página amigável ─
+// register_shutdown_function é o único jeito de interceptar erros fatais no PHP.
+register_shutdown_function(static function () use ($uri): void {
+    $error = error_get_last();
+    if ($error === null) {
+        return;
+    }
+    // E_ERROR cobre: fatal errors, max_execution_time, memory exhausted, etc.
+    if (($error['type'] & E_ERROR) === 0) {
+        return;
+    }
+
+    $isTimeout = str_contains($error['message'], 'Maximum execution time')
+        || str_contains($error['message'], 'maximum execution time');
+
+    $isDbRelated = str_contains($error['file'] ?? '', 'PdoFactory')
+        || str_contains($error['file'] ?? '', 'Conexao')
+        || str_contains($error['message'], 'PDO')
+        || str_contains($error['message'], 'database');
+
+    // Timeout em arquivo de banco = banco travou a conexão
+    if ($isTimeout && $isDbRelated) {
+        if (ob_get_level() > 0) ob_end_clean();
+        renderDbConnectionError($uri, 'timeout');
+        return;
+    }
+
+    // Outros fatais em produção: página genérica sem vazar detalhes
+    $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
+    if ($isProduction && !headers_sent()) {
+        ob_end_clean();
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Erro interno</title></head>'
+            . '<body style="font-family:sans-serif;text-align:center;padding:4rem">'
+            . '<h1>500 — Erro interno</h1><p>Algo deu errado. Tente novamente em instantes.</p>'
+            . '</body></html>';
+    }
+});
 
 // ── /api/db-status — responde antes de tentar conectar ao banco ───────────
 // Permite que a página de erro verifique se o banco voltou sem depender do boot completo.

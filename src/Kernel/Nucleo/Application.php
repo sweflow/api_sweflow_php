@@ -70,14 +70,13 @@ class Application
 
             // Bloqueia bots maliciosos por User-Agent antes de qualquer processamento
             $botBlocker  = new \Src\Kernel\Middlewares\BotBlockerMiddleware();
-            $passThrough = false;
-            $botBlocker->handle($request, function ($r) use (&$passThrough, &$request) {
-                $passThrough = true;
-                $request     = $r;
+            $botResponse = $botBlocker->handle($request, static function ($r) use (&$request) {
+                $request = $r;
                 return new \Src\Kernel\Http\Response\Response('', 200);
             });
-            if (!$passThrough) {
-                (new \Src\Kernel\Http\Response\Response('', 403))->Enviar();
+            // Se o middleware retornou 403, o bot foi bloqueado
+            if ($botResponse->getStatusCode() === 403) {
+                $botResponse->Enviar();
                 return;
             }
 

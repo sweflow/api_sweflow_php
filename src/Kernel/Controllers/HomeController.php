@@ -8,8 +8,7 @@ class HomeController
 {
     public function index(): Response
     {
-        $logoUrl = $_ENV['APP_LOGO_URL'] ?? getenv('APP_LOGO_URL') ?? null;
-        // Não usa favicon.ico como logo — só usa se for uma URL de imagem real
+        $logoUrl = $_ENV['APP_LOGO_URL'] ?? (getenv('APP_LOGO_URL') ?: null);
         if ($logoUrl !== null) {
             $ext = strtolower(pathinfo(parse_url($logoUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
             if ($ext === 'ico' || $ext === '') {

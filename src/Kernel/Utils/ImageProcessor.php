@@ -31,9 +31,6 @@ class ImageProcessor
 
         $width = (int) $info[0];
         $height = (int) $info[1];
-        if ($width <= 0 || $height <= 0) {
-            return @move_uploaded_file($tmpPath, $destPath);
-        }
 
         $scale = min($maxWidth / $width, $maxHeight / $height, 1);
         $newWidth = (int) max(1, round($width * $scale));

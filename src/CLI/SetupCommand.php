@@ -656,7 +656,6 @@ class SetupCommand
 
             // Executa cada statement separadamente
             foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
-                if ($statement === '') continue;
                 try {
                     $pdo->exec($statement . ';');
                 } catch (\Throwable $e) {
@@ -809,17 +808,13 @@ class SetupCommand
         }
 
         $status = proc_get_status($proc);
-        $pid    = (string) ($status['pid'] ?? '');
+        $pid    = (string) $status['pid'];
         proc_close($proc);
 
-        if ($pid !== '' && is_numeric($pid)) {
-            file_put_contents($pidFile, $pid);
-            echo "✔ Servidor iniciado em background (PID {$pid}) em http://{$host}:{$port}\n";
-            echo "  Logs: {$logFile}\n";
-            echo "  Para parar: opção 12 do menu\n";
-        } else {
-            echo "✖ Não foi possível obter o PID do servidor.\n";
-        }
+        file_put_contents($pidFile, $pid);
+        echo "✔ Servidor iniciado em background (PID {$pid}) em http://{$host}:{$port}\n";
+        echo "  Logs: {$logFile}\n";
+        echo "  Para parar: opção 12 do menu\n";
     }
 
     private function startPm2(): void
@@ -840,10 +835,12 @@ class SetupCommand
             }
             $proc = new Process(['npm', 'install', '-g', 'pm2']);
             $proc->passthru();
+            /** @phpstan-ignore-next-line */
             if (!$this->commandExists('pm2')) {
                 echo "✖ Falha ao instalar PM2. Tente manualmente: npm install -g pm2\n";
                 return;
             }
+            /** @phpstan-ignore-next-line */
             echo "✔ PM2 instalado com sucesso.\n";
         }
 
@@ -1064,7 +1061,6 @@ class SetupCommand
         $found = false;
         $pattern = '/^\s*' . preg_quote($key, '/') . '\s*=\s*(.*)\s*$/';
         foreach ($lines as $i => $line) {
-            if (!is_string($line)) continue;
             if (preg_match($pattern, $line, $m)) {
                 $found = true;
                 $current = trim((string)($m[1] ?? ''));

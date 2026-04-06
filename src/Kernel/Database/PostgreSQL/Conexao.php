@@ -1,11 +1,12 @@
 <?php
 
-namespace Src\Database\PostgreSQL;
-use src\Database\Exceptions\DatabaseException;
-use src\Database\Exceptions\DatabaseConnectionException;
-use src\Database\Exceptions\DatabaseQueryException;
-use src\Database\Exceptions\DatabaseTransactionException;
-use src\Database\Exceptions\DatabaseIntegrityException;
+namespace Src\Kernel\Database\PostgreSQL;
+
+use Src\Kernel\Database\Exceptions\DatabaseException;
+use Src\Kernel\Database\Exceptions\DatabaseConnectionException;
+use Src\Kernel\Database\Exceptions\DatabaseQueryException;
+use Src\Kernel\Database\Exceptions\DatabaseTransactionException;
+use Src\Kernel\Database\Exceptions\DatabaseIntegrityException;
 
 use PDO;
 use PDOException;

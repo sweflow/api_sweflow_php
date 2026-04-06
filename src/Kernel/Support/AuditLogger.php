@@ -105,21 +105,27 @@ class AuditLogger
         }
 
         try {
-            // Conta falhas de login do mesmo IP nos últimos 5 minutos
+            $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+            // Sintaxe de intervalo difere entre MySQL e PostgreSQL
+            $intervalSql = $driver === 'pgsql'
+                ? "NOW() - INTERVAL '5 minutes'"
+                : "DATE_SUB(NOW(), INTERVAL 5 MINUTE)";
+
             $stmt = $this->pdo->prepare("
                 SELECT COUNT(*) FROM audit_logs
                 WHERE evento = 'auth.login.failed'
                   AND ip = :ip
-                  AND criado_em > NOW() - INTERVAL '5 minutes'
+                  AND criado_em > {$intervalSql}
             ");
             $stmt->execute([':ip' => $ip]);
             $count = (int) $stmt->fetchColumn();
 
             if ($count >= $this->loginFailThreshold) {
                 $this->emitirAlerta('BRUTE_FORCE_DETECTED', [
-                    'ip'           => $ip,
-                    'falhas_5min'  => $count,
-                    'threshold'    => $this->loginFailThreshold,
+                    'ip'            => $ip,
+                    'falhas_5min'   => $count,
+                    'threshold'     => $this->loginFailThreshold,
                     'acao_sugerida' => 'Bloquear IP temporariamente',
                 ]);
             }

@@ -1,16 +1,16 @@
 <?php
 
-namespace Src\Database\Mysql;
+namespace Src\Kernel\Database\Mysql;
 
-use Src\Database\Exceptions\DatabaseException;
-use Src\Database\Exceptions\DatabaseConnectionException;
-use Src\Database\Exceptions\DatabaseConfigException;
-use Src\Database\Exceptions\DatabaseDriverException;
-use Src\Database\Exceptions\DatabaseIntegrityException;
-use Src\Database\Exceptions\DatabasePermissionException;
-use Src\Database\Exceptions\DatabaseQueryException;
-use Src\Database\Exceptions\DatabaseTimeoutException;
-use Src\Database\Exceptions\DatabaseTransactionException;
+use Src\Kernel\Database\Exceptions\DatabaseException;
+use Src\Kernel\Database\Exceptions\DatabaseConnectionException;
+use Src\Kernel\Database\Exceptions\DatabaseConfigException;
+use Src\Kernel\Database\Exceptions\DatabaseDriverException;
+use Src\Kernel\Database\Exceptions\DatabaseIntegrityException;
+use Src\Kernel\Database\Exceptions\DatabasePermissionException;
+use Src\Kernel\Database\Exceptions\DatabaseQueryException;
+use Src\Kernel\Database\Exceptions\DatabaseTimeoutException;
+use Src\Kernel\Database\Exceptions\DatabaseTransactionException;
 
 use PDO;
 use PDOException;

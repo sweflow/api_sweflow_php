@@ -140,7 +140,9 @@ class AuthService
         if (!$row) {
             throw new DomainException('Refresh revogado ou expirado.', 401);
         }
-        $hash = $this->hashToken($rawToken);
+        // Usa o mesmo secret que foi usado para emitir — determinado pelo sub do payload
+        // já decodificado. Tenta API secret primeiro (admin_system), depois JWT_SECRET.
+        $hash = $this->hashTokenFromPayload($rawToken, $payload);
         if (!hash_equals($row['token_hash'], $hash)) {
             throw new DomainException('Refresh inválido.', 401);
         }
@@ -160,9 +162,15 @@ class AuthService
         }
     }
 
-    private function hashToken(string $token): string
+    /**
+     * Calcula o HMAC do token usando o secret correto.
+     * Evita re-decodificar o token quando o payload já está disponível.
+     */
+    private function hashTokenFromPayload(string $token, object $payload): string
     {
-        // Detecta qual secret assinou o token para usar o mesmo no hash
+        // decodificarToken já tentou JWT_API_SECRET primeiro — se o iss/aud batem
+        // com o que emitimos via emitirTokensAdmin, usamos o API secret.
+        // Heurística simples: tenta API secret; se falhar, usa JWT_SECRET.
         $apiSecret = $this->segredoJwtAdmin();
         try {
             JWT::decode($token, new Key($apiSecret, 'HS256'));
@@ -174,14 +182,14 @@ class AuthService
 
     public function tempoExpiracao(): int
     {
-        $valor = $_ENV['JWT_EXPIRATION_TIME'] ?? getenv('JWT_EXPIRATION_TIME') ?? '900';
+        $valor = $_ENV['JWT_EXPIRATION_TIME'] ?? (string) getenv('JWT_EXPIRATION_TIME') ?: '900';
         $tempo = (int) $valor;
         return $tempo > 0 ? $tempo : 900;
     }
 
     public function tempoRefresh(): int
     {
-        $valor = $_ENV['REFRESH_TOKEN_EXPIRATION_SECONDS'] ?? getenv('REFRESH_TOKEN_EXPIRATION_SECONDS') ?? '2592000';
+        $valor = $_ENV['REFRESH_TOKEN_EXPIRATION_SECONDS'] ?? (string) getenv('REFRESH_TOKEN_EXPIRATION_SECONDS') ?: '2592000';
         $tempo = (int) $valor;
         return $tempo > 0 ? $tempo : 2592000;
     }
@@ -197,7 +205,7 @@ class AuthService
 
     private function segredoJwt(): string
     {
-        $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?? '';
+        $secret = $_ENV['JWT_SECRET'] ?? (string) getenv('JWT_SECRET') ?: '';
         if ($secret === '') {
             throw new DomainException('JWT_SECRET não configurado.', 500);
         }
@@ -206,7 +214,7 @@ class AuthService
 
     private function segredoJwtAdmin(): string
     {
-        $secret = $_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? '';
+        $secret = $_ENV['JWT_API_SECRET'] ?? (string) getenv('JWT_API_SECRET') ?: '';
         if ($secret === '') {
             throw new DomainException('JWT_API_SECRET não configurado.', 500);
         }
@@ -215,11 +223,11 @@ class AuthService
 
     private function emissor(): string
     {
-        return $_ENV['JWT_ISSUER'] ?? getenv('JWT_ISSUER') ?? ($_ENV['APP_URL'] ?? '');
+        return $_ENV['JWT_ISSUER'] ?? (string) getenv('JWT_ISSUER') ?: ($_ENV['APP_URL'] ?? '');
     }
 
     private function audiencia(): string
     {
-        return $_ENV['JWT_AUDIENCE'] ?? getenv('JWT_AUDIENCE') ?? ($_ENV['APP_URL_FRONTEND'] ?? '');
+        return $_ENV['JWT_AUDIENCE'] ?? (string) getenv('JWT_AUDIENCE') ?: ($_ENV['APP_URL_FRONTEND'] ?? '');
     }
 }

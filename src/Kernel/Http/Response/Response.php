@@ -18,20 +18,20 @@ class Response
     public static function json($data, int $status = 200): self
     {
         $origin = self::resolveOrigin();
-        $allowCredentials = $origin !== '';
         $securityHeaders = self::securityHeaders();
-        return new self(
-            $data,
-            $status,
-            [
-                'Content-Type' => 'application/json; charset=utf-8',
-                'Access-Control-Allow-Origin' => $origin,
-                'Access-Control-Allow-Credentials' => $allowCredentials ? 'true' : 'false',
-                'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-CSRF-Token, X-Device-Id, X-Client-Public-IP',
-                'Vary' => 'Origin'
-            ] + $securityHeaders
-        );
+
+        $headers = ['Content-Type' => 'application/json; charset=utf-8'] + $securityHeaders;
+
+        // Só emite headers CORS quando há uma origem cross-origin válida
+        if ($origin !== '') {
+            $headers['Access-Control-Allow-Origin']      = $origin;
+            $headers['Access-Control-Allow-Credentials'] = 'true';
+            $headers['Access-Control-Allow-Methods']     = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+            $headers['Access-Control-Allow-Headers']     = 'Content-Type, Authorization, X-CSRF-Token, X-Device-Id, X-Client-Public-IP';
+            $headers['Vary']                             = 'Origin';
+        }
+
+        return new self($data, $status, $headers);
     }
 
     public static function html(string $html, int $status = 200): self
@@ -46,16 +46,20 @@ class Response
 
     private static function resolveOrigin(): string
     {
-        $allowed = self::allowedOrigins();
         $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-        if ($requestOrigin !== '' && in_array($requestOrigin, $allowed, true)) {
+        // Sem header Origin = requisição direta (não cross-origin) — não emite CORS
+        if ($requestOrigin === '') {
+            return '';
+        }
+
+        $allowed = self::allowedOrigins();
+        if (in_array($requestOrigin, $allowed, true)) {
             return $requestOrigin;
         }
 
-        // Sem origem configurada: bloqueia CORS (não retorna '*' — evita acesso cross-origin irrestrito)
-        // Retorna a primeira origem configurada, ou vazio para bloquear
-        return $allowed[0] ?? '';
+        // Origem não permitida — retorna vazio para bloquear CORS
+        return '';
     }
 
     private static function allowedOrigins(): array

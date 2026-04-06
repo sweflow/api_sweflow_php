@@ -1,7 +1,5 @@
 <?php
-namespace Src\Database\Exceptions;
-
-use Src\Database\Exceptions\DatabaseException;
+namespace Src\Kernel\Database\Exceptions;
 
 /**
  * Exceção para erro de transação no banco de dados.

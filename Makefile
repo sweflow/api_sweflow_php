@@ -5,7 +5,7 @@
 
 .PHONY: help up down restart logs ps \
         up-pg up-mysql up-all \
-        install migrate seed test \
+        install migrate seed test analyse \
         shell-pg shell-mysql \
         caddy-start caddy-stop caddy-reload caddy-dev \
         clean reset
@@ -64,6 +64,9 @@ test: ## Roda os testes de segurança
 	@if [ -d storage/ratelimit ]; then rm -f storage/ratelimit/*.json; fi
 	php tests/SecurityTest.php http://localhost:$${APP_PORT:-3005}
 
+analyse: ## Análise estática com PHPStan (nível 6)
+	vendor/bin/phpstan analyse --memory-limit=256M
+
 # ── Setup completo ───────────────────────────────────────
 
 install-env: ## Instala tudo no Ubuntu e roda setup automatico (requer sudo)
@@ -110,7 +113,7 @@ caddy-install: ## Instala o Caddy no Ubuntu/Debian
 	@echo "✓ Caddy instalado. Configure o Caddyfile e rode: make caddy-start"
 
 clean: ## Remove cache e arquivos temporários
-	rm -rf storage/ratelimit/*.json storage/modules_cache.php
+	rm -rf storage/ratelimit/*.json storage/threat/*.json storage/circuit/*.json storage/modules_cache.php
 	@echo "✓ Cache limpo"
 
 reset: ## Para containers e remove volumes (APAGA DADOS!)

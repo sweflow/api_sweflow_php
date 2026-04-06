@@ -151,7 +151,6 @@ class MigrateCommand
 
             $hasError = false;
             foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
-                if ($statement === '') continue;
                 try {
                     $pdo->exec($statement . ';');
                 } catch (\Throwable $e) {

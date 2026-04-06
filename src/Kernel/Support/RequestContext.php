@@ -55,11 +55,11 @@ class RequestContext
      */
     public function toArray(): array
     {
-        return array_filter([
+        return [
             'request_id' => $this->requestId,
-            'tenant_id' => $this->tenantId,
-            'user_id' => $this->userId,
-            'meta' => $this->meta,
-        ]);
+            'tenant_id'  => $this->tenantId,
+            'user_id'    => $this->userId,
+            'meta'       => $this->meta ?: null,
+        ];
     }
 }

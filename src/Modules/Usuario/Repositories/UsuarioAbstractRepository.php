@@ -7,7 +7,7 @@ use PDOException;
 use Src\Modules\Usuario\Entities\Usuario;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
-use Src\Database\Exceptions\DatabaseQueryException;
+use Src\Kernel\Database\Exceptions\DatabaseQueryException;
 use InvalidArgumentException;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 
@@ -46,7 +46,7 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
      * Executa uma operação de banco e converte PDOException
      * em DatabaseQueryException
      */
-    protected function executarQuery(callable $operacao, string $mensagemErro)
+    protected function executarQuery(callable $operacao, string $mensagemErro = 'Erro na operação de banco')
     {
         try {
             return $operacao();
@@ -227,8 +227,8 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
             $dados['biografia'] ?? null,
             $dados['token_recuperacao_senha'] ?? null,
             $dados['token_verificacao_email'] ?? null,
-            isset($dados['atualizado_em']) && $dados['atualizado_em'] !== null
-                ? new DateTimeImmutable($dados['atualizado_em'])
+            isset($dados['atualizado_em'])
+                ? new DateTimeImmutable((string) $dados['atualizado_em'])
                 : null,
             $dados['status_verificacao'] ?? 'Não verificado'
         );

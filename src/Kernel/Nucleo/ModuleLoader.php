@@ -129,7 +129,7 @@ class ModuleLoader
                 // Módulos externos (Composer) usam a conexão secundária pdo.modules
                 $provider = $this->makeWithModulesPdo($providerClass);
                 if ($provider instanceof ModuleProviderInterface) {
-                    $name = method_exists($provider, 'getName') ? $provider->getName() : (new \ReflectionClass($provider))->getShortName();
+                    $name = $provider->getName();
 
                     // Se o módulo foi explicitamente desinstalado (state = false), não registra
                     if (array_key_exists($name, $this->enabled) && $this->enabled[$name] === false) {
@@ -201,7 +201,7 @@ class ModuleLoader
                     try {
                         $provider = $this->container->make($providerClass);
                         if ($provider instanceof ModuleProviderInterface) {
-                            $name = method_exists($provider, 'getName') ? $provider->getName() : $module;
+                            $name = $provider->getName() ?: $module;
                             $this->providers[$name] = $provider;
                             $this->setEnabledIfNotExist($name);
                             return;
@@ -429,16 +429,22 @@ class ModuleLoader
 
             $composer = $dir . DIRECTORY_SEPARATOR . 'composer.json';
             if (is_file($composer)) {
-                $data = json_decode(file_get_contents($composer), true);
-                $provides = $data['extra']['sweflow']['provides'] ?? [];
-                if (!empty($provides)) return $provides;
+                $raw = file_get_contents($composer);
+                if ($raw !== false) {
+                    $data = json_decode($raw, true);
+                    $provides = $data['extra']['sweflow']['provides'] ?? [];
+                    if (!empty($provides)) return $provides;
+                }
             }
-            
+
             $plugin = $dir . DIRECTORY_SEPARATOR . 'plugin.json';
             if (is_file($plugin)) {
-                $data = json_decode(file_get_contents($plugin), true);
-                $provides = $data['provides'] ?? [];
-                if (!empty($provides)) return $provides;
+                $raw = file_get_contents($plugin);
+                if ($raw !== false) {
+                    $data = json_decode($raw, true);
+                    $provides = $data['provides'] ?? [];
+                    if (!empty($provides)) return $provides;
+                }
             }
             
             $dir = dirname($dir);
@@ -449,19 +455,16 @@ class ModuleLoader
 
     private function providerPluginId(ModuleProviderInterface $provider): string
     {
-        // 1. Explicit name (SimpleModuleProvider or Custom Provider with getName)
-        if (method_exists($provider, 'getName')) {
-            $name = $provider->getName();
-            if (!empty($name)) {
-                return $name;
-            }
+        // getName() está na interface — sempre disponível
+        $name = $provider->getName();
+        if ($name !== '') {
+            return $name;
         }
-        
-        // 2. Reflection fallback
-        $ref = new \ReflectionClass($provider);
+
+        // Fallback via Reflection para casos onde getName() retorna vazio
+        $ref  = new \ReflectionClass($provider);
         $file = $ref->getFileName() ?: '';
-        
-        // 3. Try to guess from composer.json "name" if available
+
         $root = $this->guessPluginRoot($file);
         if ($root) {
             // Priority:
@@ -486,12 +489,7 @@ class ModuleLoader
                 return $parts[$idx + 1];
             }
         }
-        
-        // 5. Hardcode hack: if it's the EmailServiceProvider, force "Email"
-        if ($ref->getShortName() === 'EmailServiceProvider') {
-            return 'Email';
-        }
-        
+
         return $ref->getShortName();
     }
 

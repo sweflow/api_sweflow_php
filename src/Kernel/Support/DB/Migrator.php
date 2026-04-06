@@ -342,7 +342,8 @@ class Migrator
      */
     private function fileHash(string $moduleName, string $filePath): string
     {
-        return md5($moduleName . '|' . file_get_contents($filePath));
+        $contents = file_get_contents($filePath);
+        return md5($moduleName . '|' . ($contents !== false ? $contents : ''));
     }
 
     // ── Resolução de conexão ──────────────────────────────────────────────────

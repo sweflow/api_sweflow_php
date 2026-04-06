@@ -22,7 +22,7 @@ class AccessTokenBlacklistRepository implements TokenBlacklistInterface
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':jti', $jti);
         $stmt->bindValue(':user_uuid', $userUuid);
-        $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:sP'));
+        $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:s'));
         $stmt->execute();
     }
 
@@ -40,7 +40,7 @@ class AccessTokenBlacklistRepository implements TokenBlacklistInterface
         $cutoff = (new DateTimeImmutable())->modify('-' . $graceSeconds . ' seconds');
         $sql = "DELETE FROM {$this->table} WHERE expires_at < :cutoff";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->bindValue(':cutoff', $cutoff->format('Y-m-d H:i:sP'));
+        $stmt->bindValue(':cutoff', $cutoff->format('Y-m-d H:i:s'));
         $stmt->execute();
     }
 }

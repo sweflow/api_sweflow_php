@@ -25998,3 +25998,1082 @@ n Apr  6 01:11:30 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) st
 {"timestamp":"2026-04-06T05:17:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"89054ef229ff2dc6294e0c5441a92e60"},"env":"development"}
 [Mon Apr  6 02:17:52 2026] 127.0.0.1:53197 Closing
 [Mon Apr  6 02:17:52 2026] 127.0.0.1:53696 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+n Apr  6 09:53:41 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) started
+[Mon Apr  6 09:53:59 2026] 127.0.0.1:15940 Accepted
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:15940 Closing
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:33771 Accepted
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:33771 Closing
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:17597 Accepted
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:56893 Accepted
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:17597 Closing
+[Mon Apr  6 09:54:03 2026] 127.0.0.1:56893 Closing
+[Mon Apr  6 09:54:04 2026] 127.0.0.1:48975 Accepted
+[Mon Apr  6 09:54:04 2026] 127.0.0.1:48975 Closing
+[Mon Apr  6 09:54:04 2026] 127.0.0.1:44007 Accepted
+[Mon Apr  6 09:54:45 2026] 127.0.0.1:44007 Closing
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:51490 Accepted
+{"timestamp":"2026-04-06T12:54:46+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"6b21ddf5c801d4c54e94653b28d6d783"},"env":"development"}
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:51490 Closing
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:29262 Accepted
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:29262 Closing
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:22856 Accepted
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:2384 Accepted
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:55849 Accepted
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:22856 Closing
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:2384 Closing
+[Mon Apr  6 09:54:46 2026] 127.0.0.1:55849 Closing
+[Mon Apr  6 09:55:00 2026] 127.0.0.1:33292 Accepted
+{"timestamp":"2026-04-06T12:55:00+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"013fa25385f6abb375c8ca58388b0e76"},"env":"development"}
+[Mon Apr  6 09:55:00 2026] [AuthController] raw length=39
+[Mon Apr  6 09:55:00 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T12:55:01+00:00","type":"AUDIT","request_id":"013fa25385f6abb375c8ca58388b0e76","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"reason":"Credenciais inválidas."}}
+{"timestamp":"2026-04-06T12:55:01+00:00","type":"SECURITY_RESPONSE","request_id":"013fa25385f6abb375c8ca58388b0e76","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 09:55:01 2026] 127.0.0.1:33292 Closing
+[Mon Apr  6 09:55:01 2026] 127.0.0.1:16521 Accepted
+{"timestamp":"2026-04-06T12:55:07+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"5f24a662b82d32aafffc1b594e29b01f"},"env":"development"}
+[Mon Apr  6 09:55:07 2026] [AuthController] raw length=39
+[Mon Apr  6 09:55:07 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T12:55:08+00:00","type":"AUDIT","request_id":"5f24a662b82d32aafffc1b594e29b01f","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"reason":"Credenciais inválidas."}}
+{"timestamp":"2026-04-06T12:55:08+00:00","type":"SECURITY_RESPONSE","request_id":"5f24a662b82d32aafffc1b594e29b01f","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 09:55:08 2026] 127.0.0.1:16521 Closing
+[Mon Apr  6 09:55:13 2026] 127.0.0.1:40490 Accepted
+{"timestamp":"2026-04-06T12:55:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"4db2a0e8a2a7fdff5ce4e26fda3a43a2"},"env":"development"}
+[Mon Apr  6 09:55:13 2026] [AuthController] raw length=36
+[Mon Apr  6 09:55:13 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T12:55:13+00:00","type":"AUDIT","request_id":"4db2a0e8a2a7fdff5ce4e26fda3a43a2","evento":"auth.login.success","usuario_uuid":"afafbf89-f9a7-4f46-b55e-0625cba05c0d","ip":"127.0.0.1","contexto":{"username":"admin","nivel_acesso":"admin_system"}}
+[Mon Apr  6 09:55:13 2026] 127.0.0.1:40490 Closing
+[Mon Apr  6 09:55:13 2026] 127.0.0.1:23254 Accepted
+{"timestamp":"2026-04-06T12:55:14+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"aafe3e9009d380b6257cadb00dd73b22"},"env":"development"}
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:23254 Closing
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:32996 Accepted
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:1027 Accepted
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:9180 Accepted
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:18807 Accepted
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:32996 Closing
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:1027 Closing
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:9180 Closing
+[Mon Apr  6 09:55:14 2026] 127.0.0.1:18807 Closing
+[Mon Apr  6 09:55:15 2026] 127.0.0.1:14456 Accepted
+[Mon Apr  6 09:55:15 2026] 127.0.0.1:14456 Closing
+[Mon Apr  6 09:55:15 2026] 127.0.0.1:29551 Accepted
+[Mon Apr  6 09:55:15 2026] 127.0.0.1:29551 Closing
+[Mon Apr  6 09:55:15 2026] 127.0.0.1:2645 Accepted
+{"timestamp":"2026-04-06T12:55:21+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"601153e2018166c6bbf63e5697c2aab8"},"env":"development"}
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:2645 Closing
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:33957 Accepted
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:3257 Accepted
+{"timestamp":"2026-04-06T12:55:21+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2ee59844dff0c5b77ad5c96ed6741df8"},"env":"development"}
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:33957 Closing
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:51521 Accepted
+{"timestamp":"2026-04-06T12:55:21+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2569435ffe50c8ad9588550d6f4a47eb"},"env":"development"}
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:3257 Closing
+[Mon Apr  6 09:55:21 2026] 127.0.0.1:51521 Closing
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:61840 Accepted
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:17072 Accepted
+{"timestamp":"2026-04-06T12:55:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f5b0fefbd3d18c3e79d0fd71b5efb515"},"env":"development"}
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:61840 Closing
+{"timestamp":"2026-04-06T12:55:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"42de641d24f02d9d88845a7ca3a7824b"},"env":"development"}
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:17072 Closing
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:9673 Accepted
+{"timestamp":"2026-04-06T12:55:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1630f7ed4d42b41e9cd5861aa377dce3"},"env":"development"}
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:9673 Closing
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:58277 Accepted
+{"timestamp":"2026-04-06T12:55:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1074881f3d17362e783ba318223766e8"},"env":"development"}
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:58277 Closing
+[Mon Apr  6 09:55:22 2026] 127.0.0.1:29803 Accepted
+{"timestamp":"2026-04-06T12:55:32+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b515fa0706ca0aae1c221aae5683bd48"},"env":"development"}
+[Mon Apr  6 09:55:32 2026] 127.0.0.1:29803 Closing
+[Mon Apr  6 09:55:33 2026] 127.0.0.1:31021 Accepted
+{"timestamp":"2026-04-06T12:55:33+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d6f4e6ccfbf588716888e0fae49e544a"},"env":"development"}
+[Mon Apr  6 09:55:33 2026] 127.0.0.1:31021 Closing
+[Mon Apr  6 09:55:33 2026] 127.0.0.1:45548 Accepted
+{"timestamp":"2026-04-06T12:55:42+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"083032d6e78885d93882623ba64e8870"},"env":"development"}
+[Mon Apr  6 09:55:42 2026] 127.0.0.1:45548 Closing
+[Mon Apr  6 09:55:43 2026] 127.0.0.1:25739 Accepted
+{"timestamp":"2026-04-06T12:55:43+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"62116bd78e54fee60172dd76035cdcc8"},"env":"development"}
+[Mon Apr  6 09:55:43 2026] 127.0.0.1:25739 Closing
+[Mon Apr  6 09:55:43 2026] 127.0.0.1:44190 Accepted
+{"timestamp":"2026-04-06T12:55:52+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"66490777a09179e97b3442376915119c"},"env":"development"}
+[Mon Apr  6 09:55:52 2026] 127.0.0.1:44190 Closing
+[Mon Apr  6 09:55:53 2026] 127.0.0.1:15268 Accepted
+{"timestamp":"2026-04-06T12:55:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"381eac5ea24d7e76131d4f3a915692e2"},"env":"development"}
+[Mon Apr  6 09:55:53 2026] 127.0.0.1:15268 Closing
+[Mon Apr  6 09:55:53 2026] 127.0.0.1:55477 Accepted
+{"timestamp":"2026-04-06T12:56:02+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"defb422f1fe31be2c5860163286441ac"},"env":"development"}
+[Mon Apr  6 09:56:02 2026] 127.0.0.1:55477 Closing
+[Mon Apr  6 09:56:03 2026] 127.0.0.1:1778 Accepted
+{"timestamp":"2026-04-06T12:56:03+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"53b0a09f4b9b374bfee8f981bcb91886"},"env":"development"}
+[Mon Apr  6 09:56:03 2026] 127.0.0.1:1778 Closing
+[Mon Apr  6 09:56:03 2026] 127.0.0.1:31244 Accepted
+{"timestamp":"2026-04-06T12:56:12+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b7ef87d58170ff0b0ba210c49be10b33"},"env":"development"}
+[Mon Apr  6 09:56:12 2026] 127.0.0.1:31244 Closing
+[Mon Apr  6 09:56:13 2026] 127.0.0.1:10454 Accepted
+{"timestamp":"2026-04-06T12:56:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"30bb77671c208d4eb8370dedaa0b7590"},"env":"development"}
+[Mon Apr  6 09:56:13 2026] 127.0.0.1:10454 Closing
+[Mon Apr  6 09:56:13 2026] 127.0.0.1:51142 Accepted
+{"timestamp":"2026-04-06T12:56:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"daebb089eb63a5b331117f0b9a5c56a8"},"env":"development"}
+[Mon Apr  6 09:56:22 2026] 127.0.0.1:51142 Closing
+[Mon Apr  6 09:56:23 2026] 127.0.0.1:4998 Accepted
+{"timestamp":"2026-04-06T12:56:23+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"658a1fe9b792050128e6fb0985986247"},"env":"development"}
+[Mon Apr  6 09:56:23 2026] 127.0.0.1:4998 Closing
+[Mon Apr  6 09:56:23 2026] 127.0.0.1:23052 Accepted
+{"timestamp":"2026-04-06T12:56:32+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b1108af33c46f9a4878cad5824b585f8"},"env":"development"}
+[Mon Apr  6 09:56:32 2026] 127.0.0.1:23052 Closing
+[Mon Apr  6 09:56:33 2026] 127.0.0.1:15963 Accepted
+{"timestamp":"2026-04-06T12:56:33+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2e8c5a276b21fbe4aac4384d0095477a"},"env":"development"}
+[Mon Apr  6 09:56:33 2026] 127.0.0.1:15963 Closing
+[Mon Apr  6 09:56:33 2026] 127.0.0.1:7462 Accepted
+{"timestamp":"2026-04-06T12:56:42+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f786b48df016c7cc5f434733947956f2"},"env":"development"}
+[Mon Apr  6 09:56:42 2026] 127.0.0.1:7462 Closing
+[Mon Apr  6 09:56:43 2026] 127.0.0.1:39737 Accepted
+{"timestamp":"2026-04-06T12:56:43+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e3a9840edde6e8ec9251146e6e5984df"},"env":"development"}
+[Mon Apr  6 09:56:43 2026] 127.0.0.1:39737 Closing
+[Mon Apr  6 09:56:43 2026] 127.0.0.1:30191 Accepted
+{"timestamp":"2026-04-06T12:56:52+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e8db3ccf4331d05ea61dfeecc9d4655a"},"env":"development"}
+[Mon Apr  6 09:56:52 2026] 127.0.0.1:30191 Closing
+[Mon Apr  6 09:56:53 2026] 127.0.0.1:22071 Accepted
+{"timestamp":"2026-04-06T12:56:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"687132eb41a767478df5ccbe16ca1333"},"env":"development"}
+[Mon Apr  6 09:56:53 2026] 127.0.0.1:22071 Closing
+[Mon Apr  6 09:56:53 2026] 127.0.0.1:56364 Accepted
+{"timestamp":"2026-04-06T12:57:02+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9c7f7c5ac0b718cee506a95f62a0428f"},"env":"development"}
+[Mon Apr  6 09:57:02 2026] 127.0.0.1:56364 Closing
+[Mon Apr  6 09:57:03 2026] 127.0.0.1:17894 Accepted
+{"timestamp":"2026-04-06T12:57:03+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"5b96463605f9935b391fffe1e7df643a"},"env":"development"}
+[Mon Apr  6 09:57:03 2026] 127.0.0.1:17894 Closing
+[Mon Apr  6 09:57:03 2026] 127.0.0.1:47239 Accepted
+{"timestamp":"2026-04-06T12:57:12+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"385ee4bc0666349586301fba54bd7419"},"env":"development"}
+[Mon Apr  6 09:57:12 2026] 127.0.0.1:47239 Closing
+[Mon Apr  6 09:57:13 2026] 127.0.0.1:20398 Accepted
+{"timestamp":"2026-04-06T12:57:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9c00d017fd9359a48ec0c646f844bb3a"},"env":"development"}
+[Mon Apr  6 09:57:13 2026] 127.0.0.1:20398 Closing
+[Mon Apr  6 09:57:13 2026] 127.0.0.1:55103 Accepted
+{"timestamp":"2026-04-06T12:57:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e1928fff33ed95dc17322dbc30a8df18"},"env":"development"}
+[Mon Apr  6 09:57:22 2026] 127.0.0.1:55103 Closing
+[Mon Apr  6 09:57:23 2026] 127.0.0.1:52715 Accepted
+{"timestamp":"2026-04-06T12:57:23+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d82f443e98d3cf9730bb9158b8beecd6"},"env":"development"}
+[Mon Apr  6 09:57:23 2026] 127.0.0.1:52715 Closing
+[Mon Apr  6 09:57:23 2026] 127.0.0.1:63853 Accepted
+{"timestamp":"2026-04-06T12:57:32+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"600afcbc740c307b544696d3e37356f2"},"env":"development"}
+[Mon Apr  6 09:57:32 2026] 127.0.0.1:63853 Closing
+[Mon Apr  6 09:57:33 2026] 127.0.0.1:64841 Accepted
+{"timestamp":"2026-04-06T12:57:33+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"41955ffa2b8e70dd05c072159b7eb022"},"env":"development"}
+[Mon Apr  6 09:57:33 2026] 127.0.0.1:64841 Closing
+[Mon Apr  6 09:57:33 2026] 127.0.0.1:52605 Accepted
+{"timestamp":"2026-04-06T12:57:42+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"6c9749105cd5e185f677493405efdcb4"},"env":"development"}
+[Mon Apr  6 09:57:42 2026] 127.0.0.1:52605 Closing
+[Mon Apr  6 09:57:43 2026] 127.0.0.1:9044 Accepted
+{"timestamp":"2026-04-06T12:57:43+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1703bc10c534e5df2ddef9e636139c98"},"env":"development"}
+[Mon Apr  6 09:57:43 2026] 127.0.0.1:9044 Closing
+[Mon Apr  6 09:57:43 2026] 127.0.0.1:37091 Accepted
+{"timestamp":"2026-04-06T12:57:52+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0d1b82aacae97c92103246b457ac4930"},"env":"development"}
+[Mon Apr  6 09:57:52 2026] 127.0.0.1:37091 Closing
+[Mon Apr  6 09:57:53 2026] 127.0.0.1:64240 Accepted
+{"timestamp":"2026-04-06T12:57:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8f474664dd419f92abf30da3fe91b0ed"},"env":"development"}
+[Mon Apr  6 09:57:53 2026] 127.0.0.1:64240 Closing
+[Mon Apr  6 09:57:53 2026] 127.0.0.1:39413 Accepted
+{"timestamp":"2026-04-06T12:58:02+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f56ddaff9270661fc1d3451c2e29ddd1"},"env":"development"}
+[Mon Apr  6 09:58:02 2026] 127.0.0.1:39413 Closing
+[Mon Apr  6 09:58:03 2026] 127.0.0.1:9842 Accepted
+{"timestamp":"2026-04-06T12:58:03+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0b31443efc8ceb2799a3200cccc6ea54"},"env":"development"}
+[Mon Apr  6 09:58:03 2026] 127.0.0.1:9842 Closing
+[Mon Apr  6 09:58:03 2026] 127.0.0.1:59791 Accepted
+{"timestamp":"2026-04-06T12:58:12+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ccb59da124678f43a3d5d13826c714c7"},"env":"development"}
+[Mon Apr  6 09:58:12 2026] 127.0.0.1:59791 Closing
+[Mon Apr  6 09:58:13 2026] 127.0.0.1:10356 Accepted
+{"timestamp":"2026-04-06T12:58:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"cbc627fb77b21bbdffc0cbca90bc5291"},"env":"development"}
+[Mon Apr  6 09:58:13 2026] 127.0.0.1:10356 Closing
+[Mon Apr  6 09:58:13 2026] 127.0.0.1:65457 Accepted
+{"timestamp":"2026-04-06T12:58:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c75d4f81d69ac6d13c8f283e2a58abaa"},"env":"development"}
+[Mon Apr  6 09:58:22 2026] 127.0.0.1:65457 Closing
+[Mon Apr  6 09:58:23 2026] 127.0.0.1:32711 Accepted
+{"timestamp":"2026-04-06T12:58:23+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"555ffa909b8fe97b982d3dce67a5a7f2"},"env":"development"}
+[Mon Apr  6 09:58:23 2026] 127.0.0.1:32711 Closing
+[Mon Apr  6 09:58:23 2026] 127.0.0.1:39708 Accepted
+{"timestamp":"2026-04-06T12:58:32+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e6777a96f9036b8c05d21b2c2dbd8a62"},"env":"development"}
+[Mon Apr  6 09:58:32 2026] 127.0.0.1:39708 Closing
+[Mon Apr  6 09:58:33 2026] 127.0.0.1:56337 Accepted
+{"timestamp":"2026-04-06T12:58:33+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d598f83e1c3d8c4efab830fbe500691d"},"env":"development"}
+[Mon Apr  6 09:58:33 2026] 127.0.0.1:56337 Closing
+[Mon Apr  6 09:58:33 2026] 127.0.0.1:11387 Accepted
+{"timestamp":"2026-04-06T12:58:42+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8cfc7946d88bd22c73cc73aed77210c3"},"env":"development"}
+[Mon Apr  6 09:58:42 2026] 127.0.0.1:11387 Closing
+[Mon Apr  6 09:58:43 2026] 127.0.0.1:20648 Accepted
+{"timestamp":"2026-04-06T12:58:43+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"318e3189140a8c2c1bad0b60894e9bbf"},"env":"development"}
+[Mon Apr  6 09:58:43 2026] 127.0.0.1:20648 Closing
+[Mon Apr  6 09:58:43 2026] 127.0.0.1:5714 Accepted
+{"timestamp":"2026-04-06T12:58:52+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"80b8b42cb5104fc2c2f4f9e39a33e2bb"},"env":"development"}
+[Mon Apr  6 09:58:52 2026] 127.0.0.1:5714 Closing
+[Mon Apr  6 09:58:53 2026] 127.0.0.1:30101 Accepted
+{"timestamp":"2026-04-06T12:58:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b3705b5d75ab674159a0ed9783629f1d"},"env":"development"}
+[Mon Apr  6 09:58:53 2026] 127.0.0.1:30101 Closing
+[Mon Apr  6 09:58:53 2026] 127.0.0.1:63686 Accepted
+{"timestamp":"2026-04-06T12:59:02+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"853a84bfe5cba1d612588dbd44d87742"},"env":"development"}
+[Mon Apr  6 09:59:02 2026] 127.0.0.1:63686 Closing
+[Mon Apr  6 09:59:03 2026] 127.0.0.1:31155 Accepted
+{"timestamp":"2026-04-06T12:59:03+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"28ba839e3519c3158bd0f4ed6340433a"},"env":"development"}
+[Mon Apr  6 09:59:03 2026] 127.0.0.1:31155 Closing
+[Mon Apr  6 09:59:03 2026] 127.0.0.1:16259 Accepted
+{"timestamp":"2026-04-06T12:59:52+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ff6f3709f5ba213a928d2c4a1a2de57d"},"env":"development"}
+[Mon Apr  6 09:59:52 2026] 127.0.0.1:16259 Closing
+[Mon Apr  6 09:59:53 2026] 127.0.0.1:29412 Accepted
+{"timestamp":"2026-04-06T12:59:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e66c4eed7f4af8ffaae6c3eb30725c7e"},"env":"development"}
+[Mon Apr  6 09:59:53 2026] 127.0.0.1:29412 Closing
+[Mon Apr  6 09:59:53 2026] 127.0.0.1:8268 Accepted
+{"timestamp":"2026-04-06T13:00:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ed93f14714d1625e55335872e087d0e1"},"env":"development"}
+[Mon Apr  6 10:00:50 2026] 127.0.0.1:8268 Closing
+[Mon Apr  6 10:00:51 2026] 127.0.0.1:38191 Accepted
+{"timestamp":"2026-04-06T13:00:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"fc3332d613fd64058e668b43505eddc8"},"env":"development"}
+[Mon Apr  6 10:00:51 2026] 127.0.0.1:38191 Closing
+[Mon Apr  6 10:00:51 2026] 127.0.0.1:31335 Accepted
+{"timestamp":"2026-04-06T13:01:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"96d142609c3bb546e6abf6c321ac4cec"},"env":"development"}
+[Mon Apr  6 10:01:50 2026] 127.0.0.1:31335 Closing
+[Mon Apr  6 10:01:51 2026] 127.0.0.1:45944 Accepted
+{"timestamp":"2026-04-06T13:01:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"3b72f0b8bb95aa36dcfbccef322c5dba"},"env":"development"}
+[Mon Apr  6 10:01:51 2026] 127.0.0.1:45944 Closing
+[Mon Apr  6 10:01:51 2026] 127.0.0.1:24145 Accepted
+{"timestamp":"2026-04-06T13:02:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"61619dc932bfdd3686b627999ead3b69"},"env":"development"}
+[Mon Apr  6 10:02:50 2026] 127.0.0.1:24145 Closing
+[Mon Apr  6 10:02:51 2026] 127.0.0.1:30856 Accepted
+{"timestamp":"2026-04-06T13:02:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2b11e92faaec726d16d12e80a34aeb75"},"env":"development"}
+[Mon Apr  6 10:02:51 2026] 127.0.0.1:30856 Closing
+[Mon Apr  6 10:02:51 2026] 127.0.0.1:57088 Accepted
+{"timestamp":"2026-04-06T13:03:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ef58abecff3911c78f94d34177b48e5c"},"env":"development"}
+[Mon Apr  6 10:03:50 2026] 127.0.0.1:57088 Closing
+[Mon Apr  6 10:03:51 2026] 127.0.0.1:54069 Accepted
+{"timestamp":"2026-04-06T13:03:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8c5d6855e2f4bc827cd0a857b1e2e9e8"},"env":"development"}
+[Mon Apr  6 10:03:51 2026] 127.0.0.1:54069 Closing
+[Mon Apr  6 10:03:51 2026] 127.0.0.1:36792 Accepted
+{"timestamp":"2026-04-06T13:04:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"91ccec517aee492d7f13dd5662d51367"},"env":"development"}
+[Mon Apr  6 10:04:50 2026] 127.0.0.1:36792 Closing
+[Mon Apr  6 10:04:51 2026] 127.0.0.1:33384 Accepted
+{"timestamp":"2026-04-06T13:04:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0a39caf43a2c2878dba953d5f23c0442"},"env":"development"}
+[Mon Apr  6 10:04:51 2026] 127.0.0.1:33384 Closing
+[Mon Apr  6 10:04:51 2026] 127.0.0.1:34027 Accepted
+{"timestamp":"2026-04-06T13:05:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ba3a8fe0459ffdaba040be5b579d4d7f"},"env":"development"}
+[Mon Apr  6 10:05:50 2026] 127.0.0.1:34027 Closing
+[Mon Apr  6 10:05:51 2026] 127.0.0.1:23299 Accepted
+{"timestamp":"2026-04-06T13:05:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"89b090e2f0c2b7dc86afc8eb2b62cc7b"},"env":"development"}
+[Mon Apr  6 10:05:51 2026] 127.0.0.1:23299 Closing
+[Mon Apr  6 10:05:51 2026] 127.0.0.1:18532 Accepted
+{"timestamp":"2026-04-06T13:06:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"928fba75cd8b076054dd4499269cb48b"},"env":"development"}
+[Mon Apr  6 10:06:50 2026] 127.0.0.1:18532 Closing
+[Mon Apr  6 10:06:51 2026] 127.0.0.1:64668 Accepted
+{"timestamp":"2026-04-06T13:06:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"307190473586e64c6e78886bc2ce7de9"},"env":"development"}
+[Mon Apr  6 10:06:51 2026] 127.0.0.1:64668 Closing
+[Mon Apr  6 10:06:51 2026] 127.0.0.1:10660 Accepted
+[Mon Apr  6 10:06:57 2026] 127.0.0.1:10660 Closed without sending a request; it was probably just an unused speculative preconnection
+[Mon Apr  6 10:06:57 2026] 127.0.0.1:10660 Closing
+[Mon Apr  6 10:07:51 2026] 127.0.0.1:34389 Accepted
+{"timestamp":"2026-04-06T13:07:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1a315319688eedb89f0e1b9c0f32bcab"},"env":"development"}
+[Mon Apr  6 10:07:51 2026] 127.0.0.1:34389 Closing
+[Mon Apr  6 10:07:51 2026] 127.0.0.1:2560 Accepted
+{"timestamp":"2026-04-06T13:07:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d6a75f480007b49be2a1eda3667f740c"},"env":"development"}
+[Mon Apr  6 10:07:51 2026] 127.0.0.1:2560 Closing
+[Mon Apr  6 10:07:51 2026] 127.0.0.1:6162 Accepted
+{"timestamp":"2026-04-06T13:08:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ec748237c18ab7981c42804e3a5fd776"},"env":"development"}
+[Mon Apr  6 10:08:50 2026] 127.0.0.1:6162 Closing
+[Mon Apr  6 10:08:51 2026] 127.0.0.1:39332 Accepted
+{"timestamp":"2026-04-06T13:08:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9db269bba11b2224885e1fe1258057ae"},"env":"development"}
+[Mon Apr  6 10:08:51 2026] 127.0.0.1:39332 Closing
+[Mon Apr  6 10:08:51 2026] 127.0.0.1:39059 Accepted
+{"timestamp":"2026-04-06T13:09:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1c61d2c2bfd5858c5ede7ae13b4e8623"},"env":"development"}
+[Mon Apr  6 10:09:50 2026] 127.0.0.1:39059 Closing
+[Mon Apr  6 10:09:51 2026] 127.0.0.1:35679 Accepted
+{"timestamp":"2026-04-06T13:09:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"03df3eca664441cb35c291aaf5bb09e3"},"env":"development"}
+[Mon Apr  6 10:09:51 2026] 127.0.0.1:35679 Closing
+[Mon Apr  6 10:09:51 2026] 127.0.0.1:46867 Accepted
+{"timestamp":"2026-04-06T13:10:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8dc5fc7f03a1517df6dd38b6bf96f3de"},"env":"development"}
+[Mon Apr  6 10:10:50 2026] 127.0.0.1:46867 Closing
+[Mon Apr  6 10:10:51 2026] 127.0.0.1:48383 Accepted
+{"timestamp":"2026-04-06T13:10:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0505b89a40e24b32ebbdab97399e5586"},"env":"development"}
+[Mon Apr  6 10:10:51 2026] 127.0.0.1:48383 Closing
+[Mon Apr  6 10:10:51 2026] 127.0.0.1:19331 Accepted
+{"timestamp":"2026-04-06T13:11:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f36b4180927de52ac3693262a6c029d4"},"env":"development"}
+[Mon Apr  6 10:11:50 2026] 127.0.0.1:19331 Closing
+[Mon Apr  6 10:11:51 2026] 127.0.0.1:1256 Accepted
+{"timestamp":"2026-04-06T13:11:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"eea89e9627e548bb51dcc5fb3a1ca9c6"},"env":"development"}
+[Mon Apr  6 10:11:51 2026] 127.0.0.1:1256 Closing
+[Mon Apr  6 10:11:51 2026] 127.0.0.1:29753 Accepted
+{"timestamp":"2026-04-06T13:12:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"da5e0dcefd14739c0e8014457410efac"},"env":"development"}
+[Mon Apr  6 10:12:50 2026] 127.0.0.1:29753 Closing
+[Mon Apr  6 10:12:51 2026] 127.0.0.1:45335 Accepted
+{"timestamp":"2026-04-06T13:12:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e8c803e7233f095f9cbe7981118ae05c"},"env":"development"}
+[Mon Apr  6 10:12:51 2026] 127.0.0.1:45335 Closing
+[Mon Apr  6 10:12:51 2026] 127.0.0.1:10651 Accepted
+{"timestamp":"2026-04-06T13:13:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"bf90676e86142d8764f7bf60470d476b"},"env":"development"}
+[Mon Apr  6 10:13:50 2026] 127.0.0.1:10651 Closing
+[Mon Apr  6 10:13:51 2026] 127.0.0.1:19253 Accepted
+{"timestamp":"2026-04-06T13:13:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0ad32b8e22432b2bf92605fc5e0c5791"},"env":"development"}
+[Mon Apr  6 10:13:51 2026] 127.0.0.1:19253 Closing
+[Mon Apr  6 10:13:51 2026] 127.0.0.1:32349 Accepted
+{"timestamp":"2026-04-06T13:14:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"91f52182285adf270d6f3ab76ef4ef21"},"env":"development"}
+[Mon Apr  6 10:14:50 2026] 127.0.0.1:32349 Closing
+[Mon Apr  6 10:14:51 2026] 127.0.0.1:17424 Accepted
+{"timestamp":"2026-04-06T13:14:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a63e6a306f9a95e66541ecb6d586737d"},"env":"development"}
+[Mon Apr  6 10:14:51 2026] 127.0.0.1:17424 Closing
+[Mon Apr  6 10:14:51 2026] 127.0.0.1:1657 Accepted
+{"timestamp":"2026-04-06T13:15:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"daa413e095afe7114090b93f8304aaa0"},"env":"development"}
+[Mon Apr  6 10:15:50 2026] 127.0.0.1:1657 Closing
+[Mon Apr  6 10:15:51 2026] 127.0.0.1:38879 Accepted
+{"timestamp":"2026-04-06T13:15:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"707c4e4a3e45510edf2ac321607cef2f"},"env":"development"}
+[Mon Apr  6 10:15:51 2026] 127.0.0.1:38879 Closing
+[Mon Apr  6 10:15:51 2026] 127.0.0.1:19593 Accepted
+{"timestamp":"2026-04-06T13:16:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9fbcad403530af1cc363faf700f14956"},"env":"development"}
+[Mon Apr  6 10:16:50 2026] 127.0.0.1:19593 Closing
+[Mon Apr  6 10:16:51 2026] 127.0.0.1:18552 Accepted
+{"timestamp":"2026-04-06T13:16:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7fb404b902d078b78cda27198641b928"},"env":"development"}
+[Mon Apr  6 10:16:51 2026] 127.0.0.1:18552 Closing
+[Mon Apr  6 10:16:51 2026] 127.0.0.1:34779 Accepted
+{"timestamp":"2026-04-06T13:17:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2c156cd945ba4a84f5ada8587ea777db"},"env":"development"}
+[Mon Apr  6 10:17:50 2026] 127.0.0.1:34779 Closing
+[Mon Apr  6 10:17:51 2026] 127.0.0.1:62378 Accepted
+{"timestamp":"2026-04-06T13:17:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"aad4cc45c4c1388001360e6e49705c85"},"env":"development"}
+[Mon Apr  6 10:17:51 2026] 127.0.0.1:62378 Closing
+[Mon Apr  6 10:17:51 2026] 127.0.0.1:15904 Accepted
+{"timestamp":"2026-04-06T13:18:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1483dd86f2fa5bf7383393dec782b29b"},"env":"development"}
+[Mon Apr  6 10:18:50 2026] 127.0.0.1:15904 Closing
+[Mon Apr  6 10:18:51 2026] 127.0.0.1:50788 Accepted
+{"timestamp":"2026-04-06T13:18:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b9316d01944f803de5fa58e67d965222"},"env":"development"}
+[Mon Apr  6 10:18:51 2026] 127.0.0.1:50788 Closing
+[Mon Apr  6 10:18:51 2026] 127.0.0.1:54488 Accepted
+{"timestamp":"2026-04-06T13:19:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"3c2b48c990a6ebd3a2849fb9c07c5bbc"},"env":"development"}
+[Mon Apr  6 10:19:50 2026] 127.0.0.1:54488 Closing
+[Mon Apr  6 10:19:51 2026] 127.0.0.1:30933 Accepted
+{"timestamp":"2026-04-06T13:19:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0bd66428808d7612e884b629af8ebc99"},"env":"development"}
+[Mon Apr  6 10:19:51 2026] 127.0.0.1:30933 Closing
+[Mon Apr  6 10:19:51 2026] 127.0.0.1:18347 Accepted
+{"timestamp":"2026-04-06T13:20:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e820447e20b77f51a34a3ec295a5db95"},"env":"development"}
+[Mon Apr  6 10:20:50 2026] 127.0.0.1:18347 Closing
+[Mon Apr  6 10:20:51 2026] 127.0.0.1:33997 Accepted
+{"timestamp":"2026-04-06T13:20:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"3a6d86e96ce42809d3dc5b319a631001"},"env":"development"}
+[Mon Apr  6 10:20:51 2026] 127.0.0.1:33997 Closing
+[Mon Apr  6 10:20:51 2026] 127.0.0.1:60383 Accepted
+{"timestamp":"2026-04-06T13:21:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9ca392696de074c55d34e774ea35d028"},"env":"development"}
+[Mon Apr  6 10:21:50 2026] 127.0.0.1:60383 Closing
+[Mon Apr  6 10:21:51 2026] 127.0.0.1:47774 Accepted
+{"timestamp":"2026-04-06T13:21:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"5c9b83d6a55b2acd75c63290a3e2ced5"},"env":"development"}
+[Mon Apr  6 10:21:51 2026] 127.0.0.1:47774 Closing
+[Mon Apr  6 10:21:51 2026] 127.0.0.1:14784 Accepted
+{"timestamp":"2026-04-06T13:22:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"682870fd680b08aea5070c893aedcbc6"},"env":"development"}
+[Mon Apr  6 10:22:50 2026] 127.0.0.1:14784 Closing
+[Mon Apr  6 10:22:51 2026] 127.0.0.1:20437 Accepted
+{"timestamp":"2026-04-06T13:22:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0ae6b4dd7c8c70d2c9c2cc06e2349033"},"env":"development"}
+[Mon Apr  6 10:22:51 2026] 127.0.0.1:20437 Closing
+[Mon Apr  6 10:22:51 2026] 127.0.0.1:12629 Accepted
+{"timestamp":"2026-04-06T13:23:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f1dfadc5e1b3ac7c8f454680f26e4ae6"},"env":"development"}
+[Mon Apr  6 10:23:50 2026] 127.0.0.1:12629 Closing
+[Mon Apr  6 10:23:51 2026] 127.0.0.1:25086 Accepted
+{"timestamp":"2026-04-06T13:23:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2410d93787b9bf541195bb9a2ce3e824"},"env":"development"}
+[Mon Apr  6 10:23:51 2026] 127.0.0.1:25086 Closing
+[Mon Apr  6 10:23:51 2026] 127.0.0.1:60898 Accepted
+{"timestamp":"2026-04-06T13:24:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2c7224de8155644ebd4adf90a26cf785"},"env":"development"}
+[Mon Apr  6 10:24:50 2026] 127.0.0.1:60898 Closing
+[Mon Apr  6 10:24:51 2026] 127.0.0.1:64632 Accepted
+{"timestamp":"2026-04-06T13:24:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"5bc7710726072b7c025de937c1115532"},"env":"development"}
+[Mon Apr  6 10:24:51 2026] 127.0.0.1:64632 Closing
+[Mon Apr  6 10:24:51 2026] 127.0.0.1:39772 Accepted
+{"timestamp":"2026-04-06T13:25:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"82785e9467cf75f9893ddf3997953659"},"env":"development"}
+[Mon Apr  6 10:25:50 2026] 127.0.0.1:39772 Closing
+[Mon Apr  6 10:25:51 2026] 127.0.0.1:62863 Accepted
+{"timestamp":"2026-04-06T13:25:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d76156079000cf43bff808d964115888"},"env":"development"}
+[Mon Apr  6 10:25:51 2026] 127.0.0.1:62863 Closing
+[Mon Apr  6 10:25:51 2026] 127.0.0.1:12561 Accepted
+{"timestamp":"2026-04-06T13:26:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"4cacc810de5bae4105884fc1f36e4a66"},"env":"development"}
+[Mon Apr  6 10:26:50 2026] 127.0.0.1:12561 Closing
+[Mon Apr  6 10:26:51 2026] 127.0.0.1:57341 Accepted
+{"timestamp":"2026-04-06T13:26:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"6de83a46e970733fe7b7e7dbfe8e4a95"},"env":"development"}
+[Mon Apr  6 10:26:51 2026] 127.0.0.1:57341 Closing
+[Mon Apr  6 10:26:51 2026] 127.0.0.1:15250 Accepted
+{"timestamp":"2026-04-06T13:27:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"bebd89d1a2c1f0e1e8c3114d17ef622c"},"env":"development"}
+[Mon Apr  6 10:27:50 2026] 127.0.0.1:15250 Closing
+[Mon Apr  6 10:27:51 2026] 127.0.0.1:36846 Accepted
+{"timestamp":"2026-04-06T13:27:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7712570d4a6591a420e7a7cf10168816"},"env":"development"}
+[Mon Apr  6 10:27:51 2026] 127.0.0.1:36846 Closing
+[Mon Apr  6 10:27:51 2026] 127.0.0.1:31079 Accepted
+{"timestamp":"2026-04-06T13:28:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e3853c3df7b4e8039875ac7c51ac3600"},"env":"development"}
+[Mon Apr  6 10:28:50 2026] 127.0.0.1:31079 Closing
+[Mon Apr  6 10:28:51 2026] 127.0.0.1:51647 Accepted
+{"timestamp":"2026-04-06T13:28:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"298711667806d48cac5568775a25410b"},"env":"development"}
+[Mon Apr  6 10:28:51 2026] 127.0.0.1:51647 Closing
+[Mon Apr  6 10:28:51 2026] 127.0.0.1:65477 Accepted
+{"timestamp":"2026-04-06T13:29:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"422f3fd59b98eeb802ad35c78af06b07"},"env":"development"}
+[Mon Apr  6 10:29:50 2026] 127.0.0.1:65477 Closing
+[Mon Apr  6 10:29:51 2026] 127.0.0.1:53109 Accepted
+{"timestamp":"2026-04-06T13:29:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e86d3a988bb7b20d0ae60b16b2b39098"},"env":"development"}
+[Mon Apr  6 10:29:51 2026] 127.0.0.1:53109 Closing
+[Mon Apr  6 10:29:51 2026] 127.0.0.1:22770 Accepted
+{"timestamp":"2026-04-06T13:30:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"3649f22ce1ee097f33b769c5caf27794"},"env":"development"}
+[Mon Apr  6 10:30:50 2026] 127.0.0.1:22770 Closing
+[Mon Apr  6 10:30:51 2026] 127.0.0.1:59600 Accepted
+{"timestamp":"2026-04-06T13:30:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e088d10ce7ed799a924bbdd73f89909e"},"env":"development"}
+[Mon Apr  6 10:30:51 2026] 127.0.0.1:59600 Closing
+[Mon Apr  6 10:30:51 2026] 127.0.0.1:1640 Accepted
+{"timestamp":"2026-04-06T13:31:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8d1df3f67e01278754038c65c08d164a"},"env":"development"}
+[Mon Apr  6 10:31:50 2026] 127.0.0.1:1640 Closing
+[Mon Apr  6 10:31:51 2026] 127.0.0.1:33589 Accepted
+{"timestamp":"2026-04-06T13:31:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f8e1e8807481bccc575c87dfef15ebfa"},"env":"development"}
+[Mon Apr  6 10:31:51 2026] 127.0.0.1:33589 Closing
+[Mon Apr  6 10:31:51 2026] 127.0.0.1:44964 Accepted
+{"timestamp":"2026-04-06T13:32:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f2d2323b7bc1bcfb4da56e32ca04a8de"},"env":"development"}
+[Mon Apr  6 10:32:50 2026] 127.0.0.1:44964 Closing
+[Mon Apr  6 10:32:51 2026] 127.0.0.1:2956 Accepted
+{"timestamp":"2026-04-06T13:32:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c20c6e170206931b4a061dd8718a951a"},"env":"development"}
+[Mon Apr  6 10:32:51 2026] 127.0.0.1:2956 Closing
+[Mon Apr  6 10:32:51 2026] 127.0.0.1:19592 Accepted
+{"timestamp":"2026-04-06T13:33:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f688f56373dabc0a47b1acfc06f32f4d"},"env":"development"}
+[Mon Apr  6 10:33:50 2026] 127.0.0.1:19592 Closing
+[Mon Apr  6 10:33:51 2026] 127.0.0.1:61465 Accepted
+{"timestamp":"2026-04-06T13:33:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a9ed102b4929e6e01bbf8f295551c56f"},"env":"development"}
+[Mon Apr  6 10:33:51 2026] 127.0.0.1:61465 Closing
+[Mon Apr  6 10:33:51 2026] 127.0.0.1:24253 Accepted
+{"timestamp":"2026-04-06T13:34:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8bba247e7b38958bb377e8f81951c001"},"env":"development"}
+[Mon Apr  6 10:34:50 2026] 127.0.0.1:24253 Closing
+[Mon Apr  6 10:34:51 2026] 127.0.0.1:44076 Accepted
+{"timestamp":"2026-04-06T13:34:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e6dde95923f13842bbc58fbfa79aab89"},"env":"development"}
+[Mon Apr  6 10:34:51 2026] 127.0.0.1:44076 Closing
+[Mon Apr  6 10:34:51 2026] 127.0.0.1:53227 Accepted
+{"timestamp":"2026-04-06T13:35:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c421f8f0d14bc71e97a1f9b5514d74b4"},"env":"development"}
+[Mon Apr  6 10:35:50 2026] 127.0.0.1:53227 Closing
+[Mon Apr  6 10:35:51 2026] 127.0.0.1:56525 Accepted
+{"timestamp":"2026-04-06T13:35:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d44ebd2008d58cf4d5b8e9ef29d5a6ae"},"env":"development"}
+[Mon Apr  6 10:35:51 2026] 127.0.0.1:56525 Closing
+[Mon Apr  6 10:35:51 2026] 127.0.0.1:60509 Accepted
+{"timestamp":"2026-04-06T13:36:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7e4139db0cc14a7e78b8ac69328e9be8"},"env":"development"}
+[Mon Apr  6 10:36:50 2026] 127.0.0.1:60509 Closing
+[Mon Apr  6 10:36:51 2026] 127.0.0.1:62819 Accepted
+{"timestamp":"2026-04-06T13:36:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ac9751aecade75feda2ee9c85465ab23"},"env":"development"}
+[Mon Apr  6 10:36:51 2026] 127.0.0.1:62819 Closing
+[Mon Apr  6 10:36:51 2026] 127.0.0.1:23514 Accepted
+[Mon Apr  6 10:36:57 2026] 127.0.0.1:23514 Closed without sending a request; it was probably just an unused speculative preconnection
+[Mon Apr  6 10:36:57 2026] 127.0.0.1:23514 Closing
+[Mon Apr  6 10:37:51 2026] 127.0.0.1:1154 Accepted
+{"timestamp":"2026-04-06T13:37:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"363f5c4205504ddc5d1e0af0af6cc44f"},"env":"development"}
+[Mon Apr  6 10:37:51 2026] 127.0.0.1:1154 Closing
+[Mon Apr  6 10:37:51 2026] 127.0.0.1:55247 Accepted
+{"timestamp":"2026-04-06T13:37:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0c9f59ccaba103ec3cffb501d91b9cc2"},"env":"development"}
+[Mon Apr  6 10:37:51 2026] 127.0.0.1:55247 Closing
+[Mon Apr  6 10:37:51 2026] 127.0.0.1:61384 Accepted
+{"timestamp":"2026-04-06T13:38:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"219fb9e262189f4489c36eed64a88c04"},"env":"development"}
+[Mon Apr  6 10:38:50 2026] 127.0.0.1:61384 Closing
+[Mon Apr  6 10:38:51 2026] 127.0.0.1:4896 Accepted
+{"timestamp":"2026-04-06T13:38:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0b4305aa7d88cc0e7676009675f55a76"},"env":"development"}
+[Mon Apr  6 10:38:51 2026] 127.0.0.1:4896 Closing
+[Mon Apr  6 10:38:51 2026] 127.0.0.1:27674 Accepted
+{"timestamp":"2026-04-06T13:39:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"95fcf26ea47916cc2542ca972d4816f1"},"env":"development"}
+[Mon Apr  6 10:39:50 2026] 127.0.0.1:27674 Closing
+[Mon Apr  6 10:39:51 2026] 127.0.0.1:11366 Accepted
+{"timestamp":"2026-04-06T13:39:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"48807cf9055881eafbb0739ea7a0fa65"},"env":"development"}
+[Mon Apr  6 10:39:51 2026] 127.0.0.1:11366 Closing
+[Mon Apr  6 10:39:51 2026] 127.0.0.1:2326 Accepted
+{"timestamp":"2026-04-06T13:40:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"210bc327418ecba90551427cfafe0f0e"},"env":"development"}
+[Mon Apr  6 10:40:50 2026] 127.0.0.1:2326 Closing
+[Mon Apr  6 10:40:51 2026] 127.0.0.1:27400 Accepted
+{"timestamp":"2026-04-06T13:40:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"fa0257a226e67ddf544785fd31722ed8"},"env":"development"}
+[Mon Apr  6 10:40:51 2026] 127.0.0.1:27400 Closing
+[Mon Apr  6 10:40:51 2026] 127.0.0.1:4186 Accepted
+{"timestamp":"2026-04-06T13:41:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"347f7b0c5e1135caf87b3c3bd650d2a4"},"env":"development"}
+[Mon Apr  6 10:41:50 2026] 127.0.0.1:4186 Closing
+[Mon Apr  6 10:41:51 2026] 127.0.0.1:63441 Accepted
+{"timestamp":"2026-04-06T13:41:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2c2288d4f9df9d49959e2add2f4e1efe"},"env":"development"}
+[Mon Apr  6 10:41:51 2026] 127.0.0.1:63441 Closing
+[Mon Apr  6 10:41:51 2026] 127.0.0.1:27526 Accepted
+{"timestamp":"2026-04-06T13:42:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"94863bcedcb5cfddc24fd72b3eaee3b0"},"env":"development"}
+[Mon Apr  6 10:42:50 2026] 127.0.0.1:27526 Closing
+[Mon Apr  6 10:42:51 2026] 127.0.0.1:37642 Accepted
+{"timestamp":"2026-04-06T13:42:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2f5ae988befb49d75ee287b6104d2bf6"},"env":"development"}
+[Mon Apr  6 10:42:51 2026] 127.0.0.1:37642 Closing
+[Mon Apr  6 10:42:51 2026] 127.0.0.1:48224 Accepted
+{"timestamp":"2026-04-06T13:43:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"23b86a79312ce47811125763b424daab"},"env":"development"}
+[Mon Apr  6 10:43:50 2026] 127.0.0.1:48224 Closing
+[Mon Apr  6 10:43:51 2026] 127.0.0.1:34883 Accepted
+{"timestamp":"2026-04-06T13:43:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2e2298847e736ff8e4aa06d2441e6c55"},"env":"development"}
+[Mon Apr  6 10:43:51 2026] 127.0.0.1:34883 Closing
+[Mon Apr  6 10:43:51 2026] 127.0.0.1:56694 Accepted
+{"timestamp":"2026-04-06T13:44:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a3f3e049a75f437037da6020040cad53"},"env":"development"}
+[Mon Apr  6 10:44:50 2026] 127.0.0.1:56694 Closing
+[Mon Apr  6 10:44:51 2026] 127.0.0.1:17663 Accepted
+{"timestamp":"2026-04-06T13:44:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ed22a3375255b5446fadfbcdab2cd11a"},"env":"development"}
+[Mon Apr  6 10:44:51 2026] 127.0.0.1:17663 Closing
+[Mon Apr  6 10:44:51 2026] 127.0.0.1:55562 Accepted
+{"timestamp":"2026-04-06T13:45:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c4ee959023f51017a7eb9e0f0248f961"},"env":"development"}
+[Mon Apr  6 10:45:50 2026] 127.0.0.1:55562 Closing
+[Mon Apr  6 10:45:51 2026] 127.0.0.1:25851 Accepted
+{"timestamp":"2026-04-06T13:45:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"db7331cdebba5e35832a5cb7e91d16d9"},"env":"development"}
+[Mon Apr  6 10:45:51 2026] 127.0.0.1:25851 Closing
+[Mon Apr  6 10:45:51 2026] 127.0.0.1:63057 Accepted
+{"timestamp":"2026-04-06T13:46:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f25223df9cce97eb4cd345e3c9036ba2"},"env":"development"}
+[Mon Apr  6 10:46:50 2026] 127.0.0.1:63057 Closing
+[Mon Apr  6 10:46:51 2026] 127.0.0.1:33627 Accepted
+{"timestamp":"2026-04-06T13:46:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f487b633e61d2bb260a9b367569cc736"},"env":"development"}
+[Mon Apr  6 10:46:51 2026] 127.0.0.1:33627 Closing
+[Mon Apr  6 10:46:51 2026] 127.0.0.1:63902 Accepted
+{"timestamp":"2026-04-06T13:47:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ec1edf200e2fafd7ddebbc5b5dd31d4e"},"env":"development"}
+[Mon Apr  6 10:47:50 2026] 127.0.0.1:63902 Closing
+[Mon Apr  6 10:47:51 2026] 127.0.0.1:38601 Accepted
+{"timestamp":"2026-04-06T13:47:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d476503c4f9edd5be4125fa319131e6e"},"env":"development"}
+[Mon Apr  6 10:47:51 2026] 127.0.0.1:38601 Closing
+[Mon Apr  6 10:47:51 2026] 127.0.0.1:38781 Accepted
+{"timestamp":"2026-04-06T13:48:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c83b2ff8dffa250551bea7a53f69bd1f"},"env":"development"}
+[Mon Apr  6 10:48:50 2026] 127.0.0.1:38781 Closing
+[Mon Apr  6 10:48:51 2026] 127.0.0.1:33440 Accepted
+{"timestamp":"2026-04-06T13:48:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0fca8e6d63d6049276f6be06bd0c2e6d"},"env":"development"}
+[Mon Apr  6 10:48:51 2026] 127.0.0.1:33440 Closing
+[Mon Apr  6 10:48:51 2026] 127.0.0.1:30170 Accepted
+{"timestamp":"2026-04-06T13:49:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2b3564f2c4c8d9b004bac8cc3ae5e50b"},"env":"development"}
+[Mon Apr  6 10:49:50 2026] 127.0.0.1:30170 Closing
+[Mon Apr  6 10:49:51 2026] 127.0.0.1:13620 Accepted
+{"timestamp":"2026-04-06T13:49:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c87597540b34ebdf6d1bd1ce48495c16"},"env":"development"}
+[Mon Apr  6 10:49:51 2026] 127.0.0.1:13620 Closing
+[Mon Apr  6 10:49:51 2026] 127.0.0.1:4539 Accepted
+{"timestamp":"2026-04-06T13:50:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"191c0b722468cb1c9e59e355f45ef50e"},"env":"development"}
+[Mon Apr  6 10:50:50 2026] 127.0.0.1:4539 Closing
+[Mon Apr  6 10:50:51 2026] 127.0.0.1:30830 Accepted
+{"timestamp":"2026-04-06T13:50:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8b1a3a595b4f138e1951fbca042ebcbd"},"env":"development"}
+[Mon Apr  6 10:50:51 2026] 127.0.0.1:30830 Closing
+[Mon Apr  6 10:50:51 2026] 127.0.0.1:42018 Accepted
+{"timestamp":"2026-04-06T13:51:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"676b71075880bbeb6d17ff98a68f337e"},"env":"development"}
+[Mon Apr  6 10:51:50 2026] 127.0.0.1:42018 Closing
+[Mon Apr  6 10:51:51 2026] 127.0.0.1:35413 Accepted
+{"timestamp":"2026-04-06T13:51:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"15655a47acd165d6f84eed38da5d94c6"},"env":"development"}
+[Mon Apr  6 10:51:51 2026] 127.0.0.1:35413 Closing
+[Mon Apr  6 10:51:51 2026] 127.0.0.1:50772 Accepted
+{"timestamp":"2026-04-06T13:52:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"422ac907a8c18af857c3bf3927e0efeb"},"env":"development"}
+[Mon Apr  6 10:52:50 2026] 127.0.0.1:50772 Closing
+[Mon Apr  6 10:52:51 2026] 127.0.0.1:41507 Accepted
+{"timestamp":"2026-04-06T13:52:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"65b11670eb2019b52a68b6343492b8e1"},"env":"development"}
+[Mon Apr  6 10:52:51 2026] 127.0.0.1:41507 Closing
+[Mon Apr  6 10:52:51 2026] 127.0.0.1:65504 Accepted
+{"timestamp":"2026-04-06T13:53:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"aa63bf6c22c06c854f54b4ebfdcbb9ab"},"env":"development"}
+[Mon Apr  6 10:53:50 2026] 127.0.0.1:65504 Closing
+[Mon Apr  6 10:53:51 2026] 127.0.0.1:23821 Accepted
+{"timestamp":"2026-04-06T13:53:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"cd627c398ffdab553b69427ed79755d5"},"env":"development"}
+[Mon Apr  6 10:53:51 2026] 127.0.0.1:23821 Closing
+[Mon Apr  6 10:53:51 2026] 127.0.0.1:42958 Accepted
+{"timestamp":"2026-04-06T13:54:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2991ae6515e058b6719b64b9e0c01d22"},"env":"development"}
+[Mon Apr  6 10:54:50 2026] 127.0.0.1:42958 Closing
+[Mon Apr  6 10:54:51 2026] 127.0.0.1:55825 Accepted
+{"timestamp":"2026-04-06T13:54:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"3a9de65fdb07d4c756a5f3aa09d26fa9"},"env":"development"}
+[Mon Apr  6 10:54:51 2026] 127.0.0.1:55825 Closing
+[Mon Apr  6 10:54:51 2026] 127.0.0.1:18044 Accepted
+{"timestamp":"2026-04-06T13:55:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0deaa4550473af76a57e022483d6aa58"},"env":"development"}
+{"timestamp":"2026-04-06T13:55:50+00:00","type":"SECURITY_RESPONSE","request_id":"0deaa4550473af76a57e022483d6aa58","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/dashboard/metrics","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 10:55:50 2026] 127.0.0.1:18044 Closing
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:64744 Accepted
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:4326 Accepted
+{"timestamp":"2026-04-06T13:55:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7c84da48bacd4300128ff85a3b3ab1f4"},"env":"development"}
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:64744 Closing
+{"timestamp":"2026-04-06T13:55:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"deac82d10c007c328d40bf837e3a7139"},"env":"development"}
+{"timestamp":"2026-04-06T13:55:51+00:00","type":"SECURITY_RESPONSE","request_id":"deac82d10c007c328d40bf837e3a7139","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/modules/state","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:4326 Closing
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:19945 Accepted
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:19945 Closing
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:52663 Accepted
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:34753 Accepted
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:25529 Accepted
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:52663 Closing
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:34753 Closing
+{"timestamp":"2026-04-06T13:55:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1ed5adcdf06d56c5edff2419b7aeaf2e"},"env":"development"}
+{"timestamp":"2026-04-06T13:55:51+00:00","type":"SECURITY_RESPONSE","request_id":"1ed5adcdf06d56c5edff2419b7aeaf2e","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/me","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 10:55:51 2026] 127.0.0.1:25529 Closing
+[Mon Apr  6 10:55:52 2026] 127.0.0.1:11808 Accepted
+[Mon Apr  6 10:55:52 2026] 127.0.0.1:11808 Closing
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:40678 Accepted
+{"timestamp":"2026-04-06T14:33:37+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"68c5c288b7243cfaa94f2cc072b80b25"},"env":"development"}
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:40678 Closing
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:39886 Accepted
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:39886 Closing
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:40673 Accepted
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:18009 Accepted
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:42653 Accepted
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:40673 Closing
+[Mon Apr  6 11:33:37 2026] 127.0.0.1:18009 Closing
+[Mon Apr  6 11:33:38 2026] 127.0.0.1:42653 Closing
+[Mon Apr  6 11:33:41 2026] 127.0.0.1:8173 Accepted
+{"timestamp":"2026-04-06T14:33:41+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"93a8069f296e875e6dffd4511f77bbaf"},"env":"development"}
+[Mon Apr  6 11:33:41 2026] 127.0.0.1:8173 Closing
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:46231 Accepted
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:46231 Closing
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:9128 Accepted
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:28102 Accepted
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:31967 Accepted
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:9128 Closing
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:28102 Closing
+[Mon Apr  6 11:33:42 2026] 127.0.0.1:31967 Closing
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:43748 Accepted
+{"timestamp":"2026-04-06T14:33:45+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"65af96ffeb8514364bd2c281acdac5fe"},"env":"development"}
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:43748 Closing
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:6478 Accepted
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:6478 Closing
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:56333 Accepted
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:58537 Accepted
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:57201 Accepted
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:56333 Closing
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:58537 Closing
+[Mon Apr  6 11:33:45 2026] 127.0.0.1:57201 Closing
+[Mon Apr  6 11:34:24 2026] 127.0.0.1:29320 Accepted
+{"timestamp":"2026-04-06T14:34:24+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a6e7e32b0d039f9eaeaa2c5d67ceb191"},"env":"development"}
+[Mon Apr  6 11:34:24 2026] 127.0.0.1:29320 Closing
+[Mon Apr  6 11:34:24 2026] 127.0.0.1:15689 Accepted
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:15689 Closing
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:19834 Accepted
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:47910 Accepted
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:52104 Accepted
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:19834 Closing
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:47910 Closing
+[Mon Apr  6 11:34:25 2026] 127.0.0.1:52104 Closing
+[Mon Apr  6 11:34:46 2026] 127.0.0.1:23702 Accepted
+{"timestamp":"2026-04-06T14:34:46+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"96ec72fea3eeb6e70c2645ba8e49251f"},"env":"development"}
+[Mon Apr  6 11:34:47 2026] [AuthController] raw length=39
+[Mon Apr  6 11:34:47 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T14:34:47+00:00","type":"AUDIT","request_id":"96ec72fea3eeb6e70c2645ba8e49251f","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"reason":"Credenciais inválidas."}}
+{"timestamp":"2026-04-06T14:34:47+00:00","type":"SECURITY_RESPONSE","request_id":"96ec72fea3eeb6e70c2645ba8e49251f","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 11:34:47 2026] 127.0.0.1:23702 Closing
+[Mon Apr  6 11:34:47 2026] 127.0.0.1:54755 Accepted
+{"timestamp":"2026-04-06T14:35:01+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"162f52c4a81332bbc0d43c030281eabb"},"env":"development"}
+[Mon Apr  6 11:35:01 2026] [AuthController] raw length=36
+[Mon Apr  6 11:35:01 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T14:35:02+00:00","type":"AUDIT","request_id":"162f52c4a81332bbc0d43c030281eabb","evento":"auth.login.success","usuario_uuid":"afafbf89-f9a7-4f46-b55e-0625cba05c0d","ip":"127.0.0.1","contexto":{"username":"admin","nivel_acesso":"admin_system"}}
+[Mon Apr  6 11:35:02 2026] 127.0.0.1:54755 Closing
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:2836 Accepted
+{"timestamp":"2026-04-06T14:35:03+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a92571c7930520c8f0de44931b9b2b76"},"env":"development"}
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:2836 Closing
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:14927 Accepted
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:14927 Closing
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:34820 Accepted
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:29377 Accepted
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:33497 Accepted
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:23746 Accepted
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:34820 Closing
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:29377 Closing
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:33497 Closing
+[Mon Apr  6 11:35:03 2026] 127.0.0.1:23746 Closing
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:31395 Accepted
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:31395 Closing
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:2708 Accepted
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:64399 Accepted
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:64123 Accepted
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:46528 Accepted
+{"timestamp":"2026-04-06T14:35:04+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b40aa7e3a7145826b3e35fb4a6f066f3"},"env":"development"}
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:2708 Closing
+{"timestamp":"2026-04-06T14:35:04+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"5531b6cda6d3dc935c70d7926f120cc6"},"env":"development"}
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:64399 Closing
+{"timestamp":"2026-04-06T14:35:04+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a3c08e679112ec47f27953f43aa11bcb"},"env":"development"}
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:64123 Closing
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:46528 Closing
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:22997 Accepted
+{"timestamp":"2026-04-06T14:35:04+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2605c621d2bd3f5c1ff1fa7a1be261e3"},"env":"development"}
+[Mon Apr  6 11:35:04 2026] 127.0.0.1:22997 Closing
+[Mon Apr  6 11:35:05 2026] 127.0.0.1:16650 Accepted
+{"timestamp":"2026-04-06T14:35:05+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"fd599a4bc061ac3033f564859726664c"},"env":"development"}
+[Mon Apr  6 11:35:05 2026] 127.0.0.1:16650 Closing
+[Mon Apr  6 11:35:05 2026] 127.0.0.1:45987 Accepted
+{"timestamp":"2026-04-06T14:35:05+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"96c2f0696a20f1fe880adebcd4b0c8dc"},"env":"development"}
+[Mon Apr  6 11:35:05 2026] 127.0.0.1:45987 Closing
+[Mon Apr  6 11:35:05 2026] 127.0.0.1:52803 Accepted
+{"timestamp":"2026-04-06T14:35:05+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e55daefd0af77cb4c0dc7a250bb8ef7c"},"env":"development"}
+[Mon Apr  6 11:35:06 2026] 127.0.0.1:52803 Closing
+[Mon Apr  6 11:35:06 2026] 127.0.0.1:21505 Accepted
+{"timestamp":"2026-04-06T14:35:14+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ac31e96a3297cd6251aac95889805ce9"},"env":"development"}
+{"timestamp":"2026-04-06T14:35:14+00:00","type":"AUDIT","request_id":"ac31e96a3297cd6251aac95889805ce9","evento":"auth.logout","usuario_uuid":"afafbf89-f9a7-4f46-b55e-0625cba05c0d","ip":"127.0.0.1","contexto":[]}
+[Mon Apr  6 11:35:14 2026] 127.0.0.1:21505 Closing
+[Mon Apr  6 11:35:14 2026] 127.0.0.1:12103 Accepted
+{"timestamp":"2026-04-06T14:35:14+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7fc1e5241421e5c9b3154dfd08dacdc0"},"env":"development"}
+[Mon Apr  6 11:35:14 2026] 127.0.0.1:12103 Closing
+[Mon Apr  6 11:35:14 2026] 127.0.0.1:10694 Accepted
+[Mon Apr  6 11:35:14 2026] 127.0.0.1:10694 Closing
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:45239 Accepted
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:21256 Accepted
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:23012 Accepted
+{"timestamp":"2026-04-06T14:35:15+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"bcd3b0bbbe7bf5b15f15855435841331"},"env":"development"}
+{"timestamp":"2026-04-06T14:35:15+00:00","type":"SECURITY_RESPONSE","request_id":"bcd3b0bbbe7bf5b15f15855435841331","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/logout","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:45239 Closing
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:21256 Closing
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:23012 Closing
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:22957 Accepted
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:22957 Closing
+[Mon Apr  6 11:35:15 2026] 127.0.0.1:24431 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+n Apr  6 11:36:08 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) started
+[Mon Apr  6 11:36:17 2026] 127.0.0.1:44972 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+n Apr  6 11:37:07 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) started
+[Mon Apr  6 11:37:10 2026] 127.0.0.1:3071 Accepted
+[Mon Apr  6 11:38:10 2026] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Database\PdoFactory.php on line 52
+[Mon Apr  6 11:38:10 2026] 127.0.0.1:3071 Closing
+[Mon Apr  6 11:38:10 2026] 127.0.0.1:56917 Accepted
+[Mon Apr  6 11:39:10 2026] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in C:\Users\Adimael\Documents\projects\sistema-modular\api_sweflow_php\src\Kernel\Database\PdoFactory.php on line 52
+[Mon Apr  6 11:39:10 2026] 127.0.0.1:56917 Closing
+[Mon Apr  6 11:39:10 2026] 127.0.0.1:29859 Accepted
+[Mon Apr  6 11:39:10 2026] 127.0.0.1:29859 Closing
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:63272 Accepted
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:63272 Closing
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:9139 Accepted
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:9139 Closing
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:7258 Accepted
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:23935 Accepted
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:58284 Accepted
+[Mon Apr  6 11:40:57 2026] 127.0.0.1:7258 Closing
+[Mon Apr  6 11:40:58 2026] 127.0.0.1:23935 Closing
+[Mon Apr  6 11:40:58 2026] 127.0.0.1:58284 Closing
+[Mon Apr  6 11:41:00 2026] 127.0.0.1:14204 Accepted
+[Mon Apr  6 11:41:00 2026] 127.0.0.1:14204 Closing
+[Mon Apr  6 11:41:00 2026] 127.0.0.1:40857 Accepted
+[Mon Apr  6 11:41:29 2026] 127.0.0.1:40857 Closing
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:44750 Accepted
+{"timestamp":"2026-04-06T14:41:30+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e75cdc1f481a31f16e0730acb860de1e"},"env":"development"}
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:44750 Closing
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:63749 Accepted
+{"timestamp":"2026-04-06T14:41:30+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"06df6708b2a6285c993f9eda6b3a96ea"},"env":"development"}
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:63749 Closing
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:52601 Accepted
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:52601 Closing
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:3651 Accepted
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:47904 Accepted
+[Mon Apr  6 11:41:30 2026] 127.0.0.1:55247 Accepted
+[Mon Apr  6 11:41:31 2026] 127.0.0.1:3651 Closing
+[Mon Apr  6 11:41:31 2026] 127.0.0.1:47904 Closing
+[Mon Apr  6 11:41:31 2026] 127.0.0.1:55247 Closing
+[Mon Apr  6 11:41:40 2026] 127.0.0.1:43660 Accepted
+{"timestamp":"2026-04-06T14:41:40+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"223dc58130482cfb34573c4de9c53e7a"},"env":"development"}
+[Mon Apr  6 11:41:40 2026] [AuthController::login] PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'sweflow_db.refresh_tokens' doesn't exist
+[Mon Apr  6 11:41:40 2026] 127.0.0.1:43660 Closing
+[Mon Apr  6 11:41:40 2026] 127.0.0.1:34173 Accepted
+{"timestamp":"2026-04-06T14:41:49+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0cfba3148aff9782ece107f2d5143ba0"},"env":"development"}
+[Mon Apr  6 11:41:49 2026] [AuthController::login] PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'sweflow_db.refresh_tokens' doesn't exist
+[Mon Apr  6 11:41:49 2026] 127.0.0.1:34173 Closing
+[Mon Apr  6 11:41:54 2026] 127.0.0.1:38736 Accepted
+{"timestamp":"2026-04-06T14:41:54+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c36a63370b289ef6c03d7eb9087ad10e"},"env":"development"}
+[Mon Apr  6 11:41:54 2026] 127.0.0.1:38736 Closing
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:56877 Accepted
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:56877 Closing
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:36638 Accepted
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:7559 Accepted
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:24432 Accepted
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:36638 Closing
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:7559 Closing
+[Mon Apr  6 11:41:55 2026] 127.0.0.1:24432 Closing
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+n Apr  6 11:42:13 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) started
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:15573 Accepted
+{"timestamp":"2026-04-06T14:42:18+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f4d67b431c4f33544757b33fbee41636"},"env":"development"}
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:15573 Closing
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:61265 Accepted
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:61265 Closing
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:38154 Accepted
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:43630 Accepted
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:14261 Accepted
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:38154 Closing
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:43630 Closing
+[Mon Apr  6 11:42:18 2026] 127.0.0.1:14261 Closing
+[Mon Apr  6 11:42:25 2026] 127.0.0.1:10930 Accepted
+{"timestamp":"2026-04-06T14:42:25+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9bbf6cfddf2f4ae3cac12e81c7e0510c"},"env":"development"}
+[Mon Apr  6 11:42:26 2026] [AuthController] raw length=31
+[Mon Apr  6 11:42:26 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T14:42:26+00:00","type":"AUDIT","request_id":"9bbf6cfddf2f4ae3cac12e81c7e0510c","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"reason":"Credenciais inválidas."}}
+[Mon Apr  6 11:42:26 2026] [AuditLogger] Falha ao persistir: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'sweflow_db.audit_logs' doesn't exist
+{"timestamp":"2026-04-06T14:42:26+00:00","type":"SECURITY_RESPONSE","request_id":"9bbf6cfddf2f4ae3cac12e81c7e0510c","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 11:42:26 2026] 127.0.0.1:10930 Closing
+[Mon Apr  6 11:42:26 2026] 127.0.0.1:47326 Accepted
+{"timestamp":"2026-04-06T14:42:30+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"abeaf7451dc10707b2205f65a33115cd"},"env":"development"}
+[Mon Apr  6 11:42:30 2026] [AuthController] raw length=36
+[Mon Apr  6 11:42:30 2026] [AuthController] content-type=application/json
+[Mon Apr  6 11:42:30 2026] [AuthController::login] PDOException: SQLSTATE[42000]: Syntax error or access violation: 1235 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+[Mon Apr  6 11:42:30 2026] 127.0.0.1:47326 Closing
+[Mon Apr  6 11:42:36 2026] 127.0.0.1:22297 Accepted
+[Mon Apr  6 11:42:36 2026] 127.0.0.1:22297 Closing
+[Mon Apr  6 11:42:36 2026] 127.0.0.1:53265 Accepted
+{"timestamp":"2026-04-06T14:42:36+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9a5cbf6b14350b44b3a150dd9baac20a"},"env":"development"}
+[Mon Apr  6 11:42:36 2026] 127.0.0.1:53265 Closing
+[Mon Apr  6 11:42:36 2026] 127.0.0.1:24414 Accepted
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+n Apr  6 11:43:16 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) started
+[Mon Apr  6 11:43:21 2026] 127.0.0.1:28956 Accepted
+{"timestamp":"2026-04-06T14:43:21+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"37fd8ceaeabc9a9f25425fb90e6e1b48"},"env":"development"}
+[Mon Apr  6 11:43:21 2026] 127.0.0.1:28956 Closing
+[Mon Apr  6 11:43:21 2026] 127.0.0.1:38862 Accepted
+[Mon Apr  6 11:43:21 2026] 127.0.0.1:38862 Closing
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:12403 Accepted
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:15866 Accepted
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:40083 Accepted
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:1563 Accepted
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:12403 Closing
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:15866 Closing
+{"timestamp":"2026-04-06T14:43:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"afdfd0fac7de919502e196ea93ffc694"},"env":"development"}
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:40083 Closing
+[Mon Apr  6 11:43:22 2026] 127.0.0.1:1563 Closing
+[Mon Apr  6 11:43:32 2026] 127.0.0.1:20466 Accepted
+{"timestamp":"2026-04-06T14:43:32+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b2c1d741bde26ac93e560f345c4b0f32"},"env":"development"}
+[Mon Apr  6 11:43:32 2026] [AuthController] raw length=36
+[Mon Apr  6 11:43:32 2026] [AuthController] content-type=application/json
+[Mon Apr  6 11:43:32 2026] [AuthController::login] PDOException: SQLSTATE[42000]: Syntax error or access violation: 1235 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+[Mon Apr  6 11:43:32 2026] 127.0.0.1:20466 Closing
+[Mon Apr  6 11:43:32 2026] 127.0.0.1:32972 Accepted
+[Mon Apr  6 12:06:57 2026] 127.0.0.1:32972 Closed without sending a request; it was probably just an unused speculative preconnection
+[Mon Apr  6 12:06:57 2026] 127.0.0.1:32972 Closing
+<br />
+<b>Warning</b>:  Module "zip" is already loaded in <b>Unknown</b> on line <b>0</b><br />
+n Apr  6 13:23:20 2026] PHP 8.3.29 Development Server (http://127.0.0.1:3005) started
+[Mon Apr  6 13:23:22 2026] 127.0.0.1:1378 Accepted
+{"timestamp":"2026-04-06T16:23:22+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"fa075245581238bacc369df043737e94","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:22 2026] 127.0.0.1:1378 Closing
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:18991 Accepted
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:18991 Closing
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:29129 Accepted
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:27071 Accepted
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:7127 Accepted
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:29129 Closing
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:27071 Closing
+[Mon Apr  6 13:23:23 2026] 127.0.0.1:7127 Closing
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:30062 Accepted
+{"timestamp":"2026-04-06T16:23:26+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9aca887c948423c0df2362c0d001194c","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:30062 Closing
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:19225 Accepted
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:19225 Closing
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:45910 Accepted
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:21668 Accepted
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:57280 Accepted
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:45910 Closing
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:21668 Closing
+[Mon Apr  6 13:23:26 2026] 127.0.0.1:57280 Closing
+[Mon Apr  6 13:23:46 2026] 127.0.0.1:24407 Accepted
+{"timestamp":"2026-04-06T16:23:46+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"82393d39353aee03290a11f7a851063e","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:46 2026] [AuthController] raw length=39
+[Mon Apr  6 13:23:46 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T16:23:46+00:00","type":"AUDIT","request_id":"82393d39353aee03290a11f7a851063e","evento":"auth.login.failed","usuario_uuid":null,"ip":"127.0.0.1","contexto":{"reason":"Credenciais inválidas."}}
+{"timestamp":"2026-04-06T16:23:46+00:00","type":"SECURITY_RESPONSE","request_id":"82393d39353aee03290a11f7a851063e","event":"http.unauthorized","status":401,"ip":"127.0.0.1","uri":"/api/auth/login","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+[Mon Apr  6 13:23:46 2026] 127.0.0.1:24407 Closing
+[Mon Apr  6 13:23:46 2026] 127.0.0.1:46804 Accepted
+{"timestamp":"2026-04-06T16:23:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e68477e8244fae66ba735c3e8d3779e3","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:51 2026] [AuthController] raw length=36
+[Mon Apr  6 13:23:51 2026] [AuthController] content-type=application/json
+{"timestamp":"2026-04-06T16:23:51+00:00","type":"AUDIT","request_id":"e68477e8244fae66ba735c3e8d3779e3","evento":"auth.login.success","usuario_uuid":"afafbf89-f9a7-4f46-b55e-0625cba05c0d","ip":"127.0.0.1","contexto":{"username":"admin","nivel_acesso":"admin_system"}}
+[Mon Apr  6 13:23:51 2026] 127.0.0.1:46804 Closing
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:16768 Accepted
+{"timestamp":"2026-04-06T16:23:52+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c898be74b694deb230081b87ef12c10f","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:16768 Closing
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:45430 Accepted
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:45430 Closing
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:29144 Accepted
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:19314 Accepted
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:62278 Accepted
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:57344 Accepted
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:29144 Closing
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:19314 Closing
+[Mon Apr  6 13:23:52 2026] 127.0.0.1:62278 Closing
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:57344 Closing
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:63483 Accepted
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:63483 Closing
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:37176 Accepted
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:9311 Accepted
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:40958 Accepted
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:24394 Accepted
+{"timestamp":"2026-04-06T16:23:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"def3c04d08c253b1c45228c0897c0ebd","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:37176 Closing
+{"timestamp":"2026-04-06T16:23:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7f576a405af65b9263b788f48b439378","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:9311 Closing
+{"timestamp":"2026-04-06T16:23:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9455b77c628dafffaa2e660de067ba19","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:40958 Closing
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:24394 Closing
+[Mon Apr  6 13:23:53 2026] 127.0.0.1:32981 Accepted
+{"timestamp":"2026-04-06T16:23:53+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"fd34ae2557c5f50cf4e74755c2e7c129","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:54 2026] 127.0.0.1:32981 Closing
+[Mon Apr  6 13:23:54 2026] 127.0.0.1:31806 Accepted
+{"timestamp":"2026-04-06T16:23:54+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"18da8b61cba19fd1e2a845c56a9178b9","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:54 2026] 127.0.0.1:31806 Closing
+[Mon Apr  6 13:23:54 2026] 127.0.0.1:45043 Accepted
+{"timestamp":"2026-04-06T16:23:54+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"6fce99ebc957fd52d0b547499dac0318","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:54 2026] 127.0.0.1:45043 Closing
+[Mon Apr  6 13:23:54 2026] 127.0.0.1:55927 Accepted
+{"timestamp":"2026-04-06T16:23:54+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7f6ea1ad286e29b50d2a0b603db7f661","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:23:55 2026] 127.0.0.1:55927 Closing
+[Mon Apr  6 13:23:55 2026] 127.0.0.1:8605 Accepted
+{"timestamp":"2026-04-06T16:24:01+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"1b067ba6f642f0fbc0b5117971122ae4","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:8605 Closing
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:54337 Accepted
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:13696 Accepted
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:58895 Accepted
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:57403 Accepted
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:18348 Accepted
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:54337 Closing
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:13696 Closing
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:58895 Closing
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:57403 Closing
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:18348 Closing
+[Mon Apr  6 13:24:01 2026] 127.0.0.1:1261 Accepted
+{"timestamp":"2026-04-06T16:24:01+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"4b809ae9ff4a1514d5dea6d01eebfcbf","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:1261 Closing
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:50520 Accepted
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:51253 Accepted
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:50520 Closing
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:45046 Accepted
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:51253 Closing
+{"timestamp":"2026-04-06T16:24:02+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"72bb9d7a383b1eddb2ae5a06971b2d9e","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:02 2026] 127.0.0.1:45046 Closing
+[Mon Apr  6 13:24:05 2026] 127.0.0.1:13344 Accepted
+{"timestamp":"2026-04-06T16:24:05+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c76fa4a3f626d17ceffe90e110b57f4d","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:05 2026] 127.0.0.1:13344 Closing
+[Mon Apr  6 13:24:05 2026] 127.0.0.1:57189 Accepted
+[Mon Apr  6 13:24:05 2026] 127.0.0.1:57189 Closing
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:56293 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:33277 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:1067 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:61344 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:56293 Closing
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:33277 Closing
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:1067 Closing
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:61344 Closing
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:47918 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:47918 Closing
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:57029 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:12439 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:55626 Accepted
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:49063 Accepted
+{"timestamp":"2026-04-06T16:24:06+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"88bd2074894b1184127d19b36ddaf3da","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:57029 Closing
+{"timestamp":"2026-04-06T16:24:06+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"dfdea142ec32d27447506a1b8c877521","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:06 2026] 127.0.0.1:12439 Closing
+{"timestamp":"2026-04-06T16:24:06+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"5ea43829c43876ca275c8ff3bc46fe6d","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:55626 Closing
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:49063 Closing
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:21888 Accepted
+{"timestamp":"2026-04-06T16:24:07+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"fa333210f2cb4c516ba3a750f121edaa","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:21888 Closing
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:25394 Accepted
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:28827 Accepted
+{"timestamp":"2026-04-06T16:24:07+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d19cae2038ca49e6192de1dd67500d81","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:25394 Closing
+{"timestamp":"2026-04-06T16:24:07+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0811acb8beb5f023ae4d9b2c498f162d","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:28827 Closing
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:36648 Accepted
+{"timestamp":"2026-04-06T16:24:07+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9afe73e7bbdb44034ac522116040cbcf","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:07 2026] 127.0.0.1:36648 Closing
+[Mon Apr  6 13:24:08 2026] 127.0.0.1:43059 Accepted
+{"timestamp":"2026-04-06T16:24:12+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"a3e95a65df91ac34abab5aef2b5d8e92","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:43059 Closing
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:23465 Accepted
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:24735 Accepted
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:18381 Accepted
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:54216 Accepted
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:52717 Accepted
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:23465 Closing
+[Mon Apr  6 13:24:12 2026] 127.0.0.1:24735 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:18381 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:54216 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:52717 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:7844 Accepted
+{"timestamp":"2026-04-06T16:24:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"9ca5c1435efe992c6f2e9b04edf507bb","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:7844 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:10551 Accepted
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:36453 Accepted
+{"timestamp":"2026-04-06T16:24:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2e89cb1336ad15b826bbb119ef7a1931","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:10551 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:43652 Accepted
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:36453 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:43652 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:46074 Accepted
+{"timestamp":"2026-04-06T16:24:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"ba554c8c48ec11be5e48d83feb4a78f0","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:46074 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:43660 Accepted
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:40471 Accepted
+{"timestamp":"2026-04-06T16:24:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"0a15531bf97f0290f908bff41fa5b038","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:43660 Closing
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:27024 Accepted
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:40471 Closing
+{"timestamp":"2026-04-06T16:24:13+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"32c1fe8540a4cce05940da6f0c8749dc","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:13 2026] 127.0.0.1:27024 Closing
+[Mon Apr  6 13:24:14 2026] 127.0.0.1:9580 Accepted
+{"timestamp":"2026-04-06T16:24:14+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"bf3ab066666e51caa3b5e2133979bc02","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:14 2026] 127.0.0.1:9580 Closing
+[Mon Apr  6 13:24:16 2026] 127.0.0.1:38600 Accepted
+{"timestamp":"2026-04-06T16:24:16+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"e70df36731c8dbc0fa325a23f19fb998","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:16 2026] 127.0.0.1:38600 Closing
+[Mon Apr  6 13:24:16 2026] 127.0.0.1:47898 Accepted
+[Mon Apr  6 13:24:16 2026] 127.0.0.1:47898 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:33561 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:14786 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:54215 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:27586 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:33561 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:14786 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:54215 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:27586 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:43074 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:43074 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:44671 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:26607 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:1326 Accepted
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:53051 Accepted
+{"timestamp":"2026-04-06T16:24:17+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"4696eaf98991df3432210ba80a3be1ae","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:44671 Closing
+{"timestamp":"2026-04-06T16:24:17+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"149e2491b9b398d0b6954bfb723f091a","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:26607 Closing
+{"timestamp":"2026-04-06T16:24:17+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"f72378c1234aa51d9e6b2e6df099b0b3","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:1326 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:53051 Closing
+[Mon Apr  6 13:24:17 2026] 127.0.0.1:32329 Accepted
+{"timestamp":"2026-04-06T16:24:18+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"549472a1333f0428d7ea5cd9c9cfe53f","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:32329 Closing
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:1070 Accepted
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:17321 Accepted
+{"timestamp":"2026-04-06T16:24:18+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7e5578e3d842ccea4574a1e5c1d11743","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:1070 Closing
+{"timestamp":"2026-04-06T16:24:18+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d919ea610f7b0c392f83402fd349879f","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:17321 Closing
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:3014 Accepted
+{"timestamp":"2026-04-06T16:24:18+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8c1f7eb7e79dca7b04e46960a32230e8","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:18 2026] 127.0.0.1:3014 Closing
+[Mon Apr  6 13:24:19 2026] 127.0.0.1:54977 Accepted
+{"timestamp":"2026-04-06T16:24:29+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7a7dcae104a1dab2d4f0962f2e337720","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:29 2026] 127.0.0.1:54977 Closing
+[Mon Apr  6 13:24:30 2026] 127.0.0.1:63823 Accepted
+{"timestamp":"2026-04-06T16:24:30+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"c4ef4bc355a155cd8977cdc00803ffc8","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:30 2026] 127.0.0.1:63823 Closing
+[Mon Apr  6 13:24:30 2026] 127.0.0.1:52075 Accepted
+{"timestamp":"2026-04-06T16:24:39+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d5df3b749f8cf706cc6708f8cb4b2a19","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:39 2026] 127.0.0.1:52075 Closing
+[Mon Apr  6 13:24:40 2026] 127.0.0.1:39656 Accepted
+{"timestamp":"2026-04-06T16:24:40+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"32d56c47b18881ca5afcf0aee78e931e","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:40 2026] 127.0.0.1:39656 Closing
+[Mon Apr  6 13:24:40 2026] 127.0.0.1:28302 Accepted
+{"timestamp":"2026-04-06T16:24:49+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"755e8be1b94dacd2c1e88df9869a3ef5","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:49 2026] 127.0.0.1:28302 Closing
+[Mon Apr  6 13:24:50 2026] 127.0.0.1:14488 Accepted
+{"timestamp":"2026-04-06T16:24:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"407785f2b8357514c8b4d947a37fb589","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:50 2026] 127.0.0.1:14488 Closing
+[Mon Apr  6 13:24:50 2026] 127.0.0.1:11276 Accepted
+{"timestamp":"2026-04-06T16:24:59+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"27c41df6b562b1e1cca6d5d066c2a874","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:24:59 2026] 127.0.0.1:11276 Closing
+[Mon Apr  6 13:25:00 2026] 127.0.0.1:16025 Accepted
+{"timestamp":"2026-04-06T16:25:00+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8379a45b12fe2539a585d316be9452c4","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:00 2026] 127.0.0.1:16025 Closing
+[Mon Apr  6 13:25:00 2026] 127.0.0.1:41142 Accepted
+{"timestamp":"2026-04-06T16:25:09+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"7e493c85bbbc9b4e86ab780c5da4aba0","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:09 2026] 127.0.0.1:41142 Closing
+[Mon Apr  6 13:25:10 2026] 127.0.0.1:3893 Accepted
+{"timestamp":"2026-04-06T16:25:10+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"d1b7b467a706aed3c66eed0ca212830e","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:10 2026] 127.0.0.1:3893 Closing
+[Mon Apr  6 13:25:10 2026] 127.0.0.1:33946 Accepted
+{"timestamp":"2026-04-06T16:25:19+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"8201a4442da7fa15d922d0c091e667e3","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:19 2026] 127.0.0.1:33946 Closing
+[Mon Apr  6 13:25:20 2026] 127.0.0.1:54548 Accepted
+{"timestamp":"2026-04-06T16:25:20+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"4b07adb4ced8bcc5a870e4242d586b68","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:20 2026] 127.0.0.1:54548 Closing
+[Mon Apr  6 13:25:20 2026] 127.0.0.1:37642 Accepted
+{"timestamp":"2026-04-06T16:25:29+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"b7df821be1979cdf39145ed98050bc0b","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:29 2026] 127.0.0.1:37642 Closing
+[Mon Apr  6 13:25:30 2026] 127.0.0.1:46978 Accepted
+{"timestamp":"2026-04-06T16:25:30+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"711daace401220c39c375fa745435058","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:30 2026] 127.0.0.1:46978 Closing
+[Mon Apr  6 13:25:30 2026] 127.0.0.1:2707 Accepted
+{"timestamp":"2026-04-06T16:25:50+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"436aa8bfed259288c721495be2c8bc3f","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:50 2026] 127.0.0.1:2707 Closing
+[Mon Apr  6 13:25:51 2026] 127.0.0.1:63625 Accepted
+{"timestamp":"2026-04-06T16:25:51+00:00","level":"DEBUG","message":"Application booting...","context":{"request_id":"2cf868494edab2f4f68a9af66d560cba","tenant_id":null,"user_id":null,"meta":null},"env":"development"}
+[Mon Apr  6 13:25:51 2026] 127.0.0.1:63625 Closing
+[Mon Apr  6 13:25:51 2026] 127.0.0.1:52376 Accepted

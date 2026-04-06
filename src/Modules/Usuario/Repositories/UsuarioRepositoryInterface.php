@@ -2,9 +2,10 @@
 
 namespace Src\Modules\Usuario\Repositories;
 
+use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 
-interface UsuarioRepositoryInterface
+interface UsuarioRepositoryInterface extends UserRepositoryInterface
 {
     /**
      * Retorna usuários paginados

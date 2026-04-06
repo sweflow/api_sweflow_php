@@ -32,7 +32,7 @@ class RouteInspector
 
         // ── Parâmetros de rota (URI) ─────────────────────────────────
         preg_match_all('/\{(\w+)\}/', $uri, $m);
-        $pathParams = $m[1] ?? [];
+        $pathParams = $m[1];
 
         // ── Inspeção do controller ───────────────────────────────────
         if (is_array($handler) && count($handler) === 2) {
@@ -119,7 +119,7 @@ class RouteInspector
             $srcInput,
             $m
         );
-        foreach ($m[1] ?? [] as $name) {
+        foreach ($m[1] as $name) {
             if (in_array($name, self::SKIP_NAMES, true)) continue;
             if (strlen($name) < 2 || strlen($name) > 60) continue;
             if (!isset($seen[$name])) {
@@ -134,7 +134,7 @@ class RouteInspector
 
         // ->input('campo') / ->get('campo') / ->post('campo')
         preg_match_all('/->(?:input|get|post)\s*\(\s*[\'"]([a-zA-Z_]\w*)[\'"]\s*\)/', $srcInput, $m);
-        foreach ($m[1] ?? [] as $name) {
+        foreach ($m[1] as $name) {
             if (in_array($name, self::SKIP_NAMES, true)) continue;
             if (!isset($seen[$name])) {
                 $seen[$name] = true;
@@ -148,7 +148,7 @@ class RouteInspector
             $srcInput,
             $m
         );
-        foreach ($m[1] ?? [] as $name) {
+        foreach ($m[1] as $name) {
             if (in_array($name, self::SKIP_NAMES, true)) continue;
             if (!isset($seen[$name])) {
                 $seen[$name] = true;
@@ -180,12 +180,12 @@ class RouteInspector
         $seen   = [];
 
         preg_match_all('/\$_GET\s*\[\s*[\'"]([a-zA-Z_]\w*)[\'"]\s*\]/', $src, $m);
-        foreach ($m[1] ?? [] as $name) {
+        foreach ($m[1] as $name) {
             if (!isset($seen[$name])) { $seen[$name] = true; $params[] = $name; }
         }
 
         preg_match_all('/->query(?:Param)?\s*\(\s*[\'"]([a-zA-Z_]\w*)[\'"]\s*\)/', $src, $m);
-        foreach ($m[1] ?? [] as $name) {
+        foreach ($m[1] as $name) {
             if (!isset($seen[$name])) { $seen[$name] = true; $params[] = $name; }
         }
 

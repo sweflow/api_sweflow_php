@@ -3,31 +3,100 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Banco de dados indisponível</title>
+    <title>Banco de dados indisponível — Sweflow</title>
     <link rel="icon" href="/favicon.ico" />
     <link rel="stylesheet" href="/assets/css/db-connection-error.css" />
+    <style>
+      .db-error-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .db-error-timeline-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.93rem;
+        color: var(--muted);
+      }
+      .db-error-timeline-item .tl-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.2);
+      }
+      .tl-icon.ok   { background: rgba(47,228,171,0.18); border-color: rgba(47,228,171,0.35); color: #2fe4ab; }
+      .tl-icon.warn { background: rgba(255,193,7,0.18);  border-color: rgba(255,193,7,0.35);  color: #ffc107; }
+      .tl-icon.fail { background: rgba(255,77,109,0.18); border-color: rgba(255,77,109,0.35); color: #ff4d6d; }
+      .db-error-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: rgba(255,193,7,0.15);
+        border: 1px solid rgba(255,193,7,0.3);
+        color: #ffc107;
+        margin-bottom: 10px;
+      }
+      .db-error-badge.timeout {
+        background: rgba(255,77,109,0.15);
+        border-color: rgba(255,77,109,0.3);
+        color: #ff8fa3;
+      }
+    </style>
   </head>
   <body>
     <main class="db-error-wrap">
       <section class="db-error-card" role="alert" aria-live="polite">
+
         <header class="db-error-header">
           <div class="db-error-brand">
-            <img src="/favicon.ico" alt="Logo" />
+            <img src="/favicon.ico" alt="Sweflow" />
             <div class="db-error-brand-title">
-              <strong>Sweflow</strong>
+              <strong>Sweflow API</strong>
               <span>Serviço temporariamente indisponível</span>
             </div>
           </div>
-          <div class="db-error-pill">503 • Banco offline</div>
+          <div class="db-error-pill">503 &bull; Banco offline</div>
         </header>
 
         <div class="db-error-body">
           <div class="db-error-main">
+            <div class="db-error-badge timeout" id="error-badge" style="display:none">
+              &#9201; Timeout de conexão
+            </div>
+
             <h1>Não foi possível conectar ao banco de dados</h1>
-            <p>
-              A aplicação está online, mas o banco de dados não respondeu. Isso pode acontecer quando o serviço do banco
-              está parado, a porta está bloqueada ou as credenciais/host estão incorretos.
+            <p id="error-description">
+              A aplicação está online, mas o banco de dados não respondeu dentro do tempo limite.
+              Isso pode acontecer quando o serviço do banco está parado, a porta está bloqueada,
+              as credenciais estão incorretas ou o host está inacessível.
             </p>
+
+            <div class="db-error-timeline" id="diag-timeline" aria-label="Diagnóstico de conexão">
+              <div class="db-error-timeline-item">
+                <span class="tl-icon ok">&#10003;</span>
+                <span>Aplicação PHP inicializada corretamente</span>
+              </div>
+              <div class="db-error-timeline-item">
+                <span class="tl-icon ok">&#10003;</span>
+                <span>Variáveis de ambiente carregadas (<code>.env</code>)</span>
+              </div>
+              <div class="db-error-timeline-item">
+                <span class="tl-icon fail">&#10005;</span>
+                <span>Conexão com <code>{{driver}}://{{host}}:{{port}}/{{database}}</code> falhou</span>
+              </div>
+            </div>
 
             <div class="db-error-actions">
               <button class="btn primary" type="button" id="retry-btn">
@@ -40,10 +109,29 @@
           <aside class="db-error-side">
             <h2>Verificações rápidas</h2>
             <ul class="db-error-checks">
-              <li><span class="dot danger"></span><span><strong>Serviço do banco</strong> está rodando (PostgreSQL/MySQL).</span></li>
-              <li><span class="dot accent"></span><span><strong>Host/porta</strong> conferem com o ambiente atual.</span></li>
-              <li><span class="dot ok"></span><span><strong>Firewall</strong> e rede permitem acesso à porta do banco.</span></li>
-              <li><span class="dot accent"></span><span><strong>.env</strong> está carregado e com DB_* preenchido.</span></li>
+              <li>
+                <span class="dot danger"></span>
+                <span><strong>Serviço do banco</strong> está rodando?
+                  Verifique se o MySQL/PostgreSQL está ativo no servidor.</span>
+              </li>
+              <li>
+                <span class="dot accent"></span>
+                <span><strong>Host e porta</strong> conferem com o ambiente?
+                  <code>{{driver}}://{{host}}:{{port}}</code></span>
+              </li>
+              <li>
+                <span class="dot accent"></span>
+                <span><strong>Credenciais</strong> estão corretas?
+                  Usuário e senha no <code>.env</code> precisam ter acesso ao banco.</span>
+              </li>
+              <li>
+                <span class="dot ok"></span>
+                <span><strong>Firewall / rede</strong> permite acesso à porta do banco?</span>
+              </li>
+              <li>
+                <span class="dot ok"></span>
+                <span><strong>Banco <code>{{database}}</code></strong> existe e o usuário tem permissão?</span>
+              </li>
             </ul>
           </aside>
         </div>
@@ -52,16 +140,31 @@
           <div>
             <span>Ambiente:</span>
             <code>{{app_env}}</code>
-            <span style="margin-left:10px;">Banco:</span>
+            <span style="margin-left:10px;">Conexão:</span>
             <code>{{driver}}://{{host}}:{{port}}/{{database}}</code>
           </div>
           <div>
-            <a href="/api/db-status">Ver status via API</a>
+            <a href="/api/db-status" aria-label="Verificar status do banco via API">Ver status via API</a>
           </div>
         </footer>
+
       </section>
     </main>
 
     <script src="/assets/js/db-error.js"></script>
+    <script>
+      // Detecta se veio de um timeout (URL param ?reason=timeout injetado pelo PHP)
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('reason') === 'timeout') {
+          var badge = document.getElementById('error-badge');
+          if (badge) badge.style.display = 'inline-flex';
+          var desc = document.getElementById('error-description');
+          if (desc) desc.textContent =
+            'A aplicação tentou conectar ao banco de dados, mas o servidor não respondeu dentro do tempo limite. ' +
+            'Isso geralmente indica que o banco está inacessível, a porta está errada ou o host está incorreto no .env.';
+        }
+      })();
+    </script>
   </body>
 </html>

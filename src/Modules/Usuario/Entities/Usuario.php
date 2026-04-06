@@ -160,15 +160,16 @@ final class Usuario
             $statusVerificacao
         );
     }
-        public function isEmailVerificado(): bool
-        {
-            return $this->verificado_email;
-        }
+    public function isEmailVerificado(): bool
+    {
+        return $this->verificado_email;
+    }
 
-        public function setEmailVerificado(bool $valor): void
-        {
-            $this->verificado_email = $valor;
-        }
+    public function setEmailVerificado(bool $valor): void
+    {
+        $this->verificado_email = $valor;
+    }
+
     public function getStatusVerificacao(): string
     {
         return $this->statusVerificacao;

@@ -2,7 +2,7 @@
 
 namespace Src\Configs;
 
-use src\Exceptions\EnvFileNotFoundException;
+use Src\Exceptions\EnvFileNotFoundException;
 
 final class EnvConfig
 {

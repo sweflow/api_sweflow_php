@@ -582,12 +582,13 @@ class AuthController
         if ($this->userRepository === null) {
             throw new \RuntimeException('UserRepositoryInterface não foi injetado no AuthController.');
         }
+        if (!$this->userRepository instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            throw new \RuntimeException('UserRepository injetado não implementa UsuarioRepositoryInterface.');
+        }
         return $this->userRepository;
     }
 
-    private ?\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface $usuarioRepository = null;
-
-    private function refreshRepositorio(): ?RefreshTokenRepository
+    private function refreshRepositorio(): RefreshTokenRepository
     {
         if ($this->refreshTokenRepository === null) {
             $this->refreshTokenRepository = new RefreshTokenRepository($this->pdo());
@@ -653,9 +654,6 @@ class AuthController
         $dadosForm = [];
         if (empty($dadosJson) && strlen($conteudoBruto) < 4096 && trim($conteudoBruto) !== '') {
             parse_str($conteudoBruto, $dadosForm);
-            if (!is_array($dadosForm)) {
-                $dadosForm = [];
-            }
         }
 
         if (($_ENV['APP_DEBUG'] ?? 'false') === 'true') {
@@ -701,7 +699,7 @@ class AuthController
 
     private function debugAtivo(): bool
     {
-        return $this->boolEnv($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?? 'false');
+        return $this->boolEnv($_ENV['APP_DEBUG'] ?? (string) getenv('APP_DEBUG') ?: 'false');
     }
 
     /**

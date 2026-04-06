@@ -286,7 +286,7 @@ class PluginMigrator
         }
     }
 
-    private function readPluginMeta(string $path): ?array
+    private function readPluginMeta(string $path): array
     {
         $pluginJson = $path . DIRECTORY_SEPARATOR . 'plugin.json';
         $version = '1.0.0';

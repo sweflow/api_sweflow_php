@@ -14,19 +14,19 @@ class RefreshTokenRepository
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
-        $valor = $_ENV['REFRESH_MAX_PER_USER'] ?? getenv('REFRESH_MAX_PER_USER') ?? 5;
+        $valor = $_ENV['REFRESH_MAX_PER_USER'] ?? (string) getenv('REFRESH_MAX_PER_USER') ?: '5';
         $limite = (int) $valor;
         $this->maxPerUser = $limite > 0 ? $limite : 5;
     }
 
     public function store(string $jti, string $userUuid, string $hashedToken, DateTimeImmutable $expiresAt): void
     {
-        $sql = "INSERT INTO {$this->table} (jti, user_uuid, token_hash, expires_at, revoked) VALUES (:jti, :user_uuid, :token_hash, :expires_at, false)";
+        $sql = "INSERT INTO {$this->table} (jti, user_uuid, token_hash, expires_at, revoked) VALUES (:jti, :user_uuid, :token_hash, :expires_at, 0)";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':jti', $jti);
         $stmt->bindValue(':user_uuid', $userUuid);
         $stmt->bindValue(':token_hash', $hashedToken);
-        $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:sP'));
+        $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:s'));
         $stmt->execute();
 
         // Enforce max active refresh tokens per user (keep newest by expires_at)
@@ -35,7 +35,7 @@ class RefreshTokenRepository
 
     public function revokeByJti(string $jti): void
     {
-        $sql = "UPDATE {$this->table} SET revoked = true WHERE jti = :jti";
+        $sql = "UPDATE {$this->table} SET revoked = 1 WHERE jti = :jti";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':jti', $jti);
         $stmt->execute();
@@ -43,7 +43,7 @@ class RefreshTokenRepository
 
     public function revokeByUser(string $userUuid): void
     {
-        $sql = "UPDATE {$this->table} SET revoked = true WHERE user_uuid = :user_uuid";
+        $sql = "UPDATE {$this->table} SET revoked = 1 WHERE user_uuid = :user_uuid";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':user_uuid', $userUuid);
         $stmt->execute();
@@ -51,7 +51,7 @@ class RefreshTokenRepository
 
     public function findValidByJti(string $jti): ?array
     {
-        $sql = "SELECT * FROM {$this->table} WHERE jti = :jti AND revoked = false AND expires_at > NOW() LIMIT 1";
+        $sql = "SELECT * FROM {$this->table} WHERE jti = :jti AND revoked = 0 AND expires_at > NOW() LIMIT 1";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':jti', $jti);
         $stmt->execute();
@@ -64,7 +64,7 @@ class RefreshTokenRepository
         $cutoff = (new DateTimeImmutable())->modify('-' . $graceSeconds . ' seconds');
         $sql = "DELETE FROM {$this->table} WHERE expires_at < :cutoff";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->bindValue(':cutoff', $cutoff->format('Y-m-d H:i:sP'));
+        $stmt->bindValue(':cutoff', $cutoff->format('Y-m-d H:i:s'));
         $stmt->execute();
     }
 
@@ -74,20 +74,29 @@ class RefreshTokenRepository
             return;
         }
 
-        // Remove tokens do usuário que não estejam entre os mais novos (maior expires_at)
-        $sql = "DELETE FROM {$this->table}
-                WHERE user_uuid = :user_uuid
-                  AND jti NOT IN (
-                    SELECT jti FROM {$this->table}
-                    WHERE user_uuid = :user_uuid_inner
-                    ORDER BY expires_at DESC
-                    LIMIT :limite
-                  )";
+        // MySQL não permite DELETE + subquery na mesma tabela diretamente.
+        // Solução: busca os JTIs a manter e deleta os demais em duas queries.
+        $selectSql = "SELECT jti FROM {$this->table}
+                      WHERE user_uuid = :user_uuid
+                      ORDER BY expires_at DESC
+                      LIMIT :limite";
 
-        $stmt = $this->pdo->prepare($sql);
+        $stmt = $this->pdo->prepare($selectSql);
         $stmt->bindValue(':user_uuid', $userUuid);
-        $stmt->bindValue(':user_uuid_inner', $userUuid);
         $stmt->bindValue(':limite', $maxTokens, PDO::PARAM_INT);
         $stmt->execute();
+        $keep = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        if (empty($keep)) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($keep), '?'));
+        $deleteSql = "DELETE FROM {$this->table}
+                      WHERE user_uuid = ?
+                        AND jti NOT IN ({$placeholders})";
+
+        $deleteStmt = $this->pdo->prepare($deleteSql);
+        $deleteStmt->execute(array_merge([$userUuid], $keep));
     }
 }

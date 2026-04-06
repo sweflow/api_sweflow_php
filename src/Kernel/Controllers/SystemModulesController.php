@@ -132,11 +132,16 @@ class SystemModulesController
 
     public function uninstall(Request $request): Response
     {
-        $body = $request->body;
-        $package = $body['package'] ?? null;
+        $body    = $request->body;
+        $package = trim((string) ($body['package'] ?? ''));
 
-        if (!$package) {
-            return Response::json(['message' => 'Pacote não informado'], 400);
+        if ($package === '') {
+            return Response::json(['message' => 'Pacote não informado.'], 400);
+        }
+
+        // Valida formato: vendor/package (ex: sweflow/module-email)
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return Response::json(['message' => 'Formato de pacote inválido. Use: vendor/package.'], 422);
         }
 
         try {
@@ -266,7 +271,15 @@ class SystemModulesController
 
     private function getPackageFromRequest(Request $request): ?string
     {
-        return $request->body['package'] ?? null;
+        $package = trim((string) ($request->body['package'] ?? ''));
+        if ($package === '') {
+            return null;
+        }
+        // Valida formato vendor/package
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return null;
+        }
+        return $package;
     }
 
     private function resolvePluginName(string $package): string
@@ -639,9 +652,9 @@ class SystemModulesController
         $pkgFull  = $packageName ?: $pkgLower;
         $changed  = false;
 
-        $changed = $this->removeComposerRequire($json, $pkgFull, $pkgLower) || $changed;
-        $changed = $this->removeComposerAutoload($json, $moduleName) || $changed;
-        $changed = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
+        $changed  = $this->removeComposerRequire($json, $pkgFull, $pkgLower);
+        $changed  = $this->removeComposerAutoload($json, $moduleName) || $changed;
+        $changed  = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
 
         if ($changed) {
             file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");

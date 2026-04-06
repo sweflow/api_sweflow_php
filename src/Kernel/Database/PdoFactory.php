@@ -38,17 +38,26 @@ class PdoFactory
             throw new RuntimeException("Configuração do banco incompleta para prefixo [{$p}].");
         }
 
+        $connectTimeout = 5; // segundos — evita travar o processo inteiro
+
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_TIMEOUT            => 3,
+            PDO::ATTR_TIMEOUT            => $connectTimeout,
         ];
 
         // Tenta conectar; se o banco não existir, cria automaticamente
         try {
+            // connect_timeout no DSN é o único jeito confiável de limitar
+            // o tempo de handshake TCP no MySQL/PDO (ATTR_TIMEOUT não cobre isso)
             $dsn = $driver === 'pgsql'
-                ? "pgsql:host={$host};port={$port};dbname={$name}"
+                ? "pgsql:host={$host};port={$port};dbname={$name};connect_timeout={$connectTimeout}"
                 : "mysql:host={$host};port={$port};dbname={$name};charset={$charset}";
+
+            if ($driver !== 'pgsql') {
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET SESSION wait_timeout=28800";
+            }
+
             return new PDO($dsn, $user, $pass, $options);
         } catch (Throwable $e) {
             // Tenta criar o banco se o erro for "banco não existe"
@@ -56,7 +65,7 @@ class PdoFactory
                 self::createDatabase($driver, $host, $port, $name, $user, $pass, $charset, $options);
                 // Reconecta após criar
                 $dsn = $driver === 'pgsql'
-                    ? "pgsql:host={$host};port={$port};dbname={$name}"
+                    ? "pgsql:host={$host};port={$port};dbname={$name};connect_timeout={$connectTimeout}"
                     : "mysql:host={$host};port={$port};dbname={$name};charset={$charset}";
                 try {
                     return new PDO($dsn, $user, $pass, $options);
@@ -84,10 +93,10 @@ class PdoFactory
         string $name, string $user, string $pass,
         string $charset, array $options
     ): void {
+        $connectTimeout = $options[PDO::ATTR_TIMEOUT] ?? 5;
         try {
             if ($driver === 'pgsql') {
-                // Conecta ao banco padrão 'postgres' para criar o novo
-                $adminDsn = "pgsql:host={$host};port={$port};dbname=postgres";
+                $adminDsn = "pgsql:host={$host};port={$port};dbname=postgres;connect_timeout={$connectTimeout}";
                 $admin    = new PDO($adminDsn, $user, $pass, $options);
                 // Usa formato seguro — pg_catalog.quote_ident não disponível via PDO, usa aspas duplas
                 $safeName = str_replace('"', '', $name); // sanitiza
@@ -127,6 +136,6 @@ class PdoFactory
     public static function hasSecondaryConnection(): bool
     {
         $nome = $_ENV['DB2_NOME'] ?? $_ENV['DB2_DATABASE'] ?? getenv('DB2_NOME') ?: getenv('DB2_DATABASE') ?: '';
-        return $nome !== '' && $nome !== false;
+        return $nome !== '';
     }
 }

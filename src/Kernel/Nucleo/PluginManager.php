@@ -133,12 +133,9 @@ class PluginManager
         // Se nenhuma variante existia, adiciona com false para bloquear redescoberta
         if (!$changed) {
             $data[ucfirst($pluginName)] = false;
-            $changed = true;
         }
 
-        if ($changed) {
-            file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        }
+        file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     private function deleteDirectory(string $dir): bool
@@ -176,8 +173,8 @@ class PluginManager
             $itemPath = $dir . DIRECTORY_SEPARATOR . $item;
             
             if (!$this->deleteDirectory($itemPath)) {
-                // Tenta mudar permissão recursiva e deletar novamente
                 chmod($itemPath, 0777);
+                /** @phpstan-ignore-next-line */
                 if (!$this->deleteDirectory($itemPath)) {
                     return false;
                 }

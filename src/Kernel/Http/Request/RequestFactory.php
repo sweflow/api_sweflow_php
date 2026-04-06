@@ -29,7 +29,7 @@ class RequestFactory
 
         return new Request(
             $body,
-            $_GET ?? [],
+            $_GET,
             $headers,
             $method,
             $uri,

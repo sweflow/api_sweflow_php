@@ -8,7 +8,7 @@ class DashboardController
 {
     public function index(): Response
     {
-        $logoUrl = $_ENV['APP_LOGO_URL'] ?? getenv('APP_LOGO_URL') ?? null;
+        $logoUrl = $_ENV['APP_LOGO_URL'] ?? (getenv('APP_LOGO_URL') ?: null);
         if ($logoUrl !== null) {
             $ext = strtolower(pathinfo(parse_url($logoUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
             if ($ext === 'ico' || $ext === '') { $logoUrl = null; }
