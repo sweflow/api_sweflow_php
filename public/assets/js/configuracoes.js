@@ -135,8 +135,8 @@ function renderAll() {
 
     CFG_GROUPS.forEach(g => {
         const sec = buildSection(g);
-        // CORS e Aplicação (muitos campos) ocupam largura total
-        if (g.cors || g.id === 'app') sec.classList.add('cfg-full-width');
+        // Todas as seções ocupam largura total
+        sec.classList.add('cfg-full-width');
         grid.appendChild(sec);
     });
 
