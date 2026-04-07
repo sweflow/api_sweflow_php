@@ -206,6 +206,7 @@
                     <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
+                    <a href="/dashboard/configuracoes" class="dash-sidenav-link"><i class="fa-solid fa-sliders"></i> Configurações</a>
                 </div>
                 <div class="dash-sidenav-section">
                     <span class="dash-sidenav-label">Conta</span>

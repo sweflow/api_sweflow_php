@@ -474,6 +474,10 @@ $router->get('/dashboard', [DashboardController::class, 'index'], [
     AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
+$router->get('/dashboard/configuracoes', [DashboardController::class, 'configuracoes'], [
+    AuthPageMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
 $router->get('/dashboard/usuarios', [\Src\Kernel\Controllers\UsuariosPageController::class, 'index'], [
     AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
@@ -770,6 +774,16 @@ $router->get('/api/db-status/details', function () use ($container) {
         return Response::json(['conectado' => false], 503);
     }
 }, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Env editor (admin only)
+$router->get('/api/env', [\Src\Kernel\Controllers\EnvController::class, 'index'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->put('/api/env', [\Src\Kernel\Controllers\EnvController::class, 'update'], [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
