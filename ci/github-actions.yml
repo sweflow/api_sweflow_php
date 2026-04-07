@@ -8,7 +8,7 @@ on:
 
 jobs:
   security:
-    name: OWASP API Security Tests
+    name: OWASP + Fuzz + Load Attack Tests
     runs-on: ubuntu-latest
 
     services:
@@ -61,8 +61,14 @@ jobs:
       - name: Wait for server
         run: sleep 3
 
-      - name: Run security tests
+      - name: Run security tests (OWASP)
         run: php tests/SecurityTest.php http://localhost:3005
+
+      - name: Run fuzz tests
+        run: php tests/FuzzTest.php http://localhost:3005
+
+      - name: Run load + attack tests
+        run: php tests/LoadAttackTest.php http://localhost:3005
 
       - name: Upload test results
         if: always()

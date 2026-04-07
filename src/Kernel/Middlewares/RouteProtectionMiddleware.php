@@ -34,6 +34,7 @@ class RouteProtectionMiddleware implements MiddlewareInterface
         // Token de usuário
         try {
             [$payload] = JwtDecoder::decodeUser($token);
+            JwtDecoder::validateUserClaims($payload);
         } catch (\Throwable) {
             return Response::json(['error' => 'Token inválido ou expirado.'], 401);
         }

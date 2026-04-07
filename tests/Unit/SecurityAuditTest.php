@@ -454,12 +454,11 @@ class SecurityAuditTest extends TestCase
 
     public function test_threat_scorer_bloqueia_apos_5_logins_falhos(): void
     {
-        $scorer = new \Src\Kernel\Support\ThreatScorer();
-        $dir    = sys_get_temp_dir() . '/sweflow_audit_' . uniqid();
+        $dir = sys_get_temp_dir() . '/sweflow_audit_' . uniqid();
         mkdir($dir, 0750, true);
-        $ref = new \ReflectionProperty(\Src\Kernel\Support\ThreatScorer::class, 'storageDir');
-        $ref->setAccessible(true);
-        $ref->setValue($scorer, $dir);
+        $scorer = new \Src\Kernel\Support\ThreatScorer(
+            new \Src\Kernel\Support\Storage\FileRateLimitStorage($dir)
+        );
 
         for ($i = 0; $i < 5; $i++) {
             $scorer->add('1.2.3.4', \Src\Kernel\Support\ThreatScorer::SCORE_LOGIN_FAIL);

@@ -105,15 +105,7 @@ class UsuarioController
     private function podeReenviarVerificacao(string $email): bool
     {
         try {
-            $stmt = $this->pdo()->prepare(
-                "SELECT sent_at FROM email_throttle WHERE type = 'verification' AND email = :email"
-            );
-            $stmt->execute([':email' => strtolower(trim($email))]);
-            $row = $stmt->fetch();
-            if (!$row) {
-                return true;
-            }
-            return (time() - strtotime($row['sent_at'])) >= 120;
+            return (new \Src\Kernel\Support\EmailThrottle($this->pdo()))->canSend('verification', $email);
         } catch (\Throwable) {
             return true;
         }
@@ -122,22 +114,7 @@ class UsuarioController
     private function registrarReenvioVerificacao(string $email): void
     {
         try {
-            $pdo    = $this->pdo();
-            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-
-            if ($driver === 'pgsql') {
-                $pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('verification', :email, NOW())
-                     ON CONFLICT (type, email) DO UPDATE SET sent_at = NOW()"
-                )->execute([':email' => strtolower(trim($email))]);
-                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < NOW() - INTERVAL '3600 seconds'");
-            } else {
-                $pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('verification', :email, NOW())
-                     ON DUPLICATE KEY UPDATE sent_at = NOW()"
-                )->execute([':email' => strtolower(trim($email))]);
-                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < DATE_SUB(NOW(), INTERVAL 3600 SECOND)");
-            }
+            (new \Src\Kernel\Support\EmailThrottle($this->pdo()))->record('verification', $email);
         } catch (\Throwable $e) {
             error_log('[UsuarioController] throttle record failed: ' . $e->getMessage());
         }

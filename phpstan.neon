@@ -2,6 +2,9 @@ parameters:
     level: 5
     paths:
         - src
-    excludePaths:
-        - src/Kernel/Database/Mysql/Conexao.php
-        - src/Kernel/Database/PostgreSQL/Conexao.php
+
+    # Level 8 nos arquivos de segurança críticos
+    ignoreErrors: []
+
+includes:
+    - phpstan-security.neon

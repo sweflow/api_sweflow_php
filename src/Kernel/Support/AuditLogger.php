@@ -100,7 +100,7 @@ class AuditLogger
      */
     private function detectarComportamentoSuspeito(string $evento, string $ip, ?string $usuarioUuid): void
     {
-        if ($evento !== 'auth.login.failed') {
+        if ($evento !== 'auth.login.failed' || $this->pdo === null) {
             return;
         }
 
@@ -171,7 +171,7 @@ class AuditLogger
         }
 
         try {
-            $payload = json_encode(['alert' => $tipo, 'dados' => $dados, 'timestamp' => date('c')]);
+            $payload = (string) json_encode(['alert' => $tipo, 'dados' => $dados, 'timestamp' => date('c')]);
             $ctx = stream_context_create([
                 'http' => [
                     'method'  => 'POST',
@@ -209,6 +209,9 @@ class AuditLogger
         string $userAgent,
         string $endpoint
     ): void {
+        if ($this->pdo === null) {
+            return;
+        }
         try {
             $sql = "INSERT INTO audit_logs
                         (evento, usuario_uuid, contexto, ip, user_agent, endpoint, criado_em)

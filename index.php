@@ -18,9 +18,9 @@ use Src\Kernel\Nucleo\Application;
 use Src\Kernel\Nucleo\Container;
 use Src\Kernel\Nucleo\ModuleLoader;
 use Src\Kernel\Nucleo\PluginManager;
+use Src\Kernel\Nucleo\Router;
 use Src\Kernel\Support\AuditLogger;
 use Src\Kernel\Support\DB\PluginMigrator;
-use Src\Kernel\Nucleo\Router;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -151,7 +151,6 @@ if ($uri !== '/') {
         header('Content-Type: ' . $mimeMap[$ext]);
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
-        header('X-XSS-Protection: 1; mode=block');
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
         header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
@@ -355,6 +354,24 @@ try {
 
 $manager = new PluginManager($migrator, __DIR__ . '/storage');
 $container->bind(PluginManager::class, $manager, true);
+
+// Registra RateLimitStorage — Redis se disponível, File como fallback
+$container->bind(
+    \Src\Kernel\Contracts\RateLimitStorageInterface::class,
+    static fn() => \Src\Kernel\Support\Storage\RateLimitStorageFactory::create(),
+    true
+);
+
+// Registra ThreatScorer como singleton (evita I/O redundante por request)
+$container->bind(
+    \Src\Kernel\Support\ThreatScorer::class,
+    static function () use ($container) {
+        return new \Src\Kernel\Support\ThreatScorer(
+            $container->make(\Src\Kernel\Contracts\RateLimitStorageInterface::class)
+        );
+    },
+    true
+);
 
 // Registra AuditLogger como singleton
 $container->bind(AuditLogger::class, static function () use ($container) {

@@ -93,14 +93,20 @@ class PluginManager
         $stateFile = dirname($this->registry) . DIRECTORY_SEPARATOR . 'modules_state.json';
         $data = [];
         if (is_file($stateFile)) {
-            $data = json_decode((string) file_get_contents($stateFile), true) ?? [];
+            $fp = fopen($stateFile, 'r');
+            if ($fp) {
+                flock($fp, LOCK_SH);
+                $raw = stream_get_contents($fp);
+                flock($fp, LOCK_UN);
+                fclose($fp);
+                $data = json_decode((string) $raw, true) ?? [];
+            }
         }
-        // Remove todas as variantes antigas e grava com o nome canônico (ucfirst)
         foreach ([ucfirst($pluginName), strtolower($pluginName), $pluginName] as $v) {
             unset($data[$v]);
         }
         $data[ucfirst($pluginName)] = $enabled;
-        file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->writeJsonFile($stateFile, $data);
     }
 
     private function removeFromModulesState(string $pluginName): void
@@ -109,33 +115,33 @@ class PluginManager
         if (!is_file($stateFile)) {
             return;
         }
-        $data = json_decode((string) file_get_contents($stateFile), true);
+        $fp = fopen($stateFile, 'r');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_SH);
+        $raw = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        $data = json_decode((string) $raw, true);
         if (!is_array($data)) {
             return;
         }
 
-        // Marca como false (não remove a chave) para que o ModuleLoader
-        // não readicione o módulo automaticamente ao redescobrir via composer.
-        $variants = [
-            $pluginName,
-            ucfirst($pluginName),
-            strtolower($pluginName),
-        ];
-
-        $changed = false;
+        $variants = [$pluginName, ucfirst($pluginName), strtolower($pluginName)];
+        $changed  = false;
         foreach ($variants as $v) {
             if (array_key_exists($v, $data)) {
                 $data[$v] = false;
-                $changed = true;
+                $changed  = true;
             }
         }
-
-        // Se nenhuma variante existia, adiciona com false para bloquear redescoberta
         if (!$changed) {
             $data[ucfirst($pluginName)] = false;
         }
 
-        file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->writeJsonFile($stateFile, $data);
     }
 
     private function deleteDirectory(string $dir): bool
@@ -204,7 +210,24 @@ class PluginManager
 
     private function write(array $state): void
     {
-        file_put_contents($this->registry, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->writeJsonFile($this->registry, $state);
+    }
+
+    /**
+     * Escreve JSON em arquivo com lock exclusivo para evitar race conditions.
+     */
+    private function writeJsonFile(string $path, array $data): void
+    {
+        $fp = fopen($path, 'c+');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_EX);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 
     private function callLifecycle(string $pluginName, string $method): void

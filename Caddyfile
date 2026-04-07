@@ -10,6 +10,11 @@ api.vupi.us {
 
     encode zstd gzip
 
+    # Limita tamanho do body — protege contra payloads gigantes antes de chegar no PHP
+    request_body {
+        max_size 10MB
+    }
+
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options    "nosniff"
@@ -50,8 +55,12 @@ api.vupi.us {
         header_up X-Real-IP         {remote_host}
 
         transport http {
+            # Slow loris: mata conexões que demoram para enviar headers/body
+            read_buffer_size        16KB
             dial_timeout            10s
             response_header_timeout 30s
+            # Fecha conexões ociosas — protege contra slow loris e connection exhaustion
+            keepalive_idle_conns    32
         }
     }
 }

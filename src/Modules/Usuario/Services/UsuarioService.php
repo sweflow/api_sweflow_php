@@ -2,7 +2,6 @@
 
 namespace Src\Modules\Usuario\Services;
 
-use Src\Kernel\Database\PdoFactory;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use DomainException;

@@ -24,11 +24,11 @@ $router->post('/api/auth/login', [AuthController::class, 'login'],       [$login
 $router->post('/api/login',      [AuthController::class, 'loginPublic'], [$loginRateLimit, $dbCircuit]);
 
 // Recuperação de senha
-$router->post('/api/auth/recuperacao-senha',      [AuthController::class, 'solicitarRecuperacaoSenha'], [$recoveryRateLimit]);
-$router->post('/api/auth/resetar-senha',          [AuthController::class, 'resetarSenha'],              [$recoveryRateLimit]);
-$router->post('/api/recuperar-senha',             [AuthController::class, 'solicitarRecuperacaoSenha'], [$recoveryRateLimit]);
-$router->post('/api/recuperar-senha/confirmar',   [AuthController::class, 'resetarSenha'],              [$recoveryRateLimit]);
-$router->get('/api/recuperar-senha/validar/{token}', [AuthController::class, 'validarTokenRecuperacao'], [$recoveryRateLimit]);
+$router->post('/api/auth/recuperacao-senha',         [AuthController::class, 'solicitarRecuperacaoSenha'], [$recoveryRateLimit]);
+$router->post('/api/auth/resetar-senha',             [AuthController::class, 'resetarSenha'],              [$recoveryRateLimit]);
+$router->post('/api/recuperar-senha',                [AuthController::class, 'solicitarRecuperacaoSenha'], [$recoveryRateLimit]);
+$router->post('/api/recuperar-senha/confirmar',      [AuthController::class, 'resetarSenha'],              [$recoveryRateLimit]);
+$router->get('/api/recuperar-senha/validar/{token}', [AuthController::class, 'validarTokenRecuperacao'],   [$recoveryRateLimit]);
 
 // Sessão autenticada
 $router->get('/api/auth/me',      [AuthController::class, 'me'],      $protected);

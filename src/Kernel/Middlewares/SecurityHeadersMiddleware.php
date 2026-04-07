@@ -26,8 +26,10 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             $csp = "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
         } else {
             $nonce = \Src\Kernel\Nonce::get();
-            // Trusted Types ativo — política 'default' em dashboard.js aceita HTML do próprio código
-            $csp   = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default";
+            // SRI é garantido pelo atributo integrity= nas tags <script>/<link> do HTML.
+            // require-sri-for foi removida de todos os browsers — só gera aviso no console.
+            // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
+            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
         }
 
         $response = $response
@@ -39,9 +41,9 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             ->withHeader('Referrer-Policy',               $isApi ? 'no-referrer' : 'strict-origin-when-cross-origin')
             ->withHeader('Permissions-Policy',            'geolocation=(), microphone=(), camera=()')
             ->withHeader('Content-Security-Policy',       $csp)
-            ->withHeader('Cross-Origin-Resource-Policy',  'same-origin')
+            ->withHeader('Cross-Origin-Resource-Policy',  $isApi ? 'same-origin' : 'same-site')
             ->withHeader('Cross-Origin-Opener-Policy',    'same-origin')
-            ->withHeader('Cross-Origin-Embedder-Policy',  'require-corp');
+            ->withHeader('Cross-Origin-Embedder-Policy',  $isApi ? 'require-corp' : 'credentialless');
 
         if ($isHttps) {
             $response = $response->withHeader(

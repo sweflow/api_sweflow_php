@@ -68,7 +68,8 @@ class AuthPageMiddleware implements MiddlewareInterface
             return $this->redirecionar(true);
         } catch (\Throwable) {
             return $this->redirecionar(false);
-        }    }
+        }
+    }
 
     private function redirecionar(bool $limparCookie): Response
     {

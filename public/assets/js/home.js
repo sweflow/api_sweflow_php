@@ -77,14 +77,21 @@ function initPage() {
     }
 
     async function checkSession() {
+        // Sem flag local não há sessão ativa — evita 401 desnecessário no console
+        let hasFlag = false;
+        try { hasFlag = localStorage.getItem(SESSION_FLAG) === '1'; } catch(_) {}
+        if (!hasFlag) {
+            updateLoginLabels(false);
+            return false;
+        }
+
         try {
             const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
             if (res.ok) {
-                try { localStorage.setItem(SESSION_FLAG, '1'); } catch(_) {}
                 updateLoginLabels(true);
                 return true;
             }
-            // Sessão inválida — limpa flag
+            // Token expirado ou revogado — limpa flag
             try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
         } catch (_) {}
         updateLoginLabels(false);
@@ -95,15 +102,24 @@ function initPage() {
     async function handleLoginClick(e) {
         e.preventDefault();
         e.stopPropagation();
-        try {
-            const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-            if (res.ok) {
-                try { localStorage.setItem(SESSION_FLAG, '1'); } catch(_) {}
-                window.location.href = '/dashboard';
-                return;
-            }
-            try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
-        } catch (_) {}
+
+        // Verifica flag local antes de fazer qualquer request — evita 401 no console
+        let hasFlag = false;
+        try { hasFlag = localStorage.getItem(SESSION_FLAG) === '1'; } catch(_) {}
+
+        if (hasFlag) {
+            // Confirma sessão ainda válida antes de redirecionar
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                if (res.ok) {
+                    window.location.href = '/dashboard';
+                    return;
+                }
+                // Token expirado — limpa flag e abre modal
+                try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
+            } catch (_) {}
+        }
+
         openModal();
     }
 

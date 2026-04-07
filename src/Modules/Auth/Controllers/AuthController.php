@@ -7,6 +7,7 @@ use PDO;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\AuditLogger;
 use Src\Kernel\Support\IpResolver;
+use Src\Kernel\Support\JwtDecoder;
 use Src\Kernel\Support\RequestContext;
 use Src\Kernel\Support\ThreatScorer;
 use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
@@ -43,14 +44,28 @@ class AuthController
 
     public function login(): Response
     {
-        // /api/auth/login é exclusivo para admin_system — token assinado com JWT_API_SECRET
+        // /api/auth/login é exclusivo para admin_system
+        return $this->processarLogin(true);
+    }
+
+    public function loginPublic(): Response
+    {
+        return $this->processarLogin(false);
+    }
+
+    /**
+     * Lógica central de autenticação compartilhada entre login() e loginPublic().
+     *
+     * @param bool $apenasAdmin true = restringe a admin_system (/api/auth/login)
+     *                          false = aceita qualquer nível (/api/login)
+     */
+    private function processarLogin(bool $apenasAdmin): Response
+    {
         $startTime = microtime(true);
+        $contexto  = $apenasAdmin ? 'AuthController::login' : 'AuthController::loginPublic';
 
         if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
-            return Response::json([
-                'status'  => 'error',
-                'message' => 'Login requer conexão segura (HTTPS).',
-            ], 403);
+            return Response::json(['status' => 'error', 'message' => 'Login requer conexão segura (HTTPS).'], 403);
         }
 
         try {
@@ -58,17 +73,30 @@ class AuthController
             $this->blacklistRepositorio()->purgeExpired();
 
             $dados = $this->corpoDaRequisicao();
-            $login = $dados['login'] ?? $dados['identifier'] ?? $dados['email'] ?? $dados['username'] ?? '';
-            $senha = $dados['senha'] ?? $dados['password'] ?? '';
+            $login = trim((string) ($dados['login'] ?? $dados['identifier'] ?? $dados['email'] ?? $dados['username'] ?? ''));
+            $senha = (string) ($dados['senha'] ?? $dados['password'] ?? '');
 
-            $usuario = $this->servico()->autenticar((string)$login, (string)$senha);
+            // Remove null bytes e caracteres de controle do login antes de usar em logs
+            $login = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $login);
+            $login = mb_substr($login, 0, 254); // limite de email RFC 5321
 
-            // Esta rota é exclusiva para admin_system
-            if ($usuario->getNivelAcesso() !== 'admin_system') {
+            if (trim($login) === '' || trim($senha) === '') {
+                $this->enforceMinResponseTime($startTime, 200);
+                throw new DomainException('Login e senha são obrigatórios.', 400);
+            }
+
+            // Busca e valida credenciais
+            $usuario = $apenasAdmin
+                ? $this->servico()->autenticar($login, $senha)
+                : $this->buscarEValidarCredenciais($login, $senha, $startTime);
+
+            // Restrição de nível para /api/auth/login
+            if ($apenasAdmin && $usuario->getNivelAcesso() !== 'admin_system') {
                 $this->enforceMinResponseTime($startTime, 200);
                 return Response::json(['status' => 'error', 'message' => 'Acesso restrito.'], 403);
             }
 
+            // Verificação de e-mail obrigatória (se política ativa)
             if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
                 $this->enforceMinResponseTime($startTime, 200);
                 return Response::json([
@@ -79,10 +107,12 @@ class AuthController
                 ], 403);
             }
 
-            // Token assinado com JWT_API_SECRET para admin_system
-            $tokens = $this->servico()->emitirTokensAdmin($usuario);
-            $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
+            // admin_system sempre recebe token assinado com JWT_API_SECRET
+            $tokens = $usuario->getNivelAcesso() === 'admin_system'
+                ? $this->servico()->emitirTokensAdmin($usuario)
+                : $this->servico()->emitirTokens($usuario);
 
+            $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
             $this->audit()->registrar('auth.login.success', $usuario->getUuid()->toString(), [
                 'username'     => $usuario->getUsername(),
                 'nivel_acesso' => $usuario->getNivelAcesso(),
@@ -90,19 +120,20 @@ class AuthController
 
             $this->enforceMinResponseTime($startTime, 200);
             return Response::json([
-                'status'           => 'success',
-                'access_token'     => $tokens['access_token'],
-                'expires_in'       => $tokens['access_expira_em'],
-                'refresh_token'    => $tokens['refresh_token'],
+                'status'             => 'success',
+                'access_token'       => $tokens['access_token'],
+                'expires_in'         => $tokens['access_expira_em'],
+                'refresh_token'      => $tokens['refresh_token'],
                 'refresh_expires_in' => $tokens['refresh_expira_em'],
                 'usuario' => [
-                    'uuid'         => $usuario->getUuid()->toString(),
-                    'nome_completo'=> $usuario->getNomeCompleto(),
-                    'username'     => $usuario->getUsername(),
-                    'email'        => $usuario->getEmail(),
-                    'nivel_acesso' => $usuario->getNivelAcesso(),
-                ]
+                    'uuid'          => $usuario->getUuid()->toString(),
+                    'nome_completo' => $usuario->getNomeCompleto(),
+                    'username'      => $usuario->getUsername(),
+                    'email'         => $usuario->getEmail(),
+                    'nivel_acesso'  => $usuario->getNivelAcesso(),
+                ],
             ]);
+
         } catch (DomainException $e) {
             $this->audit()->registrar('auth.login.failed', null, ['reason' => $e->getMessage()]);
             (new ThreatScorer())->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
@@ -111,111 +142,40 @@ class AuthController
             return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
         } catch (\RuntimeException $e) {
             $this->enforceMinResponseTime($startTime, 200);
-            error_log('[AuthController::login] ' . get_class($e) . ': ' . $e->getMessage());
-            $code = $e->getCode();
-            if ($code === 503) {
-                $userMessage = explode("\n", $e->getMessage())[0];
-                return Response::json(['status' => 'error', 'message' => $userMessage, 'code' => 'DB_CONFIG_ERROR'], 503);
+            error_log("[{$contexto}] " . get_class($e) . ': ' . $e->getMessage());
+            if ($e->getCode() === 503) {
+                return Response::json([
+                    'status'  => 'error',
+                    'message' => explode("\n", $e->getMessage())[0],
+                    'code'    => 'DB_CONFIG_ERROR',
+                ], 503);
             }
             return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
         } catch (\Throwable $e) {
             $this->enforceMinResponseTime($startTime, 200);
-            error_log('[AuthController::login] ' . get_class($e) . ': ' . $e->getMessage());
+            error_log("[{$contexto}] " . get_class($e) . ': ' . $e->getMessage());
             return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
         }
     }
 
-    public function loginPublic(): Response
+    /**
+     * Busca o usuário e valida credenciais para o endpoint público (/api/login).
+     * Lança DomainException em caso de falha.
+     */
+    private function buscarEValidarCredenciais(string $login, string $senha, float $startTime): \Src\Modules\Usuario\Entities\Usuario
     {
-        $startTime = microtime(true);
-
-        if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
-            return Response::json([
-                'status'  => 'error',
-                'message' => 'Login requer conexão segura (HTTPS).',
-            ], 403);
+        $usuario = $this->buscarUsuarioPorLogin($login);
+        if (!$usuario || !$usuario->verificarSenha($senha)) {
+            $this->audit()->registrar('auth.login.failed', null, ['identifier' => substr($login, 0, 64)]);
+            (new ThreatScorer())->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
+            $this->enforceMinResponseTime($startTime, 200);
+            throw new DomainException('Credenciais inválidas.', 401);
         }
-
-        try {
-            $this->refreshRepositorio()->purgeExpired();
-            $this->blacklistRepositorio()->purgeExpired();
-
-            $dados = $this->corpoDaRequisicao();
-            $login = $dados['login'] ?? $dados['identifier'] ?? $dados['email'] ?? $dados['username'] ?? '';
-            $senha = $dados['senha'] ?? $dados['password'] ?? '';
-
-            if (trim((string)$login) === '' || trim((string)$senha) === '') {
-                $this->enforceMinResponseTime($startTime, 200);
-                throw new DomainException('Login e senha são obrigatórios.', 400);
-            }
-
-            $usuario = $this->buscarUsuarioPorLogin((string)$login);
-            if (!$usuario || !$usuario->verificarSenha((string)$senha)) {
-                $this->audit()->registrar('auth.login.failed', null, ['identifier' => substr((string)$login, 0, 64)]);
-                (new ThreatScorer())->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
-                $this->enforceMinResponseTime($startTime, 200);
-                throw new DomainException('Credenciais inválidas.', 401);
-            }
-
-            if (!$usuario->isAtivo()) {
-                $this->enforceMinResponseTime($startTime, 200);
-                throw new DomainException('Usuário desativado.', 403);
-            }
-
-            if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
-                $this->enforceMinResponseTime($startTime, 200);
-                return Response::json([
-                    'status'              => 'error',
-                    'message'             => 'Você precisa confirmar seu e-mail antes de fazer login. Verifique sua caixa de entrada ou solicite um novo link.',
-                    'email_not_verified'  => true,
-                    'email'               => $usuario->getEmail(),
-                ], 403);
-            }
-
-            // admin_system recebe token assinado com JWT_API_SECRET — obrigatório para rotas protegidas
-            $tokens = $usuario->getNivelAcesso() === 'admin_system'
-                ? $this->servico()->emitirTokensAdmin($usuario)
-                : $this->servico()->emitirTokens($usuario);
-            $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
-
-            $this->audit()->registrar('auth.login.success', $usuario->getUuid()->toString(), [
-                'username' => $usuario->getUsername(),
-            ]);
-
+        if (!$usuario->isAtivo()) {
             $this->enforceMinResponseTime($startTime, 200);
-            return Response::json([
-                'status' => 'success',
-                'access_token' => $tokens['access_token'],
-                'expires_in' => $tokens['access_expira_em'],
-                'refresh_token' => $tokens['refresh_token'],
-                'refresh_expires_in' => $tokens['refresh_expira_em'],
-                'usuario' => [
-                    'uuid' => $usuario->getUuid()->toString(),
-                    'nome_completo' => $usuario->getNomeCompleto(),
-                    'username' => $usuario->getUsername(),
-                    'email' => $usuario->getEmail(),
-                    'nivel_acesso' => $usuario->getNivelAcesso(),
-                ]
-            ]);
-        } catch (DomainException $e) {
-            $this->enforceMinResponseTime($startTime, 200);
-            $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
-            return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
-        } catch (\RuntimeException $e) {
-            // Erros de configuração de banco (DB2 não configurado, etc.) — exibe mensagem clara
-            $this->enforceMinResponseTime($startTime, 200);
-            error_log('[AuthController::loginPublic] ' . get_class($e) . ': ' . $e->getMessage());
-            $code = $e->getCode();
-            if ($code === 503) {
-                $userMessage = explode("\n", $e->getMessage())[0];
-                return Response::json(['status' => 'error', 'message' => $userMessage, 'code' => 'DB_CONFIG_ERROR'], 503);
-            }
-            return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
-        } catch (\Throwable $e) {
-            $this->enforceMinResponseTime($startTime, 200);
-            error_log('[AuthController::loginPublic] ' . get_class($e) . ': ' . $e->getMessage());
-            return Response::json(['status' => 'error', 'message' => 'Erro interno.'], 500);
+            throw new DomainException('Usuário desativado.', 403);
         }
+        return $usuario;
     }
 
     public function solicitarRecuperacaoSenha(): Response
@@ -379,7 +339,8 @@ class AuthController
             if ($token === null) {
                 return Response::json(['status' => 'error', 'message' => 'Não autenticado'], 401);
             }
-            $payload = $this->servico()->decodificarToken($token);
+            [$payload] = JwtDecoder::decodeUser($token);
+            JwtDecoder::validateUserClaims($payload);
             $usuario = $this->repositorio()->buscarPorUuid($payload->sub ?? '');
 
             if (!$usuario) {
@@ -453,7 +414,7 @@ class AuthController
             $this->blacklistRepositorio()->purgeExpired();
 
             if ($token) {
-                $payload = $this->servico()->decodificarToken($token);
+                [$payload] = JwtDecoder::decodeUser($token);
                 $userUuid = $payload->sub ?? null;
                 $jti = $payload->jti ?? '';
                 if ($jti !== '') {
@@ -471,20 +432,22 @@ class AuthController
         return Response::json(['status' => 'success', 'message' => 'Logout realizado com sucesso.']);
     }
 
-    public function verifyEmail(): Response
+    public function verifyEmail($request = null): Response
     {
-        // Tenta pegar o token da URL (padrão) ou do corpo da requisição (caso alguém envie JSON)
-        $token = $_GET['token'] ?? '';
-        
-        if (trim($token) === '') {
-            $body = $this->corpoDaRequisicao();
-            $token = $body['token'] ?? '';
+        // Tenta pegar o token via Request (query param) ou corpo da requisição
+        $token = '';
+        if (is_object($request) && method_exists($request, 'query')) {
+            $token = trim((string) ($request->query['token'] ?? ''));
+        }
+        if ($token === '') {
+            $body  = $this->corpoDaRequisicao();
+            $token = trim((string) ($body['token'] ?? ''));
         }
 
-        if (trim($token) === '') {
+        if ($token === '') {
             return Response::json([
-                'status' => 'error', 
-                'message' => 'Token de verificação não informado. Informe-o via URL (?token=...) ou no corpo da requisição.'
+                'status'  => 'error',
+                'message' => 'Token de verificação não informado. Informe-o via URL (?token=...) ou no corpo da requisição.',
             ], 400);
         }
 
@@ -761,15 +724,7 @@ class AuthController
     private function podeDispararEmailRecuperacao(string $email): bool
     {
         try {
-            $stmt = $this->pdo()->prepare(
-                "SELECT sent_at FROM email_throttle WHERE type = 'password_reset' AND email = :email"
-            );
-            $stmt->execute([':email' => strtolower(trim($email))]);
-            $row = $stmt->fetch();
-            if (!$row) {
-                return true;
-            }
-            return (time() - strtotime($row['sent_at'])) >= 120;
+            return (new \Src\Kernel\Support\EmailThrottle($this->pdo()))->canSend('password_reset', $email);
         } catch (\Throwable) {
             return true;
         }
@@ -778,22 +733,7 @@ class AuthController
     private function registrarDisparoEmailRecuperacao(string $email): void
     {
         try {
-            $pdo    = $this->pdo();
-            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-
-            if ($driver === 'pgsql') {
-                $pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('password_reset', :email, NOW())
-                     ON CONFLICT (type, email) DO UPDATE SET sent_at = NOW()"
-                )->execute([':email' => strtolower(trim($email))]);
-                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < NOW() - INTERVAL '3600 seconds'");
-            } else {
-                $pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('password_reset', :email, NOW())
-                     ON DUPLICATE KEY UPDATE sent_at = NOW()"
-                )->execute([':email' => strtolower(trim($email))]);
-                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < DATE_SUB(NOW(), INTERVAL 3600 SECOND)");
-            }
+            (new \Src\Kernel\Support\EmailThrottle($this->pdo()))->record('password_reset', $email);
         } catch (\Throwable $e) {
             error_log('[AuthController] throttle record failed: ' . $e->getMessage());
         }

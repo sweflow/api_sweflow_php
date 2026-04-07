@@ -22,13 +22,16 @@ class Response
 
         $headers = ['Content-Type' => 'application/json; charset=utf-8'] + $securityHeaders;
 
+        // Vary: Origin deve estar sempre presente em respostas JSON para que proxies/CDNs
+        // não sirvam respostas sem CORS para clientes que precisam delas.
+        $headers['Vary'] = 'Origin';
+
         // Só emite headers CORS quando há uma origem cross-origin válida
         if ($origin !== '') {
             $headers['Access-Control-Allow-Origin']      = $origin;
             $headers['Access-Control-Allow-Credentials'] = 'true';
             $headers['Access-Control-Allow-Methods']     = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
             $headers['Access-Control-Allow-Headers']     = 'Content-Type, Authorization, X-CSRF-Token, X-Device-Id, X-Client-Public-IP';
-            $headers['Vary']                             = 'Origin';
         }
 
         return new self($data, $status, $headers);
@@ -90,9 +93,10 @@ class Response
             $csp = "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
         } else {
             $nonce = \Src\Kernel\Nonce::get();
-            // Página HTML: scripts via nonce, estilos do CDN permitido, sem object/embed
+            // Página HTML: scripts via nonce + SRI para CDN externo.
+            // SRI (Subresource Integrity) garante que scripts externos não foram adulterados.
+            // require-sri-for bloqueia scripts/styles sem integrity attribute.
             // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
-            // trusted-types inclui 'dompurify' para que o DOMPurify possa criar sua política interna.
             $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
         }
 

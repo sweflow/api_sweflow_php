@@ -48,11 +48,10 @@ class RateLimitMiddlewareTest extends TestCase
 
     private function makeMw(int $limit = 3, int $window = 60): RateLimitMiddleware
     {
-        $mw = new RateLimitMiddleware($limit, $window, 'test.route', 0);
-        $ref = new \ReflectionProperty(RateLimitMiddleware::class, 'storageDir');
-        $ref->setAccessible(true);
-        $ref->setValue($mw, $this->storageDir);
-        return $mw;
+        return new RateLimitMiddleware(
+            $limit, $window, 'test.route', 0,
+            new \Src\Kernel\Support\Storage\FileRateLimitStorage($this->storageDir)
+        );
     }
 
     private function buildRequest(): Request

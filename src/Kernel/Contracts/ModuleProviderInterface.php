@@ -22,9 +22,9 @@ interface ModuleProviderInterface
      * O ModuleLoader usa method_exists() antes de chamar, garantindo compatibilidade
      * com módulos externos que não implementam este método.
      *
-     * @return string 'core' | 'modules' | 'auto'
+     * Não declarado na interface pois é opcional.
+     * Assinatura esperada: public function preferredConnection(): string
      */
-    // preferredConnection(): string  ← opcional, não obrigatório na interface
 
     public function onInstall(): void;
     public function onEnable(): void;

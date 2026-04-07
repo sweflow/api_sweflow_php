@@ -27,7 +27,9 @@ class AdminOnlyMiddleware implements MiddlewareInterface
         }
 
         $nivel        = $payload->nivel_acesso ?? null;
-        $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
+        $nivelUsuario = (is_object($usuario) && method_exists($usuario, 'getNivelAcesso'))
+            ? $usuario->getNivelAcesso()
+            : null;
 
         // Caso 2: token de usuário admin_system DEVE ter sido assinado com JWT_API_SECRET.
         // Confia exclusivamente no atributo injetado pelo AuthHybridMiddleware —

@@ -50,11 +50,9 @@ class BotBlockerMiddlewareTest extends TestCase
 
     private function makeMw(): BotBlockerMiddleware
     {
-        // Scorer isolado com diretório temporário — sem estado entre testes
-        $scorer = new ThreatScorer();
-        $ref = new \ReflectionProperty(ThreatScorer::class, 'storageDir');
-        $ref->setAccessible(true);
-        $ref->setValue($scorer, $this->threatDir);
+        $scorer = new ThreatScorer(
+            new \Src\Kernel\Support\Storage\FileRateLimitStorage($this->threatDir)
+        );
         return new BotBlockerMiddleware($scorer);
     }
 

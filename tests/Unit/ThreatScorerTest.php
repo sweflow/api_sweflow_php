@@ -18,11 +18,10 @@ class ThreatScorerTest extends TestCase
         parent::setUp();
         $this->storageDir = sys_get_temp_dir() . '/sweflow_threat_test_' . uniqid();
         mkdir($this->storageDir, 0750, true);
-        // Injeta diretório de teste via reflexão
-        $this->scorer = new ThreatScorer();
-        $ref = new \ReflectionProperty(ThreatScorer::class, 'storageDir');
-        $ref->setAccessible(true);
-        $ref->setValue($this->scorer, $this->storageDir);
+        // Injeta storage de teste isolado
+        $this->scorer = new ThreatScorer(
+            new \Src\Kernel\Support\Storage\FileRateLimitStorage($this->storageDir)
+        );
     }
 
     protected function tearDown(): void

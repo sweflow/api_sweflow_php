@@ -80,7 +80,10 @@ class Application
                 return;
             }
 
-            $response = $this->router->dispatch($request);
+            // Injeta SecurityHeadersMiddleware globalmente — garante headers em TODAS as respostas,
+            // incluindo 404, 405, erros de rota e respostas que escapem do pipeline de middlewares.
+            $secHeaders = new \Src\Kernel\Middlewares\SecurityHeadersMiddleware();
+            $response   = $secHeaders->handle($request, fn($r) => $this->router->dispatch($r));
 
             // Observabilidade: loga 401, 403, 429 automaticamente para Fail2Ban e análise
             $statusCode = $response->getStatusCode();

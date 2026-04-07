@@ -6,6 +6,7 @@ use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\IpResolver;
+use Src\Kernel\Support\SecurityEventLogger;
 use Src\Kernel\Support\ThreatScorer;
 
 /**
@@ -32,9 +33,8 @@ class BotBlockerMiddleware implements MiddlewareInterface
 
     private string $env;
 
-    public function __construct(private ?ThreatScorer $scorer = null)
+    public function __construct(private ThreatScorer $scorer = new ThreatScorer())
     {
-        $this->scorer ??= new ThreatScorer();
         $this->env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
     }
 
@@ -49,29 +49,30 @@ class BotBlockerMiddleware implements MiddlewareInterface
         $isLoopback = in_array($ip, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)
                       || strncmp($ip, '127.', 4) === 0;
 
-        // 1. Bloqueia por score acumulado (comportamento anterior)
-        if ($scorer->shouldBlock($ip)) {
-            $this->log('bot.blocked.score', $ip, $uri, $ua);
-            return $this->blockResponse();
-        }
-
-        // 2. Bloqueia User-Agents de ferramentas conhecidas (sempre, mesmo em loopback)
+        // 1. Bloqueia User-Agents de ferramentas conhecidas (sempre, inclusive loopback)
         if ($this->isMaliciousUserAgent($ua)) {
             $scorer->add($ip, ThreatScorer::SCORE_MALICIOUS_UA);
             $this->log('bot.blocked.ua', $ip, $uri, $ua);
             return $this->blockResponse();
         }
 
-        // 3. API sem User-Agent (sempre, mesmo em loopback)
+        // 2. Requisições de API sem User-Agent (sempre, inclusive loopback)
         if (str_starts_with($uri, '/api/') && trim($ua) === '') {
             $scorer->add($ip, ThreatScorer::SCORE_NO_UA);
             $this->log('bot.blocked.no_ua', $ip, $uri, '');
             return $this->blockResponse();
         }
 
-        // Loopback em desenvolvimento: pula delay progressivo
+        // Em ambiente não-produção com IP loopback: ignora score acumulado e delay.
+        // Evita que scores de testes bloqueiem o desenvolvimento local.
         if ($this->env !== 'production' && $isLoopback) {
             return $next($request);
+        }
+
+        // 3. Bloqueia por score acumulado
+        if ($scorer->shouldBlock($ip)) {
+            $this->log('bot.blocked.score', $ip, $uri, $ua);
+            return $this->blockResponse();
         }
 
         // 4. Delay progressivo para IPs com score elevado mas abaixo do threshold de bloqueio
@@ -107,14 +108,10 @@ class BotBlockerMiddleware implements MiddlewareInterface
         if ($this->env === 'testing') {
             return;
         }
-        $line = json_encode([
-            'timestamp'  => date('Y-m-d\TH:i:sP'),
-            'type'       => 'BOT_BLOCKED',
-            'event'      => $event,
-            'ip'         => $ip,
+        SecurityEventLogger::threat($event, $ip, [
             'uri'        => $uri,
             'user_agent' => substr($ua, 0, 300),
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
+            'score'      => $this->scorer->get($ip),
+        ]);
     }
 }

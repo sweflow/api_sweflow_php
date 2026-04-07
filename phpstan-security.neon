@@ -1,0 +1,14 @@
+parameters:
+    level: 8
+    paths:
+        - src/Kernel/Middlewares
+        - src/Kernel/Support/JwtDecoder.php
+        - src/Kernel/Support/ThreatScorer.php
+        - src/Kernel/Support/IpResolver.php
+        - src/Kernel/Support/CookieConfig.php
+        - src/Kernel/Support/TokenExtractor.php
+        - src/Kernel/Support/OwnershipGuard.php
+        - src/Kernel/Support/AuditLogger.php
+        - src/Kernel/Support/Storage
+        - src/Kernel/Contracts/RateLimitStorageInterface.php
+        - src/Kernel/Utils/Sanitizer.php
