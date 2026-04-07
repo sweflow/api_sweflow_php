@@ -1,0 +1,1383 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sweflow API — Documentação</title>
+  <link rel="icon" href="assets/imgs/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/imgs/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/css/docs.css">
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header class="docs-topbar">
+  <div class="docs-topbar-left">
+    <button class="docs-menu-btn" id="menu-btn" aria-label="Menu">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <a href="#introducao" class="docs-logo" onclick="showPage('introducao');return false;">
+      <div class="docs-logo-icon">
+        <img src="assets/imgs/favicon.png" alt="Sweflow" style="width:28px;height:28px;object-fit:contain;">
+      </div>
+      <span class="docs-logo-name">Sweflow <span>API</span></span>
+    </a>
+    <span class="docs-version">v1.0</span>
+  </div>
+  <div class="docs-topbar-right">
+    <button class="docs-theme-btn" id="theme-btn" aria-label="Alternar tema">
+      <i class="fa-solid fa-moon" id="theme-icon"></i>
+    </button>
+  </div>
+</header>
+
+<!-- ── OVERLAY mobile ── -->
+<div class="docs-overlay" id="docs-overlay"></div>
+
+<!-- ── LAYOUT ── -->
+<div class="docs-layout">
+
+  <!-- SIDEBAR -->
+  <nav class="docs-sidebar" id="docs-sidebar" aria-label="Navegação da documentação">
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Primeiros Passos</span>
+      <a class="docs-nav-link" data-page="introducao" href="#introducao">
+        <i class="fa-solid fa-house"></i> Introdução
+      </a>
+      <a class="docs-nav-link" data-page="instalacao" href="#instalacao">
+        <i class="fa-solid fa-download"></i> Instalação
+      </a>
+      <a class="docs-nav-link" data-page="configuracao" href="#configuracao">
+        <i class="fa-solid fa-gear"></i> Configuração (.env)
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Arquitetura</span>
+      <a class="docs-nav-link" data-page="arquitetura" href="#arquitetura">
+        <i class="fa-solid fa-sitemap"></i> Visão Geral
+      </a>
+      <a class="docs-nav-link" data-page="kernel" href="#kernel">
+        <i class="fa-solid fa-microchip"></i> Camada Kernel
+      </a>
+      <a class="docs-nav-link" data-page="modulos" href="#modulos">
+        <i class="fa-solid fa-puzzle-piece"></i> Módulos
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Desenvolvimento</span>
+      <a class="docs-nav-link" data-page="criar-modulo" href="#criar-modulo">
+        <i class="fa-solid fa-code"></i> Criando um Módulo
+      </a>
+      <a class="docs-nav-link" data-page="rotas" href="#rotas">
+        <i class="fa-solid fa-route"></i> Rotas e Middlewares
+      </a>
+      <a class="docs-nav-link" data-page="banco" href="#banco">
+        <i class="fa-solid fa-database"></i> Banco de Dados
+      </a>
+      <a class="docs-nav-link" data-page="comunicacao" href="#comunicacao">
+        <i class="fa-solid fa-arrows-left-right"></i> Entre Módulos
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Referência</span>
+      <a class="docs-nav-link" data-page="seguranca" href="#seguranca">
+        <i class="fa-solid fa-shield-halved"></i> Segurança
+      </a>
+      <a class="docs-nav-link" data-page="comandos" href="#comandos">
+        <i class="fa-solid fa-terminal"></i> Comandos CLI
+      </a>
+    </div>
+
+  </nav>
+
+  <!-- MAIN -->
+  <main class="docs-main" id="docs-main">
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: INTRODUÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-introducao">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div>
+          <h1>Bem-vindo à Sweflow API</h1>
+          <p>Uma plataforma modular, segura e moderna desenvolvida em PHP puro. Simplicidade por fora, poder por dentro.</p>
+        </div>
+      </div>
+
+      <h2 id="o-que-e">O que é a Sweflow API?</h2>
+      <p>A Sweflow API é um framework PHP modular de alta performance, projetado para construir APIs REST robustas sem a complexidade de frameworks pesados. Cada funcionalidade vive em um <strong>módulo independente</strong> — uma pasta em <code>src/Modules/</code>.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Filosofia Zero Config</strong>
+          <p>Crie uma pasta em <code>src/Modules/</code> e o sistema a detecta automaticamente. Sem registro manual, sem arquivos de configuração centralizados.</p>
+        </div>
+      </div>
+
+      <h2 id="recursos">Recursos principais</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-solid fa-puzzle-piece" style="color:#4f46e5"></i></div>
+          <h3>Arquitetura Modular</h3>
+          <p>Cada módulo é independente. Adicione, remova ou desative sem afetar o restante do sistema.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-shield-halved" style="color:#16a34a"></i></div>
+          <h3>Segurança por Padrão</h3>
+          <p>JWT com rotação de chaves, rate limiting, ThreatScorer, CSP, HSTS e proteção contra OWASP Top 10.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-database" style="color:#d97706"></i></div>
+          <h3>Multi-banco</h3>
+          <p>Suporte nativo a PostgreSQL e MySQL. Dois bancos simultâneos: core e módulos externos.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(96,165,250,0.12)"><i class="fa-solid fa-syringe" style="color:#2563eb"></i></div>
+          <h3>Injeção de Dependência</h3>
+          <p>Container automático com resolução recursiva. Declare no construtor, o sistema entrega.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(167,139,250,0.12)"><i class="fa-solid fa-bolt" style="color:#7c3aed"></i></div>
+          <h3>CLI Poderosa</h3>
+          <p>Setup automático, geração de módulos, migrations, seeds e gerenciamento de plugins via terminal.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(244,114,182,0.12)"><i class="fa-solid fa-gauge-high" style="color:#db2777"></i></div>
+          <h3>Dashboard Admin</h3>
+          <p>Interface web para monitoramento, gerenciamento de módulos e configuração do ambiente em tempo real.</p>
+        </div>
+      </div>
+
+      <h2 id="stack">Stack tecnológica</h2>
+      <table class="docs-table">
+        <thead><tr><th>Componente</th><th>Tecnologia</th></tr></thead>
+        <tbody>
+          <tr><td>Linguagem</td><td>PHP 8.2+</td></tr>
+          <tr><td>Banco de dados</td><td>PostgreSQL 15+ / MySQL 8+</td></tr>
+          <tr><td>Cache / Rate Limit</td><td>Redis (opcional) / File storage</td></tr>
+          <tr><td>Proxy reverso</td><td>Caddy (TLS automático)</td></tr>
+          <tr><td>Autenticação</td><td>JWT (Firebase JWT)</td></tr>
+          <tr><td>Gerenciador de deps</td><td>Composer</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: INSTALAÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-instalacao">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-download"></i></div>
+        <div>
+          <h1>Instalação</h1>
+          <p>Do zero ao servidor rodando em minutos.</p>
+        </div>
+      </div>
+
+      <h2 id="prereqs">Pré-requisitos</h2>
+      <p>Antes de começar, certifique-se de ter instalado:</p>
+      <table class="docs-table">
+        <thead><tr><th>Requisito</th><th>Versão mínima</th><th>Verificar</th></tr></thead>
+        <tbody>
+          <tr><td><strong>PHP</strong></td><td>8.2+</td><td><code>php -v</code></td></tr>
+          <tr><td><strong>Composer</strong></td><td>2.x</td><td><code>composer -V</code></td></tr>
+          <tr><td><strong>Git</strong></td><td>2.x</td><td><code>git --version</code></td></tr>
+          <tr><td><strong>PostgreSQL</strong> ou <strong>MySQL</strong></td><td>15+ / 8+</td><td><code>psql -V</code> / <code>mysql -V</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="instalar-php">Instalar PHP 8.2 (Ubuntu)</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>sudo apt update
+sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:ondrej/php
+sudo apt update
+sudo apt install -y php8.2 php8.2-cli php8.2-common php8.2-curl php8.2-mbstring php8.2-xml php8.2-zip</code></pre>
+      </div>
+
+      <h3 id="instalar-composer">Instalar Composer</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/local/bin/composer</code></pre>
+      </div>
+
+      <h3 id="instalar-db-ext">Instalar extensões de banco de dados</h3>
+      <p><strong>Para PostgreSQL:</strong></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>sudo apt-get install php8.2-pgsql
+# Windows: habilite 'extension=pgsql' e 'extension=pdo_pgsql' no php.ini</code></pre>
+      </div>
+      <p><strong>Para MySQL:</strong></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>sudo apt-get install php8.2-mysql
+# Windows: habilite 'extension=mysqli' e 'extension=pdo_mysql' no php.ini</code></pre>
+      </div>
+
+      <h2 id="clonar">Clonar o repositório</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>git clone https://github.com/sweflow/api_sweflow_php.git
+cd api_sweflow_php</code></pre>
+      </div>
+
+      <h2 id="dependencias">Instalar dependências</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>composer install</code></pre>
+      </div>
+
+      <h2 id="setup">Setup automático (recomendado)</h2>
+      <p>O projeto possui um comando de setup completo com menu interativo:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow setup</code></pre>
+      </div>
+      <p>O menu interativo permite:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li>Gerar secrets JWT automaticamente</li>
+        <li>Criar banco de dados via Docker</li>
+        <li>Executar migrations e seeders</li>
+        <li>Subir o servidor PHP em background</li>
+        <li>Configurar Caddy para HTTPS automático</li>
+      </ul>
+
+      <p>Ou tudo de uma vez sem interação:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Ver todas as opções</strong>
+          <p><code>php sweflow setup --help</code> lista todas as flags disponíveis.</p>
+        </div>
+      </div>
+
+      <h2 id="manual">Setup manual (passo a passo)</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Copiar o arquivo de ambiente</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>cp EXEMPLO.env .env
+# Windows:
+copy EXEMPLO.env .env</code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Editar o .env com suas configurações</h3>
+            <p>Preencha pelo menos: <code>DB_HOST</code>, <code>DB_NOME</code>, <code>DB_USUARIO</code>, <code>DB_SENHA</code>, <code>JWT_SECRET</code> e <code>JWT_API_SECRET</code>.</p>
+            <p>Veja a seção <a href="#configuracao" onclick="showPage('configuracao');return false;">Configuração do Ambiente</a> para detalhes de cada variável.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Executar migrations</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>php sweflow migrate --seed</code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Iniciar o servidor</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>php -S localhost:3005 index.php</code></pre>
+            </div>
+            <p>Acesse: <a href="http://localhost:3005" target="_blank">http://localhost:3005</a></p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="instalacao-rapida">Instalação rápida (Ubuntu)</h2>
+      <p>Para Ubuntu 22.04/24.04, um único script instala tudo:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>git clone https://github.com/sweflow/api_sweflow_php.git
+cd api_sweflow_php
+sudo bash install.sh</code></pre>
+      </div>
+      <p>Instala PHP 8.2, Docker, drivers de banco, Composer, sobe o banco, roda migrations e seeders, e inicia o servidor — tudo automaticamente.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: CONFIGURAÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-configuracao">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-gear"></i></div>
+        <div>
+          <h1>Configuração do Ambiente</h1>
+          <p>Todas as configurações ficam no arquivo <code>.env</code>. Nunca edite o código para mudar senhas ou chaves.</p>
+        </div>
+      </div>
+
+      <h2 id="copiar-env">Criar o arquivo .env</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>cp EXEMPLO.env .env</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Nunca suba o .env para o Git</strong>
+          <p>O arquivo <code>.env</code> já está no <code>.gitignore</code>. Ele contém senhas e secrets — nunca deve ser versionado.</p>
+        </div>
+      </div>
+
+      <h2 id="variaveis-app">Aplicação</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>APP_NAME</code></td><td><code>"Sweflow API"</code></td><td>Nome da aplicação exibido no dashboard e e-mails.</td></tr>
+          <tr><td><code>APP_ENV</code></td><td><code>production</code></td><td><code>production</code>, <code>development</code> ou <code>testing</code>. Em produção ativa validações extras de segurança.</td></tr>
+          <tr><td><code>APP_DEBUG</code></td><td><code>false</code></td><td><code>true</code> exibe stack traces. <strong>Sempre <code>false</code> em produção.</strong></td></tr>
+          <tr><td><code>APP_URL</code></td><td><code>https://api.vupi.us</code></td><td>URL base da API. Usada em e-mails, CORS e sitemap.</td></tr>
+          <tr><td><code>APP_URL_FRONTEND</code></td><td><code>https://meusite.com</code></td><td>URL do frontend. Adicionada automaticamente ao CORS.</td></tr>
+          <tr><td><code>APP_PORT</code></td><td><code>3005</code></td><td>Porta do servidor PHP.</td></tr>
+          <tr><td><code>APP_TIMEZONE</code></td><td><code>America/Bahia</code></td><td>Fuso horário para datas e logs.</td></tr>
+          <tr><td><code>CORS_ALLOWED_ORIGINS</code></td><td><code>https://meusite.com</code></td><td>Origens permitidas para CORS, separadas por vírgula.</td></tr>
+          <tr><td><code>TRUST_PROXY</code></td><td><code>true</code></td><td><code>true</code> quando há proxy reverso (Caddy/Nginx). Confia em <code>X-Forwarded-Proto</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-db">Banco de dados (core)</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>DB_CONEXAO</code></td><td><code>postgresql</code></td><td>Driver: <code>postgresql</code> ou <code>mysql</code>.</td></tr>
+          <tr><td><code>DB_HOST</code></td><td><code>localhost</code></td><td>Host do banco de dados.</td></tr>
+          <tr><td><code>DB_PORT</code></td><td><code>5432</code></td><td>Porta. PostgreSQL: 5432, MySQL: 3306.</td></tr>
+          <tr><td><code>DB_NOME</code></td><td><code>sweflow_db</code></td><td>Nome do banco de dados.</td></tr>
+          <tr><td><code>DB_USUARIO</code></td><td><code>admin</code></td><td>Usuário do banco.</td></tr>
+          <tr><td><code>DB_SENHA</code></td><td><code>senha_forte</code></td><td>Senha do banco. Mínimo 16 caracteres em produção com banco remoto.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-db2">Banco de dados (modules) — opcional</h2>
+      <p>Permite que módulos externos usem um banco separado do core. Deixe <code>DB2_NOME</code> vazio para usar o mesmo banco do core.</p>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>DB2_CONEXAO</code></td><td>Driver do segundo banco (<code>postgresql</code> ou <code>mysql</code>).</td></tr>
+          <tr><td><code>DB2_HOST</code>, <code>DB2_PORT</code></td><td>Host e porta do segundo banco.</td></tr>
+          <tr><td><code>DB2_NOME</code></td><td>Nome do banco. Se vazio, usa o banco core.</td></tr>
+          <tr><td><code>DB2_USUARIO</code>, <code>DB2_SENHA</code></td><td>Credenciais do segundo banco.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-jwt">JWT e Segurança</h2>
+      <div class="callout danger">
+        <div class="callout-icon"><i class="fa-solid fa-lock"></i></div>
+        <div class="callout-body">
+          <strong>Secrets obrigatórios em produção</strong>
+          <p><code>JWT_SECRET</code> e <code>JWT_API_SECRET</code> devem ter no mínimo 32 caracteres. O sistema recusa iniciar em produção com valores fracos.</p>
+        </div>
+      </div>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWT_SECRET</code></td><td><code>abc123...64chars</code></td><td>Secret para tokens de usuários. Gere com <code>openssl rand -hex 32</code>.</td></tr>
+          <tr><td><code>JWT_API_SECRET</code></td><td><code>xyz789...64chars</code></td><td>Secret para tokens de admin_system. Deve ser diferente do JWT_SECRET.</td></tr>
+          <tr><td><code>JWT_ISSUER</code></td><td><code>https://api.vupi.us</code></td><td>Identificador do emissor do token (claim <code>iss</code>). Validado em toda requisição.</td></tr>
+          <tr><td><code>JWT_AUDIENCE</code></td><td><code>https://api.vupi.us</code></td><td>Audiência do token (claim <code>aud</code>). Validado em toda requisição.</td></tr>
+          <tr><td><code>JWT_EXPIRATION_TIME</code></td><td><code>900</code></td><td>Expiração do access token em segundos (padrão: 15 min).</td></tr>
+          <tr><td><code>REFRESH_TOKEN_EXPIRATION_SECONDS</code></td><td><code>2592000</code></td><td>Expiração do refresh token (padrão: 30 dias).</td></tr>
+          <tr><td><code>COOKIE_SECURE</code></td><td><code>true</code></td><td><code>true</code> em produção com HTTPS. Cookies só enviados via HTTPS.</td></tr>
+          <tr><td><code>COOKIE_SAMESITE</code></td><td><code>Lax</code></td><td><code>Lax</code> (mesmo domínio) ou <code>None</code> (domínios diferentes, requer Secure=true).</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-mail">E-mail (SMTP)</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>MAILER_HOST</code></td><td><code>smtp.gmail.com</code></td><td>Servidor SMTP.</td></tr>
+          <tr><td><code>MAILER_PORT</code></td><td><code>587</code></td><td>Porta SMTP. 587 para TLS, 465 para SSL.</td></tr>
+          <tr><td><code>MAILER_USERNAME</code></td><td><code>seu@gmail.com</code></td><td>Usuário SMTP.</td></tr>
+          <tr><td><code>MAILER_PASSWORD</code></td><td><code>app_password</code></td><td>Senha SMTP. Para Gmail, use uma App Password.</td></tr>
+          <tr><td><code>MAILER_FROM_EMAIL</code></td><td><code>no-reply@seudominio.com</code></td><td>E-mail remetente.</td></tr>
+          <tr><td><code>MAILER_FROM_NAME</code></td><td><code>"Sweflow API"</code></td><td>Nome do remetente.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-redis">Redis (opcional)</h2>
+      <p>Configure Redis para habilitar rate limiting distribuído entre múltiplos containers. Sem Redis, o sistema usa armazenamento em arquivo (servidor único).</p>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>REDIS_HOST</code></td><td><em>vazio</em></td><td>Host do Redis. Deixe vazio para usar file storage.</td></tr>
+          <tr><td><code>REDIS_PORT</code></td><td><code>6379</code></td><td>Porta do Redis.</td></tr>
+          <tr><td><code>REDIS_PASSWORD</code></td><td><em>vazio</em></td><td>Senha do Redis (se configurada).</td></tr>
+          <tr><td><code>REDIS_PREFIX</code></td><td><code>sweflow:</code></td><td>Prefixo das chaves no Redis.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="gerar-secrets">Gerar secrets JWT</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Gera JWT_SECRET (64 chars hex)
+openssl rand -hex 32
+
+# Gera JWT_API_SECRET (64 chars hex)
+openssl rand -hex 32
+
+# Ou via CLI do projeto (gera automaticamente se vazios)
+php sweflow setup --auto --jwt=if-empty</code></pre>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: ARQUITETURA
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-arquitetura">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-sitemap"></i></div>
+        <div>
+          <h1>Arquitetura do Sistema</h1>
+          <p>Entenda como as peças se encaixam.</p>
+        </div>
+      </div>
+
+      <h2 id="visao-geral">Visão geral</h2>
+      <p>A Sweflow API é organizada em duas camadas principais:</p>
+
+      <div class="file-tree">
+<span class="dir">api_sweflow_php/</span>
+├── <span class="dir">src/</span>
+│   ├── <span class="dir">Kernel/</span>          <span class="note"># Núcleo do sistema — não modifique</span>
+│   │   ├── <span class="dir">Nucleo/</span>       <span class="note"># Container, Router, Application, ModuleLoader</span>
+│   │   ├── <span class="dir">Middlewares/</span>  <span class="note"># Auth, RateLimit, Security, BotBlocker...</span>
+│   │   ├── <span class="dir">Contracts/</span>    <span class="note"># Interfaces (contratos)</span>
+│   │   ├── <span class="dir">Http/</span>         <span class="note"># Request, Response</span>
+│   │   ├── <span class="dir">Support/</span>      <span class="note"># JWT, AuditLogger, ThreatScorer, Storage...</span>
+│   │   ├── <span class="dir">Database/</span>     <span class="note"># PdoFactory, migrations do core</span>
+│   │   └── <span class="dir">Controllers/</span>  <span class="note"># Dashboard, Home, Capabilities...</span>
+│   └── <span class="dir">Modules/</span>         <span class="note"># Sua aplicação vive aqui</span>
+│       ├── <span class="dir">Auth/</span>         <span class="note"># Autenticação JWT (nativo)</span>
+│       └── <span class="dir">Usuario/</span>      <span class="note"># Gerenciamento de usuários (nativo)</span>
+├── <span class="dir">public/</span>              <span class="note"># Arquivos estáticos servidos diretamente</span>
+├── <span class="dir">storage/</span>             <span class="note"># Cache, rate limit, circuit breaker</span>
+├── <span class="file">index.php</span>            <span class="note"># Entry point — bootstrap da aplicação</span>
+└── <span class="file">EXEMPLO.env</span>          <span class="note"># Template de configuração</span>
+      </div>
+
+      <h2 id="fluxo">Fluxo de uma requisição</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>index.php — Entry point</h3>
+            <p>Toda requisição chega aqui. O arquivo carrega o <code>.env</code>, monta o Container de DI, registra os bindings e inicializa a <code>Application</code>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Application::run()</h3>
+            <p>Executa o pipeline de segurança global: <code>HttpsEnforcer</code> → <code>BotBlocker</code> → <code>SecurityHeaders</code> → dispatch da rota.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Router::dispatch()</h3>
+            <p>Encontra a rota correspondente e executa os middlewares em cadeia (onion model). Cada middleware pode bloquear ou passar adiante.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Controller → Service → Repository</h3>
+            <p>O Controller recebe a Request, delega ao Service (regras de negócio), que usa o Repository (acesso ao banco). Retorna um <code>Response</code>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h3>Response::Enviar()</h3>
+            <p>A resposta percorre o pipeline de volta, headers de segurança são injetados, e o JSON é enviado ao cliente.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="modulos-nativos">Módulos nativos</h2>
+      <p>O sistema vem com dois módulos pré-instalados em <code>src/Modules/</code>:</p>
+      <table class="docs-table">
+        <thead><tr><th>Módulo</th><th>Responsabilidade</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Auth</strong></td><td>Login, logout, refresh token, recuperação de senha, verificação de e-mail.</td></tr>
+          <tr><td><strong>Usuario</strong></td><td>Registro, perfil, gerenciamento de usuários (admin), upload de avatar.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: KERNEL
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-kernel">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-microchip"></i></div>
+        <div>
+          <h1>Camada Kernel</h1>
+          <p>O núcleo do sistema. Entenda cada componente de <code>src/Kernel/</code>.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Regra de ouro</strong>
+          <p>Você raramente precisará modificar o Kernel. Ele foi projetado para ser estável e extensível via módulos.</p>
+        </div>
+      </div>
+
+      <h2 id="kernel-nucleo">Nucleo/ — O coração</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-solid fa-box" style="color:#4f46e5"></i></div>
+          <h3>Container.php</h3>
+          <p>Container de Injeção de Dependência. Resolve classes automaticamente via Reflection. Suporta singletons, bindings e resolução recursiva.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-route" style="color:#16a34a"></i></div>
+          <h3>Router.php</h3>
+          <p>Roteador HTTP. Suporta GET, POST, PUT, PATCH, DELETE. Parâmetros dinâmicos (<code>{uuid}</code>), middlewares por rota e pipeline em cadeia.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-play" style="color:#d97706"></i></div>
+          <h3>Application.php</h3>
+          <p>Orquestra o boot: carrega módulos, registra rotas, executa BotBlocker e SecurityHeaders globalmente, despacha a requisição.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(96,165,250,0.12)"><i class="fa-solid fa-puzzle-piece" style="color:#2563eb"></i></div>
+          <h3>ModuleLoader.php</h3>
+          <p>Descobre e carrega módulos automaticamente de <code>src/Modules/</code>. Chama <code>boot()</code> e <code>registerRoutes()</code> de cada provider.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(167,139,250,0.12)"><i class="fa-solid fa-plug" style="color:#7c3aed"></i></div>
+          <h3>PluginManager.php</h3>
+          <p>Gerencia plugins externos (instalação, ativação, desativação, remoção). Persiste estado em <code>storage/</code>.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(244,114,182,0.12)"><i class="fa-solid fa-network-wired" style="color:#db2777"></i></div>
+          <h3>CapabilityResolver.php</h3>
+          <p>Sistema de capacidades. Permite que módulos declarem e consumam serviços (ex: <code>email-sender</code>) sem acoplamento direto.</p>
+        </div>
+      </div>
+
+      <h2 id="kernel-middlewares">Middlewares/</h2>
+      <p>Todos os middlewares implementam <code>MiddlewareInterface</code> e seguem o padrão onion (cebola).</p>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Função</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthHybridMiddleware</code></td><td>Autentica via JWT (cookie ou header Authorization). Valida assinatura, claims, blacklist e UUID.</td></tr>
+          <tr><td><code>AdminOnlyMiddleware</code></td><td>Restringe acesso a <code>admin_system</code> com token assinado por <code>JWT_API_SECRET</code>.</td></tr>
+          <tr><td><code>RateLimitMiddleware</code></td><td>Rate limiting por IP + usuário. Redis (distribuído) ou File (servidor único). Configurável por rota.</td></tr>
+          <tr><td><code>BotBlockerMiddleware</code></td><td>Bloqueia User-Agents de scanners (sqlmap, nikto, nmap...). Aplica delay progressivo por ThreatScore.</td></tr>
+          <tr><td><code>SecurityHeadersMiddleware</code></td><td>Injeta CSP, HSTS, X-Frame-Options, CORP, COEP, COOP em todas as respostas.</td></tr>
+          <tr><td><code>CircuitBreakerMiddleware</code></td><td>Protege contra falhas em cascata. Estados: CLOSED → OPEN → HALF. Persiste em Redis ou File.</td></tr>
+          <tr><td><code>AuthPageMiddleware</code></td><td>Autenticação para páginas HTML do dashboard. Redireciona para <code>/</code> se não autenticado.</td></tr>
+          <tr><td><code>HttpsEnforcerMiddleware</code></td><td>Redireciona HTTP → HTTPS quando <code>COOKIE_SECURE=true</code>.</td></tr>
+          <tr><td><code>ApiTokenMiddleware</code></td><td>Autenticação via token de API (tipo <code>api</code> no JWT).</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="usar-middleware">Como usar um middleware em uma rota</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code><span class="cm">// Rota pública — sem middleware</span>
+<span class="va">$router</span><span class="op">-></span><span class="fn">get</span>(<span class="str">'/api/status'</span>, [StatusController::<span class="kw">class</span>, <span class="str">'index'</span>]);
+
+<span class="cm">// Rota autenticada</span>
+<span class="va">$router</span><span class="op">-></span><span class="fn">get</span>(<span class="str">'/api/perfil'</span>, [PerfilController::<span class="kw">class</span>, <span class="str">'index'</span>], [
+    AuthHybridMiddleware::<span class="kw">class</span>,
+]);
+
+<span class="cm">// Rota admin com rate limit</span>
+<span class="va">$router</span><span class="op">-></span><span class="fn">post</span>(<span class="str">'/api/usuarios'</span>, [UsuarioController::<span class="kw">class</span>, <span class="str">'criar'</span>], [
+    AuthHybridMiddleware::<span class="kw">class</span>,
+    AdminOnlyMiddleware::<span class="kw">class</span>,
+    [RateLimitMiddleware::<span class="kw">class</span>, [<span class="str">'limit'</span> => <span class="nb">5</span>, <span class="str">'window'</span> => <span class="nb">60</span>, <span class="str">'key'</span> => <span class="str">'usuario.criar'</span>]],
+]);</code></pre>
+      </div>
+
+      <h2 id="kernel-support">Support/ — Utilitários</h2>
+      <table class="docs-table">
+        <thead><tr><th>Arquivo</th><th>Função</th></tr></thead>
+        <tbody>
+          <tr><td><code>JwtDecoder.php</code></td><td>Decodifica e valida tokens JWT. Suporta key rotation via <code>kid</code>, validação de <code>iss</code> e <code>aud</code>.</td></tr>
+          <tr><td><code>ThreatScorer.php</code></td><td>Acumula pontos de comportamento suspeito por IP. Threshold 150 = bloqueio. TTL 1h.</td></tr>
+          <tr><td><code>AuditLogger.php</code></td><td>Registra eventos de segurança no banco e stderr (Fail2Ban). Detecta brute force automaticamente.</td></tr>
+          <tr><td><code>SecurityEventLogger.php</code></td><td>Logger estruturado JSON para THREAT, AUTH, BUSINESS_LOGIC, ABUSE. Integra com Datadog/CloudWatch.</td></tr>
+          <tr><td><code>IdempotencyLock.php</code></td><td>Distributed lock via Redis SET NX ou flock. Previne race conditions em operações críticas.</td></tr>
+          <tr><td><code>IpResolver.php</code></td><td>Resolve IP real do cliente respeitando <code>TRUST_PROXY</code> e <code>X-Forwarded-For</code>.</td></tr>
+          <tr><td><code>OwnershipGuard.php</code></td><td>Verifica se o usuário autenticado é dono do recurso. Previne IDOR.</td></tr>
+          <tr><td><code>MailerService.php</code></td><td>Envio de e-mails via SMTP (PHPMailer). Suporta HTML, templates e throttling.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="kernel-http">Http/ — Request e Response</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code><span class="cm">// Response JSON</span>
+<span class="kw">return</span> Response::<span class="fn">json</span>([<span class="str">'status'</span> => <span class="str">'ok'</span>, <span class="str">'data'</span> => <span class="va">$dados</span>]);
+<span class="kw">return</span> Response::<span class="fn">json</span>([<span class="str">'error'</span> => <span class="str">'Não encontrado'</span>], <span class="nb">404</span>);
+
+<span class="cm">// Response HTML</span>
+<span class="kw">return</span> Response::<span class="fn">html</span>(<span class="va">$html</span>);
+
+<span class="cm">// Acessar dados da requisição</span>
+<span class="va">$body</span>    = <span class="va">$request</span><span class="op">-></span>body;          <span class="cm">// array do JSON body</span>
+<span class="va">$query</span>   = <span class="va">$request</span><span class="op">-></span>query;         <span class="cm">// query string params</span>
+<span class="va">$usuario</span> = <span class="va">$request</span><span class="op">-></span><span class="fn">attribute</span>(<span class="str">'auth_user'</span>); <span class="cm">// injetado pelo AuthMiddleware</span>
+<span class="va">$uuid</span>    = <span class="va">$request</span><span class="op">-></span><span class="fn">param</span>(<span class="str">'uuid'</span>);  <span class="cm">// parâmetro de rota {uuid}</span></code></pre>
+      </div>
+
+      <h2 id="kernel-contracts">Contracts/ — Interfaces</h2>
+      <p>As interfaces definem contratos que o Kernel usa internamente. Módulos podem implementá-las para integrar com o sistema:</p>
+      <table class="docs-table">
+        <thead><tr><th>Interface</th><th>Implementação padrão</th></tr></thead>
+        <tbody>
+          <tr><td><code>UserRepositoryInterface</code></td><td><code>Modules/Usuario/Repositories/UsuarioRepository</code></td></tr>
+          <tr><td><code>TokenBlacklistInterface</code></td><td><code>Modules/Auth/Repositories/AccessTokenBlacklistRepository</code></td></tr>
+          <tr><td><code>EmailSenderInterface</code></td><td><code>Kernel/Support/MailerService</code></td></tr>
+          <tr><td><code>RateLimitStorageInterface</code></td><td><code>RedisRateLimitStorage</code> ou <code>FileRateLimitStorage</code></td></tr>
+          <tr><td><code>ModuleProviderInterface</code></td><td>Implementada por cada módulo em seu ServiceProvider</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: MÓDULOS
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-modulos">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-puzzle-piece"></i></div>
+        <div>
+          <h1>Módulos</h1>
+          <p>Onde sua aplicação vive. Cada pasta em <code>src/Modules/</code> é um módulo independente.</p>
+        </div>
+      </div>
+
+      <h2 id="conceito-modulo">O conceito Zero Config</h2>
+      <p>No Sweflow, <strong>uma pasta é um módulo</strong>. Não existe registro manual. O <code>ModuleLoader</code> varre <code>src/Modules/</code> automaticamente e carrega tudo que encontrar.</p>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Regra simples</strong>
+          <p>Crie a pasta → crie o ServiceProvider → crie o <code>Routes/web.php</code>. O sistema faz o resto.</p>
+        </div>
+      </div>
+
+      <h2 id="estrutura-modulo">Estrutura de um módulo</h2>
+      <div class="file-tree">
+<span class="dir">src/Modules/Usuario/</span>
+├── <span class="dir">Controllers/</span>      <span class="note"># Endpoints HTTP — recebe Request, retorna Response</span>
+│   └── <span class="file">UsuarioController.php</span>
+├── <span class="dir">Services/</span>         <span class="note"># Regras de negócio — o coração do módulo</span>
+│   ├── <span class="file">UsuarioService.php</span>
+│   └── <span class="file">UsuarioServiceInterface.php</span>
+├── <span class="dir">Repositories/</span>     <span class="note"># Acesso ao banco de dados</span>
+│   ├── <span class="file">UsuarioRepository.php</span>
+│   ├── <span class="file">UsuarioRepositoryInterface.php</span>
+│   └── <span class="file">UsuarioAbstractRepository.php</span>
+├── <span class="dir">Entities/</span>         <span class="note"># Modelos de domínio (sem dependência de framework)</span>
+│   └── <span class="file">Usuario.php</span>
+├── <span class="dir">Exceptions/</span>       <span class="note"># Exceções específicas do módulo</span>
+│   ├── <span class="file">InvalidEmailException.php</span>
+│   └── <span class="file">InvalidPasswordException.php</span>
+├── <span class="dir">Database/</span>
+│   ├── <span class="dir">Migrations/</span>   <span class="note"># Criação e alteração de tabelas</span>
+│   ├── <span class="dir">Seeders/</span>      <span class="note"># Dados iniciais</span>
+│   └── <span class="file">connection.php</span>  <span class="note"># Declara qual banco usar (core ou modules)</span>
+└── <span class="dir">Routes/</span>
+    └── <span class="file">web.php</span>       <span class="note"># ⚠ Obrigatório para ter rotas HTTP</span>
+      </div>
+    </section>
+    <!-- PAGE: CRIAR MODULO -->
+    <section class="docs-page" id="page-criar-modulo">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-code"></i></div>
+        <div>
+          <h1>Criando um Módulo</h1>
+          <p>Guia completo para construir o módulo Usuario do zero.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Objetivo deste guia</strong>
+          <p>Ao seguir todos os passos, você terá o módulo Usuario funcionando com registro, login, perfil e gerenciamento — idêntico ao módulo nativo do sistema.</p>
+        </div>
+      </div>
+
+      <h2 id="passo1-pasta">Passo 1 — Criar a estrutura de pastas</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>mkdir -p src/Modules/Usuario/{Controllers,Services,Repositories,Entities,Exceptions,Database/Migrations,Database/Seeders,Routes}</code></pre>
+      </div>
+      <p>Ou via CLI:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow make:module Usuario</code></pre>
+      </div>
+
+      <h2 id="passo2-entity">Passo 2 — Criar a Entity</h2>
+      <p>A Entity representa o domínio. Não depende de banco, framework ou HTTP. Contém validações e regras de negócio puras.</p>
+      <p>Arquivo: <code>src/Modules/Usuario/Entities/Usuario.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+namespace Src\Modules\Usuario\Entities;
+
+use Ramsey\Uuid\Uuid;
+use Ramsey\Uuid\UuidInterface;
+
+final class Usuario
+{
+    private function __construct(
+        private UuidInterface $uuid,
+        private string $nomeCompleto,
+        private string $username,
+        private string $email,
+        private string $senhaHash,
+        private string $nivelAcesso = 'usuario',
+        private bool   $ativo = true,
+    ) {}
+
+    // Factory: cria novo usuario com validacoes
+    public static function registrar(
+        string $nomeCompleto,
+        string $username,
+        string $email,
+        string $senha,
+        string $nivelAcesso = 'usuario'
+    ): self {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new \InvalidArgumentException('E-mail invalido.');
+        }
+        if (strlen($senha) &lt; 8) {
+            throw new \InvalidArgumentException('Senha deve ter ao menos 8 caracteres.');
+        }
+        return new self(
+            Uuid::uuid4(),
+            $nomeCompleto,
+            strtolower(trim($username)),
+            $email,
+            password_hash($senha, PASSWORD_ARGON2ID),
+            $nivelAcesso,
+        );
+    }
+
+    // Factory: reconstitui do banco de dados
+    public static function reconstituir(
+        UuidInterface $uuid,
+        string $nomeCompleto,
+        string $username,
+        string $email,
+        string $senhaHash,
+        string $nivelAcesso,
+        bool   $ativo,
+    ): self {
+        return new self($uuid, $nomeCompleto, $username, $email, $senhaHash, $nivelAcesso, $ativo);
+    }
+
+    public function verificarSenha(string $senha): bool
+    {
+        return password_verify($senha, $this->senhaHash);
+    }
+
+    public function getUuid(): UuidInterface { return $this->uuid; }
+    public function getNomeCompleto(): string { return $this->nomeCompleto; }
+    public function getUsername(): string     { return $this->username; }
+    public function getEmail(): string        { return $this->email; }
+    public function getSenhaHash(): string    { return $this->senhaHash; }
+    public function getNivelAcesso(): string  { return $this->nivelAcesso; }
+    public function isAtivo(): bool           { return $this->ativo; }
+}</code></pre>
+      </div>
+
+      <h2 id="passo3-repository">Passo 3 — Criar o Repository</h2>
+      <p>O Repository isola o acesso ao banco. Sempre use prepared statements.</p>
+      <p>Arquivo: <code>src/Modules/Usuario/Repositories/UsuarioRepository.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+namespace Src\Modules\Usuario\Repositories;
+
+use PDO;
+use Ramsey\Uuid\Uuid;
+use Src\Modules\Usuario\Entities\Usuario;
+
+class UsuarioRepository
+{
+    public function __construct(private PDO $pdo) {}
+
+    public function salvar(Usuario $usuario): void
+    {
+        $sql = "INSERT INTO usuarios
+                    (uuid, nome_completo, username, email, senha_hash, nivel_acesso, ativo)
+                VALUES
+                    (:uuid, :nome, :username, :email, :senha_hash, :nivel, :ativo)
+                ON CONFLICT (uuid) DO UPDATE SET
+                    nome_completo = EXCLUDED.nome_completo,
+                    email         = EXCLUDED.email,
+                    ativo         = EXCLUDED.ativo";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':uuid'       => $usuario->getUuid()->toString(),
+            ':nome'       => $usuario->getNomeCompleto(),
+            ':username'   => $usuario->getUsername(),
+            ':email'      => $usuario->getEmail(),
+            ':senha_hash' => $usuario->getSenhaHash(),
+            ':nivel'      => $usuario->getNivelAcesso(),
+            ':ativo'      => $usuario->isAtivo() ? 1 : 0,
+        ]);
+    }
+
+    public function buscarPorEmail(string $email): ?Usuario
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM usuarios WHERE email = :email LIMIT 1"
+        );
+        $stmt->execute([':email' => $email]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? $this->hidratar($row) : null;
+    }
+
+    public function buscarPorUuid(string $uuid): ?Usuario
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM usuarios WHERE uuid = :uuid LIMIT 1"
+        );
+        $stmt->execute([':uuid' => $uuid]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? $this->hidratar($row) : null;
+    }
+
+    private function hidratar(array $row): Usuario
+    {
+        return Usuario::reconstituir(
+            Uuid::fromString($row['uuid']),
+            $row['nome_completo'],
+            $row['username'],
+            $row['email'],
+            $row['senha_hash'],
+            $row['nivel_acesso'],
+            (bool) $row['ativo'],
+        );
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="passo4-service">Passo 4 — Criar o Service</h2>
+      <p>O Service contém as regras de negócio. Usa o Repository para persistência.</p>
+      <p>Arquivo: <code>src/Modules/Usuario/Services/UsuarioService.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+namespace Src\Modules\Usuario\Services;
+
+use DomainException;
+use Src\Modules\Usuario\Entities\Usuario;
+use Src\Modules\Usuario\Repositories\UsuarioRepository;
+
+class UsuarioService
+{
+    public function __construct(
+        private UsuarioRepository $repository
+    ) {}
+
+    public function registrar(
+        string $nomeCompleto,
+        string $username,
+        string $email,
+        string $senha
+    ): Usuario {
+        // Verifica duplicidade
+        if ($this->repository->buscarPorEmail($email)) {
+            throw new DomainException('E-mail ja cadastrado.', 409);
+        }
+
+        $usuario = Usuario::registrar($nomeCompleto, $username, $email, $senha);
+        $this->repository->salvar($usuario);
+        return $usuario;
+    }
+
+    public function buscarPorUuid(string $uuid): Usuario
+    {
+        $usuario = $this->repository->buscarPorUuid($uuid);
+        if (!$usuario) {
+            throw new DomainException('Usuario nao encontrado.', 404);
+        }
+        return $usuario;
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="passo5-controller">Passo 5 — Criar o Controller</h2>
+      <p>O Controller recebe a requisição HTTP, valida os dados de entrada e delega ao Service.</p>
+      <p>Arquivo: <code>src/Modules/Usuario/Controllers/UsuarioController.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+namespace Src\Modules\Usuario\Controllers;
+
+use DomainException;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+use Src\Modules\Usuario\Services\UsuarioService;
+
+class UsuarioController
+{
+    // O Container injeta o UsuarioService automaticamente
+    public function __construct(
+        private UsuarioService $service
+    ) {}
+
+    public function criar(Request $request): Response
+    {
+        $body = $request->body ?? [];
+
+        $nome     = trim($body['nome_completo'] ?? '');
+        $username = trim($body['username']      ?? '');
+        $email    = trim($body['email']         ?? '');
+        $senha    = $body['senha']              ?? '';
+
+        if (!$nome || !$username || !$email || !$senha) {
+            return Response::json(['error' => 'Todos os campos sao obrigatorios.'], 422);
+        }
+
+        try {
+            $usuario = $this->service->registrar($nome, $username, $email, $senha);
+            return Response::json([
+                'status'  => 'success',
+                'message' => 'Usuario criado com sucesso.',
+                'uuid'    => $usuario->getUuid()->toString(),
+            ], 201);
+        } catch (DomainException $e) {
+            $code = $e->getCode() >= 400 ? $e->getCode() : 422;
+            return Response::json(['error' => $e->getMessage()], $code);
+        }
+    }
+
+    public function perfil(Request $request): Response
+    {
+        // auth_user e injetado pelo AuthHybridMiddleware
+        $usuario = $request->attribute('auth_user');
+        return Response::json([
+            'uuid'         => $usuario->getUuid()->toString(),
+            'nome_completo'=> $usuario->getNomeCompleto(),
+            'username'     => $usuario->getUsername(),
+            'email'        => $usuario->getEmail(),
+            'nivel_acesso' => $usuario->getNivelAcesso(),
+        ]);
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="passo6-migration">Passo 6 — Criar a Migration</h2>
+      <p>Arquivo: <code>src/Modules/Usuario/Database/Migrations/001_create_usuarios.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    uuid          UUID         NOT NULL PRIMARY KEY,
+                    nome_completo VARCHAR(255) NOT NULL,
+                    username      VARCHAR(50)  NOT NULL UNIQUE,
+                    email         VARCHAR(255) NOT NULL UNIQUE,
+                    senha_hash    VARCHAR(255) NOT NULL,
+                    nivel_acesso  VARCHAR(20)  DEFAULT 'usuario',
+                    ativo         BOOLEAN      NOT NULL DEFAULT TRUE,
+                    criado_em     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            ");
+        } else {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    uuid          CHAR(36)     NOT NULL PRIMARY KEY,
+                    nome_completo VARCHAR(255) NOT NULL,
+                    username      VARCHAR(50)  NOT NULL UNIQUE,
+                    email         VARCHAR(255) NOT NULL UNIQUE,
+                    senha_hash    VARCHAR(255) NOT NULL,
+                    nivel_acesso  VARCHAR(20)  DEFAULT 'usuario',
+                    ativo         TINYINT(1)   NOT NULL DEFAULT 1,
+                    criado_em     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS usuarios");
+    },
+];</code></pre>
+      </div>
+      <p>Execute a migration:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow migrate</code></pre>
+      </div>
+
+      <h2 id="passo7-rotas">Passo 7 — Definir as Rotas</h2>
+      <p>Arquivo: <code>src/Modules/Usuario/Routes/web.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
+use Src\Modules\Usuario\Controllers\UsuarioController;
+
+// Rate limits
+$registroLimit = [RateLimitMiddleware::class, ['limit' => 5, 'window' => 60, 'key' => 'usuario.registro']];
+
+// Registro publico
+$router->post('/api/registrar', [UsuarioController::class, 'criar'], [$registroLimit]);
+
+// Perfil do usuario autenticado
+$router->get('/api/perfil', [UsuarioController::class, 'perfil'], [
+    AuthHybridMiddleware::class,
+]);
+
+// Gerenciamento (admin)
+$router->get('/api/usuarios', [UsuarioController::class, 'listar'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Pronto!</strong>
+          <p>Reinicie o servidor e teste: <code>POST /api/registrar</code> com <code>nome_completo</code>, <code>username</code>, <code>email</code> e <code>senha</code>. O módulo Usuario está funcionando.</p>
+        </div>
+      </div>
+
+      <h2 id="passo8-seeder">Passo 8 — Criar um Seeder (opcional)</h2>
+      <p>Arquivo: <code>src/Modules/Usuario/Database/Seeders/001_admin_user.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+return function (PDO $pdo): void {
+    $uuid  = \Ramsey\Uuid\Uuid::uuid4()->toString();
+    $hash  = password_hash('Admin@12345', PASSWORD_ARGON2ID);
+    $stmt  = $pdo->prepare("
+        INSERT INTO usuarios (uuid, nome_completo, username, email, senha_hash, nivel_acesso)
+        VALUES (:uuid, :nome, :username, :email, :hash, 'admin_system')
+        ON CONFLICT (email) DO NOTHING
+    ");
+    $stmt->execute([
+        ':uuid'     => $uuid,
+        ':nome'     => 'Administrador',
+        ':username' => 'admin',
+        ':email'    => getenv('ADMIN_EMAIL') ?: 'admin@admin.com',
+        ':hash'     => $hash,
+    ]);
+};</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow migrate --seed</code></pre>
+      </div>
+    </section>
+    <!-- PAGE: ROTAS -->
+    <section class="docs-page" id="page-rotas">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-route"></i></div>
+        <div><h1>Rotas e Middlewares</h1><p>Como definir endpoints e protegê-los.</p></div>
+      </div>
+      <h2 id="definir-rotas">Definindo rotas</h2>
+      <p>O arquivo <code>Routes/web.php</code> do módulo é carregado automaticamente. A variável <code>$router</code> já está disponível.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Métodos disponíveis
+$router->get('/api/recurso',          [Controller::class, 'listar']);
+$router->post('/api/recurso',         [Controller::class, 'criar']);
+$router->put('/api/recurso/{uuid}',   [Controller::class, 'atualizar']);
+$router->patch('/api/recurso/{uuid}', [Controller::class, 'parcial']);
+$router->delete('/api/recurso/{uuid}',[Controller::class, 'deletar']);</code></pre>
+      </div>
+      <h2 id="parametros-rota">Parâmetros de rota</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Definição
+$router->get('/api/usuario/{uuid}', [UsuarioController::class, 'buscar']);
+
+// No Controller
+public function buscar(Request $request): Response
+{
+    $uuid = $request->param('uuid'); // captura {uuid}
+    // ...
+}</code></pre>
+      </div>
+      <h2 id="middlewares-disponiveis">Middlewares disponíveis</h2>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Quando usar</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthHybridMiddleware</code></td><td>Qualquer rota que exige usuário logado.</td></tr>
+          <tr><td><code>AdminOnlyMiddleware</code></td><td>Rotas exclusivas para <code>admin_system</code>.</td></tr>
+          <tr><td><code>RateLimitMiddleware</code></td><td>Limitar requisições por IP/usuário.</td></tr>
+          <tr><td><code>CircuitBreakerMiddleware</code></td><td>Rotas que dependem de banco ou serviços externos.</td></tr>
+          <tr><td><code>ApiTokenMiddleware</code></td><td>Rotas acessadas por tokens de API (integrações).</td></tr>
+        </tbody>
+      </table>
+      <h2 id="rate-limit-config">Configurando Rate Limit</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>$loginLimit = [RateLimitMiddleware::class, [
+    'limit'      => 10,   // max requisições
+    'window'     => 60,   // janela em segundos
+    'key'        => 'auth.login',  // chave única para este limite
+    'user_limit' => 5,    // limite por usuário autenticado (opcional)
+]];
+
+$router->post('/api/login', [AuthController::class, 'login'], [$loginLimit]);</code></pre>
+      </div>
+    </section>
+
+    <!-- PAGE: BANCO -->
+    <section class="docs-page" id="page-banco">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-database"></i></div>
+        <div><h1>Banco de Dados</h1><p>Migrations, seeders e conexões.</p></div>
+      </div>
+      <h2 id="migrations">Migrations</h2>
+      <p>Cada migration é um arquivo PHP que retorna um array com <code>up</code> e <code>down</code>. O nome do arquivo define a ordem de execução.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow migrate          # executa migrations pendentes
+php sweflow migrate --seed   # migrations + seeders
+php db rollback              # desfaz a última migration</code></pre>
+      </div>
+      <h2 id="dois-bancos">Dois bancos simultâneos</h2>
+      <p>O sistema suporta dois bancos: <strong>core</strong> (DB_*) para módulos nativos e <strong>modules</strong> (DB2_*) para módulos externos. Declare qual usar no <code>connection.php</code> do módulo:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// src/Modules/MeuModulo/Database/connection.php
+return 'modules'; // usa DB2_* | 'core' usa DB_* | 'auto' = padrão</code></pre>
+      </div>
+      <h2 id="prepared-statements">Sempre use Prepared Statements</h2>
+      <div class="callout danger">
+        <div class="callout-icon"><i class="fa-solid fa-ban"></i></div>
+        <div class="callout-body">
+          <strong>Nunca concatene SQL</strong>
+          <p>Concatenar variáveis em SQL abre brecha para SQL Injection. Sempre use <code>prepare()</code> + <code>bindValue()</code>.</p>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// ERRADO — vulnerável a SQL Injection
+$pdo->query("SELECT * FROM usuarios WHERE email = '$email'");
+
+// CORRETO — sempre assim
+$stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = :email");
+$stmt->bindValue(':email', $email);
+$stmt->execute();
+$row = $stmt->fetch(PDO::FETCH_ASSOC);</code></pre>
+      </div>
+    </section>
+
+    <!-- PAGE: COMUNICACAO -->
+    <section class="docs-page" id="page-comunicacao">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-arrows-left-right"></i></div>
+        <div><h1>Comunicação Entre Módulos</h1><p>Como módulos conversam sem acoplamento.</p></div>
+      </div>
+      <h2 id="hard-dep">Dependência obrigatória</h2>
+      <p>Use quando seu módulo <strong>não funciona</strong> sem o outro. Se o módulo dependente for removido, o sistema para com erro claro.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Modules\Usuario\Services\UsuarioService;
+
+class FaturaService
+{
+    public function __construct(
+        private UsuarioService $usuarioService // obrigatorio
+    ) {}
+
+    public function emitir(string $userUuid): void
+    {
+        $usuario = $this->usuarioService->buscarPorUuid($userUuid);
+        // ...
+    }
+}</code></pre>
+      </div>
+      <h2 id="soft-dep">Dependência opcional</h2>
+      <p>Use quando seu módulo <strong>pode funcionar</strong> sem o outro. O Container injeta <code>null</code> se o módulo não existir.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Contracts\EmailSenderInterface;
+
+class FaturaService
+{
+    public function __construct(
+        private ?EmailSenderInterface $email = null // opcional
+    ) {}
+
+    public function processar(): void
+    {
+        $this->salvarNoBanco();
+
+        // Operador nullsafe: se $email for null, linha ignorada sem erro
+        $this->email?->sendCustom('cliente@email.com', 'Fatura', '&lt;p&gt;Gerada!&lt;/p&gt;');
+    }
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Regra de ouro</strong>
+          <p>Nunca acesse a tabela de outro módulo diretamente via SQL. Sempre use o Service do outro módulo para obter dados.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: SEGURANCA -->
+    <section class="docs-page" id="page-seguranca">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div><h1>Segurança</h1><p>O sistema foi construído com segurança em cada camada.</p></div>
+      </div>
+      <h2 id="jwt">Autenticação JWT</h2>
+      <p>O sistema usa dois secrets JWT distintos:</p>
+      <table class="docs-table">
+        <thead><tr><th>Secret</th><th>Usado para</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWT_SECRET</code></td><td>Tokens de usuários comuns.</td></tr>
+          <tr><td><code>JWT_API_SECRET</code></td><td>Tokens de <code>admin_system</code> e tokens de API.</td></tr>
+        </tbody>
+      </table>
+      <p>Todo token é validado com: assinatura, expiração, <code>iss</code>, <code>aud</code>, <code>jti</code> (blacklist) e UUID do usuário.</p>
+      <h2 id="rate-limiting">Rate Limiting</h2>
+      <p>Dupla camada: por IP e por usuário autenticado. Usa Redis (distribuído) ou File (servidor único). Configurável por rota.</p>
+      <h2 id="threat-scorer">ThreatScorer</h2>
+      <p>Acumula pontos de comportamento suspeito por IP:</p>
+      <table class="docs-table">
+        <thead><tr><th>Evento</th><th>Pontos</th></tr></thead>
+        <tbody>
+          <tr><td>Acesso a honeypot</td><td>+100</td></tr>
+          <tr><td>User-Agent malicioso</td><td>+50</td></tr>
+          <tr><td>Falha de login</td><td>+30</td></tr>
+          <tr><td>Rate limit excedido</td><td>+20</td></tr>
+          <tr><td>Sem User-Agent</td><td>+15</td></tr>
+        </tbody>
+      </table>
+      <p>Score ≥ 50: delay progressivo. Score ≥ 150: bloqueio (403). TTL: 1 hora.</p>
+      <h2 id="boas-praticas">Boas práticas</h2>
+      <ul style="color:var(--text-sub);padding-left:24px;line-height:2.2;font-size:1.05rem">
+        <li>Sempre use <code>APP_DEBUG=false</code> em produção.</li>
+        <li>Nunca concatene variáveis em SQL — use prepared statements.</li>
+        <li>Nunca acesse tabelas de outros módulos diretamente.</li>
+        <li>Valide todos os inputs no Controller ou Service.</li>
+        <li>Use <code>OwnershipGuard</code> para verificar posse de recursos.</li>
+        <li>Gere secrets JWT com <code>openssl rand -hex 32</code>.</li>
+        <li>Configure <code>COOKIE_SECURE=true</code> e <code>COOKIE_HTTPONLY=true</code> em produção.</li>
+      </ul>
+    </section>
+
+    <!-- PAGE: COMANDOS -->
+    <section class="docs-page" id="page-comandos">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-terminal"></i></div>
+        <div><h1>Comandos CLI</h1><p>Referência completa de todos os comandos disponíveis.</p></div>
+      </div>
+      <h2 id="cmd-setup">Setup</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow setup                    # menu interativo
+php sweflow setup --help             # lista todas as flags
+php sweflow setup --auto             # modo automatico (sem interacao)
+php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty</code></pre>
+      </div>
+      <h2 id="cmd-migrate">Migrations</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow migrate          # executa migrations pendentes
+php sweflow migrate --seed   # migrations + seeders
+php db                       # menu interativo do banco
+php db migrate
+php db seed
+php db rollback</code></pre>
+      </div>
+      <h2 id="cmd-make">Geração de código</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow make:module NomeDoModulo
+php sweflow make:plugin NomeDoPlugin --capability=email-sender</code></pre>
+      </div>
+      <h2 id="cmd-plugins">Plugins</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php sweflow plugin:install   nome-do-plugin
+php sweflow plugin:migrate   nome-do-plugin
+php sweflow plugin:rollback  nome-do-plugin
+php sweflow plugin:validate  nome-do-plugin
+php sweflow plugin:inspect   nome-do-plugin</code></pre>
+      </div>
+      <h2 id="cmd-servidor">Servidor</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php -S localhost:3005 index.php       # desenvolvimento
+php sweflow setup --auto --server=pm2+caddy  # producao com PM2 + Caddy</code></pre>
+      </div>
+      <h2 id="cmd-testes">Testes</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php vendor/bin/phpunit                        # todos os testes
+php tests/SecurityTest.php http://localhost:3005  # testes OWASP
+php tests/FuzzTest.php http://localhost:3005      # fuzzing
+php tests/LoadAttackTest.php http://localhost:3005 # carga + ataque
+ADMIN_PASSWORD=senha php tests/EnvConfigTest.php  # testes de configuracao</code></pre>
+      </div>
+    </section>
+
+  </main>
+</div><!-- /.docs-layout -->
+
+<button class="scroll-top" id="scroll-top" aria-label="Voltar ao topo">
+  <i class="fa-solid fa-arrow-up"></i>
+</button>
+
+<script src="assets/js/docs.js"></script>
+</body>
+</html>
