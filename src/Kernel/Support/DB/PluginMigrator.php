@@ -7,7 +7,7 @@ class PluginMigrator
 {
     private PDO $pdo;
     private string $projectRoot;
-    private string $table = 'sweflow_plugin_migrations';
+    private string $table = 'vupi_plugin_migrations';
 
     public function __construct(PDO $pdo, string $projectRoot)
     {
@@ -54,10 +54,12 @@ class PluginMigrator
 
     public function rollbackLatest(?string $pluginName = null): void
     {
-        $filter = $pluginName ? ' WHERE plugin = :p ' : '';
-        $sql = "SELECT * FROM {$this->table}{$filter} ORDER BY id DESC LIMIT 1";
-        $stmt = $this->pdo->prepare($sql);
-        if ($pluginName) $stmt->bindValue(':p', $pluginName);
+        if ($pluginName !== null) {
+            $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE plugin = :p ORDER BY id DESC LIMIT 1");
+            $stmt->bindValue(':p', $pluginName);
+        } else {
+            $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} ORDER BY id DESC LIMIT 1");
+        }
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
@@ -83,7 +85,7 @@ class PluginMigrator
 
     /**
      * Roda as migrations SQL do kernel (src/Kernel/Database/migrations/*.sql).
-     * Cada arquivo é executado uma única vez, rastreado na tabela sweflow_plugin_migrations.
+     * Cada arquivo é executado uma única vez, rastreado na tabela vupi_plugin_migrations.
      */
     private function migrateKernel(): void
     {
@@ -106,10 +108,24 @@ class PluginMigrator
             if ($sql === false || trim($sql) === '') {
                 continue;
             }
+
+            $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+            $inTx   = false;
             try {
+                // PostgreSQL suporta DDL em transação — garante atomicidade
+                if ($driver === 'pgsql' && !$this->pdo->inTransaction()) {
+                    $this->pdo->beginTransaction();
+                    $inTx = true;
+                }
                 $this->pdo->exec($sql);
                 $this->markApplied('kernel', '1.0.0', $name);
+                if ($inTx) {
+                    $this->pdo->commit();
+                }
             } catch (\Throwable $e) {
+                if ($inTx && $this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
                 error_log("[PluginMigrator] kernel migration '{$name}' failed: " . $e->getMessage());
             }
         }
@@ -155,7 +171,17 @@ class PluginMigrator
         if ($this->isApplied($name, $ver, $nameOnly)) {
             return;
         }
-        $callable = include $file;
+
+        // Garante que o arquivo está dentro do projectRoot — previne path traversal
+        $realFile = realpath($file);
+        $realRoot = realpath($this->projectRoot);
+        if ($realFile === false || $realRoot === false
+            || !str_starts_with($realFile, $realRoot . DIRECTORY_SEPARATOR)) {
+            error_log("[PluginMigrator] Arquivo fora do projectRoot ignorado: {$file}");
+            return;
+        }
+
+        $callable = include $realFile;
         if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
             ($callable['up'])($this->pdo);
         } elseif (is_callable($callable)) {
@@ -194,10 +220,16 @@ class PluginMigrator
         if (!is_dir($seedersRoot)) {
             return;
         }
+        $realRoot = realpath($this->projectRoot);
         $files = glob($seedersRoot . DIRECTORY_SEPARATOR . '*.php') ?: [];
         sort($files, SORT_NATURAL);
         foreach ($files as $file) {
-            $callable = include $file;
+            $realFile = realpath($file);
+            if ($realFile === false || $realRoot === false
+                || !str_starts_with($realFile, $realRoot . DIRECTORY_SEPARATOR)) {
+                continue;
+            }
+            $callable = include $realFile;
             if (is_callable($callable)) {
                 $callable($this->pdo);
                 echo "✔ plugin seed: {$plugin['name']}:" . basename($file, '.php') . "\n";
@@ -214,7 +246,8 @@ class PluginMigrator
                 plugin VARCHAR(255) NOT NULL,
                 version VARCHAR(50) NOT NULL,
                 migration VARCHAR(255) NOT NULL,
-                executed_at TIMESTAMP NOT NULL DEFAULT NOW()
+                executed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE (plugin, version, migration)
             )";
         } else {
             $sql = "CREATE TABLE IF NOT EXISTS {$this->table} (
@@ -222,7 +255,8 @@ class PluginMigrator
                 plugin VARCHAR(255) NOT NULL,
                 version VARCHAR(50) NOT NULL,
                 migration VARCHAR(255) NOT NULL,
-                executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_plugin_migration (plugin, version, migration)
             )";
         }
         $this->pdo->exec($sql);
@@ -261,7 +295,7 @@ class PluginMigrator
         $local = $this->projectRoot . DIRECTORY_SEPARATOR . 'plugins';
         $this->collectPluginsFrom($local, $list, 'plugins');
         // Vendor plugins
-        $vendor = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
+        $vendor = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us';
         $this->collectPluginsFrom($vendor, $list, 'vendor');
         // src/Modules — módulos instalados no padrão nativo
         $modules = $this->projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
@@ -292,22 +326,16 @@ class PluginMigrator
         $version = '1.0.0';
         $name = basename($path);
         if (is_file($pluginJson)) {
-            if (is_readable($pluginJson)) {
-                $data = json_decode(file_get_contents($pluginJson), true) ?: [];
-            } else {
-                $data = [];
-            }
+            $raw = is_readable($pluginJson) ? file_get_contents($pluginJson) : false;
+            $data = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
             $name = $data['name'] ?? $name;
             $version = $data['version'] ?? $version;
         } else {
             // Fallback: read composer.json name field
             $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
             if (is_file($composer)) {
-                if (is_readable($composer)) {
-                    $meta = json_decode(file_get_contents($composer), true) ?: [];
-                } else {
-                    $meta = [];
-                }
+                $raw = is_readable($composer) ? file_get_contents($composer) : false;
+                $meta = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
                 $name = $meta['name'] ?? $name;
             }
         }
@@ -318,7 +346,7 @@ class PluginMigrator
     {
         $candidates = [
             $this->projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . basename($pluginName),
-            $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow' . DIRECTORY_SEPARATOR . basename($pluginName),
+            $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us' . DIRECTORY_SEPARATOR . basename($pluginName),
         ];
         foreach ($candidates as $p) {
             if (is_dir($p)) return $p;
@@ -328,17 +356,6 @@ class PluginMigrator
 
     private function compareVersions(string $a, string $b): int
     {
-        if ($a === $b) return 0;
-        // naive compare that works ok with semver dot-separated
-        $pa = array_map('intval', explode('.', $a));
-        $pb = array_map('intval', explode('.', $b));
-        $len = max(count($pa), count($pb));
-        for ($i = 0; $i < $len; $i++) {
-            $xa = $pa[$i] ?? 0;
-            $xb = $pb[$i] ?? 0;
-            if ($xa === $xb) continue;
-            return $xa <=> $xb;
-        }
-        return 0;
+        return version_compare($a, $b);
     }
 }

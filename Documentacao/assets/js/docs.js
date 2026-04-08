@@ -18,6 +18,10 @@ if (themeBtn) {
   themeBtn.addEventListener('click', () => applyTheme(!document.body.classList.contains('dark')));
 }
 
+// ── Mobile sidebar ───────────────────────────────────────────────────────────
+const sidebar   = document.getElementById('docs-sidebar');
+const overlay   = document.getElementById('docs-overlay');
+
 // ── Navigation ───────────────────────────────────────────────────────────────
 const navLinks = document.querySelectorAll('.docs-nav-link[data-page]');
 const pages    = document.querySelectorAll('.docs-page');
@@ -28,8 +32,8 @@ function showPage(pageId) {
   window.scrollTo({ top: 0, behavior: 'instant' });
   history.replaceState(null, '', '#' + pageId);
   // Close sidebar on mobile
-  sidebar.classList.remove('open');
-  overlay.classList.remove('show');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('show');
 }
 
 navLinks.forEach(link => {
@@ -43,10 +47,6 @@ navLinks.forEach(link => {
 const hash = location.hash.replace('#', '');
 const validPages = Array.from(navLinks).map(l => l.dataset.page);
 showPage(validPages.includes(hash) ? hash : (validPages[0] || 'introducao'));
-
-// ── Mobile sidebar ───────────────────────────────────────────────────────────
-const sidebar   = document.getElementById('docs-sidebar');
-const overlay   = document.getElementById('docs-overlay');
 const menuBtn   = document.getElementById('menu-btn');
 
 if (menuBtn) {

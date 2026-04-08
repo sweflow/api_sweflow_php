@@ -1,9 +1,8 @@
 parameters:
-    level: 5
+    level: 8
     paths:
         - src
 
-    # Level 8 nos arquivos de segurança críticos
     ignoreErrors: []
 
 includes:

@@ -33,7 +33,7 @@ class BotBlockerMiddlewareTest extends TestCase
         $_ENV['TRUST_PROXY']  = 'false';
 
         // Diretório de threat isolado para testes
-        $this->threatDir = sys_get_temp_dir() . '/sweflow_threat_bot_' . uniqid();
+        $this->threatDir = sys_get_temp_dir() . '/vupi_threat_bot_' . uniqid();
         mkdir($this->threatDir, 0750, true);
     }
 

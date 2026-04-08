@@ -13,11 +13,32 @@ use DateTimeImmutable;
 
 class AuthService
 {
+    // Configurações cacheadas no construtor — evita leitura de $_ENV a cada chamada
+    private string $jwtSecret;
+    private string $jwtApiSecret;
+    private string $emissor;
+    private string $audiencia;
+    private int    $accessTtl;
+    private int    $refreshTtl;
+
     public function __construct(
         private UserRepositoryInterface $usuarios,
         private ?RefreshTokenRepository $refreshTokens = null
-    )
+    ) {
+        $this->jwtSecret    = $this->lerEnv('JWT_SECRET',    '');
+        $this->jwtApiSecret = $this->lerEnv('JWT_API_SECRET', '');
+        $this->emissor      = $this->lerEnv('JWT_ISSUER',    $this->lerEnv('APP_URL', ''));
+        $this->audiencia    = $this->lerEnv('JWT_AUDIENCE',  $this->lerEnv('APP_URL_FRONTEND', ''));
+
+        $ttlAccess  = (int) $this->lerEnv('JWT_EXPIRATION_TIME', '900');
+        $ttlRefresh = (int) $this->lerEnv('REFRESH_TOKEN_EXPIRATION_SECONDS', '2592000');
+        $this->accessTtl  = $ttlAccess  > 0 ? $ttlAccess  : 900;
+        $this->refreshTtl = $ttlRefresh > 0 ? $ttlRefresh : 2592000;
+    }
+
+    private function lerEnv(string $key, string $default): string
     {
+        return trim((string) ($_ENV[$key] ?? getenv($key) ?: $default));
     }
 
     public function autenticar(string $login, string $senha): Usuario
@@ -54,14 +75,10 @@ class AuthService
 
     private function emitirTokensComSecret(Usuario $usuario, string $secret): array
     {
-        $accessTtl  = $this->tempoExpiracao();
-        $refreshTtl = $this->tempoRefresh();
-        $agora      = time();
-        $iss        = $this->emissor();
-        $aud        = $this->audiencia();
+        $agora = time();
 
         $accessJti = Uuid::uuid4()->toString();
-        $accessExp = $agora + $accessTtl;
+        $accessExp = $agora + $this->accessTtl;
         $accessPayload = [
             'sub'          => $usuario->getUuid()->toString(),
             'email'        => $usuario->getEmail(),
@@ -69,21 +86,21 @@ class AuthService
             'nivel_acesso' => $usuario->getNivelAcesso(),
             'iat'          => $agora,
             'exp'          => $accessExp,
-            'iss'          => $iss,
-            'aud'          => $aud,
+            'iss'          => $this->emissor,
+            'aud'          => $this->audiencia,
             'tipo'         => 'user',
             'jti'          => $accessJti,
         ];
         $access = JWT::encode($accessPayload, $secret, 'HS256');
 
         $refreshJti = Uuid::uuid4()->toString();
-        $refreshExp = $agora + $refreshTtl;
+        $refreshExp = $agora + $this->refreshTtl;
         $refreshPayload = [
             'sub'  => $usuario->getUuid()->toString(),
             'iat'  => $agora,
             'exp'  => $refreshExp,
-            'iss'  => $iss,
-            'aud'  => $aud,
+            'iss'  => $this->emissor,
+            'aud'  => $this->audiencia,
             'tipo' => 'refresh',
             'jti'  => $refreshJti,
         ];
@@ -109,25 +126,70 @@ class AuthService
 
     public function decodificarToken(string $token): object
     {
-        // Tenta JWT_API_SECRET primeiro (admin_system), depois JWT_SECRET
+        // Tenta JWT_API_SECRET primeiro (admin_system), depois JWT_SECRET.
+        // Rejeita explicitamente tokens do tipo 'refresh' — não são access tokens.
         $apiSecret = $this->segredoJwtAdmin();
         try {
-            return JWT::decode($token, new Key($apiSecret, 'HS256'));
+            $payload = JWT::decode($token, new Key($apiSecret, 'HS256'));
+            if (isset($payload->tipo) && $payload->tipo === 'refresh') {
+                throw new DomainException('Token de refresh não pode ser usado como access token.', 401);
+            }
+            return $payload;
+        } catch (DomainException $e) {
+            throw $e;
         } catch (\Throwable) {}
 
-        return JWT::decode($token, new Key($this->segredoJwt(), 'HS256'));
-    }
-
-    public function decodificarRefresh(string $token): object
-    {
-        $payload = $this->decodificarToken($token);
-        if (!isset($payload->tipo) || $payload->tipo !== 'refresh') {
-            throw new DomainException('Token de refresh inválido.', 401);
+        $payload = JWT::decode($token, new Key($this->segredoJwt(), 'HS256'));
+        if (isset($payload->tipo) && $payload->tipo === 'refresh') {
+            throw new DomainException('Token de refresh não pode ser usado como access token.', 401);
         }
         return $payload;
     }
 
-    public function validarRefreshNaoRevogado(object $payload, string $rawToken): void
+    /**
+     * Decodifica um refresh token sem rejeitar o tipo 'refresh'.
+     * Uso exclusivo para o fluxo de renovação de tokens.
+     */
+    public function decodificarRefresh(string $token): object
+    {
+        [$payload] = $this->decodificarRefreshComSecret($token);
+        return $payload;
+    }
+
+    /**
+     * Decodifica um refresh token e retorna [payload, assinadoComApiSecret].
+     * Permite que o caller saiba qual secret usar para validar o HMAC.
+     *
+     * @return array{0: object, 1: bool}
+     */
+    public function decodificarRefreshComSecret(string $token): array
+    {
+        // Tenta JWT_API_SECRET primeiro, depois JWT_SECRET
+        $apiSecret = $this->segredoJwtAdmin();
+        try {
+            $payload = JWT::decode($token, new Key($apiSecret, 'HS256'));
+            if (!isset($payload->tipo) || $payload->tipo !== 'refresh') {
+                throw new DomainException('Token de refresh inválido.', 401);
+            }
+            return [$payload, true];
+        } catch (DomainException $e) {
+            throw $e;
+        } catch (\Throwable) {}
+
+        try {
+            $payload = JWT::decode($token, new Key($this->segredoJwt(), 'HS256'));
+            if (!isset($payload->tipo) || $payload->tipo !== 'refresh') {
+                throw new DomainException('Token de refresh inválido.', 401);
+            }
+            return [$payload, false];
+        } catch (DomainException $e) {
+            throw $e;
+        } catch (\Throwable) {}
+
+        throw new DomainException('Token de refresh inválido ou expirado.', 401);
+    }
+
+    public function validarRefreshNaoRevogado(object $payload, string $rawToken, bool $assinadoComApiSecret = false): void
     {
         if (!$this->refreshTokens) {
             return;
@@ -140,9 +202,9 @@ class AuthService
         if (!$row) {
             throw new DomainException('Refresh revogado ou expirado.', 401);
         }
-        // Usa o mesmo secret que foi usado para emitir — determinado pelo sub do payload
-        // já decodificado. Tenta API secret primeiro (admin_system), depois JWT_SECRET.
-        $hash = $this->hashTokenFromPayload($rawToken, $payload);
+        // Usa o secret correto diretamente — sem re-decodificar o token
+        $secret = $assinadoComApiSecret ? $this->segredoJwtAdmin() : $this->segredoJwt();
+        $hash   = hash_hmac('sha256', $rawToken, $secret);
         if (!hash_equals($row['token_hash'], $hash)) {
             throw new DomainException('Refresh inválido.', 401);
         }
@@ -162,36 +224,97 @@ class AuthService
         }
     }
 
-    /**
-     * Calcula o HMAC do token usando o secret correto.
-     * Evita re-decodificar o token quando o payload já está disponível.
-     */
-    private function hashTokenFromPayload(string $token, object $payload): string
-    {
-        // decodificarToken já tentou JWT_API_SECRET primeiro — se o iss/aud batem
-        // com o que emitimos via emitirTokensAdmin, usamos o API secret.
-        // Heurística simples: tenta API secret; se falhar, usa JWT_SECRET.
-        $apiSecret = $this->segredoJwtAdmin();
-        try {
-            JWT::decode($token, new Key($apiSecret, 'HS256'));
-            return hash_hmac('sha256', $token, $apiSecret);
-        } catch (\Throwable) {}
+    // ── Delegações ao repositório (evita Service Locator nos controllers) ─
 
-        return hash_hmac('sha256', $token, $this->segredoJwt());
+    public function buscarUsuarioPorLogin(string $login): ?Usuario
+    {
+        return $this->buscarUsuario($login);
+    }
+
+    public function buscarPorUuid(string $uuid): ?Usuario
+    {
+        return $this->usuarios->buscarPorUuid($uuid);
+    }
+
+    public function buscarPorEmail(string $email): ?Usuario
+    {
+        return $this->usuarios->buscarPorEmail($email);
+    }
+
+    public function buscarPorTokenRecuperacaoSenha(string $token): ?Usuario
+    {
+        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            return null;
+        }
+        return $this->usuarios->buscarPorTokenRecuperacaoSenha($token);
+    }
+
+    public function buscarPorTokenVerificacaoEmail(string $token): ?Usuario
+    {
+        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            return null;
+        }
+        return $this->usuarios->buscarPorTokenVerificacaoEmail($token);
+    }
+
+    public function salvar(Usuario $usuario): void
+    {
+        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            return;
+        }
+        $this->usuarios->salvar($usuario);
+    }
+
+    public function salvarTokenRecuperacaoSenha(string $uuid, string $token): void
+    {
+        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            return;
+        }
+        $this->usuarios->salvarTokenRecuperacaoSenha($uuid, $token);
+    }
+
+    public function limparTokenRecuperacaoSenha(string $uuid): void
+    {
+        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            return;
+        }
+        $this->usuarios->limparTokenRecuperacaoSenha($uuid);
+    }
+
+    public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void
+    {
+        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
+            return;
+        }
+        $this->usuarios->marcarEmailComoVerificado($uuid, $verificado);
+    }
+
+    /**
+     * Tenta registrar o disparo de e-mail de recuperação de forma atômica.
+     * Retorna true se o envio foi autorizado e registrado, false se ainda no cooldown.
+     * Substitui o par podeDispararEmailRecuperacao() + registrarDisparoEmailRecuperacao().
+     */
+    public function tentarRegistrarEmailRecuperacao(string $email): bool
+    {
+        if (!$this->refreshTokens) {
+            return true;
+        }
+        try {
+            $pdo = $this->refreshTokens->getPdo();
+            return (new \Src\Kernel\Support\EmailThrottle($pdo))->tryRecord('password_reset', $email);
+        } catch (\Throwable) {
+            return true; // fail-open
+        }
     }
 
     public function tempoExpiracao(): int
     {
-        $valor = $_ENV['JWT_EXPIRATION_TIME'] ?? (string) getenv('JWT_EXPIRATION_TIME') ?: '900';
-        $tempo = (int) $valor;
-        return $tempo > 0 ? $tempo : 900;
+        return $this->accessTtl;
     }
 
     public function tempoRefresh(): int
     {
-        $valor = $_ENV['REFRESH_TOKEN_EXPIRATION_SECONDS'] ?? (string) getenv('REFRESH_TOKEN_EXPIRATION_SECONDS') ?: '2592000';
-        $tempo = (int) $valor;
-        return $tempo > 0 ? $tempo : 2592000;
+        return $this->refreshTtl;
     }
 
     private function buscarUsuario(string $login): ?Usuario
@@ -205,29 +328,17 @@ class AuthService
 
     private function segredoJwt(): string
     {
-        $secret = $_ENV['JWT_SECRET'] ?? (string) getenv('JWT_SECRET') ?: '';
-        if ($secret === '') {
+        if ($this->jwtSecret === '') {
             throw new DomainException('JWT_SECRET não configurado.', 500);
         }
-        return $secret;
+        return $this->jwtSecret;
     }
 
     private function segredoJwtAdmin(): string
     {
-        $secret = $_ENV['JWT_API_SECRET'] ?? (string) getenv('JWT_API_SECRET') ?: '';
-        if ($secret === '') {
+        if ($this->jwtApiSecret === '') {
             throw new DomainException('JWT_API_SECRET não configurado.', 500);
         }
-        return $secret;
-    }
-
-    private function emissor(): string
-    {
-        return $_ENV['JWT_ISSUER'] ?? (string) getenv('JWT_ISSUER') ?: ($_ENV['APP_URL'] ?? '');
-    }
-
-    private function audiencia(): string
-    {
-        return $_ENV['JWT_AUDIENCE'] ?? (string) getenv('JWT_AUDIENCE') ?: ($_ENV['APP_URL_FRONTEND'] ?? '');
+        return $this->jwtApiSecret;
     }
 }

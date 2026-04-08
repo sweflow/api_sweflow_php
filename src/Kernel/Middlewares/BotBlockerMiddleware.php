@@ -33,7 +33,7 @@ class BotBlockerMiddleware implements MiddlewareInterface
 
     private string $env;
 
-    public function __construct(private ThreatScorer $scorer = new ThreatScorer())
+    public function __construct(private ?ThreatScorer $scorer = null)
     {
         $this->env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
     }
@@ -44,7 +44,8 @@ class BotBlockerMiddleware implements MiddlewareInterface
         $ua  = $_SERVER['HTTP_USER_AGENT'] ?? '';
         $uri = $request->getUri();
 
-        $scorer = $this->scorer;
+        // Resolve o scorer uma vez por request — garante consistência entre add() e get()
+        $scorer = $this->scorer ?? new ThreatScorer();
 
         $isLoopback = in_array($ip, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)
                       || strncmp($ip, '127.', 4) === 0;
@@ -52,14 +53,14 @@ class BotBlockerMiddleware implements MiddlewareInterface
         // 1. Bloqueia User-Agents de ferramentas conhecidas (sempre, inclusive loopback)
         if ($this->isMaliciousUserAgent($ua)) {
             $scorer->add($ip, ThreatScorer::SCORE_MALICIOUS_UA);
-            $this->log('bot.blocked.ua', $ip, $uri, $ua);
+            $this->logEvent('bot.blocked.ua', $ip, $uri, $ua, $scorer);
             return $this->blockResponse();
         }
 
         // 2. Requisições de API sem User-Agent (sempre, inclusive loopback)
         if (str_starts_with($uri, '/api/') && trim($ua) === '') {
             $scorer->add($ip, ThreatScorer::SCORE_NO_UA);
-            $this->log('bot.blocked.no_ua', $ip, $uri, '');
+            $this->logEvent('bot.blocked.no_ua', $ip, $uri, '', $scorer);
             return $this->blockResponse();
         }
 
@@ -71,7 +72,7 @@ class BotBlockerMiddleware implements MiddlewareInterface
 
         // 3. Bloqueia por score acumulado
         if ($scorer->shouldBlock($ip)) {
-            $this->log('bot.blocked.score', $ip, $uri, $ua);
+            $this->logEvent('bot.blocked.score', $ip, $uri, $ua, $scorer);
             return $this->blockResponse();
         }
 
@@ -103,7 +104,7 @@ class BotBlockerMiddleware implements MiddlewareInterface
         return Response::json(['error' => 'Forbidden'], 403);
     }
 
-    private function log(string $event, string $ip, string $uri, string $ua): void
+    private function logEvent(string $event, string $ip, string $uri, string $ua, ThreatScorer $scorer): void
     {
         if ($this->env === 'testing') {
             return;
@@ -111,7 +112,7 @@ class BotBlockerMiddleware implements MiddlewareInterface
         SecurityEventLogger::threat($event, $ip, [
             'uri'        => $uri,
             'user_agent' => substr($ua, 0, 300),
-            'score'      => $this->scorer->get($ip),
+            'score'      => $scorer->get($ip),
         ]);
     }
 }

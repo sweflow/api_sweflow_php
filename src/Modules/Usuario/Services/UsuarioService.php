@@ -35,71 +35,63 @@ class UsuarioService implements UsuarioServiceInterface
 
     public function atualizar(string $uuid, array $data): void
     {
-        try {
-            $usuario = $this->repository->buscarPorUuid($uuid);
-            if (!$usuario) {
-                throw new DomainException('Usuário não encontrado.');
-            }
-
-            $camposPermitidos = [
-                'nome_completo', 'username', 'email', 'senha', 'url_avatar', 'url_capa', 'biografia', 'nivel_acesso'
-            ];
-            $camposInvalidos = array_diff(array_keys($data), $camposPermitidos);
-            if (!empty($camposInvalidos)) {
-                throw new DomainException('Campos inválidos no update: ' . implode(', ', $camposInvalidos));
-            }
-
-            // Atualiza campos se enviados
-            if (isset($data['nome_completo'])) {
-                $usuario->setNomeCompleto($data['nome_completo']);
-            }
-            if (isset($data['username'])) {
-                $usuario->setUsername($data['username']);
-            }
-            if (isset($data['email'])) {
-                $usuario->setEmail($data['email']);
-            }
-            if (isset($data['senha'])) {
-                $usuario->alterarSenha($data['senha']);
-            }
-            if (isset($data['url_avatar'])) {
-                $usuario->setUrlAvatar($data['url_avatar']);
-            }
-            if (isset($data['url_capa'])) {
-                $usuario->setUrlCapa($data['url_capa']);
-            }
-            if (isset($data['biografia'])) {
-                $usuario->setBiografia($data['biografia']);
-            }
-            if (isset($data['nivel_acesso'])) {
-                $usuario->promoverPara($data['nivel_acesso']);
-            }
-            $usuario->setAtualizadoEm(new \DateTimeImmutable());
-
-            // Valida unicidade
-            if ($this->repository->emailExiste($usuario->getEmail(), $uuid)) {
-                throw new DomainException('E-mail já cadastrado.');
-            }
-            if ($this->repository->usernameExiste($usuario->getUsername(), $uuid)) {
-                throw new DomainException('Username já cadastrado.');
-            }
-            $this->repository->salvar($usuario);
-        } catch (\RuntimeException $e) {
-            // Erro de persistência (ex: nenhuma linha afetada)
-            throw new DomainException($e->getMessage(), 500, $e);
+        $usuario = $this->repository->buscarPorUuid($uuid);
+        if (!$usuario) {
+            throw new DomainException('Usuário não encontrado.');
         }
-        // DomainException propaga normalmente — não captura aqui para preservar o código HTTP original
+
+        $camposPermitidos = [
+            'nome_completo', 'username', 'email', 'senha', 'url_avatar', 'url_capa', 'biografia', 'nivel_acesso'
+        ];
+        $camposInvalidos = array_diff(array_keys($data), $camposPermitidos);
+        if (!empty($camposInvalidos)) {
+            throw new DomainException('Campos inválidos no update: ' . implode(', ', $camposInvalidos));
+        }
+
+        // Valida unicidade antes de aplicar mudanças na entity
+        $emailAlvo    = $data['email']    ?? $usuario->getEmail();
+        $usernameAlvo = $data['username'] ?? $usuario->getUsername();
+
+        if ($this->repository->emailExiste($emailAlvo, $uuid)) {
+            throw new DomainException('E-mail já cadastrado.');
+        }
+        if ($this->repository->usernameExiste($usernameAlvo, $uuid)) {
+            throw new DomainException('Username já cadastrado.');
+        }
+
+        // Aplica mudanças via métodos de domínio (com validação interna)
+        if (isset($data['nome_completo'])) {
+            $usuario->alterarNomeCompleto($data['nome_completo']);
+        }
+        if (isset($data['username'])) {
+            $usuario->alterarUsername($data['username']);
+        }
+        if (isset($data['email'])) {
+            $usuario->alterarEmail($data['email']);
+        }
+        if (isset($data['senha'])) {
+            $usuario->alterarSenha($data['senha']);
+        }
+        if (isset($data['url_avatar'])) {
+            $usuario->alterarAvatar($data['url_avatar'] ?: null);
+        }
+        if (isset($data['url_capa'])) {
+            $usuario->alterarCapa($data['url_capa'] ?: null);
+        }
+        if (isset($data['biografia'])) {
+            $usuario->alterarBiografia($data['biografia'] ?: null);
+        }
+        if (isset($data['nivel_acesso'])) {
+            $usuario->promoverPara($data['nivel_acesso']);
+        }
+
+        $this->repository->salvar($usuario);
     }
 
     // Salva o token de verificação de e-mail
     public function salvarTokenVerificacaoEmail(string $uuid, string $token): void
     {
-        $usuario = $this->repository->buscarPorUuid($uuid);
-        if (!$usuario) {
-            throw new DomainException('Usuário não encontrado.');
-        }
-        // Permitir atualizar o token mesmo se já estiver verificado ou o campo estiver null
-        $usuario->gerarTokenVerificacaoEmail($token);
+        // Persiste diretamente — evita busca desnecessária só para atualizar um campo
         $this->repository->salvarTokenVerificacaoEmail($uuid, $token);
     }
 
@@ -116,11 +108,7 @@ class UsuarioService implements UsuarioServiceInterface
 
     public function salvarTokenRecuperacaoSenha(string $uuid, string $token): void
     {
-        $usuario = $this->repository->buscarPorUuid($uuid);
-        if (!$usuario) {
-            throw new DomainException('Usuário não encontrado.');
-        }
-        $usuario->gerarTokenRecuperacaoSenha($token);
+        // Persiste diretamente — evita busca desnecessária só para atualizar um campo
         $this->repository->salvarTokenRecuperacaoSenha($uuid, $token);
     }
 
@@ -132,10 +120,8 @@ class UsuarioService implements UsuarioServiceInterface
     // Marca o e-mail como verificado
     public function marcarEmailComoVerificado(string $uuid): void
     {
-        $usuario = $this->repository->buscarPorUuid($uuid);
-        if (!$usuario) {
-            throw new DomainException('Usuário não encontrado.');
-        }
+        // Persiste diretamente — a lógica de domínio (limpar token, atualizar status)
+        // está encapsulada na query do repositório para evitar busca extra desnecessária
         $this->repository->marcarEmailComoVerificado($uuid);
     }
 
@@ -154,12 +140,12 @@ class UsuarioService implements UsuarioServiceInterface
         if (!$usuario) {
             return false;
         }
-        // Supondo que Usuario tem método verificarSenha
         return $usuario->verificarSenha($senha);
     }
 
     /**
      * Altera a senha do usuário.
+     * @param bool $logoutAll reservado para futura invalidação de tokens ativos
      */
     public function alterarSenha(string $uuid, string $novaSenha, bool $logoutAll = false): void
     {
@@ -169,7 +155,6 @@ class UsuarioService implements UsuarioServiceInterface
         }
         $usuario->alterarSenha($novaSenha);
         $this->repository->salvar($usuario);
-        // Se logoutAll for true, implementar lógica de invalidar tokens/sessões aqui se necessário
     }
 
     public function buscarPorUuid(string $uuid): ?Usuario
@@ -189,7 +174,7 @@ class UsuarioService implements UsuarioServiceInterface
 
     public function listar(int $pagina = 1, int $porPagina = 20): array
     {
-        return $this->repository->buscarPorNomePaginado('', $pagina, $porPagina);
+        return $this->repository->buscarTodos($porPagina, ($pagina - 1) * $porPagina);
     }
 
     public function listarComFiltro(int $pagina, int $porPagina, string $busca = '', string $nivel = ''): array
@@ -236,7 +221,7 @@ class UsuarioService implements UsuarioServiceInterface
             return;
         }
         try {
-            $pdo   = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
+            $pdo   = $this->repository->getPdo();
             $repos = $this->instanciarRepositoriosComunidade($pdo);
             $this->executarDelecoesComunidade($uuid, $repos);
         } catch (\Throwable) {

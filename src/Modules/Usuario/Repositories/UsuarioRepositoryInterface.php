@@ -107,4 +107,9 @@ interface UsuarioRepositoryInterface extends UserRepositoryInterface
      * @return array{usuarios: Usuario[], total: int, total_paginas: int}
      */
     public function buscarComFiltro(int $pagina, int $porPagina, string $busca = '', string $nivel = ''): array;
+
+    /**
+     * Expõe a conexão PDO para uso por serviços que precisam de acesso direto.
+     */
+    public function getPdo(): \PDO;
 }

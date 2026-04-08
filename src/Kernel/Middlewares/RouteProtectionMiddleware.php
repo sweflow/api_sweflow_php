@@ -11,6 +11,9 @@ use Src\Kernel\Support\TokenExtractor;
 /**
  * Protege rotas que aceitam tanto token de usuário quanto token de API.
  * Sempre valida a assinatura JWT antes de inspecionar o payload.
+ *
+ * Nota: este middleware não verifica a blacklist de tokens revogados.
+ * Para rotas que exigem verificação de revogação, use AuthHybridMiddleware.
  */
 class RouteProtectionMiddleware implements MiddlewareInterface
 {

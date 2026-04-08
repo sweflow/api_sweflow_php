@@ -1,6 +1,6 @@
 <?php
 /**
- * Sweflow API - Testes EnvController
+ * Vupi.us API - Testes EnvController
  * Execucao: php tests/EnvConfigTest.php [BASE_URL]
  * Com auth: ADMIN_PASSWORD=senha php tests/EnvConfigTest.php http://localhost:3005
  */
@@ -15,7 +15,7 @@ function envReq(string $method, string $url, array $body = [], array $headers = 
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => strtoupper($method),
         CURLOPT_TIMEOUT => 10, CURLOPT_FOLLOWLOCATION => false, CURLOPT_HEADER => true,
-        CURLOPT_USERAGENT => 'SweflowEnvTest/1.0',
+        CURLOPT_USERAGENT => 'Vupi.usEnvTest/1.0',
         CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json','Accept: application/json'], $headers),
     ]);
     if (!empty($body)) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
@@ -44,7 +44,7 @@ function envTest(string $name, callable $fn): void {
     }
 }
 
-echo "\n\033[1;36m[SWEFLOW - TESTES CONFIGURACOES DO AMBIENTE]\033[0m\n";
+echo "\n\033[1;36m[VUPI.US - TESTES CONFIGURACOES DO AMBIENTE]\033[0m\n";
 echo "Base URL: \033[1m$baseUrl\033[0m\n\n";
 
 $ping = envReq('GET', "$baseUrl/api/status");
@@ -126,10 +126,10 @@ echo "\n\033[1m[4] Escrita e reflexo em tempo real\033[0m\n";
 if ($token) {
     $origRes  = envReq('GET', "$baseUrl/api/env", [], $authHeader);
     $origVars = $origRes['body']['vars'] ?? [];
-    $origName = $origVars['APP_NAME'] ?? 'Sweflow API';
+    $origName = $origVars['APP_NAME'] ?? 'Vupi.us API';
     $origDesc = $origVars['APP_DESCRICAO'] ?? '';
     $origCors = $origVars['CORS_ALLOWED_ORIGINS'] ?? '';
-    $testName = 'SweflowTest_'.time();
+    $testName = 'Vupi.usTest_'.time();
 
     envTest('PUT APP_NAME retorna 200 ok:true', function() use ($baseUrl, $authHeader, $testName) {
         $r = envReq('PUT', "$baseUrl/api/env", ['vars' => ['APP_NAME' => $testName]], $authHeader);

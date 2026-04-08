@@ -80,7 +80,7 @@ class PluginManager
             $inVendor  = str_contains($realPath, 'vendor' . DIRECTORY_SEPARATOR);
 
             $base = basename($realPath);
-            $safe = !in_array($base, ['src', 'Modules', 'plugins', 'vendor', 'sweflow'], true);
+            $safe = !in_array($base, ['src', 'Modules', 'plugins', 'vendor', 'vupi.us'], true);
 
             if ($safe && ($inPlugins || $inModules || $inVendor)) {
                 $this->deleteDirectory($path); // use original $path to handle junctions
@@ -172,7 +172,7 @@ class PluginManager
         }
 
         foreach ($items as $item) {
-            if ($item == '.' || $item == '..') {
+            if ($item === '.' || $item === '..') {
                 continue;
             }
 
@@ -203,7 +203,14 @@ class PluginManager
 
     public function read(): array
     {
-        $json = file_get_contents($this->registry);
+        $fp = @fopen($this->registry, 'r');
+        if (!$fp) {
+            return [];
+        }
+        flock($fp, LOCK_SH);
+        $json = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
         $data = $json ? json_decode($json, true) : [];
         return is_array($data) ? $data : [];
     }
@@ -243,8 +250,9 @@ class PluginManager
         $pluginPath = $this->resolvePluginPath($pluginName);
         if (!$pluginPath) return;
         $pj = $pluginPath . DIRECTORY_SEPARATOR . 'plugin.json';
-        if (!is_file($pj)) return;
-        $data = json_decode(file_get_contents($pj), true) ?: [];
+        if (!is_file($pj) || !is_readable($pj)) return;
+        $raw = file_get_contents($pj);
+        $data = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
         $provides = $data['provides'] ?? [];
         if (!is_array($provides) || empty($provides)) return;
         $resolver = new CapabilityResolver(dirname($this->registry));
@@ -259,14 +267,14 @@ class PluginManager
     {
         $projectRoot = dirname(__DIR__, 3);
         
-        // Normalize name to handle "email", "module-email", "sweflow-module-email", "sweflow/module-email"
-        // Also handle "sweflow/module-email" -> "email"
+        // Normalize name to handle "email", "module-email", "vupi.us-module-email", "vupi.us/module-email"
+        // Also handle "vupi.us/module-email" -> "email"
         $simpleName = $pluginName;
         if (str_contains($simpleName, '/')) {
             $parts = explode('/', $simpleName);
             $simpleName = end($parts); // "module-email"
         }
-        $simpleName = str_replace(['sweflow-module-', 'module-'], '', $simpleName); // "email"
+        $simpleName = str_replace(['vupi.us-module-', 'module-'], '', $simpleName); // "email"
         
         // Capitalize for Modules (Email)
         $moduleName = ucfirst($simpleName);
@@ -274,12 +282,12 @@ class PluginManager
         $candidates = [
             // 1. Native Modules (src/Modules/Email)
             $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules' . DIRECTORY_SEPARATOR . $moduleName,
-            // 2. Local dev path (plugins/sweflow-module-email) - Legacy/Dev
-            $projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . 'sweflow-module-' . $simpleName,
+            // 2. Local dev path (plugins/vupi.us-module-email) - Legacy/Dev
+            $projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . 'vupi.us-module-' . $simpleName,
             // 3. Local dev path (plugins/email)
             $projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . $simpleName, // Usar simpleName aqui também
             // 4. Vendor path
-            $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow' . DIRECTORY_SEPARATOR . 'module-' . $simpleName,
+            $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us' . DIRECTORY_SEPARATOR . 'module-' . $simpleName,
         ];
 
         foreach ($candidates as $p) {
@@ -294,10 +302,11 @@ class PluginManager
         if (!$path) return null;
 
         $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
-        if (!is_file($composer)) return null;
+        if (!is_file($composer) || !is_readable($composer)) return null;
 
-        $meta = json_decode(file_get_contents($composer), true) ?: [];
-        $providers = $meta['extra']['sweflow']['providers'] ?? [];
+        $raw = file_get_contents($composer);
+        $meta = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
+        $providers = $meta['extra']['vupi.us']['providers'] ?? [];
 
         if (!is_array($providers)) return null;
 

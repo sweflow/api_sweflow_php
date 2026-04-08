@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Vupi.us CLI
+ *
+ * Uso:
+ *   php vupi migrate [--seed] [--rollback]
+ *   php vupi make:module NomeModulo
+ *   php vupi make:plugin NomePlugin
+ *   php vupi plugin:migrate
+ *   php vupi plugin:rollback [plugin]
+ *   php vupi setup
+ */
+
+require __DIR__ . '/vendor/autoload.php';
+
+if (file_exists(__DIR__ . '/.env')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+}
+
+(new Src\CLI\CommandRunner())->run(array_slice($argv, 1));

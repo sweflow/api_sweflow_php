@@ -121,6 +121,7 @@ class RateLimitMiddleware implements MiddlewareInterface
     private function addThreatScore(string $ip, int $score): void
     {
         try {
+            // Reutiliza o mesmo storage já instanciado — evita I/O redundante
             (new \Src\Kernel\Support\ThreatScorer($this->storage))->add($ip, $score);
         } catch (\Throwable) {
             // Falha silenciosa — rate limit não deve quebrar por isso

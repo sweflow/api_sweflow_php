@@ -1,4 +1,4 @@
-# Sobre a API Modular Sweflow
+# Sobre a API Modular Vupi.us
 
 ## Por que esta API existe?
 Você quer entregar features rápido e com times paralelos sem quebrar o núcleo. Esta API foi desenhada para que cada módulo viva isolado em `src/Modules/`, enquanto o kernel (roteador, DI, HTTP, middlewares) fica intocado em `src/Kernel/`. Assim, equipes podem criar e publicar módulos sem mexer em infraestrutura.

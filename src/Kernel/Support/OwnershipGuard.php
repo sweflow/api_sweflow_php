@@ -40,12 +40,7 @@ final class OwnershipGuard
             return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
-        // admin_system com JWT_API_SECRET tem acesso irrestrito
-        $payload = $request->attribute('auth_payload');
-        $isAdminSystem = ($payload->nivel_acesso ?? '') === 'admin_system'
-            && $request->attribute('token_signed_with_api_secret') === true;
-
-        if ($isAdminSystem) {
+        if (self::isAdminSystem($request)) {
             return null;
         }
 
@@ -79,15 +74,12 @@ final class OwnershipGuard
             return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
-        $payload = $request->attribute('auth_payload');
-        $isAdminSystem = ($payload->nivel_acesso ?? '') === 'admin_system'
-            && $request->attribute('token_signed_with_api_secret') === true;
-
-        if ($isAdminSystem) {
+        if (self::isAdminSystem($request)) {
             return null;
         }
 
         // Verifica tenant via claim do JWT
+        $payload     = $request->attribute('auth_payload');
         $tokenTenant = (string) ($payload->tenant_id ?? '');
         if ($tokenTenant === '' || $tokenTenant !== $resourceTenantId) {
             return Response::json(['error' => 'Acesso negado: recurso pertence a outro tenant.'], 403);
@@ -121,5 +113,17 @@ final class OwnershipGuard
         }
 
         return null;
+    }
+
+    // ── Helpers privados ──────────────────────────────────────────────────────
+
+    /**
+     * Retorna true se o token foi assinado com JWT_API_SECRET e o nível é admin_system.
+     */
+    private static function isAdminSystem(Request $request): bool
+    {
+        $payload = $request->attribute('auth_payload');
+        return ($payload->nivel_acesso ?? '') === 'admin_system'
+            && $request->attribute('token_signed_with_api_secret') === true;
     }
 }

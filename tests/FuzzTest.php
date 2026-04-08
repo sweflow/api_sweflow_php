@@ -1,6 +1,6 @@
 <?php
 /**
- * Sweflow API — Fuzzing de API (substitui OWASP ZAP para CI)
+ * Vupi.us API — Fuzzing de API (substitui OWASP ZAP para CI)
  *
  * Execução: php tests/FuzzTest.php [BASE_URL]
  *
@@ -49,7 +49,7 @@ function fuzzReq(string $method, string $url, mixed $body = null, array $headers
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HEADER         => true,
-        CURLOPT_USERAGENT      => 'SweflowFuzzTest/1.0 (internal)',
+        CURLOPT_USERAGENT      => 'Vupi.usFuzzTest/1.0 (internal)',
         CURLOPT_HTTPHEADER     => array_merge($defaultHeaders, $headers),
     ]);
 
@@ -244,7 +244,7 @@ function formatPayloads(): array
 // ─── Conectividade ───────────────────────────────────────────────────────────
 
 echo "\n\033[1;35m╔══════════════════════════════════════════════════════════╗\033[0m\n";
-echo "\033[1;35m║         SWEFLOW API — FUZZING DE SEGURANÇA               ║\033[0m\n";
+echo "\033[1;35m║         VUPI.US API — FUZZING DE SEGURANÇA               ║\033[0m\n";
 echo "\033[1;35m╚══════════════════════════════════════════════════════════╝\033[0m\n";
 echo "Base URL: \033[1m$baseUrl\033[0m\n\n";
 

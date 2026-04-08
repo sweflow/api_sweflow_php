@@ -1,6 +1,6 @@
 <?php
 
-namespace Src\Contracts;
+namespace Src\Kernel\Contracts;
 
 /**
  * Interface estratégica para resolução de Tenant.

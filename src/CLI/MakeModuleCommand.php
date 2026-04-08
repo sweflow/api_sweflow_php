@@ -5,7 +5,7 @@ namespace Src\CLI;
 /**
  * Gera a estrutura completa de um novo módulo independente.
  *
- * Uso: php sweflow make:module NomeModulo
+ * Uso: php vupi make:module NomeModulo
  *
  * Estrutura gerada:
  *   src/Modules/NomeModulo/
@@ -49,7 +49,7 @@ class MakeModuleCommand
         echo "\n  Próximos passos:\n";
         echo "  1. Edite src/Modules/$name/Routes/web.php para definir as rotas\n";
         echo "  2. Implemente src/Modules/$name/Database/Migrations/001_create_" . strtolower($name) . ".php\n";
-        echo "  3. Execute: php sweflow migrate\n\n";
+        echo "  3. Execute: php vupi migrate\n\n";
     }
 
     private function createRoutes(string $name, string $base): void
@@ -218,7 +218,9 @@ class {$name}Repository implements {$name}RepositoryInterface
 
     public function findAll(): array
     {
-        return \$this->pdo->query("SELECT * FROM {$table} ORDER BY criado_em DESC")->fetchAll(PDO::FETCH_ASSOC);
+        \$stmt = \$this->pdo->prepare("SELECT * FROM {$table} ORDER BY criado_em DESC");
+        \$stmt->execute();
+        return \$stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function findById(string \$id): ?array

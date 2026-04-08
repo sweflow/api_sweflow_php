@@ -147,7 +147,8 @@ if ($uri !== '/') {
             exit;
         }
 
-        $isHttps = \Src\Kernel\Support\CookieConfig::isHttps();        header_remove('X-Powered-By');
+        $isHttps = \Src\Kernel\Support\CookieConfig::isHttps();
+        header_remove('X-Powered-By');
         header('Content-Type: ' . $mimeMap[$ext]);
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
@@ -163,45 +164,9 @@ if ($uri !== '/') {
     }
 }
 
-function isDbConnectionError(\Throwable $e): bool
-{
-    $stack = [$e];
-    if ($e->getPrevious() instanceof \Throwable) {
-        $stack[] = $e->getPrevious();
-    }
-
-    foreach ($stack as $err) {
-        if ($err instanceof \PDOException) {
-            return true;
-        }
-
-        $msg = strtolower($err->getMessage());
-        if (str_contains($msg, 'sqlstate[08006]') || str_contains($msg, 'connection refused') || str_contains($msg, 'não foi possível conectar ao banco')) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function requestWantsJson(string $uri): bool
-{
-    if (strpos($uri, '/api/') === 0) {
-        return true;
-    }
-
-    $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
-    if ($accept !== '' && str_contains($accept, 'application/json')) {
-        return true;
-    }
-
-    $xrw = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
-    return $xrw === 'xmlhttprequest';
-}
-
 function renderDbConnectionError(string $uri, string $reason = ''): void
 {
-    if (requestWantsJson($uri)) {
+    if (\Src\Kernel\Exceptions\Handler::requestWantsJson($uri)) {
         if (!headers_sent()) {
             http_response_code(503);
             header('Content-Type: application/json; charset=utf-8');
@@ -255,10 +220,6 @@ function renderDbConnectionError(string $uri, string $reason = ''): void
     if (ob_get_level() > 0) ob_end_clean();
     echo $html;
     exit;
-}
-
-if (!isset($GLOBALS['__raw_input'])) {
-    $GLOBALS['__raw_input'] = file_get_contents('php://input');
 }
 
 // ── Captura Fatal Errors (ex: max_execution_time) e exibe página amigável ─
@@ -346,7 +307,7 @@ try {
     $migrator = new PluginMigrator(PdoFactory::fromEnv('DB'), __DIR__);
     $container->bind(PluginMigrator::class, $migrator, true);
 } catch (\Throwable $e) {
-    if (isDbConnectionError($e)) {
+    if (\Src\Kernel\Exceptions\Handler::isDbConnectionError($e)) {
         renderDbConnectionError($uri);
     }
     throw $e;
@@ -457,6 +418,46 @@ $container->bind(
     true
 );
 
+// Registra AuthController com todas as dependências injetadas via container
+// Elimina Service Locator e new() dentro do controller
+$container->bind(
+    \Src\Modules\Auth\Controllers\AuthController::class,
+    static function () use ($container) {
+        $pdo             = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Auth');
+        $userRepo        = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+        $refreshRepo     = new \Src\Modules\Auth\Repositories\RefreshTokenRepository($pdo);
+        $blacklist        = new \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository($pdo);
+        $authService     = new \Src\Modules\Auth\Services\AuthService($userRepo, $refreshRepo);
+        $auditLogger     = $container->make(\Src\Kernel\Support\AuditLogger::class);
+        $threatScorer    = $container->make(\Src\Kernel\Support\ThreatScorer::class);
+        $emailService    = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+        $requestContext  = $container->make(\Src\Kernel\Support\RequestContext::class);
+        return new \Src\Modules\Auth\Controllers\AuthController(
+            $authService,
+            $refreshRepo,
+            $blacklist,
+            $auditLogger,
+            $threatScorer,
+            $emailService,
+            $requestContext,
+        );
+    },
+    true
+);
+
+// Registra UsuarioController com EmailThrottle injetado
+$container->bind(
+    \Src\Modules\Usuario\Controllers\UsuarioController::class,
+    static function () use ($container) {
+        $pdo         = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
+        $service     = $container->make(\Src\Modules\Usuario\Services\UsuarioServiceInterface::class);
+        $emailSender = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+        $emailThrottle = new \Src\Kernel\Support\EmailThrottle($pdo);
+        return new \Src\Modules\Usuario\Controllers\UsuarioController($service, $emailThrottle, $emailSender);
+    },
+    true
+);
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -518,18 +519,14 @@ $router->get('/api/system/modules', function () use ($modules) {
 $router->get('/api/system/migrations/status', function () use ($container) {
     try {
         $pdo  = $container->make(\PDO::class);
-        $root = dirname(__FILE__);
+        $root = __DIR__;
 
         $pdoModules = null;
         try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
 
         $migrator = new \Src\Kernel\Support\DB\Migrator($pdo, $root, $pdoModules);
 
-        // Captura output do status como JSON
-        ob_start();
-        $migrator->status(true);
-        $json = ob_get_clean();
-
+        $json = $migrator->status(true) ?? '{}';
         $data = json_decode($json, true) ?? ['core' => [], 'modules' => []];
         return Response::json(['status' => 'ok', 'migrations' => $data]);
     } catch (\Throwable $e) {
@@ -607,7 +604,8 @@ function absoluteUrl(string $uri): string {
     }
     // Fallback: detecta esquema via CookieConfig (respeita TRUST_PROXY e X-Forwarded-Proto)
     $scheme = \Src\Kernel\Support\CookieConfig::isHttps() ? 'https' : 'http';
-    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    // Sanitiza HTTP_HOST para evitar header injection no sitemap
+    $host   = preg_replace('/[^a-zA-Z0-9.\-:\[\]]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
     return $scheme . '://' . $host . $uri;
 }
 
@@ -716,15 +714,20 @@ $router->get('/robots.txt', function () use ($router) {
 
 // ── Honeypot — rotas que bots costumam escanear ───────────────────────────
 // Qualquer acesso é registrado para Fail2Ban. Retorna 404 para não revelar que é honeypot.
-(static function () use ($router): void {
+(static function () use ($router, $container): void {
     $honeypotPaths = honeypotUris();
-    $honeypotHandler = function (): Response {
+    $honeypotHandler = function () use ($container): Response {
         $ip  = \Src\Kernel\Support\IpResolver::resolve();
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $ua  = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 300);
         $env = $_ENV['APP_ENV'] ?? 'production';
 
-        (new \Src\Kernel\Support\ThreatScorer())->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_HONEYPOT);
+        try {
+            $scorer = $container->make(\Src\Kernel\Support\ThreatScorer::class);
+        } catch (\Throwable) {
+            $scorer = new \Src\Kernel\Support\ThreatScorer();
+        }
+        $scorer->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_HONEYPOT);
 
         if ($env !== 'testing') {
             $line = json_encode([

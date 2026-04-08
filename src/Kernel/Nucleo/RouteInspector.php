@@ -91,13 +91,26 @@ class RouteInspector
 
     private static function readMethodSource(\ReflectionMethod $ref): string
     {
+        static $cache = [];
+
         $file  = $ref->getFileName();
         $start = $ref->getStartLine();
         $end   = $ref->getEndLine();
-        if (!$file || !$start || !$end) return '';
+        if (!$file || !$start || !$end) {
+            return '';
+        }
+
+        $cacheKey = $file . ':' . $start . ':' . $end;
+        if (isset($cache[$cacheKey])) {
+            return $cache[$cacheKey];
+        }
+
         $lines = file($file);
-        if (!$lines) return '';
-        return implode('', array_slice($lines, $start - 1, $end - $start + 1));
+        if (!$lines) {
+            return $cache[$cacheKey] = '';
+        }
+
+        return $cache[$cacheKey] = implode('', array_slice($lines, $start - 1, $end - $start + 1));
     }
 
     /**

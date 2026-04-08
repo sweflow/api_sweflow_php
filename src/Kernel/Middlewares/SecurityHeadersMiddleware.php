@@ -18,38 +18,12 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     {
         $response = $next($request);
 
+        $isApi   = str_starts_with($request->getUri(), '/api/');
         $isHttps = CookieConfig::isHttps();
 
-        $isApi = str_starts_with($request->getUri(), '/api/');
-        if ($isApi) {
-            // API pura: base-uri 'none' — API não tem <base> tag, mais restritivo que 'self'
-            $csp = "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
-        } else {
-            $nonce = \Src\Kernel\Nonce::get();
-            // SRI é garantido pelo atributo integrity= nas tags <script>/<link> do HTML.
-            // require-sri-for foi removida de todos os browsers — só gera aviso no console.
-            // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
-            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
-        }
-
-        $response = $response
-            ->withHeader('X-Content-Type-Options',       'nosniff')
-            ->withHeader('X-Frame-Options',               'DENY')
-            // X-XSS-Protection removido: deprecated, ignorado por browsers modernos,
-            // pode causar vulnerabilidades em browsers legados. CSP cobre XSS.
-            // API usa no-referrer — sem motivo para enviar referrer em chamadas de API
-            ->withHeader('Referrer-Policy',               $isApi ? 'no-referrer' : 'strict-origin-when-cross-origin')
-            ->withHeader('Permissions-Policy',            'geolocation=(), microphone=(), camera=()')
-            ->withHeader('Content-Security-Policy',       $csp)
-            ->withHeader('Cross-Origin-Resource-Policy',  $isApi ? 'same-origin' : 'same-site')
-            ->withHeader('Cross-Origin-Opener-Policy',    'same-origin')
-            ->withHeader('Cross-Origin-Embedder-Policy',  $isApi ? 'require-corp' : 'credentialless');
-
-        if ($isHttps) {
-            $response = $response->withHeader(
-                'Strict-Transport-Security',
-                'max-age=31536000; includeSubDomains; preload'
-            );
+        $headers = Response::buildSecurityHeaders($isApi, $isHttps);
+        foreach ($headers as $name => $value) {
+            $response = $response->withHeader($name, $value);
         }
 
         return $response;

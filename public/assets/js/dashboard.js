@@ -619,7 +619,7 @@ window.onload = function () {
 
                 // Verifica se o provedor ativo pertence a um módulo desativado
                 const activeProvider = it.active || '';
-                // Tenta mapear o provider para um nome de módulo (ex: "Email" de "sweflow/email")
+                // Tenta mapear o provider para um nome de módulo (ex: "Email" de "vupi.us/email")
                 const providerModuleKey = Object.keys(moduleState).find(k =>
                     activeProvider.toLowerCase().includes(k.toLowerCase())
                 );
@@ -2049,7 +2049,7 @@ window.onload = function () {
     if (emailCancel) emailCancel.addEventListener('click', closeEmailModal);
 
     // ── Rascunho (salvo no histórico local) ───────────────────────────────────
-    const DRAFT_KEY = 'sweflow-email-drafts';
+    const DRAFT_KEY = 'vupi.us-email-drafts';
     const emailDraftBtn = document.getElementById('email-draft-btn');
 
     function getDrafts() {

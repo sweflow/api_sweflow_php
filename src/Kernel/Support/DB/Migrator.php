@@ -46,14 +46,14 @@ class Migrator
 
     public function migrate(?string $filter = null): void
     {
-        $this->withLock($this->pdo, 'sweflow_migrate_core', function () use ($filter) {
+        $this->withLock($this->pdo, 'vupi_migrate_core', function () use ($filter) {
             $this->runMigrations($this->discoverModules(), $filter);
         });
     }
 
     public function migrateCore(): void
     {
-        $this->withLock($this->pdo, 'sweflow_migrate_core', function () {
+        $this->withLock($this->pdo, 'vupi_migrate_core', function () {
             $modules = array_filter($this->discoverModules(), fn($m) => $this->resolveConnection($m) === 'core');
             $this->runMigrations(array_values($modules));
         });
@@ -61,7 +61,7 @@ class Migrator
 
     public function migrateModules(): void
     {
-        $this->withLock($this->pdoModules, 'sweflow_migrate_modules', function () {
+        $this->withLock($this->pdoModules, 'vupi_migrate_modules', function () {
             $modules = array_filter($this->discoverModules(), fn($m) => $this->resolveConnection($m) === 'modules');
             $this->runMigrations(array_values($modules));
         });
@@ -122,9 +122,9 @@ class Migrator
 
     /**
      * Exibe o status de todas as migrations.
-     * @param bool $asJson Se true, imprime JSON puro (sem outros outputs)
+     * @param bool $asJson Se true, retorna string JSON em vez de imprimir
      */
-    public function status(bool $asJson = false): void
+    public function status(bool $asJson = false): string|null
     {
         $modules = $this->discoverModules();
         $result  = ['core' => [], 'modules' => []];
@@ -156,9 +156,7 @@ class Migrator
         }
 
         if ($asJson) {
-            // JSON puro — sem nenhum outro output
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
-            return;
+            return json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
         }
 
         foreach (['core', 'modules'] as $conn) {
@@ -171,6 +169,8 @@ class Migrator
                 echo "    {$color}{$icon}\033[0m {$row['module']}/{$row['name']}{$warning}\n";
             }
         }
+
+        return null;
     }
 
     // ── Execução interna ──────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ class Migrator
                             "     Hash atual:  {$current}\n\n" .
                             "  ⚠  NUNCA edite uma migration já executada.\n" .
                             "     Para alterar o schema, crie uma nova migration:\n" .
-                            "     php sweflow make:migration alter_{$name}_table\n"
+                            "     php vupi make:migration alter_{$name}_table\n"
                         );
                     }
                     continue;
@@ -309,7 +309,9 @@ class Migrator
                 }
                 $locked = true;
             } elseif ($driver === 'pgsql') {
-                $lockId = abs(crc32($lockName)) % 2147483647;
+                // crc32() retorna int com sinal; abs() + módulo garante range válido para pg_advisory_lock (bigint)
+                // Em PHP 64-bit, abs(crc32()) nunca excede PHP_INT_MAX, mas usamos & 0x7FFFFFFF para ser explícito
+                $lockId = abs(crc32($lockName)) & 0x7FFFFFFF;
                 $pdo->exec("SELECT pg_advisory_lock({$lockId})");
                 $locked = true;
             }
@@ -324,7 +326,7 @@ class Migrator
                     if ($driver === 'mysql') {
                         $pdo->prepare("SELECT RELEASE_LOCK(:name)")->execute([':name' => $lockName]);
                     } elseif ($driver === 'pgsql') {
-                        $lockId = abs(crc32($lockName)) % 2147483647;
+                        $lockId = abs(crc32($lockName)) & 0x7FFFFFFF;
                         $pdo->exec("SELECT pg_advisory_unlock({$lockId})");
                     }
                 } catch (\Throwable) {
@@ -339,11 +341,12 @@ class Migrator
     /**
      * Hash inclui o nome do módulo para evitar colisão entre módulos com
      * migrations de mesmo nome (ex: dois módulos com create_settings_table.php).
+     * Usa sha256 para melhor resistência a colisões.
      */
     private function fileHash(string $moduleName, string $filePath): string
     {
         $contents = file_get_contents($filePath);
-        return md5($moduleName . '|' . ($contents !== false ? $contents : ''));
+        return hash('sha256', $moduleName . '|' . ($contents !== false ? $contents : ''));
     }
 
     // ── Resolução de conexão ──────────────────────────────────────────────────
@@ -419,7 +422,7 @@ class Migrator
             $modules = array_merge($modules, $this->getDirectories($modulesRoot));
         }
 
-        $vendorRoot = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
+        $vendorRoot = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us';
         if (is_dir($vendorRoot)) {
             foreach ($this->getDirectories($vendorRoot) as $pkgDir) {
                 $vModulesPath = $pkgDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
@@ -459,26 +462,41 @@ class Migrator
                 id SERIAL PRIMARY KEY,
                 module VARCHAR(255) NOT NULL,
                 migration VARCHAR(255) NOT NULL UNIQUE,
-                hash VARCHAR(32),
+                hash VARCHAR(64),
                 executed_at TIMESTAMP NOT NULL DEFAULT NOW()
                )"
             : "CREATE TABLE IF NOT EXISTS migrations (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 module VARCHAR(255) NOT NULL,
                 migration VARCHAR(255) NOT NULL UNIQUE,
-                hash VARCHAR(32),
+                hash VARCHAR(64),
                 executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                )";
         $pdo->exec($sql);
 
-        // Adiciona coluna hash em tabelas existentes (upgrade transparente)
+        // Adiciona coluna hash em tabelas existentes (upgrade transparente).
         try {
             if ($driver === 'pgsql') {
-                $pdo->exec("ALTER TABLE migrations ADD COLUMN IF NOT EXISTS hash VARCHAR(32)");
+                $exists = $pdo->query(
+                    "SELECT 1 FROM information_schema.columns
+                     WHERE table_name = 'migrations' AND column_name = 'hash'"
+                )->fetchColumn();
+                if (!$exists) {
+                    $pdo->exec("ALTER TABLE migrations ADD COLUMN hash VARCHAR(64)");
+                } else {
+                    // Alarga apenas se ainda for VARCHAR(32) de versão anterior
+                    $len = (int) $pdo->query(
+                        "SELECT character_maximum_length FROM information_schema.columns
+                         WHERE table_name = 'migrations' AND column_name = 'hash'"
+                    )->fetchColumn();
+                    if ($len > 0 && $len < 64) {
+                        $pdo->exec("ALTER TABLE migrations ALTER COLUMN hash TYPE VARCHAR(64)");
+                    }
+                }
             } elseif ($driver === 'mysql') {
                 $cols = $pdo->query("SHOW COLUMNS FROM migrations LIKE 'hash'")->fetchAll();
                 if (empty($cols)) {
-                    $pdo->exec("ALTER TABLE migrations ADD COLUMN hash VARCHAR(32)");
+                    $pdo->exec("ALTER TABLE migrations ADD COLUMN hash VARCHAR(64)");
                 }
             }
         } catch (\Throwable) {}

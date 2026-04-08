@@ -1,27 +1,20 @@
 <?php
+
 namespace Src\Kernel\Controllers;
 
-use Src\Kernel\View;
+use Src\Kernel\Controllers\Concerns\RendersView;
 use Src\Kernel\Http\Response\Response;
 
 class UsuariosPageController
 {
+    use RendersView;
+
     public function index(): Response
     {
-        $logoUrl = $_ENV['APP_LOGO_URL'] ?? (getenv('APP_LOGO_URL') ?: null);
-        if ($logoUrl !== null) {
-            $ext = strtolower(pathinfo(parse_url($logoUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
-            if ($ext === 'ico' || $ext === '') { $logoUrl = null; }
-        }
-
-        ob_start();
-        View::render('usuarios', [
+        return $this->renderView('usuarios', [
             'titulo'    => 'Gerenciar Usuários',
-            'logo_url'  => $logoUrl,
+            'logo_url'  => $this->resolveLogoUrl(),
             'csp_nonce' => \Src\Kernel\Nonce::get(),
         ]);
-        $html = ob_get_clean();
-
-        return Response::html((string)$html);
     }
 }

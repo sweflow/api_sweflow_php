@@ -1,6 +1,6 @@
 <?php
 /**
- * Sweflow API -- Load + Attack Combinado
+ * Vupi.us API -- Load + Attack Combinado
  * Execucao: php tests/LoadAttackTest.php [BASE_URL]
  *
  * Valida:
@@ -28,7 +28,7 @@ function loadReq(string $method, string $url, array $body = [], array $headers =
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HEADER         => true,
-        CURLOPT_USERAGENT      => "SweflowLoadTest/1.0 (internal)",
+        CURLOPT_USERAGENT      => "Vupi.usLoadTest/1.0 (internal)",
         CURLOPT_HTTPHEADER     => array_merge(
             ["Content-Type: application/json", "Accept: application/json"],
             $headers
@@ -70,7 +70,7 @@ function parallelReqs(array $requests, int $timeout = 10): array
             CURLOPT_TIMEOUT        => $timeout,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_HEADER         => true,
-            CURLOPT_USERAGENT      => $req["ua"] ?? "SweflowLoadTest/1.0 (internal)",
+            CURLOPT_USERAGENT      => $req["ua"] ?? "Vupi.usLoadTest/1.0 (internal)",
             CURLOPT_HTTPHEADER     => array_merge(
                 ["Content-Type: application/json", "Accept: application/json"],
                 $req["headers"] ?? []
@@ -140,7 +140,7 @@ function summarize(array $statuses): string
 
 // ── Conectividade ─────────────────────────────────────────────────────────────
 
-echo "\n\033[1;33m[SWEFLOW -- LOAD + ATTACK COMBINADO]\033[0m\n";
+echo "\n\033[1;33m[VUPI.US -- LOAD + ATTACK COMBINADO]\033[0m\n";
 echo "Base URL: \033[1m$baseUrl\033[0m\n\n";
 
 $ping = loadReq("GET", "$baseUrl/api/status");

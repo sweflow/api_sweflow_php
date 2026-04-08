@@ -28,6 +28,8 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
     private int    $threshold;
     private int    $cooldown;
     private string $storageDir;
+    private ?\Redis $redisConnection = null;
+    private bool $redisAttempted = false;
 
     public function __construct(
         string $service   = 'default',
@@ -124,7 +126,7 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
         $default = ['status' => 'CLOSED', 'failures' => 0, 'successes' => 0, 'opened_at' => 0];
 
         // Tenta Redis primeiro — estado compartilhado entre nós
-        $redis = $this->redis();
+        $redis = $this->connectRedis();
         if ($redis !== null) {
             $raw = $redis->get($this->redisKey());
             if ($raw === false || $raw === null) {
@@ -152,7 +154,7 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
         $json = (string) json_encode($state);
 
         // Tenta Redis primeiro
-        $redis = $this->redis();
+        $redis = $this->connectRedis();
         if ($redis !== null) {
             // TTL = cooldown * 3 — estado expira automaticamente se não houver atividade
             $redis->setex($this->redisKey(), $this->cooldown * 3, $json);
@@ -176,15 +178,15 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
         fclose($fp);
     }
 
-    private function redis(): ?\Redis
+    /**
+     * Cria e cacheia a conexão Redis por instância do middleware.
+     */
+    private function connectRedis(): ?\Redis
     {
-        static $instance = null;
-        static $checked  = false;
-
-        if ($checked) {
-            return $instance;
+        if ($this->redisAttempted) {
+            return $this->redisConnection;
         }
-        $checked = true;
+        $this->redisAttempted = true;
 
         $host = trim($_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST') ?: '');
         if ($host === '' || !extension_loaded('redis')) {
@@ -203,14 +205,14 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
                 $r->auth($pass);
             }
             $r->select((int) ($_ENV['REDIS_DB'] ?? getenv('REDIS_DB') ?: 0));
-            $prefix = trim($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX') ?: 'sweflow:');
+            $prefix = trim($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX') ?: 'vupi:');
             $r->setOption(\Redis::OPT_PREFIX, $prefix);
-            $instance = $r;
+            $this->redisConnection = $r;
         } catch (\Throwable) {
-            $instance = null;
+            $this->redisConnection = null;
         }
 
-        return $instance;
+        return $this->redisConnection;
     }
 
     private function stateFile(): string

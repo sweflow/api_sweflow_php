@@ -59,7 +59,7 @@ class SecurityDeepTest extends TestCase
         $_ENV['COOKIE_SAMESITE']= 'Lax';
         $_SERVER['REMOTE_ADDR'] = '10.0.0.1';
 
-        $this->tmpDir = sys_get_temp_dir() . '/sweflow_deep_' . uniqid();
+        $this->tmpDir = sys_get_temp_dir() . '/vupi_deep_' . uniqid();
         mkdir($this->tmpDir, 0750, true);
     }
 

@@ -4,7 +4,6 @@ namespace Src\Kernel\Nucleo;
 use Src\Kernel\Contracts\ContainerInterface;
 use Src\Kernel\Contracts\ModuleProviderInterface;
 use Src\Kernel\Contracts\RouterInterface;
-use Src\Kernel\Nucleo\CapabilityResolver;
 
 class ModuleLoader
 {
@@ -17,13 +16,15 @@ class ModuleLoader
     private string $cacheFile;
     /** @var string[] */
     private array $protectedModules = ['Auth', 'Usuario'];
+    /** @var array<string, array<string>> Cache de provides por classe de provider */
+    private array $providesCache = [];
 
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
         $root = dirname(__DIR__, 3);
         $this->stateFile = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_state.json';
-        $this->cacheFile = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_cache.php';
+        $this->cacheFile = $root . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_cache.json';
         $this->enabled = $this->loadState();
     }
 
@@ -47,7 +48,8 @@ class ModuleLoader
         $this->enabled = array_intersect_key($this->enabled, $this->providers);
 
         // Preserva entradas false no state (módulos desinstalados) mesmo que não estejam nos providers
-        foreach ($this->loadState() as $name => $val) {
+        $persistedState = $this->loadState();
+        foreach ($persistedState as $name => $val) {
             if ($val === false) {
                 $this->enabled[$name] = false;
             }
@@ -61,8 +63,8 @@ class ModuleLoader
 
     private function discoverVendorModules(string $root): void
     {
-        $sweflowVendor = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow';
-        $this->discoverPackageModules($sweflowVendor);
+        $vupiVendor = $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us';
+        $this->discoverPackageModules($vupiVendor);
     }
 
     private function discoverStorageModules(string $root): void
@@ -117,8 +119,8 @@ class ModuleLoader
     private function registerComposerPackageProviders(array $pkg): void
     {
         $extra    = $pkg['extra'] ?? null;
-        $sweflow  = is_array($extra) ? ($extra['sweflow'] ?? null) : null;
-        $providers = is_array($sweflow) ? ($sweflow['providers'] ?? []) : [];
+        $vupiExtra = is_array($extra) ? ($extra['vupi.us'] ?? null) : null;
+        $providers = is_array($vupiExtra) ? ($vupiExtra['providers'] ?? []) : [];
         if (!is_array($providers)) return;
 
         foreach ($providers as $providerClass) {
@@ -154,13 +156,18 @@ class ModuleLoader
             return;
         }
 
-        $cached = include $this->cacheFile;
+        // Usa JSON em vez de PHP executável — elimina risco de RCE se o arquivo for comprometido
+        $raw = is_readable($this->cacheFile) ? file_get_contents($this->cacheFile) : false;
+        if ($raw === false) {
+            return;
+        }
+        $cached = json_decode($raw, true);
         if (!is_array($cached)) {
             return;
         }
 
         foreach ($cached as $name => $data) {
-            if (!isset($data['path']) || !is_dir($data['path'])) {
+            if (!is_array($data) || !isset($data['path']) || !is_dir($data['path'])) {
                 continue;
             }
 
@@ -188,11 +195,11 @@ class ModuleLoader
             return;
         }
 
-        // Tenta carregar um provider real se o módulo tiver composer.json com extra.sweflow.providers
+        // Tenta carregar um provider real se o módulo tiver composer.json com extra.vupi.us.providers
         $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
         if (is_file($composerFile)) {
             $meta      = json_decode((string) file_get_contents($composerFile), true) ?? [];
-            $providers = $meta['extra']['sweflow']['providers'] ?? [];
+            $providers = $meta['extra']['vupi.us']['providers'] ?? [];
             if (is_array($providers)) {
                 foreach ($providers as $providerClass) {
                     if (!is_string($providerClass) || !class_exists($providerClass)) {
@@ -236,21 +243,12 @@ class ModuleLoader
 
     public function registerRoutes(RouterInterface $router): void
     {
+        // Reutiliza o mesmo resolver — evita instanciar duas vezes por request
         $resolver = new CapabilityResolver($this->storageDir());
         foreach ($this->providers as $name => $provider) {
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
-            
-            // Registra as rotas
             $provider->registerRoutes(new ModuleScopedRouter($router, $this, $name));
-            
-            // IMPORTANTE: Atualiza o provider no array de providers
-            // O SimpleModuleProvider armazena rotas internamente durante o registerRoutes.
-            // Se não atualizarmos a instância ou garantirmos que é a mesma referência,
-            // o método describe() chamado depois pode não ter as rotas se o registerRoutes não tiver side-effects persistentes.
-            // No caso do SimpleModuleProvider, $this->routes é preenchido em registerRoutes.
-            // Como $provider é uma referência ao objeto em $this->providers, deve funcionar.
-            // Mas vamos garantir que o describe() seja chamado DEPOIS de registerRoutes para popular a visualização.
         }
     }
 
@@ -341,8 +339,17 @@ class ModuleLoader
                 $data[$name] = ['path' => $provider->getPath()];
             }
         }
-        $content = "<?php\nreturn " . var_export($data, true) . ";\n";
-        file_put_contents($this->cacheFile, $content);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $fp = fopen($this->cacheFile, 'c+');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_EX);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, (string) $json);
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 
     private function loadState(): array
@@ -364,7 +371,17 @@ class ModuleLoader
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        file_put_contents($this->stateFile, json_encode($this->enabled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $json = json_encode($this->enabled, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $fp = fopen($this->stateFile, 'c+');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_EX);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, (string) $json);
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 
     private function storageDir(): string
@@ -376,32 +393,21 @@ class ModuleLoader
     {
         $provides = $this->providerProvides($provider);
         if (empty($provides)) {
-            // Se o módulo não declara capabilities, ele está sempre ativo (se enabled)
             return true;
         }
-        
+
         $pluginId = $this->providerPluginId($provider);
-        
+
         foreach ($provides as $cap) {
             $active = $resolver->resolve($cap);
-            
-            // Se a capability não tem provider definido, ou se o definido é este plugin
+
             if ($active === null) {
-                // Auto-claim: Se ninguém tem essa capability, eu assumo
                 $resolver->setProvider($cap, $pluginId);
                 return true;
             }
-            
-            if ($active !== $pluginId) {
-                // Existe outro provider ativo para esta capability.
-                // Mas espera: capabilities_registry armazena o nome da PASTA (ex: 'Email').
-                // O pluginId deve bater com o nome da pasta.
-                
-                // Normaliza para comparação (case insensitive e limpeza de prefixos se necessário)
-                // O registry salva 'Email', o pluginId retorna 'Email'.
-                if (strcasecmp($active, $pluginId) !== 0) {
-                     return false;
-                }
+
+            if (strcasecmp($active, $pluginId) !== 0) {
+                return false;
             }
         }
         return true;
@@ -409,25 +415,31 @@ class ModuleLoader
 
     private function providerProvides(ModuleProviderInterface $provider): array
     {
-        // Try to find composer.json first (modern modules)
-        $ref = new \ReflectionClass($provider);
+        $class = get_class($provider);
+        if (isset($this->providesCache[$class])) {
+            return $this->providesCache[$class];
+        }
+
+        $ref  = new \ReflectionClass($provider);
         $file = $ref->getFileName() ?: '';
-        if (empty($file)) return []; // Fix for internal classes or eval'd code
-        
+        if (empty($file)) {
+            return $this->providesCache[$class] = [];
+        }
+
         $dir = dirname($file);
-        
-        // Walk up to find composer.json or plugin.json
+
         for ($i = 0; $i < 4; $i++) {
-            // Check boundaries
             if (empty($dir) || $dir === '.' || $dir === '/' || $dir === '\\') break;
 
             $composer = $dir . DIRECTORY_SEPARATOR . 'composer.json';
             if (is_file($composer)) {
                 $raw = file_get_contents($composer);
                 if ($raw !== false) {
-                    $data = json_decode($raw, true);
-                    $provides = $data['extra']['sweflow']['provides'] ?? [];
-                    if (!empty($provides)) return $provides;
+                    $data     = json_decode($raw, true);
+                    $provides = $data['extra']['vupi.us']['provides'] ?? [];
+                    if (!empty($provides)) {
+                        return $this->providesCache[$class] = $provides;
+                    }
                 }
             }
 
@@ -435,16 +447,18 @@ class ModuleLoader
             if (is_file($plugin)) {
                 $raw = file_get_contents($plugin);
                 if ($raw !== false) {
-                    $data = json_decode($raw, true);
+                    $data     = json_decode($raw, true);
                     $provides = $data['provides'] ?? [];
-                    if (!empty($provides)) return $provides;
+                    if (!empty($provides)) {
+                        return $this->providesCache[$class] = $provides;
+                    }
                 }
             }
-            
+
             $dir = dirname($dir);
         }
-        
-        return [];
+
+        return $this->providesCache[$class] = [];
     }
 
     private function providerPluginId(ModuleProviderInterface $provider): string

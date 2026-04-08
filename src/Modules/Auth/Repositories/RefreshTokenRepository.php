@@ -19,6 +19,11 @@ class RefreshTokenRepository
         $this->maxPerUser = $limite > 0 ? $limite : 5;
     }
 
+    public function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
+
     public function store(string $jti, string $userUuid, string $hashedToken, DateTimeImmutable $expiresAt): void
     {
         $sql = "INSERT INTO {$this->table} (jti, user_uuid, token_hash, expires_at, revoked) VALUES (:jti, :user_uuid, :token_hash, :expires_at, :revoked)";
@@ -77,29 +82,42 @@ class RefreshTokenRepository
             return;
         }
 
-        // MySQL não permite DELETE + subquery na mesma tabela diretamente.
-        // Solução: busca os JTIs a manter e deleta os demais em duas queries.
-        $selectSql = "SELECT jti FROM {$this->table}
-                      WHERE user_uuid = :user_uuid
-                      ORDER BY expires_at DESC
-                      LIMIT :limite";
+        // Envolve em transação para evitar race condition entre SELECT e DELETE
+        $inTransaction = false;
+        try {
+            if (!$this->pdo->inTransaction()) {
+                $this->pdo->beginTransaction();
+                $inTransaction = true;
+            }
 
-        $stmt = $this->pdo->prepare($selectSql);
-        $stmt->bindValue(':user_uuid', $userUuid);
-        $stmt->bindValue(':limite', $maxTokens, PDO::PARAM_INT);
-        $stmt->execute();
-        $keep = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $selectSql = "SELECT jti FROM {$this->table}
+                          WHERE user_uuid = :user_uuid
+                          ORDER BY expires_at DESC
+                          LIMIT :limite";
 
-        if (empty($keep)) {
-            return;
+            $stmt = $this->pdo->prepare($selectSql);
+            $stmt->bindValue(':user_uuid', $userUuid);
+            $stmt->bindValue(':limite', $maxTokens, PDO::PARAM_INT);
+            $stmt->execute();
+            $keep = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            if (!empty($keep)) {
+                $placeholders = implode(',', array_fill(0, count($keep), '?'));
+                $deleteSql    = "DELETE FROM {$this->table}
+                                 WHERE user_uuid = ?
+                                   AND jti NOT IN ({$placeholders})";
+                $this->pdo->prepare($deleteSql)->execute(array_merge([$userUuid], $keep));
+            }
+
+            if ($inTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($inTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            // Falha silenciosa — trim é best-effort, não deve quebrar o login
+            error_log('[RefreshTokenRepository] trimForUser failed: ' . $e->getMessage());
         }
-
-        $placeholders = implode(',', array_fill(0, count($keep), '?'));
-        $deleteSql = "DELETE FROM {$this->table}
-                      WHERE user_uuid = ?
-                        AND jti NOT IN ({$placeholders})";
-
-        $deleteStmt = $this->pdo->prepare($deleteSql);
-        $deleteStmt->execute(array_merge([$userUuid], $keep));
     }
 }

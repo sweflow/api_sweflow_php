@@ -36,7 +36,7 @@ class DefenseTest extends TestCase
         $_ENV['JWT_ISSUER']     = '';
         $_ENV['JWT_AUDIENCE']   = '';
         $_SERVER['REMOTE_ADDR'] = '10.0.0.1';
-        $this->tmpDir = sys_get_temp_dir() . '/sweflow_defense_' . uniqid();
+        $this->tmpDir = sys_get_temp_dir() . '/vupi_defense_' . uniqid();
         mkdir($this->tmpDir, 0750, true);
     }
 

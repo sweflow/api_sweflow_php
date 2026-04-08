@@ -43,7 +43,7 @@ class ImageProcessor
 
         $dst = imagecreatetruecolor($newWidth, $newHeight);
         if (!$dst) {
-            $src = null;
+            imagedestroy($src);
             return self::fallbackMove($tmpPath, $destPath);
         }
 
@@ -58,14 +58,13 @@ class ImageProcessor
 
         $saved = self::saveImage($dst, $destPath, $mime, $quality);
 
+        imagedestroy($src);
+        imagedestroy($dst);
+
         if (!$saved) {
-            $src = null;
-            $dst = null;
             return self::fallbackMove($tmpPath, $destPath);
         }
 
-        $src = null;
-        $dst = null;
         return true;
     }
 

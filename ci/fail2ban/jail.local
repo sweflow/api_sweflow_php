@@ -1,12 +1,12 @@
 ﻿# ============================================================
-# Fail2Ban â€” Sweflow API
+# Fail2Ban â€" Vupi API
 #
 # InstalaÃ§Ã£o:
 #   sudo cp ci/fail2ban/jail.local /etc/fail2ban/jail.local
-#   sudo cp ci/fail2ban/filter.d/sweflow-api.conf /etc/fail2ban/filter.d/sweflow-api.conf
-#   sudo cp ci/fail2ban/filter.d/sweflow-nginx.conf /etc/fail2ban/filter.d/sweflow-nginx.conf
+#   sudo cp ci/fail2ban/filter.d/vupi-api.conf /etc/fail2ban/filter.d/vupi-api.conf
+#   sudo cp ci/fail2ban/filter.d/vupi-nginx.conf /etc/fail2ban/filter.d/vupi-nginx.conf
 #   sudo systemctl restart fail2ban
-#   sudo fail2ban-client status sweflow-api
+#   sudo fail2ban-client status vupi-api
 # ============================================================
 
 [DEFAULT]
@@ -16,53 +16,53 @@ maxretry = 10        ; mÃ¡ximo de falhas antes de banir
 banaction = iptables-multiport
 banaction_allports = iptables-allports
 
-# â”€â”€ Ban por rate limit no Nginx (429) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-[sweflow-nginx-ratelimit]
+# â"€â"€ Ban por rate limit no Nginx (429) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+[vupi-nginx-ratelimit]
 enabled  = true
 port     = http,https
-filter   = sweflow-nginx
+filter   = vupi-nginx
 logpath  = /var/log/nginx/api.vupi.us.access.log
-maxretry = 20        ; 20 respostas 429 em 5 min â†’ ban
+maxretry = 20        ; 20 respostas 429 em 5 min â†' ban
 findtime = 300
 bantime  = 1800      ; 30 minutos
 
-# â”€â”€ Ban por falhas de autenticaÃ§Ã£o no Nginx (401/403) â”€â”€â”€â”€
-[sweflow-nginx-auth]
+# â"€â"€ Ban por falhas de autenticaÃ§Ã£o no Nginx (401/403) â"€â"€â"€â"€
+[vupi-nginx-auth]
 enabled  = true
 port     = http,https
-filter   = sweflow-nginx-auth
+filter   = vupi-nginx-auth
 logpath  = /var/log/nginx/api.vupi.us.access.log
 maxretry = 15
 findtime = 300
 bantime  = 3600      ; 1 hora
 
-# â”€â”€ Ban por eventos de seguranÃ§a no PHP (stderr) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Ban por eventos de seguranÃ§a no PHP (stderr) â"€â"€â"€â"€â"€â"€â"€â"€â"€
 # LÃª o log do PHP built-in server / PM2 / journald
-[sweflow-api-brute]
+[vupi-api-brute]
 enabled  = true
 port     = http,https
-filter   = sweflow-api
-logpath  = /var/log/sweflow/app.log
+filter   = vupi-api
+logpath  = /var/log/vupi/app.log
 maxretry = 10
 findtime = 300
 bantime  = 3600      ; 1 hora
 
-# â”€â”€ Ban por rate limit detectado pelo PHP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-[sweflow-api-ratelimit]
+# â"€â"€ Ban por rate limit detectado pelo PHP â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+[vupi-api-ratelimit]
 enabled  = true
 port     = http,https
-filter   = sweflow-api-ratelimit
-logpath  = /var/log/sweflow/app.log
+filter   = vupi-api-ratelimit
+logpath  = /var/log/vupi/app.log
 maxretry = 30
 findtime = 300
 bantime  = 1800      ; 30 minutos
 
-# â”€â”€ Ban por bots (User-Agent malicioso + honeypot) â”€â”€â”€â”€â”€â”€â”€â”€
-[sweflow-bot]
+# â"€â"€ Ban por bots (User-Agent malicioso + honeypot) â"€â"€â"€â"€â"€â"€â"€â"€
+[vupi-bot]
 enabled  = true
 port     = http,https
-filter   = sweflow-bot
-logpath  = /var/log/sweflow/app.log
+filter   = vupi-bot
+logpath  = /var/log/vupi/app.log
 maxretry = 1         ; 1 hit no honeypot = ban imediato
 findtime = 60
 bantime  = 86400     ; 24 horas

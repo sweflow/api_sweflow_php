@@ -15,7 +15,7 @@ use Src\Kernel\Contracts\RateLimitStorageInterface;
  *   REDIS_PORT=6379
  *   REDIS_PASSWORD=
  *   REDIS_DB=0
- *   REDIS_PREFIX=sweflow:
+ *   REDIS_PREFIX=vupi:
  */
 class RedisRateLimitStorage implements RateLimitStorageInterface
 {
@@ -40,7 +40,7 @@ class RedisRateLimitStorage implements RateLimitStorageInterface
         $port     = (int) ($_ENV['REDIS_PORT']     ?? getenv('REDIS_PORT')     ?: 6379);
         $password = $_ENV['REDIS_PASSWORD'] ?? getenv('REDIS_PASSWORD') ?: '';
         $db       = (int) ($_ENV['REDIS_DB']       ?? getenv('REDIS_DB')       ?: 0);
-        $prefix   = $_ENV['REDIS_PREFIX']   ?? getenv('REDIS_PREFIX')   ?: 'sweflow:';
+        $prefix   = $_ENV['REDIS_PREFIX']   ?? getenv('REDIS_PREFIX')   ?: 'vupi:';
 
         try {
             $redis = new \Redis();

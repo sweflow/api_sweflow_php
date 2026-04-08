@@ -54,19 +54,13 @@ class FileRateLimitStorage implements RateLimitStorageInterface
         $raw  = @file_get_contents($file);
         $data = $raw ? (json_decode($raw, true) ?? []) : [];
 
-        $ttl      = (int) ($data['ttl_until'] ?? 0);
-        $lastSeen = (int) ($data['last_seen'] ?? 0);
+        $ttlUntil = (int) ($data['ttl_until'] ?? 0);
 
-        // Suporte a TTL absoluto (usado pelo ThreatScorer)
-        if ($ttl > 0 && time() > $ttl) {
-            return 0;
-        }
-        // Suporte a last_seen TTL (legado ThreatScorer)
-        if ($lastSeen > 0 && isset($data['ttl_seconds']) && (time() - $lastSeen) > (int) $data['ttl_seconds']) {
+        if ($ttlUntil > 0 && time() > $ttlUntil) {
             return 0;
         }
 
-        return (int) ($data['value'] ?? $data['score'] ?? 0);
+        return (int) ($data['value'] ?? 0);
     }
 
     public function addWithTtl(string $key, int $delta, int $ttlSeconds): int
@@ -119,11 +113,20 @@ class FileRateLimitStorage implements RateLimitStorageInterface
             return;
         }
         $now = time();
-        foreach (glob($this->storageDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $file) {
-            if (!is_file($file) || !is_readable($file)) {
+        $dh  = opendir($this->storageDir);
+        if ($dh === false) {
+            return;
+        }
+        $checked = 0;
+        while (($file = readdir($dh)) !== false && $checked < 500) {
+            if (!str_ends_with($file, '.json')) {
                 continue;
             }
-            $raw  = @file_get_contents($file);
+            $path = $this->storageDir . DIRECTORY_SEPARATOR . $file;
+            if (!is_file($path) || !is_readable($path)) {
+                continue;
+            }
+            $raw  = @file_get_contents($path);
             $data = $raw ? (json_decode($raw, true) ?? []) : [];
 
             $resetAt  = (int) ($data['reset_at']  ?? 0);
@@ -132,10 +135,12 @@ class FileRateLimitStorage implements RateLimitStorageInterface
             $expired = ($resetAt  > 0 && $now > $resetAt  + 300)
                     || ($ttlUntil > 0 && $now > $ttlUntil + 300);
 
-            if ($expired && is_writable($file)) {
-                @unlink($file);
+            if ($expired && is_writable($path)) {
+                @unlink($path);
             }
+            $checked++;
         }
+        closedir($dh);
     }
 
     private function path(string $key): string

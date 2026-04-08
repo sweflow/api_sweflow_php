@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Sweflow API — Instalação e Setup em um único comando
+# Vupi.us API — Instalação e Setup em um único comando
 #
 # Uso:
 #   curl -fsSL https://raw.githubusercontent.com/seu-repo/main/install.sh | sudo bash
@@ -32,7 +32,7 @@ APP_USER="${SUDO_USER:-ubuntu}"
 
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}║           Sweflow API — Instalacao Completa          ║${RESET}"
+echo -e "${BOLD}║           Vupi.us API — Instalacao Completa          ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════════════════╝${RESET}"
 echo ""
 info "Projeto: $PROJECT_DIR"
@@ -157,14 +157,14 @@ else
     warn "vendor/ ja existe — pulando composer install"
 fi
 
-# ── 8. Sweflow Setup ─────────────────────────────────────
-step "8/8 - Executando Sweflow Setup"
+# ── 8. Vupi.us Setup ─────────────────────────────────────
+step "8/8 - Executando Vupi.us Setup"
 echo ""
 
 if [[ -n "$APP_USER" && "$APP_USER" != "root" ]]; then
-    sudo -u "$APP_USER" php sweflow setup --auto --db-mode=compose --server=php
+    sudo -u "$APP_USER" php vupi setup --auto --db-mode=compose --server=php
 else
-    php sweflow setup --auto --db-mode=compose --server=php
+    php vupi setup --auto --db-mode=compose --server=php
 fi
 
 echo ""

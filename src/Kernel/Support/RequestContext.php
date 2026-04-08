@@ -55,11 +55,14 @@ class RequestContext
      */
     public function toArray(): array
     {
-        return [
+        $data = [
             'request_id' => $this->requestId,
             'tenant_id'  => $this->tenantId,
             'user_id'    => $this->userId,
-            'meta'       => $this->meta ?: null,
         ];
+        if (!empty($this->meta)) {
+            $data['meta'] = $this->meta;
+        }
+        return $data;
     }
 }

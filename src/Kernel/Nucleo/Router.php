@@ -62,7 +62,7 @@ class Router implements RouterInterface
             return Response::json(['error' => 'Rota não encontrada'], 404);
         }
 
-        $request->params = $matched['params'];
+        $request = $request->withParams($matched['params']);
 
         $runner = function (Request $req) use ($matched) {
             return $this->invokeHandler($matched['handler'], $req, $matched['params']);
@@ -155,6 +155,7 @@ class Router implements RouterInterface
                 $uri = $request->getUri();
                 $isPage = !str_starts_with($uri, '/api/');
                 if ($isPage) {
+                    error_log('[Router] Falha ao instanciar middleware ' . $definition . ': ' . $e->getMessage());
                     return new Response('', 302, ['Location' => '/']);
                 }
                 throw $e;
@@ -223,6 +224,7 @@ class Router implements RouterInterface
 
         if ($paramsCount === 1) {
             $response = $callable($firstArg);
+            // Propaga o request original — não o $firstArg que pode ser um array de args
             return $response instanceof Response ? $response : $next($request);
         }
 

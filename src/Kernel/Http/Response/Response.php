@@ -18,6 +18,9 @@ class Response
     public static function json($data, int $status = 200): self
     {
         $origin = self::resolveOrigin();
+        // Headers de segurança são adicionados aqui como fallback para respostas que
+        // escapem do SecurityHeadersMiddleware (ex: erros de roteamento, 404, etc).
+        // O middleware sobrescreve esses headers via withHeader() quando presente.
         $securityHeaders = self::securityHeaders();
 
         $headers = ['Content-Type' => 'application/json; charset=utf-8'] + $securityHeaders;
@@ -88,6 +91,15 @@ class Response
 
     private static function securityHeaders(bool $isApi = true): array
     {
+        return self::buildSecurityHeaders($isApi, \Src\Kernel\Support\CookieConfig::isHttps());
+    }
+
+    /**
+     * Constrói os headers de segurança.
+     * Público para permitir reuso em SecurityHeadersMiddleware sem duplicar a lógica.
+     */
+    public static function buildSecurityHeaders(bool $isApi = true, bool $isHttps = false): array
+    {
         if ($isApi) {
             // API pura: política máxima — nenhum recurso permitido, base-uri none (sem <base> tag em JSON)
             $csp = "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
@@ -97,7 +109,7 @@ class Response
             // SRI (Subresource Integrity) garante que scripts externos não foram adulterados.
             // require-sri-for bloqueia scripts/styles sem integrity attribute.
             // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
-            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
+            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
         }
 
         $headers = [
@@ -118,7 +130,7 @@ class Response
             'Cross-Origin-Embedder-Policy'    => $isApi ? 'require-corp' : 'credentialless',
         ];
 
-        if (\Src\Kernel\Support\CookieConfig::isHttps()) {
+        if ($isHttps) {
             $headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload';
         }
 
@@ -143,7 +155,7 @@ class Response
         return $clone;
     }
 
-    public function Enviar(): void
+    public function send(): void
     {
         // Descarta qualquer output espúrio (warnings, notices) capturado pelo ob_start() do index.php
         if (ob_get_level() > 0) {
@@ -164,9 +176,13 @@ class Response
         }
 
         if (is_array($this->body) || is_object($this->body)) {
-            echo json_encode($this->body, JSON_UNESCAPED_UNICODE);
+            try {
+                echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                echo json_encode(['error' => 'Erro interno ao serializar resposta.']);
+            }
         } else {
-            echo is_string($this->body) ? $this->body : json_encode($this->body, JSON_UNESCAPED_UNICODE);
+            echo is_string($this->body) ? $this->body : (string) json_encode($this->body, JSON_UNESCAPED_UNICODE);
         }
     }
 

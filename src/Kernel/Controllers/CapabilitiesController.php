@@ -6,15 +6,21 @@ use Src\Kernel\Http\Response\Response;
 
 class CapabilitiesController
 {
+    private function resolver(): CapabilityResolver
+    {
+        return new CapabilityResolver(
+            dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage'
+        );
+    }
+
     public function index(): Response
     {
-        $storage = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage';
-        $resolver = new CapabilityResolver($storage);
-        
+        $resolver = $this->resolver();
+
         // 1. Auto-correção: Valida se os providers ativos ainda existem
         $resolver->validate();
 
-        // 2. Descobrir todas as capabilities disponíveis no sistema (plugins/vendor/src)
+        // 2. Descobrir todas as capabilities disponíveis no sistema
         $capabilities = $resolver->getAllCapabilities();
 
         // 3. Montar resposta
@@ -22,18 +28,18 @@ class CapabilitiesController
         foreach ($capabilities as $cap) {
             $items[] = [
                 'capability' => $cap,
-                'active' => $resolver->resolve($cap),
-                'providers' => $resolver->listProviders($cap),
+                'active'     => $resolver->resolve($cap),
+                'providers'  => $resolver->listProviders($cap),
             ];
         }
-        
+
         usort($items, fn($a, $b) => strcmp($a['capability'], $b['capability']));
         return Response::json(['items' => $items]);
     }
 
     public function set($request): Response
     {
-        $body = $request->body ?? [];
+        $body   = $request->body ?? [];
         $cap    = trim((string) ($body['capability'] ?? ''));
         $plugin = trim((string) ($body['plugin'] ?? ''));
 
@@ -46,7 +52,7 @@ class CapabilitiesController
             return Response::json(['error' => 'Valor de capability inválido.'], 422);
         }
 
-        $resolver = new CapabilityResolver(dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage');
+        $resolver = $this->resolver();
 
         if ($plugin === '') {
             $resolver->removeProvider($cap);

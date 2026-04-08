@@ -429,32 +429,36 @@ class SecurityAuditTest extends TestCase
 
     // ── 12. DESERIALIZAÇÃO INSEGURA ───────────────────────────────────
 
-    public function test_json_decode_com_profundidade_limitada(): void
+    public function test_json_decode_com_profundidade_limitada_no_request_factory(): void
     {
-        $this->assertStringContainsString('json_decode($conteudoBruto, true, 8)',
-            $this->sourceOf(\Src\Modules\Auth\Controllers\AuthController::class),
-            'json_decode deve ter profundidade limitada para evitar DoS');
+        // O limite de profundidade está no RequestFactory, não no AuthController
+        $source = $this->sourceOf(\Src\Kernel\Http\Request\RequestFactory::class);
+        $this->assertStringContainsString('json_decode($rawBody, true, 32)',
+            $source,
+            'RequestFactory deve limitar profundidade do json_decode para evitar DoS');
     }
 
-    public function test_body_limitado_a_64kb(): void
+    public function test_body_limitado_no_request_factory(): void
     {
-        $this->assertStringContainsString('64 * 1024',
-            $this->sourceOf(\Src\Modules\Auth\Controllers\AuthController::class),
-            'Body deve ser limitado a 64KB');
+        // O limite de payload está no RequestFactory
+        $source = $this->sourceOf(\Src\Kernel\Http\Request\RequestFactory::class);
+        $this->assertStringContainsString('MAX_PAYLOAD_KB',
+            $source,
+            'RequestFactory deve limitar tamanho do body via MAX_PAYLOAD_KB');
     }
 
-    public function test_json_profundidade_8_rejeita_json_profundo(): void
+    public function test_json_profundidade_32_rejeita_json_muito_profundo(): void
     {
-        $jsonProfundo = str_repeat('{"a":', 10) . '"v"' . str_repeat('}', 10);
-        $this->assertNull(json_decode($jsonProfundo, true, 8),
-            'JSON com profundidade > 8 deve ser rejeitado');
+        $jsonProfundo = str_repeat('{"a":', 35) . '"v"' . str_repeat('}', 35);
+        $this->assertNull(json_decode($jsonProfundo, true, 32),
+            'JSON com profundidade > 32 deve ser rejeitado');
     }
 
     // ── 13. RATE LIMITING — brute force ──────────────────────────────
 
     public function test_threat_scorer_bloqueia_apos_5_logins_falhos(): void
     {
-        $dir = sys_get_temp_dir() . '/sweflow_audit_' . uniqid();
+        $dir = sys_get_temp_dir() . '/vupi_audit_' . uniqid();
         mkdir($dir, 0750, true);
         $scorer = new \Src\Kernel\Support\ThreatScorer(
             new \Src\Kernel\Support\Storage\FileRateLimitStorage($dir)
@@ -578,8 +582,10 @@ class SecurityAuditTest extends TestCase
     public function test_logout_revoga_token_na_blacklist(): void
     {
         $source = $this->sourceOf(\Src\Modules\Auth\Controllers\AuthController::class);
-        $this->assertStringContainsString('blacklistRepositorio', $source);
-        $this->assertStringContainsString('revoke', $source);
+        $this->assertStringContainsString('accessBlacklist', $source,
+            'AuthController deve ter referência ao repositório de blacklist');
+        $this->assertStringContainsString('revoke', $source,
+            'AuthController deve chamar revoke() no logout');
     }
 
     // ── 22. HTTPS ENFORCEMENT ────────────────────────────────────────

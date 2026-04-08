@@ -46,7 +46,7 @@ class ModuleConnectionResolver
         }
 
         // Módulo quer DB core — verifica se está configurado
-        if (in_array($conn, ['core', 'auto'], true) || ($conn === 'modules' && !PdoFactory::hasSecondaryConnection())) {
+        if (in_array($conn, ['core', 'auto'], true)) {
             $dbNome = $_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? getenv('DB_NOME') ?: getenv('DB_DATABASE') ?: '';
             $dbHost = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '';
             if ($dbNome === '' || $dbHost === '') {

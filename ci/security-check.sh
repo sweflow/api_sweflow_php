@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Sweflow API — CI/CD Security Check
+# Vupi.us API — CI/CD Security Check
 # Executa testes de segurança automaticamente a cada deploy.
 #
 # Uso:
@@ -20,7 +20,7 @@ TEST_FILE="$PROJECT_ROOT/tests/SecurityTest.php"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║   Sweflow API — CI/CD Security Check                     ║"
+echo "║   Vupi.us API — CI/CD Security Check                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo "  URL: $BASE_URL"
 echo "  PHP: $(php --version | head -1)"

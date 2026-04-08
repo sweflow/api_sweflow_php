@@ -9,6 +9,7 @@ use Src\Kernel\Support\DB\PluginMigrator;
 
 class SetupCommand
 {
+    use RunsKernelMigrations;
     public function handle(array $argv = []): void
     {
         if (file_exists(dirname(__DIR__, 2) . '/.env')) {
@@ -44,7 +45,7 @@ class SetupCommand
 
     private function printMenuOptions(): void
     {
-        echo "Sweflow Setup\n";
+        echo "Vupi.us Setup\n";
         echo "==============================\n";
         echo "1)  Preparar .env (copiar EXEMPLO.env -> .env)\n";
         echo "2)  Subir banco via docker-compose (recomendado)\n";
@@ -187,19 +188,19 @@ class SetupCommand
         echo "▶ Reiniciando PM2 + Caddy...\n\n";
 
         if ($this->commandExists('pm2')) {
-            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            $check = new Process(['pm2', 'describe', 'vupi.us-api']);
             if ($check->run()) {
-                echo "▶ Reiniciando PM2 sweflow-api...\n";
-                (new Process(['pm2', 'restart', 'sweflow-api']))->passthru();
+                echo "▶ Reiniciando PM2 vupi.us-api...\n";
+                (new Process(['pm2', 'restart', 'vupi.us-api']))->passthru();
             } else {
-                echo "⚠ PM2 sweflow-api não está rodando. Iniciando...\n";
+                echo "⚠ PM2 vupi.us-api não está rodando. Iniciando...\n";
                 $this->startPm2();
             }
         } else {
             echo "⚠ PM2 não encontrado. Pulando reinício do PM2.\n";
         }
 
-        // Recarrega Caddy — usa startCaddyProduction que já atualiza sweflow.env e variáveis
+        // Recarrega Caddy — usa startCaddyProduction que já atualiza vupi.us.env e variáveis
         $this->startCaddyProduction();
     }
 
@@ -209,14 +210,14 @@ class SetupCommand
 
         // Para PM2
         if ($this->commandExists('pm2')) {
-            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            $check = new Process(['pm2', 'describe', 'vupi.us-api']);
             if ($check->run()) {
-                echo "▶ Parando PM2 sweflow-api...\n";
-                (new Process(['pm2', 'delete', 'sweflow-api']))->passthru();
+                echo "▶ Parando PM2 vupi.us-api...\n";
+                (new Process(['pm2', 'delete', 'vupi.us-api']))->passthru();
                 (new Process(['pm2', 'save']))->passthru();
-                echo "✔ PM2 sweflow-api parado.\n";
+                echo "✔ PM2 vupi.us-api parado.\n";
             } else {
-                echo "⚠ PM2 sweflow-api não estava rodando.\n";
+                echo "⚠ PM2 vupi.us-api não estava rodando.\n";
             }
         } else {
             echo "⚠ PM2 não encontrado.\n";
@@ -271,7 +272,7 @@ class SetupCommand
         $this->runProcess(['sudo', 'cp', $caddyfile, '/etc/caddy/Caddyfile']);
 
         // Inicia o servidor PHP em background se não estiver rodando
-        $pm2Running = $this->commandExists('pm2') && (new Process(['pm2', 'describe', 'sweflow-api']))->run();
+        $pm2Running = $this->commandExists('pm2') && (new Process(['pm2', 'describe', 'vupi.us-api']))->run();
         $pidFile    = $root . '/storage/server.pid';
         if (!$pm2Running && !is_file($pidFile)) {
             echo "▶ Iniciando servidor PHP em background na porta {$port}...\n";
@@ -288,22 +289,22 @@ class SetupCommand
             'CADDY_EMAIL' => $email,
         ];
 
-        // Se o systemd gerencia o Caddy, garante que o sweflow.env está atualizado e recarrega
+        // Se o systemd gerencia o Caddy, garante que o vupi.us.env está atualizado e recarrega
         $check = new Process(['sudo', 'systemctl', 'is-active', 'caddy']);
         $check->run();
         $systemdActive = trim($check->getOutput()) === 'active';
 
-        // Gera /etc/caddy/sweflow.env para o systemd EnvironmentFile
-        $sweflowEnvContent = "# Gerado pelo sweflow setup em " . date('Y-m-d H:i:s') . "\n";
+        // Gera /etc/caddy/vupi.us.env para o systemd EnvironmentFile
+        $vupiEnvContent = "# Gerado pelo vupi.us setup em " . date('Y-m-d H:i:s') . "\n";
         foreach ($envVars as $k => $v) {
-            $sweflowEnvContent .= "{$k}={$v}\n";
+            $vupiEnvContent .= "{$k}={$v}\n";
         }
-        $tmpEnv = tempnam(sys_get_temp_dir(), 'sweflow_env_');
-        file_put_contents($tmpEnv, $sweflowEnvContent);
-        $this->runProcess(['sudo', 'cp', $tmpEnv, '/etc/caddy/sweflow.env']);
-        $this->runProcess(['sudo', 'chmod', '640', '/etc/caddy/sweflow.env']);
+        $tmpEnv = tempnam(sys_get_temp_dir(), 'vupi_env_');
+        file_put_contents($tmpEnv, $vupiEnvContent);
+        $this->runProcess(['sudo', 'cp', $tmpEnv, '/etc/caddy/vupi.us.env']);
+        $this->runProcess(['sudo', 'chmod', '640', '/etc/caddy/vupi.us.env']);
         unlink($tmpEnv);
-        echo "✔ /etc/caddy/sweflow.env atualizado (APP_PORT={$port}, APP_HOST={$host})\n";
+        echo "✔ /etc/caddy/vupi.us.env atualizado (APP_PORT={$port}, APP_HOST={$host})\n";
 
         if ($systemdActive) {
             echo "▶ Recarregando Caddy via systemd...\n";
@@ -423,8 +424,8 @@ class SetupCommand
     private function printHelp(): void
     {
         echo "Uso:\n";
-        echo "  php sweflow setup               # menu interativo\n";
-        echo "  php sweflow setup --auto        # executa pipeline automático\n";
+        echo "  php vupi setup               # menu interativo\n";
+        echo "  php vupi setup --auto        # executa pipeline automático\n";
         echo "\n";
         echo "Flags (modo --auto):\n";
         echo "  --db-mode=compose|docker|skip   # padrão: compose\n";
@@ -435,13 +436,13 @@ class SetupCommand
         echo "\n";
         echo "Exemplos:\n";
         echo "  # Produção: PM2 + Caddy HTTPS automático (recomendado):\n";
-        echo "  php sweflow setup --auto --server=pm2+caddy\n";
+        echo "  php vupi setup --auto --server=pm2+caddy\n";
         echo "\n";
         echo "  # Produção: php -S + Caddy HTTPS automático:\n";
-        echo "  php sweflow setup --auto --caddy=production\n";
+        echo "  php vupi setup --auto --caddy=production\n";
         echo "\n";
         echo "  # Desenvolvimento local com HTTPS via mkcert:\n";
-        echo "  php sweflow setup --auto --db-mode=skip --caddy=dev\n";
+        echo "  php vupi setup --auto --db-mode=skip --caddy=dev\n";
         echo "\n";
         echo "Pré-requisitos:\n";
         echo "  - docker + docker compose instalados e rodando\n";
@@ -560,7 +561,7 @@ class SetupCommand
 
         $host = (string)($_ENV['DB_HOST'] ?? 'localhost');
         $port = (string)($_ENV['DB_PORT'] ?? ($driver === 'mysql' ? '3306' : '5432'));
-        $db = (string)($_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
+        $db = (string)($_ENV['DB_NOME'] ?? $_ENV['DB_DATABASE'] ?? 'vupi_db');
         $user = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
         $pass = (string)($_ENV['DB_SENHA'] ?? $_ENV['DB_PASSWORD'] ?? '');
 
@@ -578,7 +579,7 @@ class SetupCommand
             return;
         }
 
-        $container = $driver === 'mysql' ? 'sweflow-mysql' : 'sweflow-postgres';
+        $container = $driver === 'mysql' ? 'vupi.us-mysql' : 'vupi.us-postgres';
         if ($this->dockerContainerExists($container)) {
             echo "✔ Container já existe: {$container}\n";
             return;
@@ -626,56 +627,10 @@ class SetupCommand
         echo "Rodando migrations dos módulos (cada um usa sua conexão definida)...\n";
         $runner->migrate();
 
-        echo "Rodando migrations de plugins (vendor/sweflow/)...\n";
+        echo "Rodando migrations de plugins (vendor/vupi.us/)...\n";
         $pluginRunner->migratePluginsOnly();
 
         echo "✔ Migrations finalizadas\n";
-    }
-
-    /**
-     * Executa os arquivos .sql em src/Kernel/Database/migrations/
-     * (audit_logs, login_attempts, etc.)
-     */
-    private function runKernelMigrations(\PDO $pdo): void
-    {
-        $dir = dirname(__DIR__) . '/Kernel/Database/migrations';
-        if (!is_dir($dir)) return;
-
-        $files = glob($dir . '/*.sql') ?: [];
-        sort($files, SORT_NATURAL);
-
-        foreach ($files as $file) {
-            $name = basename($file);
-
-            // Verifica se já foi executada
-            try {
-                $stmt = $pdo->prepare("SELECT 1 FROM migrations WHERE migration = :m LIMIT 1");
-                $stmt->execute([':m' => 'kernel/' . $name]);
-                if ($stmt->fetchColumn()) continue;
-            } catch (\Throwable) {}
-
-            $sql = file_get_contents($file);
-            if ($sql === false) continue;
-
-            // Executa cada statement separadamente
-            foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
-                try {
-                    $pdo->exec($statement . ';');
-                } catch (\Throwable $e) {
-                    if (!str_contains($e->getMessage(), 'already exists')) {
-                        echo "  ⚠ " . $e->getMessage() . "\n";
-                    }
-                }
-            }
-
-            // Marca como executada
-            try {
-                $ins = $pdo->prepare("INSERT INTO migrations (module, migration) VALUES ('kernel', :m)");
-                $ins->execute([':m' => 'kernel/' . $name]);
-            } catch (\Throwable) {}
-
-            echo "  ✔ kernel/$name\n";
-        }
     }
 
     private function seedAll(): void
@@ -848,16 +803,16 @@ class SetupCommand
         }
 
         // Para instância anterior se existir
-        $check = new Process(['pm2', 'describe', 'sweflow-api']);
+        $check = new Process(['pm2', 'describe', 'vupi.us-api']);
         $check->run();
         if ($check->isSuccessful()) {
             echo "Parando instância anterior do PM2...\n";
-            (new Process(['pm2', 'delete', 'sweflow-api']))->passthru();
+            (new Process(['pm2', 'delete', 'vupi.us-api']))->passthru();
         }
 
         $this->runProcess([
             'pm2', 'start', PHP_BINARY,
-            '--name', 'sweflow-api',
+            '--name', 'vupi.us-api',
             '--cwd', $root,
             '--',
             '-S', "{$host}:{$port}",
@@ -865,7 +820,7 @@ class SetupCommand
         ]);
         $this->runProcess(['pm2', 'save']);
         echo "✔ PM2 iniciado em http://{$host}:{$port}\n";
-        echo "  Logs:    pm2 logs sweflow-api\n";
+        echo "  Logs:    pm2 logs vupi.us-api\n";
         echo "  Status:  pm2 status\n";
         echo "  Parar:   opção 12 do menu\n";
     }
@@ -878,11 +833,11 @@ class SetupCommand
 
         // Para PM2 se estiver rodando
         if ($this->commandExists('pm2')) {
-            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            $check = new Process(['pm2', 'describe', 'vupi.us-api']);
             $check->run();
             if ($check->isSuccessful()) {
-                $this->runProcess(['pm2', 'delete', 'sweflow-api']);
-                echo "✔ PM2 sweflow-api parado.\n";
+                $this->runProcess(['pm2', 'delete', 'vupi.us-api']);
+                echo "✔ PM2 vupi.us-api parado.\n";
                 $stopped = true;
             }
         }
@@ -891,7 +846,7 @@ class SetupCommand
         $stopped = $this->stopPhpServer($pidFile) || $stopped;
 
         if (!$stopped) {
-            echo "⚠ Nenhum servidor Sweflow encontrado rodando.\n";
+            echo "⚠ Nenhum servidor Vupi.us encontrado rodando.\n";
         }
     }
 
@@ -926,11 +881,11 @@ class SetupCommand
 
         // Reinicia PM2 se estiver em uso
         if ($this->commandExists('pm2')) {
-            $check = new Process(['pm2', 'describe', 'sweflow-api']);
+            $check = new Process(['pm2', 'describe', 'vupi.us-api']);
             $check->run();
             if ($check->isSuccessful()) {
-                $this->runProcess(['pm2', 'restart', 'sweflow-api']);
-                echo "✔ PM2 sweflow-api reiniciado.\n";
+                $this->runProcess(['pm2', 'restart', 'vupi.us-api']);
+                echo "✔ PM2 vupi.us-api reiniciado.\n";
                 return;
             }
         }
@@ -984,9 +939,8 @@ class SetupCommand
 
     private function clearScreen(): void
     {
-        // Limpa o terminal de forma segura sem executar comandos externos
-        if (stripos(PHP_OS_FAMILY, 'Windows') !== false) {
-            echo "\033[2J\033[H";
+        if (PHP_OS_FAMILY === 'Windows') {
+            (new Process(['cmd', '/c', 'cls']))->passthru();
         } else {
             echo "\033[2J\033[H";
         }
@@ -1055,7 +1009,7 @@ class SetupCommand
     {
         $root = dirname(__DIR__, 2);
         $envPath = $root . '/.env';
-        $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
+        $contents = (is_file($envPath) && is_readable($envPath)) ? (string)file_get_contents($envPath) : '';
         $lines = $contents === '' ? [] : preg_split("/\r\n|\n|\r/", $contents);
         if (!is_array($lines)) {
             $lines = [];
@@ -1091,7 +1045,7 @@ class SetupCommand
         $isPg   = $driver === 'postgresql' || $driver === 'pgsql';
         $host   = (string)($_ENV['DB_HOST']    ?? 'localhost');
         $port   = (string)($_ENV['DB_PORT']    ?? ($isPg ? '5432' : '3306'));
-        $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
+        $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'vupi_db');
         $user   = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
         $pass   = (string)($_ENV['DB_SENHA']   ?? $_ENV['DB_PASSWORD'] ?? '');
 
@@ -1133,7 +1087,7 @@ class SetupCommand
         $isPg   = $driver === 'postgresql' || $driver === 'pgsql';
         $host   = (string)($_ENV['DB_HOST']    ?? 'localhost');
         $port   = (string)($_ENV['DB_PORT']    ?? ($isPg ? '5432' : '3306'));
-        $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'sweflow_db');
+        $db     = (string)($_ENV['DB_NOME']    ?? $_ENV['DB_DATABASE'] ?? 'vupi_db');
         $user   = (string)($_ENV['DB_USUARIO'] ?? $_ENV['DB_USERNAME'] ?? 'admin');
         $pass   = (string)($_ENV['DB_SENHA']   ?? $_ENV['DB_PASSWORD'] ?? '');
 
@@ -1147,7 +1101,7 @@ class SetupCommand
             return;
         }
 
-        usort($files, fn($a, $b) => filemtime($b) - filemtime($a));
+        usort($files, fn($a, $b) => (int)filemtime($b) - (int)filemtime($a));
 
         echo "\nBackups disponíveis:\n";
         foreach ($files as $i => $f) {
@@ -1254,20 +1208,22 @@ class SetupCommand
                 echo "✖ pg_dump não encontrado. Instale: sudo apt install postgresql-client\n";
                 return false;
             }
-            putenv("PGPASSWORD={$pass}");
-            $proc = new Process(['pg_dump', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '-F', 'p', '--inserts', '--on-conflict-do-nothing', '--section=data', '--no-password', '-f', $file]);
-            $proc->passthru();
-            $ok = $proc->isSuccessful();
-            putenv('PGPASSWORD');
-            return $ok;
+            $cmd         = ['pg_dump', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '-F', 'p', '--inserts', '--on-conflict-do-nothing', '--section=data', '--no-password', '-f', $file];
+            $descriptors = [0 => ['pipe', 'r'], 1 => STDOUT, 2 => STDERR];
+            $env         = array_merge($_ENV, ['PGPASSWORD' => $pass]);
+            $proc        = proc_open($cmd, $descriptors, $pipes, null, $env); // NOSONAR
+            if (!is_resource($proc)) return false;
+            fclose($pipes[0]);
+            return proc_close($proc) === 0;
         }
 
         if (!$this->commandExists('mysqldump')) {
             echo "✖ mysqldump não encontrado. Instale: sudo apt install mysql-client\n";
             return false;
         }
-        $cnf = tempnam(sys_get_temp_dir(), 'sweflow_');
+        $cnf = tempnam(sys_get_temp_dir(), 'vupi_');
         file_put_contents($cnf, "[client]\npassword={$pass}\n");
+        chmod($cnf, 0600);
         $cmd = ['mysqldump', "--defaults-extra-file={$cnf}", "-h{$host}", "-P{$port}", "-u{$user}", '--single-transaction', '--routines', '--triggers', '--insert-ignore', '--skip-add-drop-table', "--result-file={$file}", $db];
         $proc = new Process($cmd);
         $proc->passthru();
@@ -1283,20 +1239,22 @@ class SetupCommand
                 echo "✖ psql não encontrado. Instale: sudo apt install postgresql-client\n";
                 return false;
             }
-            putenv("PGPASSWORD={$pass}");
-            $proc = new Process(['psql', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '--no-password', '-f', $file]);
-            $proc->passthru();
-            $ok = $proc->isSuccessful();
-            putenv('PGPASSWORD');
-            return $ok;
+            $cmd         = ['psql', '-h', $host, '-p', $port, '-U', $user, '-d', $db, '--no-password', '-f', $file];
+            $descriptors = [0 => ['pipe', 'r'], 1 => STDOUT, 2 => STDERR];
+            $env         = array_merge($_ENV, ['PGPASSWORD' => $pass]);
+            $proc        = proc_open($cmd, $descriptors, $pipes, null, $env); // NOSONAR
+            if (!is_resource($proc)) return false;
+            fclose($pipes[0]);
+            return proc_close($proc) === 0;
         }
 
         if (!$this->commandExists('mysql')) {
             echo "✖ mysql não encontrado. Instale: sudo apt install mysql-client\n";
             return false;
         }
-        $cnf = tempnam(sys_get_temp_dir(), 'sweflow_');
+        $cnf = tempnam(sys_get_temp_dir(), 'vupi_');
         file_put_contents($cnf, "[client]\npassword={$pass}\n");
+        chmod($cnf, 0600);
         $descriptors = [0 => ['file', $file, 'r'], 1 => STDOUT, 2 => STDERR];
         $cmd  = ['mysql', "--defaults-extra-file={$cnf}", "-h{$host}", "-P{$port}", "-u{$user}", $db];
         $proc = proc_open($cmd, $descriptors, $pipes); // NOSONAR
@@ -1314,7 +1272,10 @@ class SetupCommand
         $pdoModules = PdoFactory::hasSecondaryConnection() ? PdoFactory::fromEnv('DB2') : $pdo;
         $migrator   = new Migrator($pdo, $root, $pdoModules);
         echo "\n[migrate:status]\n";
-        $migrator->status();
+        $output = $migrator->status();
+        if ($output !== null) {
+            echo $output;
+        }
         echo "\n";
     }
 
@@ -1342,7 +1303,7 @@ class SetupCommand
         $pluginRunner = new PluginMigrator($pdoModules, $root);
         echo "\nRodando migrations dos módulos [modules]...\n";
         $migrator->migrateModules();
-        echo "\nRodando migrations de plugins (vendor/sweflow/) [modules]...\n";
+        echo "\nRodando migrations de plugins (vendor/vupi.us/) [modules]...\n";
         $pluginRunner->migratePluginsOnly();
         echo "✔ Migrations modules finalizadas\n";
     }

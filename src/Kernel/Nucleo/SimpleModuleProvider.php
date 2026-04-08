@@ -70,17 +70,23 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function registerRoutes(RouterInterface $router): void
     {
+        $realBase = realpath($this->path);
+        if ($realBase === false) {
+            return;
+        }
+
         $found = false;
         foreach (array_unique($this->routeCandidates()) as $f) {
-            if (file_exists($f)) {
-                require $f;
+            $realFile = realpath($f);
+            if ($realFile !== false && str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
+                require $realFile;
                 $found = true;
             }
         }
 
         if ($found && $router instanceof ModuleScopedRouter) {
             $this->routes       = $router->getRegisteredRoutes();
-            $this->describeCache = null; // invalida cache — rotas foram atualizadas
+            $this->describeCache = null;
         }
     }
 
@@ -121,13 +127,16 @@ class SimpleModuleProvider implements ModuleProviderInterface
             };
 
             foreach (array_unique($this->routeCandidates()) as $f) {
-                if (file_exists($f)) {
-                    try {
-                        $router = $collector;
-                        include $f;
-                    } catch (\Throwable) {}
+                    $realBase = realpath($this->path);
+                    $realFile = realpath($f);
+                    if ($realBase !== false && $realFile !== false
+                        && str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
+                        try {
+                            $router = $collector;
+                            include $realFile;
+                        } catch (\Throwable) {}
+                    }
                 }
-            }
             $this->routes = $collector->collected;
         }
         // Middlewares que indicam autenticação obrigatória (rota privada)

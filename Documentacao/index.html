@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sweflow API — Documentação</title>
+  <title>Vupi.us API — Documentação</title>
   <link rel="icon" href="assets/imgs/favicon.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/imgs/favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -21,9 +21,9 @@
     </button>
     <a href="#introducao" class="docs-logo" onclick="showPage('introducao');return false;">
       <div class="docs-logo-icon">
-        <img src="assets/imgs/favicon.png" alt="Sweflow" style="width:28px;height:28px;object-fit:contain;">
+        <img src="assets/imgs/favicon.png" alt="Vupi.us" style="width:28px;height:28px;object-fit:contain;">
       </div>
-      <span class="docs-logo-name">Sweflow <span>API</span></span>
+      <span class="docs-logo-name">Vupi.us <span>API</span></span>
     </a>
     <span class="docs-version">v1.0</span>
   </div>
@@ -114,13 +114,13 @@
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-bolt"></i></div>
         <div>
-          <h1>Bem-vindo à Sweflow API</h1>
+          <h1>Bem-vindo à Vupi.us API</h1>
           <p>Uma plataforma modular, segura e moderna desenvolvida em PHP puro. Simplicidade por fora, poder por dentro.</p>
         </div>
       </div>
 
-      <h2 id="o-que-e">O que é a Sweflow API?</h2>
-      <p>A Sweflow API é um framework PHP modular de alta performance, projetado para construir APIs REST robustas sem a complexidade de frameworks pesados. Cada funcionalidade vive em um <strong>módulo independente</strong> — uma pasta em <code>src/Modules/</code>.</p>
+      <h2 id="o-que-e">O que é a Vupi.us API?</h2>
+      <p>A Vupi.us API é um framework PHP modular de alta performance, projetado para construir APIs REST robustas sem a complexidade de frameworks pesados. Cada funcionalidade vive em um <strong>módulo independente</strong> — uma pasta em <code>src/Modules/</code>.</p>
 
       <div class="callout note">
         <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
@@ -310,8 +310,8 @@ docker compose down -v       # para e remove containers + volumes (apaga dados)<
       <h2 id="clonar">Clonar o repositório</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>git clone https://github.com/sweflow/api_sweflow_php.git
-cd api_sweflow_php</code></pre>
+        <pre><code>git clone https://github.com/vupi.us/api_vupi.us_php.git
+cd api_vupi.us_php</code></pre>
       </div>
 
       <h2 id="dependencias">Instalar dependências</h2>
@@ -324,7 +324,7 @@ cd api_sweflow_php</code></pre>
       <p>O projeto possui um comando de setup completo com menu interativo:</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow setup</code></pre>
+        <pre><code>php vupi setup</code></pre>
       </div>
       <p>O menu interativo permite:</p>
       <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
@@ -338,14 +338,14 @@ cd api_sweflow_php</code></pre>
       <p>Ou tudo de uma vez sem interação:</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty</code></pre>
+        <pre><code>php vupi setup --auto --db-mode=docker --server=php --jwt=if-empty</code></pre>
       </div>
 
       <div class="callout tip">
         <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
         <div class="callout-body">
           <strong>Ver todas as opções</strong>
-          <p><code>php sweflow setup --help</code> lista todas as flags disponíveis.</p>
+          <p><code>php vupi setup --help</code> lista todas as flags disponíveis.</p>
         </div>
       </div>
 
@@ -377,7 +377,7 @@ copy EXEMPLO.env .env</code></pre>
             <h3>Executar migrations</h3>
             <div class="code-block">
               <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-              <pre><code>php sweflow migrate --seed</code></pre>
+              <pre><code>php vupi migrate --seed</code></pre>
             </div>
           </div>
         </div>
@@ -398,8 +398,8 @@ copy EXEMPLO.env .env</code></pre>
       <p>Para Ubuntu 22.04/24.04, um único script instala tudo:</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>git clone https://github.com/sweflow/api_sweflow_php.git
-cd api_sweflow_php
+        <pre><code>git clone https://github.com/vupi.us/api_vupi.us_php.git
+cd api_vupi.us_php
 sudo bash install.sh</code></pre>
       </div>
       <p>Instala PHP 8.2, Docker, drivers de banco, Composer, sobe o banco, roda migrations e seeders, e inicia o servidor — tudo automaticamente.</p>
@@ -435,7 +435,7 @@ sudo bash install.sh</code></pre>
       <table class="docs-table">
         <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
         <tbody>
-          <tr><td><code>APP_NAME</code></td><td><code>"Sweflow API"</code></td><td>Nome da aplicação exibido no dashboard e e-mails.</td></tr>
+          <tr><td><code>APP_NAME</code></td><td><code>"Vupi.us API"</code></td><td>Nome da aplicação exibido no dashboard e e-mails.</td></tr>
           <tr><td><code>APP_ENV</code></td><td><code>production</code></td><td><code>production</code>, <code>development</code> ou <code>testing</code>. Em produção ativa validações extras de segurança.</td></tr>
           <tr><td><code>APP_DEBUG</code></td><td><code>false</code></td><td><code>true</code> exibe stack traces. <strong>Sempre <code>false</code> em produção.</strong></td></tr>
           <tr><td><code>APP_URL</code></td><td><code>https://api.vupi.us</code></td><td>URL base da API. Usada em e-mails, CORS e sitemap.</td></tr>
@@ -454,7 +454,7 @@ sudo bash install.sh</code></pre>
           <tr><td><code>DB_CONEXAO</code></td><td><code>postgresql</code></td><td>Driver: <code>postgresql</code> ou <code>mysql</code>.</td></tr>
           <tr><td><code>DB_HOST</code></td><td><code>localhost</code></td><td>Host do banco de dados.</td></tr>
           <tr><td><code>DB_PORT</code></td><td><code>5432</code></td><td>Porta. PostgreSQL: 5432, MySQL: 3306.</td></tr>
-          <tr><td><code>DB_NOME</code></td><td><code>sweflow_db</code></td><td>Nome do banco de dados.</td></tr>
+          <tr><td><code>DB_NOME</code></td><td><code>vupi_db</code></td><td>Nome do banco de dados.</td></tr>
           <tr><td><code>DB_USUARIO</code></td><td><code>admin</code></td><td>Usuário do banco.</td></tr>
           <tr><td><code>DB_SENHA</code></td><td><code>senha_forte</code></td><td>Senha do banco. Mínimo 16 caracteres em produção com banco remoto.</td></tr>
         </tbody>
@@ -503,7 +503,7 @@ sudo bash install.sh</code></pre>
           <tr><td><code>MAILER_USERNAME</code></td><td><code>seu@gmail.com</code></td><td>Usuário SMTP.</td></tr>
           <tr><td><code>MAILER_PASSWORD</code></td><td><code>app_password</code></td><td>Senha SMTP. Para Gmail, use uma App Password.</td></tr>
           <tr><td><code>MAILER_FROM_EMAIL</code></td><td><code>no-reply@seudominio.com</code></td><td>E-mail remetente.</td></tr>
-          <tr><td><code>MAILER_FROM_NAME</code></td><td><code>"Sweflow API"</code></td><td>Nome do remetente.</td></tr>
+          <tr><td><code>MAILER_FROM_NAME</code></td><td><code>"Vupi.us API"</code></td><td>Nome do remetente.</td></tr>
         </tbody>
       </table>
 
@@ -515,7 +515,7 @@ sudo bash install.sh</code></pre>
           <tr><td><code>REDIS_HOST</code></td><td><em>vazio</em></td><td>Host do Redis. Deixe vazio para usar file storage.</td></tr>
           <tr><td><code>REDIS_PORT</code></td><td><code>6379</code></td><td>Porta do Redis.</td></tr>
           <tr><td><code>REDIS_PASSWORD</code></td><td><em>vazio</em></td><td>Senha do Redis (se configurada).</td></tr>
-          <tr><td><code>REDIS_PREFIX</code></td><td><code>sweflow:</code></td><td>Prefixo das chaves no Redis.</td></tr>
+          <tr><td><code>REDIS_PREFIX</code></td><td><code>vupi:</code></td><td>Prefixo das chaves no Redis.</td></tr>
         </tbody>
       </table>
 
@@ -529,7 +529,7 @@ openssl rand -hex 32
 openssl rand -hex 32
 
 # Ou via CLI do projeto (gera automaticamente se vazios)
-php sweflow setup --auto --jwt=if-empty</code></pre>
+php vupi setup --auto --jwt=if-empty</code></pre>
       </div>
     </section>
 
@@ -546,10 +546,10 @@ php sweflow setup --auto --jwt=if-empty</code></pre>
       </div>
 
       <h2 id="visao-geral">Visão geral</h2>
-      <p>A Sweflow API é organizada em duas camadas principais:</p>
+      <p>A Vupi.us API é organizada em duas camadas principais:</p>
 
       <div class="file-tree">
-<span class="dir">api_sweflow_php/</span>
+<span class="dir">api_vupi.us_php/</span>
 ├── <span class="dir">src/</span>
 │   ├── <span class="dir">Kernel/</span>          <span class="note"># Núcleo do sistema — não modifique</span>
 │   │   ├── <span class="dir">Nucleo/</span>       <span class="note"># Container, Router, Application, ModuleLoader, PluginManager</span>
@@ -569,12 +569,12 @@ php sweflow setup --auto --jwt=if-empty</code></pre>
 │   ├── <span class="dir">Modules/</span>         <span class="note"># Sua aplicação vive aqui</span>
 │   │   ├── <span class="dir">Auth/</span>         <span class="note"># Autenticação JWT (nativo)</span>
 │   │   └── <span class="dir">Usuario/</span>      <span class="note"># Gerenciamento de usuários (nativo)</span>
-│   ├── <span class="dir">CLI/</span>             <span class="note"># Comandos da CLI (sweflow)</span>
+│   ├── <span class="dir">CLI/</span>             <span class="note"># Comandos da CLI (vupi.us)</span>
 │   │   ├── <span class="file">CommandRunner.php</span>      <span class="note"># Dispatcher de comandos</span>
-│   │   ├── <span class="file">SetupCommand.php</span>       <span class="note"># php sweflow setup</span>
-│   │   ├── <span class="file">MigrateCommand.php</span>     <span class="note"># php sweflow migrate</span>
-│   │   ├── <span class="file">MakeModuleCommand.php</span>  <span class="note"># php sweflow make:module</span>
-│   │   ├── <span class="file">MakePluginCommand.php</span>  <span class="note"># php sweflow make:plugin</span>
+│   │   ├── <span class="file">SetupCommand.php</span>       <span class="note"># php vupi setup</span>
+│   │   ├── <span class="file">MigrateCommand.php</span>     <span class="note"># php vupi migrate</span>
+│   │   ├── <span class="file">MakeModuleCommand.php</span>  <span class="note"># php vupi make:module</span>
+│   │   ├── <span class="file">MakePluginCommand.php</span>  <span class="note"># php vupi make:plugin</span>
 │   │   └── <span class="file">Plugin*Command.php</span>     <span class="note"># install, validate, inspect, migrate...</span>
 │   └── <span class="dir">storage/</span>         <span class="note"># Storage interno do src (usado por módulos)</span>
 ├── <span class="dir">public/</span>              <span class="note"># Arquivos estáticos servidos diretamente</span>
@@ -606,7 +606,7 @@ php sweflow setup --auto --jwt=if-empty</code></pre>
 │   └── <span class="dir">nginx/</span>           <span class="note"># Configs de exemplo para Nginx</span>
 ├── <span class="dir">Documentacao/</span>        <span class="note"># Esta documentação (HTML)</span>
 ├── <span class="file">index.php</span>            <span class="note"># Entry point — bootstrap da aplicação</span>
-├── <span class="file">sweflow</span>              <span class="note"># CLI principal: php sweflow &lt;comando&gt;</span>
+├── <span class="file">vupi.us</span>              <span class="note"># CLI principal: php vupi &lt;comando&gt;</span>
 ├── <span class="file">db</span>                   <span class="note"># Runner de banco: php db migrate|seed|rollback</span>
 ├── <span class="file">docker-compose.yml</span>   <span class="note"># PostgreSQL + MySQL + Adminer</span>
 ├── <span class="file">Caddyfile</span>            <span class="note"># Proxy reverso com TLS automático (produção)</span>
@@ -841,7 +841,7 @@ php sweflow setup --auto --jwt=if-empty</code></pre>
       </div>
 
       <h2 id="conceito-modulo">O conceito Zero Config</h2>
-      <p>No Sweflow, <strong>uma pasta é um módulo</strong>. Não existe registro manual. O <code>ModuleLoader</code> varre <code>src/Modules/</code> automaticamente e carrega tudo que encontrar.</p>
+      <p>No Vupi.us, <strong>uma pasta é um módulo</strong>. Não existe registro manual. O <code>ModuleLoader</code> varre <code>src/Modules/</code> automaticamente e carrega tudo que encontrar.</p>
 
       <div class="callout tip">
         <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
@@ -931,7 +931,7 @@ php sweflow setup --auto --jwt=if-empty</code></pre>
       <p>Ou via CLI:</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow make:module Usuario</code></pre>
+        <pre><code>php vupi make:module Usuario</code></pre>
       </div>
 
       <h2 id="passo2-exceptions">Passo 2 — Criar as Exceptions</h2>
@@ -2785,7 +2785,7 @@ $router-&gt;post('/api/usuarios/verificar-email/{token}',         [UsuarioContro
         <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
         <div class="callout-body">
           <strong>Dependência do Kernel: tabela <code>email_throttle</code></strong>
-          <p>O Controller usa <code>EmailThrottle</code> para evitar disparos duplicados de e-mail. Essa classe depende da tabela <code>email_throttle</code>, que é criada automaticamente pela migration do Kernel (<code>002_email_tables.sql</code>) quando você roda <code>php sweflow migrate</code>. Você não precisa criar essa tabela manualmente — ela já faz parte do core do sistema.</p>
+          <p>O Controller usa <code>EmailThrottle</code> para evitar disparos duplicados de e-mail. Essa classe depende da tabela <code>email_throttle</code>, que é criada automaticamente pela migration do Kernel (<code>002_email_tables.sql</code>) quando você roda <code>php vupi migrate</code>. Você não precisa criar essa tabela manualmente — ela já faz parte do core do sistema.</p>
         </div>
       </div>
 
@@ -2794,7 +2794,7 @@ $router-&gt;post('/api/usuarios/verificar-email/{token}',         [UsuarioContro
         <div class="callout-body">
           <strong>Pronto!</strong>
           <p>Com todos os arquivos criados, rode as migrations e o seeder para inicializar o banco:</p>
-          <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>php sweflow migrate --seed</code></pre></div>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>php vupi migrate --seed</code></pre></div>
           <p>Depois teste o registro com:</p>
           <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>curl -X POST http://localhost/api/registrar \
   -H "Content-Type: application/json" \
@@ -3001,12 +3001,12 @@ return [
       <h2 id="migration-comandos">Comandos de migration</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow migrate              # executa todas as migrations pendentes
-php sweflow migrate --seed       # migrations + seeders
-php sweflow migrate --rollback   # desfaz a última migration
-php sweflow migrate --status     # lista status de cada migration (done/pending)
-php sweflow migrate --core       # apenas conexão core (DB_*)
-php sweflow migrate --modules    # apenas conexão modules (DB2_*)
+        <pre><code>php vupi migrate              # executa todas as migrations pendentes
+php vupi migrate --seed       # migrations + seeders
+php vupi migrate --rollback   # desfaz a última migration
+php vupi migrate --status     # lista status de cada migration (done/pending)
+php vupi migrate --core       # apenas conexão core (DB_*)
+php vupi migrate --modules    # apenas conexão modules (DB2_*)
 
 # Alias equivalente
 php db migrate
@@ -3100,7 +3100,7 @@ return function (PDO $pdo): void {
       <h2 id="seeder-comandos">Executando seeders</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow migrate --seed   # migrations + seeders juntos (recomendado)
+        <pre><code>php vupi migrate --seed   # migrations + seeders juntos (recomendado)
 php db seed                  # apenas seeders</code></pre>
       </div>
 
@@ -3245,15 +3245,15 @@ class FaturaService
     <section class="docs-page" id="page-comandos">
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-terminal"></i></div>
-        <div><h1>Comandos CLI</h1><p>Referência completa de todos os comandos disponíveis via <code>php sweflow</code> e <code>php db</code>.</p></div>
+        <div><h1>Comandos CLI</h1><p>Referência completa de todos os comandos disponíveis via <code>php vupi</code> e <code>php db</code>.</p></div>
       </div>
 
       <h2 id="cmd-setup">Setup</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow setup                    # menu interativo (23 opções)
-php sweflow setup --help             # lista todas as flags
-php sweflow setup --auto             # modo automático sem interação</code></pre>
+        <pre><code>php vupi setup                    # menu interativo (23 opções)
+php vupi setup --help             # lista todas as flags
+php vupi setup --auto             # modo automático sem interação</code></pre>
       </div>
 
       <h3 id="cmd-setup-flags">Flags do modo --auto</h3>
@@ -3270,22 +3270,22 @@ php sweflow setup --auto             # modo automático sem interação</code></
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
         <pre><code># Exemplos de uso
-php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty
-php sweflow setup --auto --server=pm2+caddy --caddy=production
-php sweflow setup --auto --db-mode=skip --caddy=dev
-php sweflow setup --auto --jwt=if-empty --api-token=generate</code></pre>
+php vupi setup --auto --db-mode=docker --server=php --jwt=if-empty
+php vupi setup --auto --server=pm2+caddy --caddy=production
+php vupi setup --auto --db-mode=skip --caddy=dev
+php vupi setup --auto --jwt=if-empty --api-token=generate</code></pre>
       </div>
 
       <h2 id="cmd-migrate">Migrations e banco</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow migrate              # executa migrations pendentes (core + módulos)
-php sweflow migrate --seed       # migrations + seeders
-php sweflow migrate --rollback   # desfaz a última migration
-php sweflow migrate --core       # apenas conexão core (DB_*)
-php sweflow migrate --modules    # apenas conexão modules (DB2_*)
-php sweflow migrate --status     # status de todas as migrations
-php sweflow migrate --status --json  # status em formato JSON
+        <pre><code>php vupi migrate              # executa migrations pendentes (core + módulos)
+php vupi migrate --seed       # migrations + seeders
+php vupi migrate --rollback   # desfaz a última migration
+php vupi migrate --core       # apenas conexão core (DB_*)
+php vupi migrate --modules    # apenas conexão modules (DB2_*)
+php vupi migrate --status     # status de todas as migrations
+php vupi migrate --status --json  # status em formato JSON
 
 # Alias: php db faz a mesma coisa
 php db migrate
@@ -3296,30 +3296,30 @@ php db rollback</code></pre>
       <h2 id="cmd-make">Geração de código</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow make:module NomeDoModulo
-php sweflow make:plugin NomeDoPlugin
-php sweflow make:plugin NomeDoPlugin --capability=email-sender --description="Envio de e-mails"</code></pre>
+        <pre><code>php vupi make:module NomeDoModulo
+php vupi make:plugin NomeDoPlugin
+php vupi make:plugin NomeDoPlugin --capability=email-sender --description="Envio de e-mails"</code></pre>
       </div>
 
       <h2 id="cmd-plugins">Plugins</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow plugin:install    nome-do-plugin   # instala
-php sweflow plugin:enable     nome-do-plugin   # ativa
-php sweflow plugin:disable    nome-do-plugin   # desativa
-php sweflow plugin:uninstall  nome-do-plugin   # remove
-php sweflow plugin:migrate                     # migrations de todos os plugins
-php sweflow plugin:rollback   nome-do-plugin   # reverte migrations do plugin
-php sweflow plugin:validate                    # valida estrutura dos plugins
-php sweflow plugin:inspect                     # lista plugins instalados</code></pre>
+        <pre><code>php vupi plugin:install    nome-do-plugin   # instala
+php vupi plugin:enable     nome-do-plugin   # ativa
+php vupi plugin:disable    nome-do-plugin   # desativa
+php vupi plugin:uninstall  nome-do-plugin   # remove
+php vupi plugin:migrate                     # migrations de todos os plugins
+php vupi plugin:rollback   nome-do-plugin   # reverte migrations do plugin
+php vupi plugin:validate                    # valida estrutura dos plugins
+php vupi plugin:inspect                     # lista plugins instalados</code></pre>
       </div>
 
       <h2 id="cmd-capabilities">Capacidades</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>php sweflow capability:list                    # lista todas as capacidades
-php sweflow capability:list email-sender       # detalha uma capacidade específica
-php sweflow plugin:provider:set email-sender nome-do-plugin  # define o provider</code></pre>
+        <pre><code>php vupi capability:list                    # lista todas as capacidades
+php vupi capability:list email-sender       # detalha uma capacidade específica
+php vupi plugin:provider:set email-sender nome-do-plugin  # define o provider</code></pre>
       </div>
 
       <h2 id="cmd-makefile">Makefile</h2>
@@ -3339,8 +3339,8 @@ make shell-mysql    # abre mysql no MySQL
 
 # Projeto
 make install        # composer install
-make migrate        # php sweflow migrate
-make seed           # php sweflow migrate --seed
+make migrate        # php vupi migrate
+make seed           # php vupi migrate --seed
 make test           # testes de segurança
 make analyse        # PHPStan nível 6
 make setup          # setup completo (banco + deps + migrations)
@@ -3361,8 +3361,8 @@ make reset          # para containers e apaga volumes (CUIDADO: apaga dados!)</c
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
         <pre><code>php -S localhost:3005 index.php                       # desenvolvimento
-php sweflow setup --auto --server=pm2+caddy           # produção: PM2 + Caddy
-php sweflow setup --auto --server=pm2                 # produção: apenas PM2</code></pre>
+php vupi setup --auto --server=pm2+caddy           # produção: PM2 + Caddy
+php vupi setup --auto --server=pm2                 # produção: apenas PM2</code></pre>
       </div>
 
       <h2 id="cmd-testes">Testes</h2>
@@ -3385,7 +3385,7 @@ ADMIN_PASSWORD=senha php tests/EnvConfigTest.php          # testes de configura�
         <div class="docs-page-intro-icon"><i class="fa-solid fa-circle-user"></i></div>
         <div>
           <h1>Sobre o Desenvolvedor</h1>
-          <p>Informações sobre o criador da Sweflow API.</p>
+          <p>Informações sobre o criador da Vupi.us API.</p>
         </div>
       </div>
 
@@ -3427,7 +3427,7 @@ ADMIN_PASSWORD=senha php tests/EnvConfigTest.php          # testes de configura�
           </div>
           <div>
             <h4 style="margin:0 0 4px;font-size:0.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">Repositório do projeto</h4>
-            <a href="https://github.com/sweflow" target="_blank" rel="noopener" style="font-size:1.1rem;font-weight:600;">github.com/sweflow</a>
+            <a href="https://github.com/vupi.us" target="_blank" rel="noopener" style="font-size:1.1rem;font-weight:600;">github.com/vupi.us</a>
           </div>
         </div>
 
@@ -3451,6 +3451,6 @@ ADMIN_PASSWORD=senha php tests/EnvConfigTest.php          # testes de configura�
   <i class="fa-solid fa-arrow-up"></i>
 </button>
 
-<script src="assets/js/docs.js"></script>
+<script src="assets/js/docs.js?v=2"></script>
 </body>
 </html>

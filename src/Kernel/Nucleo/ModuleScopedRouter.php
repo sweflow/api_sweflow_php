@@ -14,6 +14,7 @@ class ModuleScopedRouter implements RouterInterface
     private RouterInterface $router;
     private ModuleLoader $modules;
     private string $module;
+    private array $registeredRoutes = [];
 
     public function __construct(RouterInterface $router, ModuleLoader $modules, string $module)
     {
@@ -59,8 +60,6 @@ class ModuleScopedRouter implements RouterInterface
             'middlewares' => $middlewares,
         ];
     }
-
-    private array $registeredRoutes = [];
 
     public function getRegisteredRoutes(): array
     {

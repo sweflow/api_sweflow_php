@@ -104,7 +104,7 @@ final class SecurityEventLogger
             'request_id' => self::requestId(),
             'endpoint'   => ($_SERVER['REQUEST_METHOD'] ?? '') . ' ' . ($_SERVER['REQUEST_URI'] ?? ''),
             'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200),
-        ] + $details, fn($v) => $v !== null && $v !== ''), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        ] + $details, static fn($v) => $v !== null), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
     }

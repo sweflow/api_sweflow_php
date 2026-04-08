@@ -31,7 +31,7 @@ class RateLimitMiddlewareTest extends TestCase
         $_ENV['TRUST_PROXY']    = 'false';
         $_SERVER['REMOTE_ADDR'] = '10.0.0.1';
 
-        $this->storageDir = sys_get_temp_dir() . '/sweflow_rl_test_' . uniqid();
+        $this->storageDir = sys_get_temp_dir() . '/vupi_rl_test_' . uniqid();
         mkdir($this->storageDir, 0750, true);
     }
 

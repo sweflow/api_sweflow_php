@@ -1,5 +1,5 @@
 # ============================================================
-# Caddyfile.dev — Sweflow API (Desenvolvimento Local com HTTPS)
+# Caddyfile.dev — Vupi API (Desenvolvimento Local com HTTPS)
 #
 # Pré-requisito: mkcert instalado
 #   Ubuntu:  sudo apt install mkcert libnss3-tools

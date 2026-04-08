@@ -123,10 +123,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
         $stmt->bindValue(':token', $token);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row) {
-            return $this->mapearParaEntity($row);
-        }
-        return null;
+        return $row !== false ? $this->mapearParaEntity($row) : null;
     }
 
     /**
@@ -230,7 +227,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                 LIMIT :limite OFFSET :offset";
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->bindValue(':nome', "%{$nome}%");
+        $stmt->bindValue(':nome', '%' . $nome . '%');
         $stmt->bindValue(':limite', $porPagina, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();

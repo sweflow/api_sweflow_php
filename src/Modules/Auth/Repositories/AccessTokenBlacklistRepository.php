@@ -37,7 +37,7 @@ class AccessTokenBlacklistRepository implements TokenBlacklistInterface
 
     public function purgeExpired(int $graceSeconds = 86400): void
     {
-        $cutoff = (new DateTimeImmutable())->modify('-' . $graceSeconds . ' seconds');
+        $cutoff = (new DateTimeImmutable())->sub(new \DateInterval("PT{$graceSeconds}S"));
         $sql = "DELETE FROM {$this->table} WHERE expires_at < :cutoff";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':cutoff', $cutoff->format('Y-m-d H:i:s'));

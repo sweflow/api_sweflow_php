@@ -1,5 +1,5 @@
 #!/bin/bash
-# ci/caddy-env.sh — Gera /etc/caddy/sweflow.env com as variáveis que o Caddy precisa
+# ci/caddy-env.sh — Gera /etc/caddy/vupi.us.env com as variáveis que o Caddy precisa
 #
 # O systemd EnvironmentFile não processa aspas, comentários inline nem
 # variáveis com caracteres especiais da mesma forma que o PHP/bash.
@@ -17,7 +17,7 @@ set -euo pipefail
 
 PROJETO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${PROJETO_DIR}/.env"
-OUT_FILE="/etc/caddy/sweflow.env"
+OUT_FILE="/etc/caddy/vupi.us.env"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "Erro: .env não encontrado em $ENV_FILE"
@@ -64,7 +64,7 @@ EOF
 chmod 640 "$OUT_FILE"
 chown root:caddy "$OUT_FILE" 2>/dev/null || chown root:root "$OUT_FILE"
 
-echo "✔ /etc/caddy/sweflow.env gerado:"
+echo "✔ /etc/caddy/vupi.us.env gerado:"
 echo "  APP_DOMAIN  = $APP_DOMAIN"
 echo "  APP_PORT    = $APP_PORT"
 echo "  APP_HOST    = $APP_HOST"

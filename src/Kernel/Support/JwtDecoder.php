@@ -140,7 +140,7 @@ final class JwtDecoder
         }
 
         // iss: sempre validado se JWT_ISSUER configurado
-        $iss = self::env('JWT_ISSUER');
+        $iss = self::secret('JWT_ISSUER');
         if ($iss !== '') {
             if (!isset($payload->iss) || $payload->iss !== $iss) {
                 SecurityEventLogger::auth('jwt.invalid_issuer', IpResolver::resolve(), [
@@ -152,7 +152,7 @@ final class JwtDecoder
         }
 
         // aud: sempre validado se JWT_AUDIENCE configurado
-        $aud = self::env('JWT_AUDIENCE');
+        $aud = self::secret('JWT_AUDIENCE');
         if ($aud !== '') {
             $tokenAud = $payload->aud ?? null;
             $audMatch = is_array($tokenAud)
@@ -235,11 +235,6 @@ final class JwtDecoder
     }
 
     private static function secret(string $key): string
-    {
-        return trim((string) ($_ENV[$key] ?? getenv($key) ?: ''));
-    }
-
-    private static function env(string $key): string
     {
         return trim((string) ($_ENV[$key] ?? getenv($key) ?: ''));
     }

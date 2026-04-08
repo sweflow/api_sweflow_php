@@ -7,13 +7,13 @@ class PluginInspectCommand
     {
         $root = dirname(__DIR__, 2);
         $plugins = [];
-        $this->scanDirPlugins($plugins, $root . DIRECTORY_SEPARATOR . 'plugins');
-        $this->scanVendorPlugins($plugins, $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow');
+        $this->scanPluginDir($plugins, $root . DIRECTORY_SEPARATOR . 'plugins', 'plugins');
+        $this->scanPluginDir($plugins, $root . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us', 'vendor');
         $capProviders = $this->buildCapabilityProviders($plugins);
         $this->printReport($plugins, $capProviders);
     }
 
-    private function scanDirPlugins(array &$plugins, string $base): void
+    private function scanPluginDir(array &$plugins, string $base, string $source): void
     {
         if (!is_dir($base)) {
             return;
@@ -34,41 +34,11 @@ class PluginInspectCommand
                 $requires = array_values(array_filter((array)($data['requires'] ?? [])));
             }
             $plugins[$name] = [
-                'name' => $name,
-                'path' => $p,
+                'name'     => $name,
+                'path'     => $p,
                 'provides' => $provides,
                 'requires' => $requires,
-                'source' => 'plugins',
-            ];
-        }
-    }
-
-    private function scanVendorPlugins(array &$plugins, string $vendorSweflow): void
-    {
-        if (!is_dir($vendorSweflow)) {
-            return;
-        }
-        foreach (scandir($vendorSweflow) as $pkg) {
-            if ($pkg === '.' || $pkg === '..') continue;
-            $pkgDir = $vendorSweflow . DIRECTORY_SEPARATOR . $pkg;
-            if (!is_dir($pkgDir)) continue;
-            $pluginJson = $pkgDir . DIRECTORY_SEPARATOR . 'plugin.json';
-            $name = $pkg;
-            $provides = [];
-            $requires = [];
-            if (is_file($pluginJson)) {
-                $content = file_get_contents($pluginJson);
-                $data = $content !== false ? (json_decode($content, true) ?: []) : [];
-                $name = $data['name'] ?? $pkg;
-                $provides = array_values(array_filter((array)($data['provides'] ?? [])));
-                $requires = array_values(array_filter((array)($data['requires'] ?? [])));
-            }
-            $plugins[$name] = [
-                'name' => $name,
-                'path' => $pkgDir,
-                'provides' => $provides,
-                'requires' => $requires,
-                'source' => 'vendor',
+                'source'   => $source,
             ];
         }
     }

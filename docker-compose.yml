@@ -1,7 +1,7 @@
 version: "3.9"
 
 # ============================================================
-# Sweflow API — Docker Compose
+# Vupi.us API — Docker Compose
 #
 # Serviços disponíveis:
 #   postgres  — PostgreSQL 15 (padrão do projeto)
@@ -22,10 +22,10 @@ services:
   # ── PostgreSQL ──────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
-    container_name: sweflow_postgres
+    container_name: vupi.us_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       ${DB_NOME:-sweflow_db}
+      POSTGRES_DB:       ${DB_NOME:-vupi_db}
       POSTGRES_USER:     ${DB_USUARIO:-admin}
       POSTGRES_PASSWORD: ${DB_SENHA:-123456}
       PGDATA:            /var/lib/postgresql/data/pgdata
@@ -34,27 +34,27 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Executa o schema inicial ao criar o container pela primeira vez
-      - ./src/Kernel/Database/sweflow_db_2026-03-02_013709.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./src/Kernel/Database/vupi_db_2026-03-02_013709.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./src/Kernel/Database/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO:-admin} -d ${DB_NOME:-sweflow_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO:-admin} -d ${DB_NOME:-vupi_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
     networks:
-      - sweflow_net
+      - vupi.us_net
 
   # ── MySQL ────────────────────────────────────────────────
   mysql:
     image: mysql:8.0
-    container_name: sweflow_mysql
+    container_name: vupi.us_mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE:      ${DB_NOME:-sweflow_db}
+      MYSQL_DATABASE:      ${DB_NOME:-vupi_db}
       MYSQL_USER:          ${DB_USUARIO:-admin}
       MYSQL_PASSWORD:      ${DB_SENHA:-123456}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_sweflow_2024}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_vupi.us_2024}
       TZ:                  ${APP_TIMEZONE:-America/Bahia}
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -74,12 +74,12 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - sweflow_net
+      - vupi.us_net
 
   # ── Adminer (UI para ambos os bancos) ───────────────────
   adminer:
     image: adminer:4-standalone
-    container_name: sweflow_adminer
+    container_name: vupi.us_adminer
     restart: unless-stopped
     ports:
       - "${ADMINER_PORT:-8080}:8080"
@@ -90,7 +90,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - sweflow_net
+      - vupi.us_net
 
 # ── Volumes persistentes ─────────────────────────────────
 volumes:
@@ -101,5 +101,5 @@ volumes:
 
 # ── Rede interna ─────────────────────────────────────────
 networks:
-  sweflow_net:
+  vupi.us_net:
     driver: bridge

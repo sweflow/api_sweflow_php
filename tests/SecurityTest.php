@@ -1,6 +1,6 @@
 <?php
 /**
- * Sweflow API — Testes de Segurança OWASP API Top 10 (2023)
+ * Vupi.us API — Testes de Segurança OWASP API Top 10 (2023)
  *
  * Execução: php tests/SecurityTest.php [BASE_URL]
  * Exemplo:  php tests/SecurityTest.php http://localhost:3005
@@ -36,7 +36,7 @@ function req(string $method, string $url, array $body = [], array $extraHeaders 
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_HEADER         => true,
-        CURLOPT_USERAGENT      => 'SweflowSecurityTest/1.0 (internal)',
+        CURLOPT_USERAGENT      => 'Vupi.usSecurityTest/1.0 (internal)',
         CURLOPT_HTTPHEADER     => array_merge(
             ['Content-Type: application/json', 'Accept: application/json'],
             $extraHeaders
@@ -66,7 +66,7 @@ function reqRaw(string $method, string $url, string $rawBody, array $extraHeader
         CURLOPT_CUSTOMREQUEST  => strtoupper($method),
         CURLOPT_TIMEOUT        => 10,
         CURLOPT_HEADER         => true,
-        CURLOPT_USERAGENT      => 'SweflowSecurityTest/1.0 (internal)',
+        CURLOPT_USERAGENT      => 'Vupi.usSecurityTest/1.0 (internal)',
         CURLOPT_POSTFIELDS     => $rawBody,
         CURLOPT_HTTPHEADER     => array_merge(['Content-Type: application/json', 'Accept: application/json'], $extraHeaders),
     ]);
@@ -130,7 +130,7 @@ function assertNoToken(array $res): ?string {
 // ─── Conectividade ───────────────────────────────────────────────────────────
 
 echo "\n\033[1;36m╔══════════════════════════════════════════════════════════╗\033[0m\n";
-echo "\033[1;36m║   SWEFLOW API — OWASP API Security Top 10 (2023)         ║\033[0m\n";
+echo "\033[1;36m║   VUPI.US API — OWASP API Security Top 10 (2023)         ║\033[0m\n";
 echo "\033[1;36m╚══════════════════════════════════════════════════════════╝\033[0m\n";
 echo "Base URL: \033[1m$baseUrl\033[0m\n\n";
 

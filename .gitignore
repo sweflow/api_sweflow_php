@@ -8,6 +8,12 @@
 /storage/server.log
 /storage/server.pid
 /cache/
+/src/storage/ratelimit/
+/src/storage/threat/
+
+# Backups de banco de dados
+*.sql
+*.sql.gz
 
 # Ignore arquivos:
 .env

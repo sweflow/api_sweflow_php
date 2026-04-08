@@ -19,20 +19,25 @@ class PdoFactory
     {
         $p = strtoupper($prefix);
 
-        $driver = strtolower($_ENV["{$p}_CONEXAO"] ?? $_ENV["{$p}_CONNECTION"] ?? getenv("{$p}_CONEXAO") ?: getenv("{$p}_CONNECTION") ?: '');
+        $driver = strtolower(self::env("{$p}_CONEXAO", self::env("{$p}_CONNECTION", self::env('DB_CONEXAO', self::env('DB_CONNECTION', 'mysql')))));
         if ($driver === '') {
-            $driver = strtolower($_ENV['DB_CONEXAO'] ?? $_ENV['DB_CONNECTION'] ?? getenv('DB_CONEXAO') ?: getenv('DB_CONNECTION') ?: 'mysql');
+            $driver = 'mysql';
         }
         if ($driver === 'postgresql') {
             $driver = 'pgsql';
         }
 
-        $host = $_ENV["{$p}_HOST"]    ?? getenv("{$p}_HOST")    ?: $_ENV['DB_HOST']    ?? getenv('DB_HOST')    ?: '';
-        $name = $_ENV["{$p}_NOME"]    ?? getenv("{$p}_NOME")    ?: $_ENV["{$p}_DATABASE"] ?? getenv("{$p}_DATABASE") ?: $_ENV['DB_NOME'] ?? getenv('DB_NOME') ?: $_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: '';
-        $user = $_ENV["{$p}_USUARIO"] ?? getenv("{$p}_USUARIO") ?: $_ENV["{$p}_USERNAME"] ?? getenv("{$p}_USERNAME") ?: $_ENV['DB_USUARIO'] ?? getenv('DB_USUARIO') ?: $_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: '';
-        $pass = $_ENV["{$p}_SENHA"]   ?? getenv("{$p}_SENHA")   ?: $_ENV["{$p}_PASSWORD"] ?? getenv("{$p}_PASSWORD") ?: $_ENV['DB_SENHA'] ?? getenv('DB_SENHA') ?: $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '';
-        $port = $_ENV["{$p}_PORT"]    ?? getenv("{$p}_PORT")    ?: ($driver === 'pgsql' ? '5432' : '3306');
-        $charset = $_ENV["{$p}_CHARSET"] ?? getenv("{$p}_CHARSET") ?: 'utf8mb4';
+        $host = self::env("{$p}_HOST",    self::env('DB_HOST',    ''));
+        $name = self::env("{$p}_NOME",    self::env("{$p}_DATABASE", self::env('DB_NOME', self::env('DB_DATABASE', ''))));
+        $user = self::env("{$p}_USUARIO", self::env("{$p}_USERNAME", self::env('DB_USUARIO', self::env('DB_USERNAME', ''))));
+        $pass = self::env("{$p}_SENHA",   self::env("{$p}_PASSWORD", self::env('DB_SENHA', self::env('DB_PASSWORD', ''))));
+        $port = self::env("{$p}_PORT",    $driver === 'pgsql' ? '5432' : '3306');
+
+        $charsetRaw      = self::env("{$p}_CHARSET", 'utf8mb4');
+        $allowedCharsets = ['utf8mb4', 'utf8', 'latin1', 'ascii', 'binary'];
+        $charset         = in_array(strtolower($charsetRaw), $allowedCharsets, true)
+            ? strtolower($charsetRaw)
+            : 'utf8mb4';
 
         if ($host === '' || $name === '' || $user === '') {
             throw new RuntimeException("Configuração do banco incompleta para prefixo [{$p}].");
@@ -55,7 +60,9 @@ class PdoFactory
                 : "mysql:host={$host};port={$port};dbname={$name};charset={$charset}";
 
             if ($driver !== 'pgsql') {
-                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET SESSION wait_timeout=28800";
+                $waitTimeout = (int) self::env('DB_WAIT_TIMEOUT', '3600');
+                $waitTimeout = $waitTimeout > 0 ? $waitTimeout : 3600;
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET SESSION wait_timeout={$waitTimeout}";
             }
 
             return new PDO($dsn, $user, $pass, $options);
@@ -101,14 +108,14 @@ class PdoFactory
                 // Usa formato seguro — pg_catalog.quote_ident não disponível via PDO, usa aspas duplas
                 $safeName = str_replace('"', '', $name); // sanitiza
                 $admin->exec("CREATE DATABASE \"{$safeName}\"");
-                echo "  ✔ Banco PostgreSQL '{$name}' criado automaticamente.\n";
+                error_log("[PdoFactory] Banco PostgreSQL '{$name}' criado automaticamente.");
             } else {
                 // MySQL: conecta sem banco para criar
                 $adminDsn = "mysql:host={$host};port={$port};charset={$charset}";
                 $admin    = new PDO($adminDsn, $user, $pass, $options);
                 $safeName = str_replace('`', '', $name); // sanitiza
                 $admin->exec("CREATE DATABASE IF NOT EXISTS `{$safeName}` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
-                echo "  ✔ Banco MySQL '{$name}' criado automaticamente.\n";
+                error_log("[PdoFactory] Banco MySQL '{$name}' criado automaticamente.");
             }
         } catch (Throwable $e) {
             // Mensagem clara quando falta permissão
@@ -131,11 +138,23 @@ class PdoFactory
     /**
      * Retorna true se as variáveis DB2_* estão definidas no ambiente,
      * indicando que uma segunda conexão foi configurada.
-     * Usa getenv() como fallback para garantir funcionamento em CLI e testes.
      */
     public static function hasSecondaryConnection(): bool
     {
-        $nome = $_ENV['DB2_NOME'] ?? $_ENV['DB2_DATABASE'] ?? getenv('DB2_NOME') ?: getenv('DB2_DATABASE') ?: '';
-        return $nome !== '';
+        return self::env('DB2_NOME', self::env('DB2_DATABASE', '')) !== '';
+    }
+
+    /** Lê uma variável de ambiente de $_ENV ou getenv(), com fallback. */
+    private static function env(string $key, string $default = ''): string
+    {
+        $val = $_ENV[$key] ?? null;
+        if ($val !== null && $val !== '') {
+            return (string) $val;
+        }
+        $val = getenv($key);
+        if ($val !== false && $val !== '') {
+            return $val;
+        }
+        return $default;
     }
 }

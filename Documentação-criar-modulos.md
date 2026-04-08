@@ -1,6 +1,6 @@
-# 🚀 Guia Completo: Desenvolvimento Modular no Sweflow API
+# 🚀 Guia Completo: Desenvolvimento Modular no Vupi.us API
 
-Bem-vindo ao desenvolvimento no Sweflow. Este guia foi escrito para você, desenvolvedor, que quer criar funcionalidades poderosas sem perder tempo configurando arquivos complexos.
+Bem-vindo ao desenvolvimento no Vupi.us. Este guia foi escrito para você, desenvolvedor, que quer criar funcionalidades poderosas sem perder tempo configurando arquivos complexos.
 
 A filosofia aqui é simples: **Foque no seu código. O sistema cuida do resto.**
 
@@ -8,7 +8,7 @@ A filosofia aqui é simples: **Foque no seu código. O sistema cuida do resto.**
 
 ## 🎯 O Conceito "Zero Config"
 
-No Sweflow, você não precisa registrar seus módulos em nenhum lugar. Não existe um arquivo `modules.json` gigante e centralizado.
+No Vupi.us, você não precisa registrar seus módulos em nenhum lugar. Não existe um arquivo `modules.json` gigante e centralizado.
 
 A regra é simples: **Uma pasta é um módulo.**
 
@@ -43,24 +43,24 @@ src/Modules/Financeiro/
 
 ## 🧰 1.1 Criar módulo e plugin via CLI
 
-O projeto vem com uma CLI (`php sweflow`) que gera estrutura base automaticamente:
+O projeto vem com uma CLI (`php vupi`) que gera estrutura base automaticamente:
 
 ```bash
-php sweflow make:module Financeiro
-php sweflow make:plugin Email --capability=email-sender --description="Envio de e-mails via SMTP"
+php vupi make:module Financeiro
+php vupi make:plugin Email --capability=email-sender --description="Envio de e-mails via SMTP"
 ```
 
 Ver comandos disponíveis:
 
 ```bash
-php sweflow
+php vupi
 ```
 
 ---
 
 ## 🛣️ 2. Criando Rotas (Endpoints)
 
-Para que seu módulo seja acessível via API (HTTP), você precisa definir rotas. O Sweflow procura automaticamente pelo arquivo `Routes/web.php` dentro do seu módulo.
+Para que seu módulo seja acessível via API (HTTP), você precisa definir rotas. O Vupi.us procura automaticamente pelo arquivo `Routes/web.php` dentro do seu módulo.
 
 **Exemplo Prático:**
 Arquivo: `src/Modules/Financeiro/Routes/web.php`
@@ -86,7 +86,7 @@ $router->post('/faturas', [FaturaController::class, 'criar'], [
 
 ## 💉 3. Injeção de Dependência (A Mágica do Container)
 
-Você nunca precisa usar `new Service()` manualmente. O **Container** do Sweflow é inteligente e cria as classes para você.
+Você nunca precisa usar `new Service()` manualmente. O **Container** do Vupi.us é inteligente e cria as classes para você.
 
 ### Como funciona?
 Basta declarar o que você precisa no **construtor** da sua classe.
@@ -118,7 +118,7 @@ class FaturaController
 
 ## 🗄️ 3.1 Migrations e Seeders (criar tabela, alterar e popular dados)
 
-O Sweflow executa migrations/seeders usando o runner `db` na raiz do projeto:
+O Vupi.us executa migrations/seeders usando o runner `db` na raiz do projeto:
 
 ```bash
 php db
@@ -217,21 +217,21 @@ php db seed
 
 Plugins seguem a estrutura:
 
-- `plugins/sweflow-module-seu-plugin/src/Database/Migrations/<versao>/*.php`
-- `plugins/sweflow-module-seu-plugin/src/Database/Seeders/*.php`
+- `plugins/vupi.us-module-seu-plugin/src/Database/Migrations/<versao>/*.php`
+- `plugins/vupi.us-module-seu-plugin/src/Database/Seeders/*.php`
 
 Executar apenas migrations de plugins:
 
 ```bash
-php sweflow plugin:migrate
-php sweflow plugin:rollback NOME_DO_PLUGIN
+php vupi plugin:migrate
+php vupi plugin:rollback NOME_DO_PLUGIN
 ```
 
 ## 🤝 4. Comunicação Entre Módulos (O Poder Real)
 
-Aqui é onde o Sweflow brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
+Aqui é onde o Vupi.us brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
 
-Aqui é onde o Sweflow brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
+Aqui é onde o Vupi.us brilha. Módulos muitas vezes precisam conversar. O Financeiro precisa do Usuário. O Pedido precisa do Estoque.
 
 Temos duas formas de fazer isso, e você escolhe a melhor para cada caso.
 

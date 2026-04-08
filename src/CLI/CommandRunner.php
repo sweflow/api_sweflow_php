@@ -19,7 +19,7 @@ class CommandRunner
 
     private function printHelp(): void
     {
-        echo "Sweflow CLI\n";
+        echo "Vupi.us CLI\n";
         echo "Comandos disponíveis:\n";
         echo "  setup [--auto] [--db-mode=docker|skip] [--server=php|pm2]\n";
         echo "  migrate [--seed] [--rollback] [--core] [--modules] [--status] [--status --json]\n";
@@ -39,25 +39,29 @@ class CommandRunner
 
     private function dispatch(string $command, array $argv): int
     {
-        match (true) {
-            $command === 'setup'              => (new SetupCommand())->handle($argv),
-            $command === 'migrate'            => null, // tratado abaixo
-            $command === 'make:module'        => $this->handleMakeModule($argv),
-            $command === 'make:plugin'        => $this->handleMakePlugin($argv),
-            $command === 'plugin:inspect'     => (new PluginInspectCommand())->handle(),
-            $command === 'plugin:migrate'     => (new PluginMigrateCommand())->handle(),
-            $command === 'plugin:rollback'    => (new PluginRollbackCommand())->handle($argv[2] ?? null),
-            $command === 'plugin:validate'    => (new PluginValidateCommand())->handle(),
-            $command === 'plugin:install'     => $this->handlePluginInstall($argv),
-            in_array($command, ['plugin:enable', 'plugin:disable', 'plugin:uninstall'], true)
-                                              => $this->handlePluginLifecycle($command, $argv),
-            $command === 'capability:list'    => (new CapabilityListCommand())->handle($argv[2] ?? null),
-            $command === 'plugin:provider:set'=> $this->handleProviderSet($argv),
-            default                           => print("Comando não encontrado: {$command}\n"),
-        };
-
         if ($command === 'migrate') {
             return (new MigrateCommand())->run(array_slice($argv, 1));
+        }
+
+        $handled = match (true) {
+            $command === 'setup'           => (new SetupCommand())->handle($argv),
+            $command === 'make:module'     => $this->handleMakeModule($argv),
+            $command === 'make:plugin'     => $this->handleMakePlugin($argv),
+            $command === 'plugin:inspect'  => (new PluginInspectCommand())->handle(),
+            $command === 'plugin:migrate'  => (new PluginMigrateCommand())->handle(),
+            $command === 'plugin:rollback' => (new PluginRollbackCommand())->handle($argv[2] ?? null),
+            $command === 'plugin:validate' => (new PluginValidateCommand())->handle(),
+            $command === 'plugin:install'  => $this->handlePluginInstall($argv),
+            in_array($command, ['plugin:enable', 'plugin:disable', 'plugin:uninstall'], true)
+                                           => $this->handlePluginLifecycle($command, $argv),
+            $command === 'capability:list'     => (new CapabilityListCommand())->handle($argv[2] ?? null),
+            $command === 'plugin:provider:set' => $this->handleProviderSet($argv),
+            default => null,
+        };
+
+        if ($handled === null) {
+            echo "Comando não encontrado: {$command}\n";
+            return 1;
         }
 
         return 0;

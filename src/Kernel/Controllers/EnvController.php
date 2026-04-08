@@ -82,8 +82,6 @@ class EnvController
         foreach ($updates as $key => $newVal) {
             if ($this->isSensitive($key)) {
                 $trimmed = trim((string) $newVal);
-                // Considera placeholder: vazio, bullets Unicode (••••••••),
-                // pontos ASCII (........) ou asteriscos (********)
                 $isPlaceholder = $trimmed === ''
                     || $trimmed === '••••••••'
                     || (strlen($trimmed) >= 4 && strlen($trimmed) === substr_count($trimmed, '.'))
@@ -94,18 +92,18 @@ class EnvController
             }
         }
 
-        // Sanitiza valores — remove caracteres de controle exceto tab
+        // Sanitiza valores — remove caracteres de controle incluindo newline (previne injeção em putenv)
         foreach ($updates as $key => $val) {
-            $updates[$key] = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', (string) $val);
+            $updates[$key] = preg_replace('/[\x00-\x1F\x7F]/', '', (string) $val);
         }
 
         $this->save($updates);
 
         // Reflete imediatamente no processo atual
         foreach ($updates as $key => $val) {
-            $_ENV[$key] = $val;
+            $_ENV[$key]    = $val;
             $_SERVER[$key] = $val;
-            putenv("$key=$val");
+            putenv($key . '=' . $val);
         }
 
         return Response::json(['ok' => true, 'message' => 'Variáveis salvas com sucesso.']);
@@ -154,7 +152,6 @@ class EnvController
                 $last  = $val[-1];
                 if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
                     $val = substr($val, 1, -1);
-                    // Desescapa aspas duplas internas
                     if ($first === '"') {
                         $val = str_replace('\\"', '"', $val);
                     }
@@ -197,10 +194,9 @@ class EnvController
         $newLines = [];
 
         foreach ($rawLines as $line) {
-            $trimmed = rtrim($line);
+            $trimmed  = rtrim($line);
             $stripped = ltrim($trimmed);
 
-            // Preserva linhas vazias e comentários
             if ($stripped === '' || $stripped[0] === '#') {
                 $newLines[] = $trimmed;
                 continue;
@@ -215,15 +211,13 @@ class EnvController
             $key = trim(substr($stripped, 0, $pos));
 
             if (array_key_exists($key, $updates)) {
-                $val = $updates[$key];
-                $newLines[] = $key . '=' . $this->quoteValue($val);
+                $newLines[] = $key . '=' . $this->quoteValue((string) $updates[$key]);
             } else {
                 $newLines[] = $trimmed;
             }
         }
 
         $content = implode("\n", $newLines);
-        // Garante newline final
         if ($content !== '' && $content[-1] !== "\n") {
             $content .= "\n";
         }
@@ -245,15 +239,14 @@ class EnvController
         if ($val === '') {
             return '';
         }
-        // Precisa de aspas se contém: espaço, #, aspas, $, \, ou começa/termina com espaço
+
         $needsQuotes = str_contains($val, ' ')
             || str_contains($val, '#')
-            || str_contains($val, '$')
+            || str_contains($val, '"')
             || str_contains($val, '\\')
             || $val !== trim($val);
 
         if ($needsQuotes) {
-            // Escapa aspas duplas internas e envolve em aspas duplas
             return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $val) . '"';
         }
 

@@ -94,9 +94,9 @@
             <?php if (!empty($logo_url)): ?>
                 <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" />
             <?php else: ?>
-                <img src="/favicon.ico" alt="Sweflow" class="dash-brand-img" />
+                <img src="/favicon.ico" alt="Vupi.us" class="dash-brand-img" />
             <?php endif; ?>
-            <span class="dash-brand-name">Sweflow <span class="dash-brand-accent">API</span></span>
+            <span class="dash-brand-name">Vupi.us <span class="dash-brand-accent">API</span></span>
         </a>
     </div>
 
@@ -230,8 +230,8 @@
         <section class="dash-hero" id="metrics">
             <div class="dash-hero-text">
                 <div class="dash-hero-brand">
-                    <img src="/favicon.ico" alt="Sweflow API" class="dash-hero-logo" />
-                    <span class="dash-hero-brand-name">Sweflow <span style="color:#818cf8">API</span></span>
+                    <img src="/favicon.ico" alt="Vupi.us API" class="dash-hero-logo" />
+                    <span class="dash-hero-brand-name">Vupi.us <span style="color:#818cf8">API</span></span>
                 </div>
                 <h1 class="dash-hero-title">Olá, <span id="hero-username">...</span> 👋</h1>
                 <p class="dash-hero-sub">Monitoramento em tempo real do núcleo da API.</p>

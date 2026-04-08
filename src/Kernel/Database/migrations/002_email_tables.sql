@@ -1,3 +1,9 @@
+-- NOTA: Este arquivo SQL é executado pelo MigrateCommand/SetupCommand via exec() direto.
+-- Para suporte multi-driver (MySQL + PostgreSQL), as migrations de módulos usam PHP.
+-- Este arquivo assume PostgreSQL (usado pelo kernel). Para MySQL, o Migrator usa PHP migrations.
+-- Se você usa MySQL, as tabelas email_history e email_throttle são criadas pelo módulo de e-mail
+-- via migration PHP com bifurcação de driver.
+
 -- email_history: histórico de e-mails enviados pelo módulo de e-mail
 CREATE TABLE IF NOT EXISTS email_history (
     id          VARCHAR(16)  PRIMARY KEY,

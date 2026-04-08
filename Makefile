@@ -1,5 +1,5 @@
 # ============================================================
-# Sweflow API — Makefile
+# Vupi API — Makefile
 # Uso: make <comando>
 # ============================================================
 
@@ -44,10 +44,10 @@ ps: ## Lista containers em execução
 # ── Banco de dados ───────────────────────────────────────
 
 shell-pg: ## Abre o psql no container PostgreSQL
-	$(COMPOSE) exec postgres psql -U $${DB_USUARIO:-admin} -d $${DB_NOME:-sweflow_db}
+	$(COMPOSE) exec postgres psql -U $${DB_USUARIO:-admin} -d $${DB_NOME:-vupi_db}
 
 shell-mysql: ## Abre o mysql no container MySQL
-	$(COMPOSE) exec mysql mysql -u $${DB_USUARIO:-admin} -p$${DB_SENHA:-123456} $${DB_NOME:-sweflow_db}
+	$(COMPOSE) exec mysql mysql -u $${DB_USUARIO:-admin} -p$${DB_SENHA:-123456} $${DB_NOME:-vupi_db}
 
 # ── Projeto ──────────────────────────────────────────────
 
@@ -55,10 +55,10 @@ install: ## Instala dependências PHP
 	composer install
 
 migrate: ## Executa migrations de todos os módulos
-	php sweflow migrate
+	php vupi migrate
 
 seed: ## Executa migrations + seeders
-	php sweflow migrate --seed
+	php vupi migrate --seed
 
 test: ## Roda os testes de segurança
 	@if [ -d storage/ratelimit ]; then rm -f storage/ratelimit/*.json; fi
@@ -80,7 +80,7 @@ setup: ## Setup completo: sobe banco, instala deps, migra e sobe servidor
 	@echo "▶ Instalando dependências..."
 	composer install --no-interaction
 	@echo "▶ Executando migrations..."
-	php sweflow migrate --seed
+	php vupi migrate --seed
 	@echo ""
 	@echo "✓ Setup concluído! Inicie o servidor:"
 	@echo "  php -S localhost:$${APP_PORT:-3005} index.php"
