@@ -1,0 +1,258 @@
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #f8f9fb;
+  --surface:   rgba(255,255,255,0.7);
+  --text:      #0f1117;
+  --text-sub:  #5a6072;
+  --accent:    #4f46e5;
+  --accent2:   #7c3aed;
+  --glow:      rgba(79,70,229,0.18);
+  --particle:  rgba(79,70,229,0.25);
+  --toggle-bg: rgba(0,0,0,0.08);
+  --toggle-hover: rgba(0,0,0,0.14);
+  --transition: 0.4s cubic-bezier(.4,0,.2,1);
+}
+
+[data-theme="dark"] {
+  --bg:        #080b14;
+  --surface:   rgba(15,17,30,0.75);
+  --text:      #e8eaf6;
+  --text-sub:  #8892b0;
+  --accent:    #818cf8;
+  --accent2:   #a78bfa;
+  --glow:      rgba(129,140,248,0.22);
+  --particle:  rgba(129,140,248,0.3);
+  --toggle-bg: rgba(255,255,255,0.08);
+  --toggle-hover: rgba(255,255,255,0.14);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ── Canvas background ── */
+#bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Theme toggle ── */
+.theme-toggle {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--toggle-bg);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), transform 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.theme-toggle:hover {
+  background: var(--toggle-hover);
+  transform: scale(1.1) rotate(15deg);
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  transition: opacity 0.3s ease, transform 0.4s ease;
+}
+
+.icon-sun  { opacity: 1;  transform: rotate(0deg) scale(1); }
+.icon-moon { opacity: 0;  transform: rotate(-90deg) scale(0.6); }
+
+[data-theme="dark"] .icon-sun  { opacity: 0;  transform: rotate(90deg) scale(0.6); }
+[data-theme="dark"] .icon-moon { opacity: 1;  transform: rotate(0deg) scale(1); }
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  z-index: 10;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-content {
+  text-align: center;
+  padding: 48px 40px;
+  border-radius: 24px;
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(128,128,255,0.12);
+  box-shadow:
+    0 8px 40px var(--glow),
+    0 1px 0 rgba(255,255,255,0.15) inset;
+  animation: fadeUp 0.9s cubic-bezier(.4,0,.2,1) both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Logo ── */
+.logo {
+  font-size: clamp(3rem, 10vw, 7rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 32px var(--glow));
+}
+
+.logo-cursor {
+  display: inline-block;
+  -webkit-text-fill-color: var(--accent);
+  animation: blink 1s step-end infinite;
+  font-weight: 300;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Subtitle ── */
+.subtitle {
+  margin-top: 18px;
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  font-weight: 400;
+  color: var(--text-sub);
+  letter-spacing: 0.04em;
+  min-height: 1.6em;
+  transition: color var(--transition);
+}
+
+/* ── CTA Group ── */
+.cta-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.cta-group.visible {
+  opacity: 1;
+  pointer-events: auto;
+  animation: fadeUp 0.6s cubic-bezier(.4,0,.2,1) both;
+}
+
+/* ── CTA Button ── */
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  box-shadow: 0 4px 24px var(--glow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.cta-btn--outline {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow: none;
+}
+
+.cta-btn:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 8px 36px var(--glow);
+}
+
+.cta-btn--outline:hover {
+  background: var(--glow);
+  box-shadow: 0 4px 20px var(--glow);
+}
+
+.cta-btn:active { transform: translateY(0) scale(0.98); }
+
+.cta-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.cta-btn:not(.cta-btn--outline):hover svg { transform: translateX(4px); }
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 1;
+  animation: drift 12s ease-in-out infinite alternate;
+}
+
+.orb-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(79,70,229,0.18) 0%, transparent 70%);
+  top: -100px; left: -100px;
+  animation-duration: 14s;
+}
+
+.orb-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
+  bottom: -80px; right: -80px;
+  animation-duration: 10s;
+  animation-delay: -5s;
+}
+
+[data-theme="dark"] .orb-1 {
+  background: radial-gradient(circle, rgba(129,140,248,0.2) 0%, transparent 70%);
+}
+[data-theme="dark"] .orb-2 {
+  background: radial-gradient(circle, rgba(167,139,250,0.18) 0%, transparent 70%);
+}
+
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(40px, 30px) scale(1.08); }
+}
