@@ -322,7 +322,7 @@ window.onload = function () {
             });
             const data = await res.json();
             if (data.enabled !== undefined) {
-                await fetchMetrics();
+                await fetchMetricsFull();
                 await fetchModulesState();
                 await loadCapabilities();
             } else {
@@ -336,6 +336,12 @@ window.onload = function () {
     function renderRoutes(modules) {
         if (!routesList) return;
         const withRoutes = modules.filter(m => Array.isArray(m.routes) && m.routes.length > 0);
+
+        // Preserva quais módulos estão expandidos antes de re-renderizar
+        const expandedMods = new Set();
+        routesList.querySelectorAll('.rt-module-toggle[aria-expanded="true"]').forEach(btn => {
+            expandedMods.add(btn.dataset.mod);
+        });
 
         if (!withRoutes.length) {
             routesList.innerHTML = '<p style="color:#475569;text-align:center;padding:24px;">Nenhuma rota disponível.</p>';
@@ -403,6 +409,19 @@ window.onload = function () {
         });
 
         routesList.innerHTML = html;
+
+        // Restaura o estado de expansão que existia antes do re-render
+        withRoutes.forEach(mod => {
+            const modKey = (mod.name ?? mod.nome).replace(/\W/g, '');
+            const btn  = routesList.querySelector(`.rt-module-toggle[data-mod="${modKey}"]`);
+            const body = document.getElementById(`rt-body-${modKey}`);
+            const icon = btn?.querySelector('.rt-toggle-icon');
+            if (btn && body && icon && expandedMods.has(modKey)) {
+                btn.setAttribute('aria-expanded', 'true');
+                body.style.display = '';
+                icon.style.transform = 'rotate(180deg)';
+            }
+        });
 
         // Toggle expand/collapse por módulo
         routesList.querySelectorAll('.rt-module-toggle').forEach(btn => {
@@ -1183,7 +1202,7 @@ window.onload = function () {
                     if (!res.ok) {
                         throw new Error(body.error || body.message || 'Erro ao atualizar módulo');
                     }
-                    await fetchMetrics();
+                    await fetchMetricsFull();
                     await fetchModulesState();
                     await loadCapabilities();
                 } catch (err) {
@@ -1212,7 +1231,7 @@ window.onload = function () {
         }
     }
 
-    function renderMetrics(data) {
+    function renderMetrics(data, { fullRender = true } = {}) {
         const status = data.status || {};
         const db = data.database || {};
         const usuarios = data.usuarios || {};
@@ -1243,8 +1262,12 @@ window.onload = function () {
             usersTotal.textContent = usuarios.total ?? '--';
         }
 
-        renderModules(modules);
-        renderRoutes(modules);
+        // fullRender=false no polling — evita recriar DOM de módulos e rotas
+        // desnecessariamente, preservando estado da UI (cards expandidos, scroll, foco)
+        if (fullRender) {
+            renderModules(modules);
+            renderRoutes(modules);
+        }
         renderFeatureToggles(modules);
     }
 
@@ -1446,9 +1469,23 @@ window.onload = function () {
             })
             .then(data => {
                 if (data) {
-                    renderMetrics(data);
+                    // Polling leve: só atualiza valores numéricos, não recria DOM de módulos/rotas
+                    renderMetrics(data, { fullRender: false });
                 }
             })
+            .catch(() => {});
+    }
+
+    // Usado após ações do usuário (toggle, install) — faz re-render completo de módulos e rotas
+    function fetchMetricsFull() {
+        return fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
+            .then(async (res) => {
+                if (handleUnauthorized(res.status)) return null;
+                const body = await res.json();
+                if (!res.ok) throw new Error(body.message || body.error || 'Falha ao obter métricas.');
+                return body;
+            })
+            .then(data => { if (data) renderMetrics(data, { fullRender: true }); })
             .catch(() => {});
     }
 
@@ -1508,6 +1545,10 @@ window.onload = function () {
         await loadMigrations();
 
         setInterval(async () => {
+            // Polling leve: atualiza apenas métricas numéricas (DB, server, usuários).
+            // renderModules e renderRoutes NÃO são chamados aqui — eles só re-renderizam
+            // quando o usuário executa uma ação (toggle, install, etc.), evitando
+            // destruir o estado da UI (cards expandidos, scroll, foco) a cada ciclo.
             await fetchMetrics();
             await fetchModulesState();
         }, 10000);
