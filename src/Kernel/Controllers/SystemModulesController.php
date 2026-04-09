@@ -33,8 +33,8 @@ class SystemModulesController
         // Marca status de instalação
         $installed = $this->pluginManager->read();
         foreach ($merged as &$pkg) {
-            $shortName = preg_replace('/^(vupi.us\/module-|vupi.us\/|module-)/', '', $pkg['name']);
-            // Registry stores keys as lowercase (pluginName) — check both cases
+            // Remove qualquer prefixo vendor/module- para obter o nome curto
+            $shortName = preg_replace('/^[^\/]+\/(?:module-)?/', '', $pkg['name']);
             $pkg['installed'] = isset($installed[$shortName])
                 || isset($installed[strtolower($shortName)])
                 || isset($installed[ucfirst($shortName)]);
@@ -65,12 +65,13 @@ class SystemModulesController
         try {
             $context = stream_context_create(['http' => [
                 'timeout'       => 6,
-                'user_agent'    => 'Vupi.usAPI/1.0 (marketplace)',
+                'user_agent'    => 'SweflowAPI/1.0 (marketplace)',
                 'ignore_errors' => true,
             ]]);
 
-            if ($query === '' || $query === 'vupi.us/module' || $query === 'vupi.us') {
-                $url  = $baseUrl . '/packages/list.json?vendor=vupi.us';
+            // Busca vazia ou genérica — lista todos os pacotes do vendor sweflow
+            if ($query === '' || $query === 'sweflow/module' || $query === 'sweflow') {
+                $url  = $baseUrl . '/packages/list.json?vendor=sweflow';
                 $json = file_get_contents($url, false, $context);
                 $data = $json ? json_decode($json, true) : [];
                 $names = is_array($data) ? ($data['packageNames'] ?? []) : [];
@@ -88,17 +89,25 @@ class SystemModulesController
             }
 
             // Busca textual — query sanitizada, domínio fixo
-            $url  = $baseUrl . '/search.json?q=' . urlencode($query) . '&vendor=vupi.us&type=library';
+            $url  = $baseUrl . '/search.json?q=' . urlencode($query) . '&vendor=sweflow&type=library';
             $json = file_get_contents($url, false, $context);
             $data = $json ? json_decode($json, true) : [];
 
-            return array_map(fn($r) => [
-                'name'        => $r['name'] ?? '',
-                'description' => $r['description'] ?? '',
-                'downloads'   => $r['downloads'] ?? 0,
-                'url'         => $r['url'] ?? '',
-                'repository'  => $r['repository'] ?? '',
-            ], is_array($data) ? ($data['results'] ?? []) : []);
+            $results = [];
+            foreach (is_array($data) ? ($data['results'] ?? []) : [] as $r) {
+                $name = $r['name'] ?? '';
+                if ($name === '') continue;
+                // Busca detalhes individuais para pegar downloads reais do Packagist
+                $detail = $this->fetchPackagistDetail($name, $context, $baseUrl);
+                $results[] = $detail ?? [
+                    'name'        => $name,
+                    'description' => $r['description'] ?? '',
+                    'downloads'   => $r['downloads'] ?? 0,
+                    'url'         => $r['url'] ?? '',
+                    'repository'  => $r['repository'] ?? '',
+                ];
+            }
+            return $results;
 
         } catch (\Throwable) {
             return [];
@@ -145,14 +154,8 @@ class SystemModulesController
         }
 
         try {
-            $pluginName = $package;
-            if (str_starts_with($package, 'vupi.us/module-')) {
-                $pluginName = str_replace('vupi.us/module-', '', $package);
-            } elseif (str_starts_with($package, 'vupi.us/')) {
-                $pluginName = str_replace('vupi.us/', '', $package);
-            }
-
-            $shortName = ucfirst($pluginName);
+            $pluginName = $this->resolvePluginName($package);
+            $shortName  = $this->getShortName($pluginName);
 
             // 1. Remove do PluginManager (registry + modules_state)
             $this->pluginManager->uninstall($pluginName);
@@ -164,7 +167,7 @@ class SystemModulesController
             $this->removeModuleFromComposer($shortName, $package);
 
             // 4. Remove TODOS os diretórios do módulo (src/Modules/, vendor/, clone local)
-            $this->removeAllModuleDirectories($pluginName, $shortName);
+            $this->removeAllModuleDirectories($pluginName, $shortName, $package);
 
             // 5. Roda composer remove para limpar installed.json
             $this->tryComposerRemove($package);
@@ -184,25 +187,27 @@ class SystemModulesController
     /**
      * Remove todos os diretórios onde o módulo pode estar instalado.
      */
-    private function removeAllModuleDirectories(string $pluginName, string $shortName): void
+    private function removeAllModuleDirectories(string $pluginName, string $shortName, string $package = ''): void
     {
         $root       = dirname(__DIR__, 3);
         $simpleName = strtolower($pluginName);
+        $vendor     = $package !== '' && str_contains($package, '/') ? explode('/', $package)[0] : null;
 
         $candidates = [
             // src/Modules/Email
             $root . '/src/Modules/' . $shortName,
-            // vendor/vupi.us/module-email
-            $root . '/vendor/vupi.us/module-' . $simpleName,
-            // vendor/vupi.us/email
-            $root . '/vendor/vupi.us/' . $simpleName,
             // module-email/ (clone local na raiz)
             $root . '/module-' . $simpleName,
-            // plugins/vupi.us-module-email
-            $root . '/plugins/vupi.us-module-' . $simpleName,
             // plugins/email
             $root . '/plugins/' . $simpleName,
         ];
+
+        // Adiciona paths específicos do vendor do pacote
+        if ($vendor) {
+            $candidates[] = $root . '/vendor/' . $vendor . '/module-' . $simpleName;
+            $candidates[] = $root . '/vendor/' . $vendor . '/' . $simpleName;
+            $candidates[] = $root . '/plugins/' . $vendor . '-module-' . $simpleName;
+        }
 
         foreach ($candidates as $dir) {
             if (is_dir($dir)) {
@@ -284,11 +289,13 @@ class SystemModulesController
 
     private function resolvePluginName(string $package): string
     {
-        if (str_starts_with($package, 'vupi.us/module-')) {
-            return str_replace('vupi.us/module-', '', $package);
+        // Remove qualquer prefixo vendor/module- para obter o nome curto do plugin
+        // Ex: sweflow/module-email -> email | vupi.us/module-email -> email | sweflow/email -> email
+        if (preg_match('/^[^\/]+\/module-(.+)$/', $package, $m)) {
+            return $m[1];
         }
-        if (str_starts_with($package, 'vupi.us/')) {
-            return str_replace('vupi.us/', '', $package);
+        if (preg_match('/^[^\/]+\/(.+)$/', $package, $m)) {
+            return $m[1];
         }
         return $package;
     }
@@ -330,7 +337,8 @@ class SystemModulesController
         if ($this->composerAvailable()) {
             if ($this->tryComposerInstall($package)) {
                 // Copia de vendor/ para src/Modules/ para seguir o padrão
-                $vendorPath = dirname(__DIR__, 3) . '/vendor/vupi.us/module-' . strtolower($pluginName);
+                // O vendor path é derivado do package name (ex: sweflow/module-email -> vendor/sweflow/module-email)
+                $vendorPath = dirname(__DIR__, 3) . '/vendor/' . $package;
                 if (is_dir($vendorPath)) {
                     $this->copyModuleToModules($vendorPath, $targetDir);
                     // Remove do vendor após copiar
@@ -624,9 +632,9 @@ class SystemModulesController
 
     private function incrementDownload(string $package): void
     {
-        // Normalize to full package name
+        // Usa o package name completo como chave (ex: sweflow/module-email)
         if (!str_contains($package, '/')) {
-            $package = 'vupi.us/module-' . strtolower($package);
+            return; // sem vendor, não normaliza
         }
         $stats = $this->loadStats();
         $stats[$package] = ($stats[$package] ?? 0) + 1;
@@ -654,11 +662,10 @@ class SystemModulesController
             return;
         }
 
-        $pkgLower = 'vupi.us/module-' . strtolower($moduleName);
-        $pkgFull  = $packageName ?: $pkgLower;
+        $pkgFull  = $packageName ?: ('module-' . strtolower($moduleName));
         $changed  = false;
 
-        $changed = $this->removeComposerRequire($json, $pkgFull, $pkgLower) || $changed;
+        $changed = $this->removeComposerRequire($json, $pkgFull) || $changed;
         $changed = $this->removeComposerAutoload($json, $moduleName) || $changed;
         $changed = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
 
@@ -676,14 +683,12 @@ class SystemModulesController
         }
     }
 
-    private function removeComposerRequire(array &$json, string $pkgFull, string $pkgLower): bool
+    private function removeComposerRequire(array &$json, string $pkgFull): bool
     {
         $changed = false;
-        foreach ([$pkgFull, $pkgLower] as $pkg) {
-            if (isset($json['require'][$pkg])) {
-                unset($json['require'][$pkg]);
-                $changed = true;
-            }
+        if (isset($json['require'][$pkgFull])) {
+            unset($json['require'][$pkgFull]);
+            $changed = true;
         }
         return $changed;
     }
@@ -709,7 +714,7 @@ class SystemModulesController
             return false;
         }
         $simpleName = strtolower($moduleName);
-        $pkgSimple  = strtolower(str_replace('vupi.us/', '', $pkgFull));
+        $pkgSimple  = strtolower(preg_replace('/^[^\/]+\/(?:module-)?/', '', $pkgFull));
         $before     = count($json['repositories']);
         $json['repositories'] = array_values(array_filter(
             $json['repositories'],
@@ -744,12 +749,16 @@ class SystemModulesController
         // Vamos varrer e remover qualquer valor que pareça ser este módulo
         $candidates = [
             $moduleName,
-            ucfirst($moduleName), // Email
-            strtolower($moduleName), // email
-            'vupi.us-module-' . strtolower($moduleName),
-            'module-' . strtolower($moduleName),
-            'vupi.us/module-' . strtolower($moduleName)
+            ucfirst($moduleName),
+            strtolower($moduleName),
         ];
+        // Adiciona variações com prefixo se o package name foi passado
+        if (str_contains($moduleName, '/')) {
+            $short = preg_replace('/^[^\/]+\/(?:module-)?/', '', $moduleName);
+            $candidates[] = $short;
+            $candidates[] = ucfirst($short);
+            $candidates[] = strtolower($short);
+        }
         
         foreach ($map as $cap => $activePlugin) {
             // Verifica se o activePlugin está na lista de candidatos
@@ -790,7 +799,7 @@ class SystemModulesController
                 $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
             }
 
-            $name = $meta['name'] ?? 'vupi.us/module-' . strtolower($dir);
+            $name = $meta['name'] ?? 'sweflow/module-' . strtolower($dir);
             $desc = $meta['description'] ?? 'Módulo do Sistema';
 
             if ($query !== '' &&
@@ -801,7 +810,7 @@ class SystemModulesController
                 continue;
             }
 
-            if (in_array(strtolower($dir), ['auth', 'usuario'], true)) {
+            if (in_array(strtolower($dir), ['auth', 'usuario', 'documentacao'], true)) {
                 continue;
             }
 
@@ -823,19 +832,14 @@ class SystemModulesController
     }
 
 
-    private function decrementDownload(string $moduleName): void
+    private function decrementDownload(string $package): void
     {
-        // Normalize name
-        if (str_starts_with($moduleName, 'vupi.us/module-')) {
-            $moduleName = 'vupi.us/module-' . str_replace('vupi.us/module-', '', $moduleName);
-        } elseif (!str_contains($moduleName, '/')) {
-            // Assume short name like 'email', convert to package name
-            $moduleName = 'vupi.us/module-' . strtolower($moduleName);
+        if (!str_contains($package, '/')) {
+            return;
         }
-
         $stats = $this->loadStats();
-        if (isset($stats[$moduleName]) && $stats[$moduleName] > 0) {
-            $stats[$moduleName]--;
+        if (isset($stats[$package]) && $stats[$package] > 0) {
+            $stats[$package]--;
             $this->saveStats($stats);
         }
     }
