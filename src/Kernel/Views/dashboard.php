@@ -374,6 +374,20 @@
     </div>
 </div>
 
+<!-- Ativar módulo -->
+<div class="modal-overlay" id="enable-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header"><h2><i class="fa-solid fa-play"></i> Ativar módulo</h2>
+            <button class="modal-close" id="enable-close"><i class="fa-solid fa-xmark"></i></button></div>
+        <p id="enable-modal-text">Tem certeza que deseja ativar este módulo?</p>
+        <div class="pill" style="margin:12px 0;"><i class="fa-solid fa-layer-group"></i> <span id="enable-modal-name">--</span></div>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="enable-cancel">Cancelar</button>
+            <button class="btn primary" id="enable-confirm" style="background:#16a34a;"><i class="fa-solid fa-play"></i> Ativar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Módulo protegido -->
 <div class="modal-overlay" id="protected-modal">
     <div class="modal dash-modal">

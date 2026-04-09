@@ -150,6 +150,40 @@ window.onload = function () {
         });
     }
 
+    const enableModal     = document.getElementById('enable-modal');
+    const enableModalName = document.getElementById('enable-modal-name');
+    const enableModalText = document.getElementById('enable-modal-text');
+    const enableConfirm   = document.getElementById('enable-confirm');
+    const enableCancel    = document.getElementById('enable-cancel');
+    const enableClose     = document.getElementById('enable-close');
+
+    function askEnable(moduleName) {
+        return new Promise((resolve) => {
+            if (!enableModal) {
+                return resolve(window.confirm(`Deseja ativar o módulo "${moduleName}"?`));
+            }
+
+            enableModalName.textContent = moduleName;
+            enableModalText.textContent = `Tem certeza que deseja ativar o módulo "${moduleName}"? As rotas e serviços desse módulo ficarão disponíveis imediatamente.`;
+
+            const cleanup = () => {
+                enableModal.classList.remove('show');
+                enableConfirm.onclick = null;
+                enableCancel.onclick  = null;
+                enableClose.onclick   = null;
+            };
+
+            const confirmHandler = () => { cleanup(); resolve(true); };
+            const cancelHandler  = () => { cleanup(); resolve(false); };
+
+            enableConfirm.onclick = confirmHandler;
+            enableCancel.onclick  = cancelHandler;
+            enableClose.onclick   = cancelHandler;
+
+            requestAnimationFrame(() => enableModal.classList.add('show'));
+        });
+    }
+
     function showProtectedModal(moduleName) {
         if (!protectedModal) {
             showErrorModal(`O módulo "${moduleName}" é essencial e não pode ser desabilitado.`, 'Módulo essencial');
@@ -325,9 +359,12 @@ window.onload = function () {
 
         const currentlyEnabled = moduleState[name] ?? true;
 
-        // Se vai desativar, pede confirmação via modal
+        // Pede confirmação via modal — desativar ou ativar
         if (currentlyEnabled) {
             const confirmed = await askDisable(name);
+            if (!confirmed) return;
+        } else {
+            const confirmed = await askEnable(name);
             if (!confirmed) return;
         }
 
