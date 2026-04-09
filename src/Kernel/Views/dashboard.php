@@ -409,7 +409,7 @@
         </div>
         <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja ativar <strong>Login só após e-mail verificado</strong>?</p>
         <p style="color:#64748b;font-size:0.93rem;line-height:1.6;margin-bottom:16px;">
-            A partir de agora, todos os usuários precisarão ter o e-mail confirmado para fazer login.<br>
+            Após ativar, todos os usuários precisarão ter o e-mail confirmado para fazer login.<br>
             Usuários com e-mail não verificado serão bloqueados até confirmarem o cadastro.
         </p>
         <div class="form-actions" style="justify-content:flex-end;">
