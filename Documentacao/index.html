@@ -71,11 +71,26 @@
 
     <div class="docs-nav-section">
       <span class="docs-nav-label">Desenvolvimento</span>
+﻿      <a class="docs-nav-link" data-page="filosofia" href="#filosofia">
+        <i class="fa-solid fa-lightbulb"></i> Filosofia do Projeto
+      </a>
       <a class="docs-nav-link" data-page="criar-modulo" href="#criar-modulo">
-        <i class="fa-solid fa-code"></i> Criando um Módulo
+        <i class="fa-solid fa-code"></i> Módulo Usuario
+      </a>
+      <a class="docs-nav-link" data-page="teste-usuario" href="#teste-usuario">
+        <i class="fa-solid fa-flask"></i> Testando o Módulo Usuario
+      </a>
+      <a class="docs-nav-link" data-page="modulo-aviso" href="#modulo-aviso">
+        <i class="fa-solid fa-bell"></i> Módulo Aviso
+      </a>
+      <a class="docs-nav-link" data-page="teste-aviso" href="#teste-aviso">
+        <i class="fa-solid fa-vial"></i> Testando o Módulo Aviso
       </a>
       <a class="docs-nav-link" data-page="rotas" href="#rotas">
         <i class="fa-solid fa-route"></i> Rotas e Middlewares
+      </a>
+      <a class="docs-nav-link" data-page="middlewares" href="#middlewares">
+        <i class="fa-solid fa-shield-halved"></i> Middlewares
       </a>
       <a class="docs-nav-link" data-page="banco" href="#banco">
         <i class="fa-solid fa-database"></i> Banco de Dados
@@ -876,12 +891,135 @@ php vupi setup --auto --jwt=if-empty</code></pre>
     └── <span class="file">web.php</span>       <span class="note"># ⚠ Obrigatório para ter rotas HTTP</span>
       </div>
     </section>
+
+    <!-- PAGE: FILOSOFIA -->
+    <section class="docs-page" id="page-filosofia">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div>
+          <h1>Filosofia do Projeto</h1>
+          <p>Por que a Vupi.us API foi construída assim — e o que isso significa para você como desenvolvedor.</p>
+        </div>
+      </div>
+
+      <h2 id="objetivo">O objetivo</h2>
+      <p>A Vupi.us API foi criada com um único objetivo central:</p>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-bullseye"></i></div>
+        <div class="callout-body">
+          <strong>O desenvolvedor só precisa se preocupar com a regra de negócio.</strong>
+          <p>Toda a infraestrutura — autenticação, banco de dados, rotas, segurança, migrations, CORS, TLS — já está resolvida pelo Kernel. Você cria uma pasta em <code>src/Modules/</code> e o sistema cuida do resto.</p>
+        </div>
+      </div>
+
+      <h2 id="o-que-o-kernel-resolve">O que o Kernel já resolve por você</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-solid fa-route" style="color:#4f46e5"></i></div>
+          <h3>Rotas automáticas</h3>
+          <p>Crie <code>Routes/web.php</code> no seu módulo. O sistema descobre e registra as rotas automaticamente — sem tocar em <code>index.php</code>.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-database" style="color:#16a34a"></i></div>
+          <h3>Migrations automáticas</h3>
+          <p>Coloque arquivos PHP em <code>Database/Migrations/</code>. O Migrator os descobre e executa com <code>php vupi migrate</code>.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-syringe" style="color:#d97706"></i></div>
+          <h3>Injeção de dependência</h3>
+          <p>Declare dependências no construtor. O Container resolve tudo automaticamente via reflection — sem registro manual.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(96,165,250,0.12)"><i class="fa-solid fa-shield-halved" style="color:#2563eb"></i></div>
+          <h3>Autenticação pronta</h3>
+          <p>Use <code>AuthHybridMiddleware</code> e <code>AdminOnlyMiddleware</code> nas rotas. JWT, blacklist e validação já estão implementados.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(167,139,250,0.12)"><i class="fa-solid fa-lock" style="color:#7c3aed"></i></div>
+          <h3>Segurança por padrão</h3>
+          <p>CSP, HSTS, rate limiting, circuit breaker, proteção contra OWASP Top 10 — tudo ativo sem configuração adicional.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(244,114,182,0.12)"><i class="fa-solid fa-plug" style="color:#db2777"></i></div>
+          <h3>Zero config</h3>
+          <p>Sem registro em arquivos centrais. Sem editar <code>index.php</code> ou <code>composer.json</code>. Só criar a pasta do módulo.</p>
+        </div>
+      </div>
+
+      <h2 id="o-que-voce-faz">O que você faz como desenvolvedor</h2>
+      <p>Sua responsabilidade se resume a três coisas:</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Modelar o domínio</h3>
+            <p>Criar a <strong>Entity</strong> com as regras de negócio, validações e comportamentos. Ex: <code>Aviso.php</code>, <code>Produto.php</code>, <code>Pedido.php</code>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Persistir os dados</h3>
+            <p>Criar o <strong>Repository</strong> com as queries SQL. O PDO é injetado automaticamente via <code>ModuleConnectionResolver</code>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Expor via HTTP</h3>
+            <p>Criar o <strong>Controller</strong> com os endpoints e o <strong>Routes/web.php</strong> com as rotas. Pronto — a API está no ar.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="estrutura-minima">Estrutura mínima de um módulo</h2>
+      <div class="file-tree">
+<span class="dir">src/Modules/SeuModulo/</span>
+├── <span class="dir">Controllers/</span>
+│   └── <span class="file">SeuController.php</span>      <span class="note"># Endpoints HTTP</span>
+├── <span class="dir">Entities/</span>
+│   └── <span class="file">SuaEntity.php</span>           <span class="note"># Regras de negócio</span>
+├── <span class="dir">Repositories/</span>
+│   └── <span class="file">SeuRepository.php</span>       <span class="note"># Queries SQL</span>
+├── <span class="dir">Database/</span>
+│   ├── <span class="dir">Migrations/</span>
+│   │   └── <span class="file">001_create_tabela.php</span>  <span class="note"># Cria a tabela</span>
+│   ├── <span class="dir">Seeders/</span>
+│   │   └── <span class="file">001_dados.php</span>          <span class="note"># Dados iniciais (opcional)</span>
+│   └── <span class="file">connection.php</span>           <span class="note"># Qual banco usar</span>
+└── <span class="dir">Routes/</span>
+    └── <span class="file">web.php</span>                  <span class="note"># ⚠ Obrigatório para ter rotas</span>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Nenhum arquivo fora de <code>src/Modules/</code> precisa ser alterado.</strong>
+          <p>O sistema detecta o módulo automaticamente. Não é necessário editar <code>index.php</code>, <code>composer.json</code>, rotas do Kernel ou qualquer outro arquivo de infraestrutura.</p>
+        </div>
+      </div>
+
+      <h2 id="exemplos">Exemplos práticos</h2>
+      <p>As próximas seções mostram dois módulos completos construídos do zero, com cada linha de código explicada:</p>
+      <table class="docs-table">
+        <thead><tr><th>Módulo</th><th>O que faz</th><th>Complexidade</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Usuario</strong></td><td>Registro, autenticação, perfil e gerenciamento de usuários</td><td>Completo com UUID, hash de senha e níveis de acesso</td></tr>
+          <tr><td><strong>Aviso</strong></td><td>CRUD de avisos/notificações com rotas públicas e admin</td><td>Simples — ideal para começar</td></tr>
+        </tbody>
+      </table>
+
+    </section>
+
+
     <!-- PAGE: CRIAR MODULO -->
     <section class="docs-page" id="page-criar-modulo">
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-code"></i></div>
         <div>
-          <h1>Criando um Módulo</h1>
+          <h1>Módulo Usuario — Exemplo Completo</h1>
           <p>Exemplo prático com o módulo <strong>Usuario</strong> — simples, comentado e pronto para usar.</p>
         </div>
       </div>
@@ -1609,6 +1747,1133 @@ $router-&gt;delete('/api/usuarios/{uuid}', [UsuarioController::class, 'deletar']
 
 
     </section>
+﻿
+﻿
+    <!-- PAGE: TESTE USUARIO -->
+    <section class="docs-page" id="page-teste-usuario">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-flask"></i></div>
+        <div>
+          <h1>Testando o Módulo Usuario</h1>
+          <p>Guia completo para testar todas as rotas do módulo no Insomnia, Postman, HTTPie e Thunder Client.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Pré-requisito</strong>
+          <p>Certifique-se de ter rodado <code>php vupi migrate --seed</code> e que o servidor está no ar em <code>http://localhost:3005</code> (ou a URL do seu servidor). Substitua <code>BASE_URL</code> pela sua URL base em todos os exemplos.</p>
+        </div>
+      </div>
+
+      <h2 id="tu-ferramentas">Ferramentas de teste</h2>
+      <p>Escolha a ferramenta de sua preferência. Todos os exemplos abaixo funcionam em qualquer uma delas:</p>
+      <table class="docs-table">
+        <thead><tr><th>Ferramenta</th><th>Tipo</th><th>Download</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Insomnia</strong></td><td>Desktop / Web</td><td><code>insomnia.rest</code></td></tr>
+          <tr><td><strong>Postman</strong></td><td>Desktop / Web</td><td><code>postman.com</code></td></tr>
+          <tr><td><strong>Thunder Client</strong></td><td>Extensão VS Code</td><td>Marketplace do VS Code</td></tr>
+          <tr><td><strong>HTTPie</strong></td><td>Terminal</td><td><code>httpie.io</code></td></tr>
+          <tr><td><strong>curl</strong></td><td>Terminal</td><td>Já instalado no Linux/macOS</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-key"></i></div>
+        <div class="callout-body">
+          <strong>Como configurar o token nas ferramentas</strong>
+          <p>Após fazer login e obter o <code>access_token</code>, configure em todas as requisições autenticadas:<br>
+          <strong>Insomnia/Postman/Thunder Client:</strong> Aba <em>Auth</em> → <em>Bearer Token</em> → cole o token.<br>
+          <strong>HTTPie:</strong> adicione <code>Authorization:"Bearer SEU_TOKEN"</code> ao comando.<br>
+          <strong>curl:</strong> adicione <code>-H "Authorization: Bearer SEU_TOKEN"</code>.</p>
+        </div>
+      </div>
+
+      <h2 id="tu-middlewares">Middlewares de segurança nas rotas</h2>
+      <p>O módulo Usuario usa três níveis de proteção. Entender isso é essencial para saber qual token usar em cada teste:</p>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>O que faz</th><th>Quando usar</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthHybridMiddleware</code></td><td>Valida o JWT e injeta o usuário autenticado na requisição</td><td>Qualquer rota que exige login</td></tr>
+          <tr><td><code>AdminOnlyMiddleware</code></td><td>Exige <code>nivel_acesso = admin_system</code> no token</td><td>Rotas de gerenciamento admin</td></tr>
+          <tr><td><code>RateLimitMiddleware</code></td><td>Limita requisições por janela de tempo (ex: 5/min no registro)</td><td>Automático — não precisa configurar</td></tr>
+          <tr><td><code>CircuitBreakerMiddleware</code></td><td>Protege o banco de dados em caso de falhas em cascata</td><td>Automático — não precisa configurar</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Dois tipos de token</strong>
+          <p>Rotas <strong>admin</strong> exigem um token gerado com <code>JWT_API_SECRET</code> (token de admin_system). Rotas de <strong>perfil</strong> aceitam qualquer token de usuário autenticado. Se receber <code>403 Acesso restrito</code>, você está usando o token errado.</p>
+        </div>
+      </div>
+
+      <h2 id="tu-passo1">Passo 1 — Obter o token de admin</h2>
+      <p>Antes de testar rotas protegidas, faça login com o usuário admin criado pelo seeder. Veja também a seção <a href="#middlewares" onclick="showPage('middlewares');return false;">Middlewares → Como gerar o token JWT_API_SECRET</a> para entender os diferentes tipos de token.</p>
+
+      <p><strong>curl / HTTPie</strong></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X POST http://localhost:3005/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@admin.com","senha":"admin123"}'
+
+# HTTPie
+http POST http://localhost:3005/api/auth/login \
+  email=admin@admin.com senha=admin123</code></pre>
+      </div>
+
+      <p><strong>Insomnia / Postman / Thunder Client</strong></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: POST
+// URL: http://localhost:3005/api/auth/login
+// Body (JSON):
+{
+  "email": "admin@admin.com",
+  "senha": "admin123"
+}</code></pre>
+      </div>
+
+      <p><strong>Resposta esperada (200):</strong></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "access_token": "eyJ...",   // ← copie este valor para usar nas próximas requisições
+  "token_type": "Bearer",
+  "expires_in": 900
+}</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Dica: variável de ambiente nas ferramentas</strong>
+          <p>No Insomnia e Postman, crie uma variável de ambiente <code>TOKEN</code> e salve o <code>access_token</code> nela. Assim você usa <code>{{TOKEN}}</code> em todas as requisições sem precisar colar o token manualmente toda vez.</p>
+        </div>
+      </div>
+
+      <h2 id="tu-registro">Registrar novo usuário (POST — público)</h2>
+      <p>Rota: <code>POST /api/registrar</code> — sem autenticação, com rate limit de 5 req/min.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X POST http://localhost:3005/api/registrar \
+  -H "Content-Type: application/json" \
+  -d '{"nome_completo":"João Silva","username":"joao.silva","email":"joao@exemplo.com","senha":"Senha@123"}'
+
+# HTTPie
+http POST http://localhost:3005/api/registrar \
+  nome_completo="João Silva" username=joao.silva \
+  email=joao@exemplo.com senha=Senha@123</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: POST  |  URL: http://localhost:3005/api/registrar
+// Body (JSON):
+{
+  "nome_completo": "João Silva",
+  "username": "joao.silva",
+  "email": "joao@exemplo.com",
+  "senha": "Senha@123"
+}
+// Resposta esperada: 201 Created
+// {
+//   "status": "success",
+//   "message": "Usuário criado com sucesso...",
+//   "usuario": { "uuid": "...", "nome_completo": "João Silva", ... }
+// }</code></pre>
+      </div>
+
+      <h2 id="tu-listar">Listar usuários (GET — admin)</h2>
+      <p>Rota: <code>GET /api/usuarios</code> — requer token admin.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl http://localhost:3005/api/usuarios \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# Com paginação e filtro
+curl "http://localhost:3005/api/usuarios?pagina=1&por_pagina=10&q=joao" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# HTTPie
+http GET http://localhost:3005/api/usuarios \
+  Authorization:"Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: GET  |  URL: http://localhost:3005/api/usuarios
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Query params opcionais: pagina=1 | por_pagina=20 | q=busca | nivel=admin
+// Resposta esperada: 200 OK
+// { "status": "success", "usuarios": [...], "total": 2, "total_paginas": 1 }</code></pre>
+      </div>
+
+      <h2 id="tu-buscar">Buscar usuário por UUID (GET — admin)</h2>
+      <p>Rota: <code>GET /api/usuario/{uuid}</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl — substitua o UUID pelo retornado no registro
+curl http://localhost:3005/api/usuario/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: GET
+// URL: http://localhost:3005/api/usuario/550e8400-e29b-41d4-a716-446655440000
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Resposta esperada: 200 OK  |  404 se não encontrado</code></pre>
+      </div>
+
+      <h2 id="tu-atualizar">Atualizar usuário (PUT — admin)</h2>
+      <p>Rota: <code>PUT /api/usuario/atualizar/{uuid}</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X PUT http://localhost:3005/api/usuario/atualizar/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -d '{"nome_completo":"João da Silva","nivel_acesso":"admin"}'</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: PUT
+// URL: http://localhost:3005/api/usuario/atualizar/550e8400-e29b-41d4-a716-446655440000
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Body (JSON) — envie apenas os campos que deseja alterar:
+{
+  "nome_completo": "João da Silva",
+  "nivel_acesso": "admin"
+}</code></pre>
+      </div>
+
+      <h2 id="tu-desativar">Desativar / Ativar usuário (PATCH — admin)</h2>
+      <p>Rotas: <code>PATCH /api/usuario/{uuid}/desativar</code> e <code>PATCH /api/usuario/{uuid}/ativar</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Desativar
+curl -X PATCH http://localhost:3005/api/usuario/550e8400-e29b-41d4-a716-446655440000/desativar \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# Ativar novamente
+curl -X PATCH http://localhost:3005/api/usuario/550e8400-e29b-41d4-a716-446655440000/ativar \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: PATCH  |  Sem body
+// URL desativar: http://localhost:3005/api/usuario/UUID/desativar
+// URL ativar:    http://localhost:3005/api/usuario/UUID/ativar
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Resposta esperada: 200 OK  |  { "status": "success", "message": "Usuário desativado." }</code></pre>
+      </div>
+
+      <h2 id="tu-perfil">Ver perfil próprio (GET — usuário autenticado)</h2>
+      <p>Rota: <code>GET /api/perfil</code> — qualquer usuário logado pode ver seu próprio perfil.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl — use o token do usuário (não precisa ser admin)
+curl http://localhost:3005/api/perfil \
+  -H "Authorization: Bearer SEU_TOKEN_USUARIO"</code></pre>
+      </div>
+
+      <h2 id="tu-perfil-atualizar">Atualizar perfil próprio (PUT — usuário autenticado)</h2>
+      <p>Rota: <code>PUT /api/perfil</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X PUT http://localhost:3005/api/perfil \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_USUARIO" \
+  -d '{"nome_completo":"João Atualizado","biografia":"Dev PHP"}'</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: PUT  |  URL: http://localhost:3005/api/perfil
+// Headers: Authorization: Bearer SEU_TOKEN_USUARIO
+// Body (JSON):
+{
+  "nome_completo": "João Atualizado",
+  "biografia": "Dev PHP"
+}</code></pre>
+      </div>
+
+      <h2 id="tu-senha">Alterar senha (PUT — usuário autenticado)</h2>
+      <p>Rota: <code>PUT /api/perfil/senha</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X PUT http://localhost:3005/api/perfil/senha \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_USUARIO" \
+  -d '{"senha_atual":"Senha@123","nova_senha":"NovaSenha@456"}'</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: PUT  |  URL: http://localhost:3005/api/perfil/senha
+// Body (JSON):
+{
+  "senha_atual": "Senha@123",
+  "nova_senha": "NovaSenha@456"
+}
+// Resposta esperada: 200  |  403 se senha_atual incorreta</code></pre>
+      </div>
+
+      <h2 id="tu-perfil-publico">Perfil público por username (GET — público)</h2>
+      <p>Rota: <code>GET /api/perfil/{username}</code> — sem autenticação.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl http://localhost:3005/api/perfil/joao.silva
+
+# HTTPie
+http GET http://localhost:3005/api/perfil/joao.silva</code></pre>
+      </div>
+
+      <h2 id="tu-deletar">Deletar usuário (DELETE — admin)</h2>
+      <p>Rota: <code>DELETE /api/usuario/deletar/{uuid}</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X DELETE http://localhost:3005/api/usuario/deletar/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: DELETE
+// URL: http://localhost:3005/api/usuario/deletar/550e8400-e29b-41d4-a716-446655440000
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Resposta esperada: 200  |  { "status": "success", "message": "Usuário removido." }</code></pre>
+      </div>
+
+      <h2 id="tu-erros">Respostas de erro comuns</h2>
+      <table class="docs-table">
+        <thead><tr><th>Código</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr><td><code>401</code></td><td>Token ausente ou expirado</td><td>Faça login novamente e use o novo token</td></tr>
+          <tr><td><code>403</code></td><td>Token de usuário comum em rota admin</td><td>Use o token do admin_system</td></tr>
+          <tr><td><code>404</code></td><td>UUID não encontrado</td><td>Verifique o UUID na listagem</td></tr>
+          <tr><td><code>409</code></td><td>E-mail ou username já cadastrado</td><td>Use dados diferentes no registro</td></tr>
+          <tr><td><code>422</code></td><td>Dados inválidos (senha fraca, e-mail inválido)</td><td>Verifique os campos obrigatórios</td></tr>
+          <tr><td><code>429</code></td><td>Rate limit atingido (5 registros/min)</td><td>Aguarde 1 minuto e tente novamente</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Fluxo completo de teste em ordem</strong>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>1. POST /api/auth/login          → obtém token admin
+2. POST /api/registrar           → cria usuário de teste (anote o UUID)
+3. GET  /api/usuarios            → confirma que aparece na listagem
+4. GET  /api/usuario/{uuid}      → busca o usuário criado
+5. PUT  /api/usuario/atualizar/{uuid} → atualiza nome
+6. PATCH /api/usuario/{uuid}/desativar → desativa
+7. PATCH /api/usuario/{uuid}/ativar   → reativa
+8. POST /api/auth/login (usuário) → obtém token do usuário comum
+9. GET  /api/perfil              → vê o próprio perfil
+10. PUT /api/perfil              → atualiza o perfil
+11. DELETE /api/usuario/deletar/{uuid} → remove (com token admin)</code></pre></div>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- PAGE: MODULO AVISO -->
+    <section class="docs-page" id="page-modulo-aviso">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-bell"></i></div>
+        <div>
+          <h1>Módulo Aviso — Do Zero ao Funcionando</h1>
+          <p>Um módulo simples, útil e completo para aprender a arquitetura na prática.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>O que é o módulo Aviso?</strong>
+          <p>Um sistema de avisos/notificações para a sua API. Admins criam avisos (manutenção, novidades, alertas) e qualquer cliente pode consultá-los. Demonstra rotas públicas, rotas protegidas por admin, Entity com validação, Repository com PDO e migration com suporte a PostgreSQL e MySQL.</p>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-bullseye"></i></div>
+        <div class="callout-body">
+          <strong>Nenhum arquivo fora de <code>src/Modules/Aviso/</code> será alterado.</strong>
+          <p>Este módulo valida a arquitetura: criar a pasta e rodar <code>php vupi migrate --seed</code> é tudo que você precisa fazer.</p>
+        </div>
+      </div>
+
+      <h2 id="aviso-estrutura">Estrutura de arquivos</h2>
+      <div class="file-tree">
+<span class="dir">src/Modules/Aviso/</span>
+├── <span class="dir">Controllers/</span>
+│   └── <span class="file">AvisoController.php</span>
+├── <span class="dir">Entities/</span>
+│   └── <span class="file">Aviso.php</span>
+├── <span class="dir">Repositories/</span>
+│   └── <span class="file">AvisoRepository.php</span>
+├── <span class="dir">Database/</span>
+│   ├── <span class="dir">Migrations/</span>
+│   │   └── <span class="file">001_create_avisos.php</span>
+│   ├── <span class="dir">Seeders/</span>
+│   │   └── <span class="file">001_avisos.php</span>
+│   └── <span class="file">connection.php</span>
+└── <span class="dir">Routes/</span>
+    └── <span class="file">web.php</span>
+      </div>
+
+      <h2 id="aviso-passo1">Passo 1 — Criar a estrutura</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>mkdir -p src/Modules/Aviso/{Controllers,Entities,Repositories,Database/Migrations,Database/Seeders,Routes}</code></pre>
+      </div>
+
+      <h2 id="aviso-passo2">Passo 2 — connection.php</h2>
+      <p>Declara qual banco de dados o módulo usa. <code>'core'</code> usa as variáveis <code>DB_*</code> do <code>.env</code>.</p>
+      <p>Arquivo: <code>src/Modules/Aviso/Database/connection.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// Declara qual banco este módulo usa.
+// 'core'    → usa DB_* do .env (banco principal)
+// 'modules' → usa DB2_* do .env (banco secundário)
+// 'auto'    → o Kernel decide baseado na origem do módulo
+return 'core';</code></pre>
+      </div>
+
+      <h2 id="aviso-passo3">Passo 3 — Migration</h2>
+      <p>A migration cria a tabela <code>avisos</code>. Retorna um array com duas chaves: <code>up</code> (cria) e <code>down</code> (desfaz). Cada uma recebe um <code>PDO</code> e suporta PostgreSQL e MySQL.</p>
+      <p>Arquivo: <code>src/Modules/Aviso/Database/Migrations/001_create_avisos.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+return [
+    // 'up' é executado ao rodar: php vupi migrate
+    'up' =&gt; function (PDO $pdo): void {
+        $driver = $pdo-&gt;getAttribute(PDO::ATTR_DRIVER_NAME); // 'pgsql' ou 'mysql'
+
+        if ($driver === 'pgsql') {
+            $pdo-&gt;exec("
+                CREATE TABLE IF NOT EXISTS avisos (
+                    id            SERIAL      PRIMARY KEY,          -- auto-incremento no PostgreSQL
+                    titulo        VARCHAR(255) NOT NULL,             -- título curto do aviso
+                    mensagem      TEXT         NOT NULL,             -- corpo do aviso
+                    tipo          VARCHAR(20)  NOT NULL DEFAULT 'info'
+                        CHECK (tipo IN ('info','sucesso','alerta','erro')), -- só valores válidos
+                    ativo         BOOLEAN      NOT NULL DEFAULT TRUE, -- false = aviso arquivado
+                    criado_em     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em TIMESTAMP                           -- null até a primeira edição
+                )
+            ");
+            // Índice para acelerar a busca de avisos ativos (consulta mais comum)
+            $pdo-&gt;exec('CREATE INDEX IF NOT EXISTS idx_avisos_ativo ON avisos (ativo)');
+        } else {
+            // MySQL usa TINYINT(1) para booleano e INT AUTO_INCREMENT para ID
+            $pdo-&gt;exec("
+                CREATE TABLE IF NOT EXISTS avisos (
+                    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    titulo        VARCHAR(255) NOT NULL,
+                    mensagem      TEXT         NOT NULL,
+                    tipo          VARCHAR(20)  NOT NULL DEFAULT 'info',
+                    ativo         TINYINT(1)   NOT NULL DEFAULT 1,
+                    criado_em     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    atualizado_em DATETIME,
+                    INDEX idx_ativo (ativo)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+        }
+    },
+
+    // 'down' é executado ao fazer rollback: php vupi rollback
+    'down' =&gt; function (PDO $pdo): void {
+        $pdo-&gt;exec('DROP TABLE IF EXISTS avisos');
+    },
+];</code></pre>
+      </div>
+
+      <h2 id="aviso-passo4">Passo 4 — Seeder</h2>
+      <p>O seeder insere dados iniciais. Deve ser <strong>idempotente</strong> — seguro de rodar várias vezes sem duplicar dados. Retorna uma closure que recebe <code>PDO</code>.</p>
+      <p>Arquivo: <code>src/Modules/Aviso/Database/Seeders/001_avisos.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+return function (PDO $pdo): void {
+    // Verifica se já existem dados — evita duplicação ao rodar o seed mais de uma vez
+    $count = (int) $pdo-&gt;query('SELECT COUNT(*) FROM avisos')-&gt;fetchColumn();
+    if ($count &gt; 0) {
+        echo "  ⊘ Avisos já existem, seed ignorado.\n";
+        return;
+    }
+
+    // Prepara o statement uma vez e executa para cada aviso
+    $stmt = $pdo-&gt;prepare(
+        'INSERT INTO avisos (titulo, mensagem, tipo) VALUES (:titulo, :mensagem, :tipo)'
+    );
+
+    $stmt-&gt;execute([':titulo' =&gt; 'Bem-vindo!',          ':mensagem' =&gt; 'O sistema está no ar.',               ':tipo' =&gt; 'sucesso']);
+    $stmt-&gt;execute([':titulo' =&gt; 'Manutenção agendada', ':mensagem' =&gt; 'Haverá manutenção no domingo às 2h.', ':tipo' =&gt; 'alerta']);
+
+    echo "  ✔ Avisos de exemplo criados.\n";
+};</code></pre>
+      </div>
+
+      <h2 id="aviso-passo5">Passo 5 — Entity</h2>
+      <p>A Entity representa o domínio do aviso. Ela encapsula os dados e garante que nenhum objeto inválido seja criado. <strong>Validações ficam aqui, não no Controller.</strong></p>
+      <p>Arquivo: <code>src/Modules/Aviso/Entities/Aviso.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+namespace Src\Modules\Aviso\Entities;
+
+use DateTimeImmutable;
+
+// 'final' impede herança — a Entity é um objeto de valor, não deve ser estendida
+final class Aviso
+{
+    // Lista de tipos válidos — qualquer outro valor lança exceção
+    private const TIPOS_VALIDOS = ['info', 'sucesso', 'alerta', 'erro'];
+
+    public function __construct(
+        private readonly ?int      $id,        // null = aviso novo (ainda não salvo no banco)
+        private string             $titulo,    // Título curto, ex: "Manutenção agendada"
+        private string             $mensagem,  // Corpo do aviso
+        private string             $tipo,      // info | sucesso | alerta | erro
+        private bool               $ativo,     // false = aviso arquivado, não aparece no público
+        private readonly ?DateTimeImmutable $criadoEm = null // preenchido pelo banco
+    ) {
+        $this-&gt;validar(); // Valida logo na construção — objeto inválido nunca existe
+    }
+
+    // ── Factory ───────────────────────────────────────────────────────────
+    // Método estático para criar um aviso novo (sem ID, sem data)
+    // Uso: $aviso = Aviso::criar('Título', 'Mensagem', 'info');
+    public static function criar(string $titulo, string $mensagem, string $tipo = 'info'): self
+    {
+        return new self(null, trim($titulo), trim($mensagem), $tipo, true);
+    }
+
+    // ── Validação ─────────────────────────────────────────────────────────
+    private function validar(): void
+    {
+        if (trim($this-&gt;titulo) === '') {
+            throw new \InvalidArgumentException('Título é obrigatório.');
+        }
+        if (trim($this-&gt;mensagem) === '') {
+            throw new \InvalidArgumentException('Mensagem é obrigatória.');
+        }
+        if (!in_array($this-&gt;tipo, self::TIPOS_VALIDOS, true)) {
+            throw new \InvalidArgumentException('Tipo inválido. Use: ' . implode(', ', self::TIPOS_VALIDOS));
+        }
+    }
+
+    // ── Comportamentos ────────────────────────────────────────────────────
+    // Atualiza os dados do aviso com nova validação
+    public function atualizar(string $titulo, string $mensagem, string $tipo): void
+    {
+        $this-&gt;titulo   = trim($titulo);
+        $this-&gt;mensagem = trim($mensagem);
+        $this-&gt;tipo     = $tipo;
+        $this-&gt;validar(); // Revalida após a mudança
+    }
+
+    public function ativar(): void    { $this-&gt;ativo = true; }
+    public function desativar(): void { $this-&gt;ativo = false; }
+
+    // ── Getters ───────────────────────────────────────────────────────────
+    public function getId(): ?int                     { return $this-&gt;id; }
+    public function getTitulo(): string               { return $this-&gt;titulo; }
+    public function getMensagem(): string             { return $this-&gt;mensagem; }
+    public function getTipo(): string                 { return $this-&gt;tipo; }
+    public function isAtivo(): bool                   { return $this-&gt;ativo; }
+    public function getCriadoEm(): ?DateTimeImmutable { return $this-&gt;criadoEm; }
+}</code></pre>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Por que validar no construtor?</strong>
+          <p>Garante que um <code>Aviso</code> com título vazio ou tipo inválido <strong>nunca existe</strong> no sistema. Se a validação falhar, uma exceção é lançada antes de qualquer persistência no banco.</p>
+        </div>
+      </div>
+
+      <h2 id="aviso-passo6">Passo 6 — Repository</h2>
+      <p>O Repository faz a ponte entre a Entity e o banco de dados. Contém apenas queries SQL — sem regras de negócio. O PDO é obtido via <code>ModuleConnectionResolver</code>, que lê o <code>connection.php</code> do módulo.</p>
+      <p>Arquivo: <code>src/Modules/Aviso/Repositories/AvisoRepository.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+namespace Src\Modules\Aviso\Repositories;
+
+use DateTimeImmutable;
+use PDO;
+use Src\Modules\Aviso\Entities\Aviso;
+
+class AvisoRepository
+{
+    // O PDO é injetado pelo Container automaticamente via type hint
+    public function __construct(private PDO $pdo) {}
+
+    // Salva um aviso novo (INSERT) ou atualiza um existente (UPDATE)
+    // Retorna o aviso com o ID preenchido após INSERT
+    public function salvar(Aviso $aviso): Aviso
+    {
+        if ($aviso-&gt;getId() === null) {
+            // Aviso novo — INSERT e retorna com o ID gerado pelo banco
+            $stmt = $this-&gt;pdo-&gt;prepare(
+                'INSERT INTO avisos (titulo, mensagem, tipo, ativo) VALUES (:titulo, :mensagem, :tipo, :ativo)'
+            );
+            $stmt-&gt;execute([
+                ':titulo'   =&gt; $aviso-&gt;getTitulo(),
+                ':mensagem' =&gt; $aviso-&gt;getMensagem(),
+                ':tipo'     =&gt; $aviso-&gt;getTipo(),
+                ':ativo'    =&gt; $aviso-&gt;isAtivo() ? 1 : 0,
+            ]);
+            // lastInsertId() retorna o ID gerado pelo banco
+            return $this-&gt;buscarPorId((int) $this-&gt;pdo-&gt;lastInsertId()) ?? $aviso;
+        }
+
+        // Aviso existente — UPDATE com CURRENT_TIMESTAMP para atualizado_em
+        $this-&gt;pdo-&gt;prepare(
+            'UPDATE avisos SET titulo=:titulo, mensagem=:mensagem, tipo=:tipo, ativo=:ativo,
+             atualizado_em=CURRENT_TIMESTAMP WHERE id=:id'
+        )-&gt;execute([
+            ':titulo'   =&gt; $aviso-&gt;getTitulo(),
+            ':mensagem' =&gt; $aviso-&gt;getMensagem(),
+            ':tipo'     =&gt; $aviso-&gt;getTipo(),
+            ':ativo'    =&gt; $aviso-&gt;isAtivo() ? 1 : 0,
+            ':id'       =&gt; $aviso-&gt;getId(),
+        ]);
+
+        return $aviso;
+    }
+
+    public function buscarPorId(int $id): ?Aviso
+    {
+        $stmt = $this-&gt;pdo-&gt;prepare('SELECT * FROM avisos WHERE id = :id LIMIT 1');
+        $stmt-&gt;execute([':id' =&gt; $id]);
+        $row = $stmt-&gt;fetch(PDO::FETCH_ASSOC);
+        return $row ? $this-&gt;mapear($row) : null; // null se não encontrado
+    }
+
+    // Endpoint público — só retorna avisos com ativo = true
+    public function listarAtivos(): array
+    {
+        $stmt = $this-&gt;pdo-&gt;query('SELECT * FROM avisos WHERE ativo = 1 ORDER BY criado_em DESC');
+        return array_map([$this, 'mapear'], $stmt-&gt;fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    // Endpoint admin — retorna todos, inclusive os desativados
+    public function listarTodos(): array
+    {
+        $stmt = $this-&gt;pdo-&gt;query('SELECT * FROM avisos ORDER BY criado_em DESC');
+        return array_map([$this, 'mapear'], $stmt-&gt;fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function deletar(int $id): void
+    {
+        $this-&gt;pdo-&gt;prepare('DELETE FROM avisos WHERE id = :id')-&gt;execute([':id' =&gt; $id]);
+    }
+
+    // Converte uma linha do banco (array) para a Entity Aviso
+    // Centraliza o mapeamento em um único lugar — se a tabela mudar, só aqui muda
+    private function mapear(array $row): Aviso
+    {
+        return new Aviso(
+            (int) $row['id'],
+            $row['titulo'],
+            $row['mensagem'],
+            $row['tipo'],
+            (bool) $row['ativo'],
+            isset($row['criado_em']) ? new DateTimeImmutable($row['criado_em']) : null
+        );
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="aviso-passo7">Passo 7 — Controller</h2>
+      <p>O Controller recebe a requisição HTTP, delega ao Repository e retorna a resposta. <strong>Não contém regras de negócio</strong> — isso é responsabilidade da Entity.</p>
+      <p>O PDO é obtido via <code>ModuleConnectionResolver::forModule('Aviso')</code>, que lê o <code>connection.php</code> e retorna a conexão correta.</p>
+      <p>Arquivo: <code>src/Modules/Aviso/Controllers/AvisoController.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+namespace Src\Modules\Aviso\Controllers;
+
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Database\ModuleConnectionResolver;
+use Src\Modules\Aviso\Entities\Aviso;
+use Src\Modules\Aviso\Repositories\AvisoRepository;
+
+class AvisoController
+{
+    // Lazy init: a conexão só é aberta quando o Controller é realmente usado
+    private ?AvisoRepository $repo = null;
+
+    private function repo(): AvisoRepository
+    {
+        if ($this-&gt;repo === null) {
+            // ModuleConnectionResolver lê o connection.php do módulo Aviso
+            // e retorna o PDO correto (core ou modules)
+            $pdo = ModuleConnectionResolver::forModule('Aviso');
+            $this-&gt;repo = new AvisoRepository($pdo);
+        }
+        return $this-&gt;repo;
+    }
+
+    // ── Rotas públicas ────────────────────────────────────────────────────
+
+    // GET /api/avisos — qualquer cliente pode ver os avisos ativos
+    public function listar(Request $request): Response
+    {
+        $avisos = $this-&gt;repo()-&gt;listarAtivos();
+        return Response::json([
+            'status' =&gt; 'success',
+            'avisos' =&gt; array_map([$this, 'serial'], $avisos),
+        ]);
+    }
+
+    // GET /api/avisos/{id} — busca um aviso específico pelo ID
+    public function buscar(Request $request, string $id): Response
+    {
+        $aviso = $this-&gt;repo()-&gt;buscarPorId((int) $id);
+        // Retorna 404 se não encontrado OU se estiver desativado
+        if (!$aviso || !$aviso-&gt;isAtivo()) {
+            return Response::json(['status' =&gt; 'error', 'message' =&gt; 'Aviso não encontrado.'], 404);
+        }
+        return Response::json(['status' =&gt; 'success', 'aviso' =&gt; $this-&gt;serial($aviso)]);
+    }
+
+    // ── Rotas admin ───────────────────────────────────────────────────────
+
+    // GET /api/admin/avisos — admin vê todos, inclusive desativados
+    public function listarTodos(Request $request): Response
+    {
+        $avisos = $this-&gt;repo()-&gt;listarTodos();
+        return Response::json([
+            'status' =&gt; 'success',
+            'avisos' =&gt; array_map([$this, 'serial'], $avisos),
+        ]);
+    }
+
+    // POST /api/admin/avisos — cria um novo aviso
+    public function criar(Request $request): Response
+    {
+        try {
+            $b = $request-&gt;body ?? []; // body já parseado do JSON pelo Kernel
+            // Aviso::criar() valida os dados — lança InvalidArgumentException se inválido
+            $aviso = Aviso::criar(
+                (string) ($b['titulo']   ?? ''),
+                (string) ($b['mensagem'] ?? ''),
+                (string) ($b['tipo']     ?? 'info')
+            );
+            $aviso = $this-&gt;repo()-&gt;salvar($aviso); // salva e retorna com ID
+            return Response::json(['status' =&gt; 'success', 'aviso' =&gt; $this-&gt;serial($aviso)], 201);
+        } catch (\InvalidArgumentException $e) {
+            // Validação da Entity falhou — retorna 422 com a mensagem de erro
+            return Response::json(['status' =&gt; 'error', 'message' =&gt; $e-&gt;getMessage()], 422);
+        }
+    }
+
+    // PUT /api/admin/avisos/{id} — atualiza título, mensagem, tipo ou status
+    public function atualizar(Request $request, string $id): Response
+    {
+        try {
+            $aviso = $this-&gt;repo()-&gt;buscarPorId((int) $id);
+            if (!$aviso) {
+                return Response::json(['status' =&gt; 'error', 'message' =&gt; 'Aviso não encontrado.'], 404);
+            }
+            $b = $request-&gt;body ?? [];
+            // Usa o valor atual como fallback se o campo não foi enviado
+            $aviso-&gt;atualizar(
+                (string) ($b['titulo']   ?? $aviso-&gt;getTitulo()),
+                (string) ($b['mensagem'] ?? $aviso-&gt;getMensagem()),
+                (string) ($b['tipo']     ?? $aviso-&gt;getTipo())
+            );
+            // Ativa ou desativa se o campo 'ativo' foi enviado
+            if (isset($b['ativo'])) {
+                $b['ativo'] ? $aviso-&gt;ativar() : $aviso-&gt;desativar();
+            }
+            $aviso = $this-&gt;repo()-&gt;salvar($aviso);
+            return Response::json(['status' =&gt; 'success', 'aviso' =&gt; $this-&gt;serial($aviso)]);
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['status' =&gt; 'error', 'message' =&gt; $e-&gt;getMessage()], 422);
+        }
+    }
+
+    // DELETE /api/admin/avisos/{id} — remove permanentemente
+    public function deletar(Request $request, string $id): Response
+    {
+        $aviso = $this-&gt;repo()-&gt;buscarPorId((int) $id);
+        if (!$aviso) {
+            return Response::json(['status' =&gt; 'error', 'message' =&gt; 'Aviso não encontrado.'], 404);
+        }
+        $this-&gt;repo()-&gt;deletar((int) $id);
+        return Response::json(['status' =&gt; 'success', 'message' =&gt; 'Aviso removido.']);
+    }
+
+    // ── Serialização ──────────────────────────────────────────────────────
+    // Converte a Entity para array — nunca exponha campos sensíveis aqui
+    private function serial(Aviso $a): array
+    {
+        return [
+            'id'        =&gt; $a-&gt;getId(),
+            'titulo'    =&gt; $a-&gt;getTitulo(),
+            'mensagem'  =&gt; $a-&gt;getMensagem(),
+            'tipo'      =&gt; $a-&gt;getTipo(),
+            'ativo'     =&gt; $a-&gt;isAtivo(),
+            'criado_em' =&gt; $a-&gt;getCriadoEm()?-&gt;format('Y-m-d\TH:i:sP'),
+        ];
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="aviso-passo8">Passo 8 — Rotas</h2>
+      <p>O arquivo <code>Routes/web.php</code> é carregado automaticamente pelo ModuleLoader. A variável <code>$router</code> já está disponível — você só precisa registrar as rotas.</p>
+      <p>Arquivo: <code>src/Modules/Aviso/Routes/web.php</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+use Src\Kernel\Middlewares\AuthHybridMiddleware;  // Valida o JWT e injeta o usuário autenticado
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;   // Exige nivel_acesso = 'admin_system'
+use Src\Modules\Aviso\Controllers\AvisoController;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+// Array de middlewares para rotas admin — ambos precisam passar
+$admin = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
+
+// ── Rotas públicas — sem autenticação ─────────────────────────────────────
+$router-&gt;get('/api/avisos',      [AvisoController::class, 'listar']); // lista ativos
+$router-&gt;get('/api/avisos/{id}', [AvisoController::class, 'buscar']); // busca por ID
+
+// ── Rotas admin — requer JWT com nivel_acesso = admin_system ──────────────
+$router-&gt;get('/api/admin/avisos',         [AvisoController::class, 'listarTodos'], $admin);
+$router-&gt;post('/api/admin/avisos',        [AvisoController::class, 'criar'],       $admin);
+$router-&gt;put('/api/admin/avisos/{id}',    [AvisoController::class, 'atualizar'],   $admin);
+$router-&gt;delete('/api/admin/avisos/{id}', [AvisoController::class, 'deletar'],     $admin);</code></pre>
+      </div>
+
+      <h2 id="aviso-rotas">Rotas disponíveis</h2>
+      <table class="docs-table">
+        <thead><tr><th>Método</th><th>Rota</th><th>Acesso</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/api/avisos</code></td><td>Público</td><td>Lista avisos ativos</td></tr>
+          <tr><td>GET</td><td><code>/api/avisos/{id}</code></td><td>Público</td><td>Busca aviso por ID</td></tr>
+          <tr><td>GET</td><td><code>/api/admin/avisos</code></td><td>Admin</td><td>Lista todos (inclusive inativos)</td></tr>
+          <tr><td>POST</td><td><code>/api/admin/avisos</code></td><td>Admin</td><td>Cria novo aviso</td></tr>
+          <tr><td>PUT</td><td><code>/api/admin/avisos/{id}</code></td><td>Admin</td><td>Atualiza aviso</td></tr>
+          <tr><td>DELETE</td><td><code>/api/admin/avisos/{id}</code></td><td>Admin</td><td>Remove aviso</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Pronto!</strong>
+          <p>Com todos os arquivos criados, rode as migrations e o seeder:</p>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>php vupi migrate --seed</code></pre></div>
+          <p>Teste a rota pública:</p>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>curl http://localhost/api/avisos</code></pre></div>
+          <p>Crie um aviso (requer token admin):</p>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>curl -X POST http://localhost/api/admin/avisos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -d '{"titulo":"Nova versão","mensagem":"v2.0 disponível!","tipo":"sucesso"}'</code></pre></div>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Nenhum arquivo fora de <code>src/Modules/Aviso/</code> foi alterado.</strong>
+          <p>O ModuleLoader descobriu as rotas automaticamente. O Migrator encontrou e executou a migration. O Container resolveu as dependências. Essa é a arquitetura modular em ação.</p>
+        </div>
+      </div>
+
+    </section>
+
+
+﻿
+    <!-- PAGE: TESTE AVISO -->
+    <section class="docs-page" id="page-teste-aviso">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-vial"></i></div>
+        <div>
+          <h1>Testando o Módulo Aviso</h1>
+          <p>Exemplos prontos para testar todas as rotas do módulo no Insomnia, Postman, HTTPie e Thunder Client.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Pré-requisito</strong>
+          <p>Rode <code>php vupi migrate --seed</code> para criar a tabela e os avisos de exemplo. O servidor deve estar rodando em <code>http://localhost:3005</code>.</p>
+        </div>
+      </div>
+
+      <h2 id="ta-middlewares">Middlewares nas rotas do Aviso</h2>
+      <p>O módulo Aviso tem dois níveis de acesso. Entender isso evita erros de autenticação nos testes:</p>
+      <table class="docs-table">
+        <thead><tr><th>Rota</th><th>Proteção</th><th>Token necessário</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /api/avisos</code></td><td>Nenhuma — pública</td><td>Não precisa</td></tr>
+          <tr><td><code>GET /api/avisos/{id}</code></td><td>Nenhuma — pública</td><td>Não precisa</td></tr>
+          <tr><td><code>GET /api/admin/avisos</code></td><td><code>AuthHybridMiddleware</code> + <code>AdminOnlyMiddleware</code></td><td>Token admin_system</td></tr>
+          <tr><td><code>POST /api/admin/avisos</code></td><td><code>AuthHybridMiddleware</code> + <code>AdminOnlyMiddleware</code></td><td>Token admin_system</td></tr>
+          <tr><td><code>PUT /api/admin/avisos/{id}</code></td><td><code>AuthHybridMiddleware</code> + <code>AdminOnlyMiddleware</code></td><td>Token admin_system</td></tr>
+          <tr><td><code>DELETE /api/admin/avisos/{id}</code></td><td><code>AuthHybridMiddleware</code> + <code>AdminOnlyMiddleware</code></td><td>Token admin_system</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Como adicionar middlewares nas suas rotas</strong>
+          <p>No <code>Routes/web.php</code> do seu módulo, passe os middlewares como terceiro argumento:</p>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
+
+// Rota pública — sem middleware
+$router-&gt;get('/api/recurso', [Controller::class, 'listar']);
+
+// Rota privada — qualquer usuário logado
+$router-&gt;get('/api/meu-recurso', [Controller::class, 'meu'], [AuthHybridMiddleware::class]);
+
+// Rota admin — só admin_system
+$router-&gt;post('/api/admin/recurso', [Controller::class, 'criar'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Rota com rate limit — ex: 10 requisições por minuto
+$rateLimit = [RateLimitMiddleware::class, ['limit' =&gt; 10, 'window' =&gt; 60, 'key' =&gt; 'meu.recurso']];
+$router-&gt;post('/api/recurso', [Controller::class, 'criar'], [$rateLimit]);</code></pre></div>
+        </div>
+      </div>
+
+      <h2 id="ta-token">Passo 1 — Obter token admin</h2>
+      <p>As rotas admin do módulo Aviso exigem token de admin_system. Veja a seção <a href="#middlewares" onclick="showPage('middlewares');return false;">Middlewares → Como gerar o token JWT_API_SECRET</a> para entender todos os métodos disponíveis. O mais simples para testes é o login:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X POST http://localhost:3005/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@admin.com","senha":"admin123"}'
+
+# HTTPie
+http POST http://localhost:3005/api/auth/login \
+  email=admin@admin.com senha=admin123</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: POST  |  URL: http://localhost:3005/api/auth/login
+// Body (JSON):
+{
+  "email": "admin@admin.com",
+  "senha": "admin123"
+}
+// Copie o "access_token" da resposta para usar nas rotas admin abaixo</code></pre>
+      </div>
+
+      <h2 id="ta-listar-publico">Listar avisos ativos (GET — público)</h2>
+      <p>Rota: <code>GET /api/avisos</code> — sem autenticação. Retorna apenas avisos com <code>ativo = true</code>.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl — sem token, qualquer cliente pode chamar
+curl http://localhost:3005/api/avisos
+
+# HTTPie
+http GET http://localhost:3005/api/avisos</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: GET  |  URL: http://localhost:3005/api/avisos
+// Sem headers de autenticação
+// Resposta esperada: 200 OK
+{
+  "status": "success",
+  "avisos": [
+    { "id": 1, "titulo": "Bem-vindo!", "mensagem": "O sistema está no ar.", "tipo": "sucesso", "ativo": true, "criado_em": "..." },
+    { "id": 2, "titulo": "Manutenção agendada", "mensagem": "Haverá manutenção no domingo às 2h.", "tipo": "alerta", "ativo": true, "criado_em": "..." }
+  ]
+}</code></pre>
+      </div>
+
+      <h2 id="ta-buscar-publico">Buscar aviso por ID (GET — público)</h2>
+      <p>Rota: <code>GET /api/avisos/{id}</code> — sem autenticação.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl http://localhost:3005/api/avisos/1
+
+# HTTPie
+http GET http://localhost:3005/api/avisos/1</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: GET  |  URL: http://localhost:3005/api/avisos/1
+// Resposta esperada: 200 OK  |  404 se não encontrado ou inativo
+{
+  "status": "success",
+  "aviso": { "id": 1, "titulo": "Bem-vindo!", "mensagem": "O sistema está no ar.", "tipo": "sucesso", "ativo": true, "criado_em": "..." }
+}</code></pre>
+      </div>
+
+      <h2 id="ta-listar-admin">Listar todos os avisos (GET — admin)</h2>
+      <p>Rota: <code>GET /api/admin/avisos</code> — retorna todos, inclusive inativos.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl http://localhost:3005/api/admin/avisos \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# HTTPie
+http GET http://localhost:3005/api/admin/avisos \
+  Authorization:"Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: GET  |  URL: http://localhost:3005/api/admin/avisos
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Resposta: todos os avisos, incluindo ativo=false</code></pre>
+      </div>
+
+      <h2 id="ta-criar">Criar aviso (POST — admin)</h2>
+      <p>Rota: <code>POST /api/admin/avisos</code> — tipos válidos: <code>info</code>, <code>sucesso</code>, <code>alerta</code>, <code>erro</code>.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X POST http://localhost:3005/api/admin/avisos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -d '{"titulo":"Nova versão disponível","mensagem":"A versão 2.0 foi lançada com melhorias de performance.","tipo":"sucesso"}'
+
+# HTTPie
+http POST http://localhost:3005/api/admin/avisos \
+  Authorization:"Bearer SEU_TOKEN_ADMIN" \
+  titulo="Nova versão disponível" \
+  mensagem="A versão 2.0 foi lançada com melhorias de performance." \
+  tipo=sucesso</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: POST  |  URL: http://localhost:3005/api/admin/avisos
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Body (JSON):
+{
+  "titulo": "Nova versão disponível",
+  "mensagem": "A versão 2.0 foi lançada com melhorias de performance.",
+  "tipo": "sucesso"
+}
+// Resposta esperada: 201 Created
+// { "status": "success", "aviso": { "id": 3, "titulo": "Nova versão disponível", ... } }
+// Anote o "id" retornado para usar nos próximos testes</code></pre>
+      </div>
+
+      <h2 id="ta-atualizar">Atualizar aviso (PUT — admin)</h2>
+      <p>Rota: <code>PUT /api/admin/avisos/{id}</code> — envie apenas os campos que deseja alterar.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl — atualiza título e tipo
+curl -X PUT http://localhost:3005/api/admin/avisos/3 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -d '{"titulo":"v2.0 no ar!","tipo":"info"}'
+
+# curl — desativa o aviso (não aparece mais no público)
+curl -X PUT http://localhost:3005/api/admin/avisos/3 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -d '{"ativo":false}'
+
+# curl — reativa o aviso
+curl -X PUT http://localhost:3005/api/admin/avisos/3 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -d '{"ativo":true}'</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: PUT  |  URL: http://localhost:3005/api/admin/avisos/3
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Body (JSON) — envie apenas o que mudar:
+{
+  "titulo": "v2.0 no ar!",
+  "mensagem": "Atualização concluída com sucesso.",
+  "tipo": "info",
+  "ativo": true
+}
+// Resposta esperada: 200 OK  |  404 se ID não encontrado  |  422 se tipo inválido</code></pre>
+      </div>
+
+      <h2 id="ta-deletar">Deletar aviso (DELETE — admin)</h2>
+      <p>Rota: <code>DELETE /api/admin/avisos/{id}</code> — remoção permanente.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X DELETE http://localhost:3005/api/admin/avisos/3 \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# HTTPie
+http DELETE http://localhost:3005/api/admin/avisos/3 \
+  Authorization:"Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Método: DELETE  |  URL: http://localhost:3005/api/admin/avisos/3
+// Headers: Authorization: Bearer SEU_TOKEN_ADMIN
+// Sem body
+// Resposta esperada: 200 OK
+// { "status": "success", "message": "Aviso removido." }</code></pre>
+      </div>
+
+      <h2 id="ta-erros">Respostas de erro comuns</h2>
+      <table class="docs-table">
+        <thead><tr><th>Código</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr><td><code>401</code></td><td>Token ausente ou expirado</td><td>Faça login novamente</td></tr>
+          <tr><td><code>403</code></td><td>Token de usuário comum em rota admin</td><td>Use o token do admin_system</td></tr>
+          <tr><td><code>404</code></td><td>ID não encontrado ou aviso inativo (rota pública)</td><td>Verifique o ID na listagem admin</td></tr>
+          <tr><td><code>422</code></td><td>Tipo inválido ou campos obrigatórios vazios</td><td>Use: info, sucesso, alerta ou erro</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Fluxo completo de teste em ordem</strong>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>1. GET  /api/avisos                  → lista avisos do seeder (sem token)
+2. GET  /api/avisos/1                → busca aviso por ID (sem token)
+3. POST /api/auth/login              → obtém token admin
+4. GET  /api/admin/avisos            → lista todos incluindo inativos
+5. POST /api/admin/avisos            → cria novo aviso (anote o ID)
+6. GET  /api/avisos                  → confirma que o novo aparece no público
+7. PUT  /api/admin/avisos/{id}       → atualiza o aviso criado
+8. PUT  /api/admin/avisos/{id}       → desativa com {"ativo": false}
+9. GET  /api/avisos                  → confirma que sumiu do público
+10. DELETE /api/admin/avisos/{id}    → remove permanentemente</code></pre></div>
+        </div>
+      </div>
+
+    </section>
+
+
     <!-- PAGE: ROTAS -->
 
     <section class="docs-page" id="page-rotas">
@@ -1705,6 +2970,478 @@ $router->post('/api/login', [AuthController::class, 'login'], [$loginLimit]);</c
         </tbody>
       </table>
     </section>
+
+﻿
+    <!-- PAGE: MIDDLEWARES -->
+    <section class="docs-page" id="page-middlewares">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <h1>Middlewares</h1>
+          <p>Todos os middlewares disponíveis no projeto — o que cada um faz, quando usar e como implementar nas suas rotas.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>O que é um middleware?</strong>
+          <p>Um middleware é uma camada que intercepta a requisição HTTP antes de chegar ao Controller. Você pode encadear vários middlewares em uma rota — eles executam em ordem, e cada um decide se passa a requisição adiante ou retorna uma resposta imediatamente.</p>
+        </div>
+      </div>
+
+      <h2 id="mw-como-usar">Como usar middlewares nas rotas</h2>
+      <p>Passe os middlewares como terceiro argumento no registro da rota:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// Sem middleware — rota pública
+$router-&gt;get('/api/recurso', [Controller::class, 'listar']);
+
+// Um middleware
+$router-&gt;get('/api/recurso', [Controller::class, 'listar'], [AuthHybridMiddleware::class]);
+
+// Múltiplos middlewares — executam em ordem (esquerda para direita)
+$router-&gt;post('/api/admin/recurso', [Controller::class, 'criar'], [
+    AuthHybridMiddleware::class,   // 1º: valida o JWT
+    AdminOnlyMiddleware::class,    // 2º: verifica se é admin_system
+]);
+
+// Middleware com opções (ex: RateLimitMiddleware)
+$rateLimit = [RateLimitMiddleware::class, ['limit' =&gt; 10, 'window' =&gt; 60, 'key' =&gt; 'meu.recurso']];
+$router-&gt;post('/api/recurso', [Controller::class, 'criar'], [$rateLimit]);
+
+// Combinando rate limit + auth + admin
+$rateLimit = [RateLimitMiddleware::class, ['limit' =&gt; 5, 'window' =&gt; 60, 'key' =&gt; 'recurso.criar']];
+$router-&gt;post('/api/admin/recurso', [Controller::class, 'criar'], [
+    $rateLimit,
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);</code></pre>
+      </div>
+
+      <h2 id="mw-tabela">Visão geral de todos os middlewares</h2>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Finalidade</th><th>Uso típico</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthHybridMiddleware</code></td><td>Valida JWT e injeta usuário autenticado</td><td>Qualquer rota que exige login</td></tr>
+          <tr><td><code>AdminOnlyMiddleware</code></td><td>Exige <code>nivel_acesso = admin_system</code></td><td>Rotas de gerenciamento admin</td></tr>
+          <tr><td><code>ApiTokenMiddleware</code></td><td>Valida token JWT de API (<code>JWT_API_SECRET</code>)</td><td>Integrações machine-to-machine</td></tr>
+          <tr><td><code>AuthCookieMiddleware</code></td><td>Valida JWT via cookie <code>auth_token</code></td><td>Rotas de página com cookie de sessão</td></tr>
+          <tr><td><code>AuthPageMiddleware</code></td><td>Auth para páginas HTML — redireciona em vez de 401</td><td>Dashboard e páginas protegidas</td></tr>
+          <tr><td><code>OptionalAuthHybridMiddleware</code></td><td>Tenta autenticar mas não bloqueia se não houver token</td><td>Rotas com conteúdo diferente para logados</td></tr>
+          <tr><td><code>RateLimitMiddleware</code></td><td>Limita requisições por IP e usuário</td><td>Registro, login, qualquer rota pública</td></tr>
+          <tr><td><code>CircuitBreakerMiddleware</code></td><td>Protege o banco de falhas em cascata</td><td>Rotas que dependem de banco ou serviços externos</td></tr>
+          <tr><td><code>BotBlockerMiddleware</code></td><td>Bloqueia scanners e ferramentas maliciosas</td><td>Global — aplicado automaticamente pelo Kernel</td></tr>
+          <tr><td><code>HttpsEnforcerMiddleware</code></td><td>Bloqueia HTTP quando HTTPS é obrigatório</td><td>Global — aplicado automaticamente em produção</td></tr>
+          <tr><td><code>RouteProtectionMiddleware</code></td><td>Valida JWT com restrição por papel (role)</td><td>Rotas com múltiplos níveis de acesso</td></tr>
+          <tr><td><code>SecurityHeadersMiddleware</code></td><td>Garante headers de segurança em toda resposta</td><td>Global — aplicado automaticamente pelo Kernel</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ── AuthHybridMiddleware ── -->
+      <h2 id="mw-auth-hybrid">AuthHybridMiddleware</h2>
+      <p>O middleware de autenticação principal. Valida o JWT enviado no header <code>Authorization: Bearer TOKEN</code> ou no cookie <code>auth_token</code>, verifica se o token não foi revogado (blacklist) e injeta o usuário autenticado na requisição.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>O que ele injeta na requisição</strong>
+          <p>Após passar por este middleware, o Controller pode acessar:<br>
+          <code>$request-&gt;attribute('auth_user')</code> — objeto do usuário autenticado<br>
+          <code>$request-&gt;attribute('auth_payload')</code> — payload decodificado do JWT<br>
+          <code>$request-&gt;attribute('token_signed_with_api_secret')</code> — <code>true</code> se assinado com <code>JWT_API_SECRET</code></p>
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\AuthHybridMiddleware;
+
+// Rota que exige qualquer usuário logado
+$router-&gt;get('/api/perfil', [MeuController::class, 'perfil'], [AuthHybridMiddleware::class]);
+
+// No Controller — acessa o usuário autenticado
+public function perfil(Request $request): Response
+{
+    $usuario = $request-&gt;attribute('auth_user'); // objeto Usuario
+    $payload = $request-&gt;attribute('auth_payload'); // stdClass com sub, nivel_acesso, etc.
+
+    return Response::json(['nome' =&gt; $usuario-&gt;getNomeCompleto()]);
+}
+
+// Respostas possíveis:
+// 401 — token ausente, expirado ou revogado
+// 200 — usuário autenticado, requisição passa para o Controller</code></pre>
+      </div>
+
+      <!-- ── AdminOnlyMiddleware ── -->
+      <h2 id="mw-admin-only">AdminOnlyMiddleware</h2>
+      <p>Deve ser usado <strong>sempre após</strong> o <code>AuthHybridMiddleware</code>. Verifica se o usuário autenticado tem <code>nivel_acesso = admin_system</code> e se o token foi assinado com <code>JWT_API_SECRET</code>. Tokens de usuários comuns são rejeitados com 403.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+
+// Sempre use AuthHybridMiddleware ANTES do AdminOnlyMiddleware
+$router-&gt;get('/api/admin/usuarios', [Controller::class, 'listar'], [
+    AuthHybridMiddleware::class,  // 1º: valida o JWT
+    AdminOnlyMiddleware::class,   // 2º: verifica se é admin_system
+]);
+
+// Respostas possíveis:
+// 401 — token ausente ou inválido (AuthHybridMiddleware)
+// 403 — usuário autenticado mas não é admin_system
+// 200 — admin autenticado, requisição passa</code></pre>
+      </div>
+
+      <!-- ── RateLimitMiddleware ── -->
+      <h2 id="mw-rate-limit">RateLimitMiddleware</h2>
+      <p>Limita o número de requisições por IP e por usuário autenticado em uma janela de tempo. Usa Redis quando disponível (distribuído entre múltiplos servidores) ou arquivo local como fallback. Adiciona headers <code>X-RateLimit-*</code> em todas as respostas.</p>
+
+      <table class="docs-table">
+        <thead><tr><th>Opção</th><th>Tipo</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>limit</code></td><td>int</td><td>60</td><td>Máximo de requisições por janela</td></tr>
+          <tr><td><code>window</code></td><td>int</td><td>60</td><td>Janela de tempo em segundos</td></tr>
+          <tr><td><code>key</code></td><td>string</td><td>URI da rota</td><td>Prefixo único para o contador (evita colisão entre rotas)</td></tr>
+          <tr><td><code>user_limit</code></td><td>int</td><td>igual a limit</td><td>Limite específico por usuário autenticado</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\RateLimitMiddleware;
+
+// 5 requisições por minuto por IP — ideal para registro
+$registroLimit = [RateLimitMiddleware::class, [
+    'limit'  =&gt; 5,
+    'window' =&gt; 60,
+    'key'    =&gt; 'meu.registro',
+]];
+$router-&gt;post('/api/registrar', [Controller::class, 'criar'], [$registroLimit]);
+
+// 10 req/min por IP, 3 por usuário autenticado
+$loginLimit = [RateLimitMiddleware::class, [
+    'limit'      =&gt; 10,
+    'window'     =&gt; 60,
+    'key'        =&gt; 'meu.login',
+    'user_limit' =&gt; 3,
+]];
+$router-&gt;post('/api/login', [Controller::class, 'login'], [$loginLimit]);
+
+// Respostas possíveis:
+// 429 — limite atingido, com header Retry-After indicando quando tentar novamente
+// Headers adicionados em toda resposta:
+//   X-RateLimit-Limit: 10
+//   X-RateLimit-Remaining: 7
+//   X-RateLimit-Reset: 1712345678 (timestamp Unix)</code></pre>
+      </div>
+
+      <!-- ── CircuitBreakerMiddleware ── -->
+      <h2 id="mw-circuit-breaker">CircuitBreakerMiddleware</h2>
+      <p>Implementa o padrão Circuit Breaker para proteger o banco de dados e serviços externos de falhas em cascata. Tem três estados: <strong>CLOSED</strong> (normal), <strong>OPEN</strong> (bloqueado após muitas falhas) e <strong>HALF</strong> (testando recuperação após o cooldown).</p>
+
+      <table class="docs-table">
+        <thead><tr><th>Opção</th><th>Tipo</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>service</code></td><td>string</td><td>'default'</td><td>Nome do serviço monitorado (ex: 'database', 'email')</td></tr>
+          <tr><td><code>threshold</code></td><td>int</td><td>5</td><td>Número de falhas consecutivas para abrir o circuito</td></tr>
+          <tr><td><code>cooldown</code></td><td>int</td><td>30</td><td>Segundos aguardando antes de tentar novamente (estado HALF)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\CircuitBreakerMiddleware;
+
+// Protege rotas que dependem do banco — abre após 5 falhas, cooldown de 20s
+$dbCircuit = [CircuitBreakerMiddleware::class, [
+    'service'   =&gt; 'database',
+    'threshold' =&gt; 5,
+    'cooldown'  =&gt; 20,
+]];
+$router-&gt;post('/api/registrar', [Controller::class, 'criar'], [$dbCircuit]);
+
+// Protege chamadas a serviço externo (ex: API de pagamento)
+$pagCircuit = [CircuitBreakerMiddleware::class, [
+    'service'   =&gt; 'pagamento',
+    'threshold' =&gt; 3,
+    'cooldown'  =&gt; 60,
+]];
+$router-&gt;post('/api/pagamento', [Controller::class, 'pagar'], [$pagCircuit]);
+
+// Respostas possíveis:
+// 503 — circuito aberto, com header Retry-After
+// Passa normalmente quando CLOSED ou HALF</code></pre>
+      </div>
+
+      <!-- ── ApiTokenMiddleware ── -->
+      <h2 id="mw-api-token">ApiTokenMiddleware</h2>
+      <p>Valida tokens JWT gerados com <code>JWT_API_SECRET</code> (tokens de API, não de usuário). Usado para integrações machine-to-machine onde não há um usuário humano fazendo login. Aceita o token via header <code>Authorization: Bearer TOKEN</code> ou <code>X-API-KEY: TOKEN</code>.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\ApiTokenMiddleware;
+
+// Rota acessível apenas por tokens de API (integrações, webhooks, etc.)
+$router-&gt;post('/api/webhook/pagamento', [Controller::class, 'receber'], [ApiTokenMiddleware::class]);
+
+// Respostas possíveis:
+// 401 — token ausente ou inválido
+// 403 — token válido mas não é de API (é de usuário)
+// 500 — JWT_API_SECRET não configurado no .env</code></pre>
+      </div>
+
+      <h2 id="mw-gerar-token">Como gerar o token JWT_API_SECRET</h2>
+      <p>Rotas protegidas por <code>AdminOnlyMiddleware</code> ou <code>ApiTokenMiddleware</code> exigem um token assinado com <code>JWT_API_SECRET</code>. Há três formas de gerar esse token:</p>
+
+      <h3 id="mw-token-cli">Opção 1 — Via CLI (recomendado)</h3>
+      <p>O jeito mais simples. O sistema gera e exibe o token pronto para usar:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Abre o menu interativo e escolha a opção 11
+php vupi setup
+
+# Ou direto, sem menu:
+php vupi setup --auto --api-token=generate</code></pre>
+      </div>
+      <p>O token gerado tem validade de <strong>1 hora</strong> e payload:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "sub": "api_user_id",
+  "exp": 1712345678,
+  "api_access": true,
+  "tipo": "api"
+}</code></pre>
+      </div>
+
+      <h3 id="mw-token-login">Opção 2 — Via login do admin_system</h3>
+      <p>Para rotas com <code>AdminOnlyMiddleware</code>, faça login com o usuário <code>admin_system</code>. O token retornado já é assinado com <code>JWT_API_SECRET</code> e funciona nessas rotas:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># curl
+curl -X POST http://localhost:3005/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@admin.com","senha":"admin123"}'
+
+# HTTPie
+http POST http://localhost:3005/api/auth/login \
+  email=admin@admin.com senha=admin123</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// Resposta — copie o "access_token":
+{
+  "status": "success",
+  "access_token": "eyJ...",   // ← use este nas rotas admin
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+
+// Use assim nas requisições:
+// Authorization: Bearer eyJ...</code></pre>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Qual token usar em cada caso?</strong>
+          <p>
+            <strong>Rotas com <code>AdminOnlyMiddleware</code></strong> (ex: <code>GET /api/usuarios</code>) → use o token do login do admin_system via <code>/api/auth/login</code>.<br>
+            <strong>Rotas com <code>ApiTokenMiddleware</code></strong> (ex: webhooks, integrações) → use o token gerado via <code>php vupi setup</code> opção 11.<br>
+            <strong>Rotas com <code>AuthHybridMiddleware</code></strong> (ex: <code>GET /api/perfil</code>) → use o token de qualquer usuário logado via <code>/api/login</code>.
+          </p>
+        </div>
+      </div>
+
+      <h3 id="mw-token-php">Opção 3 — Gerar manualmente em PHP</h3>
+      <p>Útil para scripts de integração ou testes automatizados:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+require __DIR__ . '/vendor/autoload.php';
+
+use Firebase\JWT\JWT;
+
+$secret = $_ENV['JWT_API_SECRET'] ?? 'seu_jwt_api_secret_aqui';
+
+// Token de API (para ApiTokenMiddleware)
+$tokenApi = JWT::encode([
+    'sub'        =&gt; 'minha_integracao',
+    'exp'        =&gt; time() + 3600,  // expira em 1 hora
+    'api_access' =&gt; true,
+    'tipo'       =&gt; 'api',
+], $secret, 'HS256');
+
+echo "Token de API:\n" . $tokenApi . "\n";</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Nunca exponha o JWT_API_SECRET</strong>
+          <p>O <code>JWT_API_SECRET</code> fica no <code>.env</code> e nunca deve ser commitado no repositório. Tokens gerados com ele têm acesso total às rotas admin — trate-os como senhas.</p>
+        </div>
+      </div>
+
+      <!-- ── OptionalAuthHybridMiddleware ── -->
+      <h2 id="mw-optional-auth">OptionalAuthHybridMiddleware</h2>
+      <p>Tenta autenticar o usuário, mas <strong>não bloqueia</strong> se o token estiver ausente ou inválido. Útil para rotas que retornam conteúdo diferente para usuários logados e não logados — como um feed público que mostra mais detalhes para quem está autenticado.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\OptionalAuthHybridMiddleware;
+
+// Rota pública, mas com conteúdo extra para usuários logados
+$router-&gt;get('/api/feed', [Controller::class, 'feed'], [OptionalAuthHybridMiddleware::class]);
+
+// No Controller — verifica se o usuário está autenticado
+public function feed(Request $request): Response
+{
+    $usuario = $request-&gt;attribute('auth_user'); // null se não autenticado
+
+    if ($usuario !== null) {
+        // Retorna feed personalizado para o usuário logado
+        return Response::json(['feed' =&gt; $this-&gt;feedPersonalizado($usuario)]);
+    }
+
+    // Retorna feed público genérico
+    return Response::json(['feed' =&gt; $this-&gt;feedPublico()]);
+}</code></pre>
+      </div>
+
+      <!-- ── AuthCookieMiddleware ── -->
+      <h2 id="mw-auth-cookie">AuthCookieMiddleware</h2>
+      <p>Variante do <code>AuthHybridMiddleware</code> que lê o token exclusivamente do cookie <code>auth_token</code> (em vez do header <code>Authorization</code>). Usado internamente pelo sistema para rotas de página que dependem de cookie de sessão.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\AuthCookieMiddleware;
+
+// Rota que autentica via cookie (ex: endpoint chamado por página HTML)
+$router-&gt;get('/api/minha-conta', [Controller::class, 'conta'], [AuthCookieMiddleware::class]);
+
+// O token deve estar no cookie 'auth_token' — definido pelo módulo Auth no login
+// Respostas possíveis:
+// 401 — cookie ausente, token expirado ou revogado</code></pre>
+      </div>
+
+      <!-- ── AuthPageMiddleware ── -->
+      <h2 id="mw-auth-page">AuthPageMiddleware</h2>
+      <p>Middleware de autenticação para rotas de <strong>página HTML</strong> (não API). Em vez de retornar JSON 401, redireciona para <code>/</code> quando não autenticado. Exclusivo para <code>admin_system</code> com token assinado via <code>JWT_API_SECRET</code>. Usado pelo dashboard do sistema.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\AuthPageMiddleware;
+
+// Rota de página HTML protegida — redireciona para / se não autenticado
+$router-&gt;get('/meu-painel', [PainelController::class, 'index'], [AuthPageMiddleware::class]);
+
+// Comportamento:
+// Não autenticado → redirect 302 para /
+// Autenticado mas não admin_system → redirect 302 para /
+// Autenticado como admin_system → passa para o Controller</code></pre>
+      </div>
+
+      <!-- ── RouteProtectionMiddleware ── -->
+      <h2 id="mw-route-protection">RouteProtectionMiddleware</h2>
+      <p>Valida o JWT e permite restringir o acesso por papel (<em>role</em>) sem precisar combinar <code>AuthHybridMiddleware</code> + <code>AdminOnlyMiddleware</code>. Aceita tanto tokens de usuário quanto tokens de API. <strong>Não verifica a blacklist</strong> — para rotas críticas, prefira <code>AuthHybridMiddleware</code>.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>use Src\Kernel\Middlewares\RouteProtectionMiddleware;
+
+// Sem restrição de papel — qualquer token válido passa
+$router-&gt;get('/api/recurso', [Controller::class, 'listar'], [RouteProtectionMiddleware::class]);
+
+// Restrito a um papel específico
+$request = $request-&gt;withAttribute('roles', ['admin', 'moderador']);
+$router-&gt;put('/api/recurso/{id}', [Controller::class, 'atualizar'], [RouteProtectionMiddleware::class]);
+
+// Respostas possíveis:
+// 401 — token ausente ou inválido
+// 403 — papel do usuário não está na lista de roles permitidos</code></pre>
+      </div>
+
+      <!-- ── BotBlockerMiddleware ── -->
+      <h2 id="mw-bot-blocker">BotBlockerMiddleware</h2>
+      <p>Aplicado <strong>globalmente pelo Kernel</strong> — você não precisa adicioná-lo nas rotas. Bloqueia automaticamente ferramentas de ataque conhecidas (sqlmap, nikto, nmap, burpsuite, etc.) pelo User-Agent, requisições de API sem User-Agent, e IPs com score de ameaça acumulado alto. Em desenvolvimento local, o bloqueio por score é desativado para não atrapalhar os testes.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Ferramentas bloqueadas automaticamente</strong>
+          <p>sqlmap, nikto, nmap, masscan, nuclei, dirbuster, gobuster, wfuzz, ffuf, feroxbuster, hydra, burpsuite, acunetix, nessus, openvas, scrapy, libwww-perl e outras. O bloqueio gera log em JSON no stderr para integração com Fail2Ban.</p>
+        </div>
+      </div>
+
+      <!-- ── HttpsEnforcerMiddleware ── -->
+      <h2 id="mw-https-enforcer">HttpsEnforcerMiddleware</h2>
+      <p>Aplicado <strong>globalmente pelo Kernel</strong> quando <code>COOKIE_SECURE=true</code> no <code>.env</code>. Bloqueia requisições HTTP com 403 e sugere o link HTTPS equivalente. Retorna JSON para chamadas de API e página HTML para browsers.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Ativa no .env para forçar HTTPS em produção
+COOKIE_SECURE=true
+COOKIE_HTTPONLY=true</code></pre>
+      </div>
+
+      <!-- ── SecurityHeadersMiddleware ── -->
+      <h2 id="mw-security-headers">SecurityHeadersMiddleware</h2>
+      <p>Aplicado <strong>globalmente pelo Kernel</strong>. Garante que todos os headers de segurança estejam presentes em toda resposta: <code>Content-Security-Policy</code>, <code>Strict-Transport-Security</code>, <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code> e outros. Você não precisa configurar nada — funciona automaticamente.</p>
+
+      <h2 id="mw-combinacoes">Combinações recomendadas</h2>
+      <table class="docs-table">
+        <thead><tr><th>Caso de uso</th><th>Middlewares</th></tr></thead>
+        <tbody>
+          <tr><td>Rota pública com rate limit</td><td><code>[RateLimitMiddleware]</code></td></tr>
+          <tr><td>Rota pública com proteção de banco</td><td><code>[RateLimitMiddleware, CircuitBreakerMiddleware]</code></td></tr>
+          <tr><td>Rota privada (qualquer usuário logado)</td><td><code>[AuthHybridMiddleware]</code></td></tr>
+          <tr><td>Rota privada com rate limit</td><td><code>[RateLimitMiddleware, AuthHybridMiddleware]</code></td></tr>
+          <tr><td>Rota admin</td><td><code>[AuthHybridMiddleware, AdminOnlyMiddleware]</code></td></tr>
+          <tr><td>Rota admin com rate limit e circuit breaker</td><td><code>[RateLimitMiddleware, CircuitBreakerMiddleware, AuthHybridMiddleware, AdminOnlyMiddleware]</code></td></tr>
+          <tr><td>Integração machine-to-machine</td><td><code>[ApiTokenMiddleware]</code></td></tr>
+          <tr><td>Conteúdo diferente para logados/não logados</td><td><code>[OptionalAuthHybridMiddleware]</code></td></tr>
+          <tr><td>Página HTML protegida (dashboard)</td><td><code>[AuthPageMiddleware]</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Exemplo completo — módulo com todas as proteções</strong>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
+use Src\Kernel\Middlewares\CircuitBreakerMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+$admin     = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
+$user      = [AuthHybridMiddleware::class];
+$dbCircuit = [CircuitBreakerMiddleware::class, ['service' =&gt; 'database', 'threshold' =&gt; 5, 'cooldown' =&gt; 20]];
+$pubLimit  = [RateLimitMiddleware::class, ['limit' =&gt; 30, 'window' =&gt; 60, 'key' =&gt; 'produto.publico']];
+$crtLimit  = [RateLimitMiddleware::class, ['limit' =&gt; 10, 'window' =&gt; 60, 'key' =&gt; 'produto.criar']];
+
+// Público com rate limit e circuit breaker
+$router-&gt;get('/api/produtos',      [ProdutoController::class, 'listar'], [$pubLimit, $dbCircuit]);
+$router-&gt;get('/api/produtos/{id}', [ProdutoController::class, 'buscar'], [$pubLimit, $dbCircuit]);
+
+// Usuário autenticado
+$router-&gt;get('/api/meus-produtos', [ProdutoController::class, 'meus'], $user);
+
+// Admin com rate limit e circuit breaker
+$router-&gt;post('/api/admin/produtos',        [ProdutoController::class, 'criar'],    [$crtLimit, $dbCircuit, ...$admin]);
+$router-&gt;put('/api/admin/produtos/{id}',    [ProdutoController::class, 'atualizar'], [...$admin, $dbCircuit]);
+$router-&gt;delete('/api/admin/produtos/{id}', [ProdutoController::class, 'deletar'],   $admin);</code></pre></div>
+        </div>
+      </div>
+
+    </section>
+
 
     <!-- PAGE: BANCO -->
     <section class="docs-page" id="page-banco">
