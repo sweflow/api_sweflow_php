@@ -400,6 +400,48 @@
     </div>
 </div>
 
+<!-- Ativar verificação de e-mail -->
+<div class="modal-overlay" id="auth-verify-enable-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-envelope-circle-check" style="color:#4f46e5;"></i> Ativar verificação de e-mail</h2>
+            <button class="modal-close" id="auth-verify-enable-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja ativar <strong>Login só após e-mail verificado</strong>?</p>
+        <p style="color:#64748b;font-size:0.93rem;line-height:1.6;margin-bottom:16px;">
+            A partir de agora, todos os usuários precisarão ter o e-mail confirmado para fazer login.<br>
+            Usuários com e-mail não verificado serão bloqueados até confirmarem o cadastro.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="auth-verify-enable-cancel">Cancelar</button>
+            <button class="btn primary" id="auth-verify-enable-confirm" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);">
+                <i class="fa-solid fa-envelope-circle-check"></i> Ativar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Desativar verificação de e-mail -->
+<div class="modal-overlay" id="auth-verify-disable-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-envelope-open" style="color:#f59e0b;"></i> Desativar verificação de e-mail</h2>
+            <button class="modal-close" id="auth-verify-disable-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja desativar <strong>Login só após e-mail verificado</strong>?</p>
+        <p style="color:#64748b;font-size:0.93rem;line-height:1.6;margin-bottom:16px;">
+            Ao desativar, os usuários poderão fazer login mesmo sem confirmar o e-mail.<br>
+            A verificação de e-mail <strong>não</strong> será mais obrigatória para novos logins.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="auth-verify-disable-cancel">Cancelar</button>
+            <button class="btn primary" id="auth-verify-disable-confirm" style="background:#d97706;">
+                <i class="fa-solid fa-envelope-open"></i> Desativar
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- E-mail desabilitado -->
 <div class="modal-overlay" id="email-disabled-modal">
     <div class="modal dash-modal">

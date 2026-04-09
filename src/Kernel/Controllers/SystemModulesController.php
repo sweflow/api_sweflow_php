@@ -799,19 +799,35 @@ class SystemModulesController
         $root = dirname(__DIR__, 3) . '/src/Modules';
         if (!is_dir($root)) return [];
 
+        // Módulos nativos do projeto — nunca devem aparecer no marketplace
+        $nativeModules = ['auth', 'usuario', 'documentacao', 'aviso'];
+
         $results = [];
         foreach (scandir($root) as $dir) {
             if ($dir === '.' || $dir === '..') continue;
             if (!is_dir($root . '/' . $dir)) continue;
 
-            $composerJson = $root . '/' . $dir . '/composer.json';
-            $meta = [];
-            if (is_file($composerJson) && is_readable($composerJson)) {
-                $raw  = file_get_contents($composerJson);
-                $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
+            // Módulos nativos são parte do projeto, não são instaláveis pelo marketplace
+            if (in_array(strtolower($dir), $nativeModules, true)) {
+                continue;
             }
 
-            $name = $meta['name'] ?? 'sweflow/module-' . strtolower($dir);
+            $composerJson = $root . '/' . $dir . '/composer.json';
+
+            // Sem composer.json = módulo interno sem identidade de pacote — não exibir
+            if (!is_file($composerJson) || !is_readable($composerJson)) {
+                continue;
+            }
+
+            $raw  = file_get_contents($composerJson);
+            $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
+
+            // Sem nome de pacote explícito = não é um pacote publicável
+            if (empty($meta['name'])) {
+                continue;
+            }
+
+            $name = $meta['name'];
             $desc = $meta['description'] ?? 'Módulo do Sistema';
 
             if ($query !== '' &&
@@ -822,16 +838,12 @@ class SystemModulesController
                 continue;
             }
 
-            if (in_array(strtolower($dir), ['auth', 'usuario', 'documentacao'], true)) {
-                continue;
-            }
-
             $results[] = [
                 'name'        => $name,
                 'description' => $desc . ' (src/Modules)',
                 'downloads'   => $this->getDownloadCount($name),
-                'url'         => '',
-                'repository'  => '',
+                'url'         => $meta['homepage'] ?? '',
+                'repository'  => $meta['support']['source'] ?? '',
             ];
         }
         return $results;

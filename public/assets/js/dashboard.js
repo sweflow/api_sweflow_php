@@ -184,6 +184,48 @@ window.onload = function () {
         });
     }
 
+    function askAuthVerifyEnable() {
+        return new Promise((resolve) => {
+            const modal   = document.getElementById('auth-verify-enable-modal');
+            const confirm = document.getElementById('auth-verify-enable-confirm');
+            const cancel  = document.getElementById('auth-verify-enable-cancel');
+            const close   = document.getElementById('auth-verify-enable-close');
+            if (!modal) return resolve(window.confirm('Ativar verificação de e-mail obrigatória?'));
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                confirm.onclick = null;
+                cancel.onclick  = null;
+                close.onclick   = null;
+            };
+            confirm.onclick = () => { cleanup(); resolve(true); };
+            cancel.onclick  = () => { cleanup(); resolve(false); };
+            close.onclick   = () => { cleanup(); resolve(false); };
+            requestAnimationFrame(() => modal.classList.add('show'));
+        });
+    }
+
+    function askAuthVerifyDisable() {
+        return new Promise((resolve) => {
+            const modal   = document.getElementById('auth-verify-disable-modal');
+            const confirm = document.getElementById('auth-verify-disable-confirm');
+            const cancel  = document.getElementById('auth-verify-disable-cancel');
+            const close   = document.getElementById('auth-verify-disable-close');
+            if (!modal) return resolve(window.confirm('Desativar verificação de e-mail obrigatória?'));
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                confirm.onclick = null;
+                cancel.onclick  = null;
+                close.onclick   = null;
+            };
+            confirm.onclick = () => { cleanup(); resolve(true); };
+            cancel.onclick  = () => { cleanup(); resolve(false); };
+            close.onclick   = () => { cleanup(); resolve(false); };
+            requestAnimationFrame(() => modal.classList.add('show'));
+        });
+    }
+
     function showProtectedModal(moduleName) {
         if (!protectedModal) {
             showErrorModal(`O módulo "${moduleName}" é essencial e não pode ser desabilitado.`, 'Módulo essencial');
@@ -2196,8 +2238,21 @@ window.onload = function () {
     if (emailPreviewBtn) emailPreviewBtn.addEventListener('click', (e) => { e.preventDefault(); togglePreview(); });
     if (emailFullscreenBtn) emailFullscreenBtn.addEventListener('click', (e) => { e.preventDefault(); toggleFullscreen(); });
     if (emailForm) emailForm.addEventListener('submit', submitEmail);
-    if (authVerifyToggle) authVerifyToggle.addEventListener('change', (e) => {
-        persistAuthPolicy(e.target.checked);
+    if (authVerifyToggle) authVerifyToggle.addEventListener('change', async (e) => {
+        const enabling = e.target.checked;
+
+        // Reverte imediatamente — só aplica após confirmação
+        e.target.checked = !enabling;
+
+        const confirmed = enabling
+            ? await askAuthVerifyEnable()
+            : await askAuthVerifyDisable();
+
+        if (!confirmed) return;
+
+        // Restaura o valor e executa
+        e.target.checked = enabling;
+        persistAuthPolicy(enabling);
     });
 
     if (linkConfirm) {
