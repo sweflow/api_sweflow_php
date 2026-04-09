@@ -260,12 +260,14 @@ window.onload = function () {
             else if (nameLower.includes('plugin')) iconClass = 'fa-plug';
 
             const modName = esc(mod.name ?? mod.nome ?? '');
+            const modNameRaw = mod.name ?? mod.nome ?? '';
             let actionElement = '';
             if (!isProtected) {
                 const btnClass = isEnabled ? 'toggle-on' : 'toggle-off';
                 const btnIcon  = isEnabled ? 'fa-power-off' : 'fa-play';
                 const btnText  = isEnabled ? 'Desativar' : 'Ativar';
-                actionElement = `<button class="module-btn ${btnClass}" onclick="window.toggleModule('${modName}')"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
+                // data-module-name armazena o nome original sem escape — lido pelo event listener
+                actionElement = `<button class="module-btn ${btnClass}" data-toggle-module data-module-name="${modName}"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
             } else {
                 actionElement = `<span style="font-size:0.85rem;color:#95a5a6;font-style:italic;"><i class="fa-solid fa-lock"></i> Protegido</span>`;
             }
@@ -304,6 +306,14 @@ window.onload = function () {
                 <div class="module-footer">${actionElement}</div>
             </div>`;
         }).join('');
+
+        // Event listeners nos botões de toggle — usa dataset para evitar HTML entity corruption
+        modulesList.querySelectorAll('[data-toggle-module]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // dataset.moduleName decodifica automaticamente as HTML entities do atributo
+                window.toggleModule(btn.dataset.moduleName);
+            });
+        });
     }
 
     // Expose toggleModule globally
@@ -312,13 +322,21 @@ window.onload = function () {
             showProtectedModal(name);
             return;
         }
+
+        const currentlyEnabled = moduleState[name] ?? true;
+
+        // Se vai desativar, pede confirmação via modal
+        if (currentlyEnabled) {
+            const confirmed = await askDisable(name);
+            if (!confirmed) return;
+        }
+
         try {
             const res = await fetch('/api/modules/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                // API expects { name, enabled } — NOT { module }
-                body: JSON.stringify({ name, enabled: !(moduleState[name] ?? true) })
+                body: JSON.stringify({ name, enabled: !currentlyEnabled })
             });
             const data = await res.json();
             if (data.enabled !== undefined) {
