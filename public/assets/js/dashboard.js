@@ -2173,6 +2173,159 @@ window.onload = function () {
     }
     // ── fim histórico ─────────────────────────────────────────────────────
 
+    // ── Seleção múltipla no histórico ─────────────────────────────────────
+    {
+        let selectMode = false;
+
+        const bulkBar        = document.getElementById('email-bulk-bar');
+        const selectAllChk   = document.getElementById('email-select-all');
+        const selectAllLabel = document.getElementById('email-select-all-label');
+        const selectedCount  = document.getElementById('email-selected-count');
+        const bulkDeleteBtn  = document.getElementById('email-bulk-delete');
+        const bulkCancelBtn  = document.getElementById('email-bulk-cancel');
+        const enterSelectBtn = document.getElementById('email-enter-select-mode');
+        const selectModeWrap = document.getElementById('email-select-mode-btn-wrap');
+        const bulkModal      = document.getElementById('email-bulk-delete-modal');
+        const bulkModalText  = document.getElementById('email-bulk-delete-text');
+        const bulkModalClose = document.getElementById('email-bulk-delete-close');
+        const bulkModalCancel= document.getElementById('email-bulk-delete-cancel');
+        const bulkModalConfirm = document.getElementById('email-bulk-delete-confirm');
+
+        function getChecked() {
+            return [...(historyList?.querySelectorAll('.email-hist-checkbox:checked') || [])];
+        }
+
+        function updateBulkBar() {
+            const checked = getChecked();
+            const total   = historyList?.querySelectorAll('.email-hist-checkbox').length || 0;
+            const n = checked.length;
+            if (selectedCount) selectedCount.textContent = n > 0 ? `${n} selecionado${n !== 1 ? 's' : ''}` : '';
+            if (bulkDeleteBtn) bulkDeleteBtn.disabled = n === 0;
+            if (selectAllChk) {
+                selectAllChk.checked       = n > 0 && n === total;
+                selectAllChk.indeterminate = n > 0 && n < total;
+            }
+            if (selectAllLabel) selectAllLabel.textContent = n === total && total > 0 ? 'Desmarcar todos' : 'Marcar todos';
+        }
+
+        function enterSelectMode() {
+            selectMode = true;
+            if (bulkBar)        bulkBar.style.display        = 'flex';
+            if (selectModeWrap) selectModeWrap.style.display = 'none';
+            // Adiciona checkbox em cada card
+            historyList?.querySelectorAll('.email-hist-card').forEach(card => {
+                if (card.querySelector('.email-hist-checkbox')) return;
+                const chk = document.createElement('input');
+                chk.type      = 'checkbox';
+                chk.className = 'email-hist-checkbox';
+                chk.style.cssText = 'width:17px;height:17px;flex-shrink:0;cursor:pointer;accent-color:#4f46e5;margin-right:4px;';
+                chk.addEventListener('change', updateBulkBar);
+                // Clique no card não abre detalhe no modo seleção
+                card.addEventListener('click', (e) => {
+                    if (selectMode && !e.target.closest('.email-hist-checkbox')) {
+                        chk.checked = !chk.checked;
+                        updateBulkBar();
+                    }
+                }, true);
+                card.insertBefore(chk, card.firstChild);
+            });
+            updateBulkBar();
+        }
+
+        function exitSelectMode() {
+            selectMode = false;
+            if (bulkBar)        bulkBar.style.display        = 'none';
+            if (selectModeWrap) selectModeWrap.style.display = 'flex';
+            if (selectAllChk)   selectAllChk.checked         = false;
+            historyList?.querySelectorAll('.email-hist-checkbox').forEach(c => c.remove());
+        }
+
+        if (enterSelectBtn) enterSelectBtn.addEventListener('click', enterSelectMode);
+        if (bulkCancelBtn)  bulkCancelBtn.addEventListener('click', exitSelectMode);
+
+        if (selectAllChk) {
+            selectAllChk.addEventListener('change', () => {
+                const all = historyList?.querySelectorAll('.email-hist-checkbox') || [];
+                all.forEach(c => { c.checked = selectAllChk.checked; });
+                updateBulkBar();
+            });
+        }
+
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', () => {
+                const n = getChecked().length;
+                if (n === 0) return;
+                if (bulkModalText) bulkModalText.textContent =
+                    `Tem certeza que deseja excluir ${n} registro${n !== 1 ? 's' : ''}? Esta ação não pode ser desfeita.`;
+                if (bulkModal) bulkModal.classList.add('show');
+            });
+        }
+
+        const closeBulkModal = () => bulkModal?.classList.remove('show');
+        if (bulkModalClose)  bulkModalClose.addEventListener('click', closeBulkModal);
+        if (bulkModalCancel) bulkModalCancel.addEventListener('click', closeBulkModal);
+
+        if (bulkModalConfirm) {
+            bulkModalConfirm.addEventListener('click', async () => {
+                const checked = getChecked();
+                if (!checked.length) return;
+                bulkModalConfirm.disabled = true;
+                bulkModalConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Excluindo...';
+
+                const ids = checked.map(c => c.closest('.email-hist-card')?.dataset.id).filter(Boolean);
+                const isDraft = id => id?.startsWith('draft_');
+
+                // Remove rascunhos locais
+                const draftIds = ids.filter(isDraft);
+                if (draftIds.length) {
+                    saveDrafts(getDrafts().filter(d => !draftIds.includes(d.id)));
+                }
+
+                // Remove registros remotos em paralelo
+                const remoteIds = ids.filter(id => !isDraft(id));
+                await Promise.allSettled(remoteIds.map(id =>
+                    fetch(`/api/email/history/${id}`, { method: 'DELETE', credentials: 'same-origin' })
+                ));
+
+                closeBulkModal();
+                exitSelectMode();
+                loadEmailHistory(document.getElementById('email-history-search')?.value || '');
+
+                bulkModalConfirm.disabled = false;
+                bulkModalConfirm.innerHTML = '<i class="fa-solid fa-trash"></i> Excluir';
+            });
+        }
+
+        // Ao recarregar o histórico, sai do modo seleção
+        const origLoad = loadEmailHistory;
+        // Garante que ao recarregar a lista, os checkboxes sejam re-adicionados se em modo seleção
+        const historyObserver = new MutationObserver(() => {
+            if (selectMode) {
+                historyList?.querySelectorAll('.email-hist-card').forEach(card => {
+                    if (card.querySelector('.email-hist-checkbox')) return;
+                    const chk = document.createElement('input');
+                    chk.type      = 'checkbox';
+                    chk.className = 'email-hist-checkbox';
+                    chk.style.cssText = 'width:17px;height:17px;flex-shrink:0;cursor:pointer;accent-color:#4f46e5;margin-right:4px;';
+                    chk.addEventListener('change', updateBulkBar);
+                    card.addEventListener('click', (e) => {
+                        if (selectMode && !e.target.closest('.email-hist-checkbox')) {
+                            chk.checked = !chk.checked;
+                            updateBulkBar();
+                        }
+                    }, true);
+                    card.insertBefore(chk, card.firstChild);
+                });
+                updateBulkBar();
+            }
+        });
+        if (historyList) historyObserver.observe(historyList, { childList: true });
+
+        // Ao fechar o modal do histórico, sai do modo seleção
+        document.getElementById('email-history-close')?.addEventListener('click', exitSelectMode);
+    }
+    // ── fim seleção múltipla ──────────────────────────────────────────────
+
     if (openEmailModalBtn) {
         openEmailModalBtn.addEventListener('click', (e) => {
             e.preventDefault();

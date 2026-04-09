@@ -651,6 +651,26 @@
                        style="width:100%;padding:11px 14px 11px 40px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:12px;font-size:0.95rem;box-sizing:border-box;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;transition:border-color .15s;" />
             </div>
         </div>
+        <!-- Barra de seleção múltipla -->
+        <div id="email-bulk-bar" style="display:none;align-items:center;gap:10px;padding:10px 4px 6px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;color:var(--text-muted,#64748b);user-select:none;">
+                <input type="checkbox" id="email-select-all" style="width:16px;height:16px;cursor:pointer;accent-color:#4f46e5;">
+                <span id="email-select-all-label">Marcar todos</span>
+            </label>
+            <span id="email-selected-count" style="font-size:0.85rem;color:#818cf8;font-weight:600;"></span>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+                <button id="email-bulk-cancel" class="btn ghost" style="font-size:0.85rem;padding:7px 14px;">Cancelar</button>
+                <button id="email-bulk-delete" class="btn" style="background:#e74c3c;color:#fff;font-size:0.85rem;padding:7px 14px;" disabled>
+                    <i class="fa-solid fa-trash"></i> Excluir selecionados
+                </button>
+            </div>
+        </div>
+        <!-- Botão para entrar no modo de seleção -->
+        <div id="email-select-mode-btn-wrap" style="display:flex;justify-content:flex-end;padding:4px 0 2px;">
+            <button id="email-enter-select-mode" class="btn ghost" style="font-size:0.82rem;padding:6px 12px;">
+                <i class="fa-solid fa-check-square"></i> Selecionar
+            </button>
+        </div>
         <div id="email-history-list" style="max-height:58vh;overflow-y:auto;padding-right:2px;"></div>
     </div>
 </div>
@@ -699,7 +719,22 @@
     </div>
 </div>
 
-<!-- Meu Perfil -->
+<!-- Confirmar exclusão em lote -->
+<div class="modal-overlay" id="email-bulk-delete-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-trash"></i> Excluir selecionados</h2>
+            <button class="modal-close" id="email-bulk-delete-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p id="email-bulk-delete-text">Tem certeza que deseja excluir os registros selecionados? Esta ação não pode ser desfeita.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="email-bulk-delete-cancel">Cancelar</button>
+            <button class="btn" style="background:#e74c3c;color:#fff;" id="email-bulk-delete-confirm">
+                <i class="fa-solid fa-trash"></i> Excluir
+            </button>
+        </div>
+    </div>
+</div><!-- Meu Perfil -->
 <div class="modal-overlay" id="meu-perfil-modal">
     <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
         <div class="modal-header perfil-modal-header">
