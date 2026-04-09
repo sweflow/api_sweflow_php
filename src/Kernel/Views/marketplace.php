@@ -254,6 +254,20 @@
         </div>
     </div>
 
+    <!-- Modal: Erro -->
+    <div class="modal-overlay" id="error-modal" role="dialog" aria-modal="true" aria-labelledby="error-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="error-title"><i class="fa-solid fa-circle-xmark" style="color:#ef4444;" aria-hidden="true"></i> Não foi possível instalar</h2>
+                <button class="modal-close" data-close="error-modal" aria-label="Fechar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            </div>
+            <p id="error-message" style="font-size:1.05rem;line-height:1.7;margin:8px 0 20px;white-space:pre-line;"></p>
+            <div class="form-actions" style="justify-content:flex-end;">
+                <button class="btn primary" data-close="error-modal" style="font-size:1rem;padding:12px 24px;">Entendido</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Detalhes do módulo -->
     <div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
         <div class="modal pkg-detail-modal">

@@ -3691,9 +3691,104 @@ $row = $stmt-&gt;fetch(PDO::FETCH_ASSOC);</code></pre>
     <section class="docs-page" id="page-comunicacao">
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-arrows-left-right"></i></div>
-        <div><h1>Comunicação Entre Módulos</h1><p>Como módulos conversam sem acoplamento.</p></div>
+        <div><h1>Comunicação Entre Módulos</h1><p>Como módulos conversam, dependem uns dos outros e controlam sua instalação.</p></div>
       </div>
-      <h2 id="hard-dep">Dependência obrigatória</h2>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Dois tipos de dependência</strong>
+          <p>Existem dois cenários distintos que precisam de abordagens diferentes:<br>
+          <strong>Dependência de instalação</strong> — impedir que o módulo seja instalado sem que outro já esteja presente.<br>
+          <strong>Dependência de código</strong> — usar classes de outro módulo em runtime (injeção de dependência).</p>
+        </div>
+      </div>
+
+      <h2 id="dep-instalacao">Dependência de instalação</h2>
+      <p>Use quando seu módulo <strong>não pode ser instalado</strong> sem que outro módulo já esteja presente. O sistema verifica automaticamente — basta declarar as dependências no <code>plugin.json</code>. Nenhum código PHP é necessário.</p>
+
+      <h3 id="dep-plugin-json">Como declarar — plugin.json</h3>
+      <p>Crie o arquivo <code>plugin.json</code> na raiz do seu módulo com o campo <code>requires.modules</code>:</p>
+      <p>Arquivo: <code>src/Modules/SeuModulo/plugin.json</code></p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "name": "sweflow/module-fatura",
+  "description": "Módulo de emissão de faturas",
+  "version": "1.0.0",
+  "requires": {
+    "modules": ["Usuario", "Email"]
+  }
+}</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>É só isso.</strong>
+          <p>O <code>PluginManager</code> lê o <code>plugin.json</code> automaticamente antes de instalar. Se algum módulo da lista não estiver instalado, a instalação é bloqueada com mensagem clara — sem nenhum código PHP no módulo.</p>
+        </div>
+      </div>
+
+      <h3 id="dep-o-que-acontece">O que acontece ao tentar instalar sem a dependência</h3>
+      <p>Se o módulo <code>Email</code> não estiver instalado e alguém tentar instalar o módulo <code>Fatura</code>:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Tentativa de instalar sem a dependência
+php vupi make:module Fatura
+php vupi migrate
+
+# Erro retornado:
+# Não é possível instalar o módulo 'Fatura', pois é necessário ter instalado o(s) módulo(s) 'Email'.
+# Faça a instalação do módulo Email antes de tentar instalar este módulo novamente.</code></pre>
+      </div>
+      <p>Via marketplace, o erro aparece na resposta da API de instalação com status <code>422</code>.</p>
+
+      <h3 id="dep-onde-verifica">Onde o sistema verifica</h3>
+      <p>O <code>PluginManager</code> verifica as dependências em dois lugares:</p>
+      <table class="docs-table">
+        <thead><tr><th>Local</th><th>O que verifica</th></tr></thead>
+        <tbody>
+          <tr><td><code>src/Modules/NomeModulo/</code></td><td>Módulos nativos e clonados do repositório</td></tr>
+          <tr><td><code>storage/plugins_registry.json</code></td><td>Módulos instalados via marketplace com <code>enabled: true</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="dep-plugin-json-completo">plugin.json completo</h3>
+      <p>O arquivo suporta outros campos além de <code>requires</code>:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "name": "sweflow/module-fatura",
+  "description": "Módulo de emissão de faturas",
+  "version": "1.2.0",
+
+  "requires": {
+    "modules": ["Usuario", "Email"]
+  },
+
+  "provides": ["fatura", "billing"],
+
+  "extra": {
+    "vupi.us": {
+      "providers": ["Src\\Modules\\Fatura\\FaturaProvider"]
+    }
+  }
+}</code></pre>
+      </div>
+      <table class="docs-table">
+        <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>requires.modules</code></td><td>Módulos que precisam estar instalados antes deste</td></tr>
+          <tr><td><code>provides</code></td><td>Capacidades que este módulo oferece (usado pelo sistema de capabilities)</td></tr>
+          <tr><td><code>extra.vupi.us.providers</code></td><td>Provider PHP para lifecycle hooks avançados (<code>onInstall</code>, <code>onEnable</code>, etc.)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="dep-runtime">Dependência de código (runtime)</h2>
+      <p>Use quando seu módulo precisa usar classes de outro módulo em tempo de execução. O Container resolve as dependências automaticamente via injeção no construtor.</p>
+
+      <h3 id="hard-dep">Dependência obrigatória</h3>
       <p>Use quando seu módulo <strong>não funciona</strong> sem o outro. Se o módulo dependente for removido, o sistema para com erro claro.</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
@@ -3701,45 +3796,62 @@ $row = $stmt-&gt;fetch(PDO::FETCH_ASSOC);</code></pre>
 
 class FaturaService
 {
+    // O Container injeta UsuarioService automaticamente.
+    // Se o módulo Usuario não existir, o Container lança NotFoundException.
     public function __construct(
-        private UsuarioService $usuarioService // obrigatorio
+        private UsuarioService $usuarioService
     ) {}
 
     public function emitir(string $userUuid): void
     {
-        $usuario = $this->usuarioService->buscarPorUuid($userUuid);
+        $usuario = $this-&gt;usuarioService-&gt;buscarPorUuid($userUuid);
         // ...
     }
 }</code></pre>
       </div>
-      <h2 id="soft-dep">Dependência opcional</h2>
-      <p>Use quando seu módulo <strong>pode funcionar</strong> sem o outro. O Container injeta <code>null</code> se o módulo não existir.</p>
+
+      <h3 id="soft-dep">Dependência opcional</h3>
+      <p>Use quando seu módulo <strong>pode funcionar</strong> sem o outro. O Container injeta <code>null</code> se o módulo não existir — use o operador <code>?-&gt;</code> (nullsafe) para chamar métodos com segurança.</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
         <pre><code>use Src\Kernel\Contracts\EmailSenderInterface;
 
 class FaturaService
 {
+    // '?' torna o parâmetro nullable — Container injeta null se não encontrar
     public function __construct(
-        private ?EmailSenderInterface $email = null // opcional
+        private ?EmailSenderInterface $email = null
     ) {}
 
     public function processar(): void
     {
-        $this->salvarNoBanco();
+        $this-&gt;salvarNoBanco();
 
-        // Operador nullsafe: se $email for null, linha ignorada sem erro
-        $this->email?->sendCustom('cliente@email.com', 'Fatura', '&lt;p&gt;Gerada!&lt;/p&gt;');
+        // Operador nullsafe '?->': se $email for null, a linha é ignorada sem erro
+        $this-&gt;email?-&gt;sendCustom('cliente@email.com', 'Fatura', '&lt;p&gt;Gerada!&lt;/p&gt;');
     }
 }</code></pre>
       </div>
-      <div class="callout tip">
-        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+
+      <h2 id="dep-resumo">Resumo — qual abordagem usar?</h2>
+      <table class="docs-table">
+        <thead><tr><th>Situação</th><th>Abordagem</th></tr></thead>
+        <tbody>
+          <tr><td>Impedir instalação sem o módulo dependente</td><td><code>onInstall()</code> no Provider + <code>plugin.json</code></td></tr>
+          <tr><td>Usar classes de outro módulo (obrigatório)</td><td>Type hint no construtor (sem <code>?</code>)</td></tr>
+          <tr><td>Usar classes de outro módulo (opcional)</td><td>Type hint nullable no construtor (<code>?Tipo</code>)</td></tr>
+          <tr><td>Verificar se módulo está ativo em runtime</td><td><code>is_dir()</code> ou leitura do <code>plugins_registry.json</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div class="callout-body">
           <strong>Regra de ouro</strong>
-          <p>Nunca acesse a tabela de outro módulo diretamente via SQL. Sempre use o Service do outro módulo para obter dados.</p>
+          <p>Nunca acesse a tabela de outro módulo diretamente via SQL. Sempre use o Service do outro módulo para obter dados. Isso garante que as regras de negócio do módulo dependente sejam respeitadas.</p>
         </div>
       </div>
+
     </section>
 
     <!-- PAGE: SEGURANCA -->
