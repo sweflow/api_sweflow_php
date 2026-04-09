@@ -21,9 +21,21 @@ class SystemModulesController
         $localPlugins  = $this->scanLocalPlugins($query);
         $remotePlugins = $this->searchPackagist($query);
 
-        // Merge: locais têm prioridade
+        // Merge: locais têm prioridade, mas downloads vêm do Packagist quando disponível
         $localNames = array_column($localPlugins, 'name');
-        $merged = $localPlugins;
+        $remoteByName = [];
+        foreach ($remotePlugins as $remote) {
+            $remoteByName[$remote['name']] = $remote;
+        }
+
+        $merged = [];
+        foreach ($localPlugins as $local) {
+            // Se o pacote existe no Packagist, usa os downloads reais de lá
+            if (isset($remoteByName[$local['name']])) {
+                $local['downloads'] = $remoteByName[$local['name']]['downloads'];
+            }
+            $merged[] = $local;
+        }
         foreach ($remotePlugins as $remote) {
             if (!in_array($remote['name'], $localNames, true)) {
                 $merged[] = $remote;
