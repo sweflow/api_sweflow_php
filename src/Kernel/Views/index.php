@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($titulo ?? 'Sweflow API', ENT_QUOTES, 'UTF-8') ?></title>
+    <title><?= htmlspecialchars($titulo ?? 'Vupi.us API', ENT_QUOTES, 'UTF-8') ?></title>
     <meta name="description" content="<?= htmlspecialchars($descricao ?? 'API modular com detecção automática de módulos e rotas.', ENT_QUOTES, 'UTF-8') ?>">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="<?= htmlspecialchars(($_ENV['APP_URL'] ?? '') . '/', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <!-- Open Graph -->
     <meta property="og:type"        content="website">
-    <meta property="og:title"       content="<?= htmlspecialchars($titulo ?? 'Sweflow API', ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:title"       content="<?= htmlspecialchars($titulo ?? 'Vupi.us API', ENT_QUOTES, 'UTF-8') ?>">
     <meta property="og:description" content="<?= htmlspecialchars($descricao ?? 'API modular com detecção automática de módulos e rotas.', ENT_QUOTES, 'UTF-8') ?>">
     <meta property="og:url"         content="<?= htmlspecialchars(($_ENV['APP_URL'] ?? '') . '/', ENT_QUOTES, 'UTF-8') ?>">
     <?php if (!empty($logo_url)): ?>
@@ -18,7 +18,7 @@
     <?php endif; ?>
     <!-- Twitter Card -->
     <meta name="twitter:card"        content="summary">
-    <meta name="twitter:title"       content="<?= htmlspecialchars($titulo ?? 'Sweflow API', ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="twitter:title"       content="<?= htmlspecialchars($titulo ?? 'Vupi.us API', ENT_QUOTES, 'UTF-8') ?>">
     <meta name="twitter:description" content="<?= htmlspecialchars($descricao ?? 'API modular com detecção automática de módulos e rotas.', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -30,13 +30,13 @@
         <div class="home-nav-inner">
 
             <!-- Brand -->
-            <a href="/" class="home-nav-brand" aria-label="Sweflow API — início">
+            <a href="/" class="home-nav-brand" aria-label="Vupi.us API — início">
                 <?php if (!empty($logo_url)): ?>
                     <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-nav-logo-img" />
                 <?php else: ?>
-                    <img src="/favicon.ico" alt="Sweflow API" class="home-nav-logo-img" />
+                    <img src="/favicon.ico" alt="Vupi.us API" class="home-nav-logo-img" />
                 <?php endif; ?>
-                <span class="home-nav-name">Sweflow <span class="home-nav-name-accent">API</span></span>
+                <span class="home-nav-name">Vupi.us <span class="home-nav-name-accent">API</span></span>
             </a>
 
             <!-- Links desktop -->
@@ -106,7 +106,7 @@
                 <?php if (!empty($logo_url)): ?>
                     <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-hero-logo" />
                 <?php endif; ?>
-                Sweflow API
+                Vupi.us API
             </h1>
             <p class="home-hero-sub"><?= htmlspecialchars($descricao ?? '', ENT_QUOTES, 'UTF-8') ?></p>
             <div class="home-hero-actions">
@@ -210,10 +210,10 @@
     <footer class="home-footer">
         <div class="home-footer-inner">
             <span class="home-footer-brand">
-                <img src="/favicon.ico" alt="Sweflow API" style="width:20px;height:20px;border-radius:5px;object-fit:contain;vertical-align:middle;" />
-                Sweflow API
+                <img src="/favicon.ico" alt="Vupi.us API" style="width:20px;height:20px;border-radius:5px;object-fit:contain;vertical-align:middle;" />
+                Vupi.us API
             </span>
-            <span class="home-footer-copy">&copy; <?= date('Y') ?> Sweflow &mdash; Desenvolvido por Adimael</span>
+            <span class="home-footer-copy">&copy; <?= date('Y') ?> Vupi.us &mdash; Desenvolvido por Adimael</span>
         </div>
     </footer>
 
@@ -231,7 +231,7 @@
                         <?php if (!empty($logo_url)): ?>
                             <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:12px;" />
                         <?php else: ?>
-                            <img src="/favicon.ico" alt="Sweflow API" style="width:100%;height:100%;object-fit:contain;" />
+                            <img src="/favicon.ico" alt="Vupi.us API" style="width:100%;height:100%;object-fit:contain;" />
                         <?php endif; ?>
                     </div>
                     <h2 id="login-modal-title" class="lm-title">Acesso administrativo</h2>

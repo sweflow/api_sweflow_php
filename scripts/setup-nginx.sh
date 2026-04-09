@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Sweflow API — Setup Nginx + Hardening TLS/TCP
+# Vupi.us API — Setup Nginx + Hardening TLS/TCP
 #
 # Uso:
 #   sudo bash scripts/setup-nginx.sh [dominio]
@@ -25,7 +25,7 @@ error()   { echo -e "${RED}[ERRO]${RESET}  $*" >&2; exit 1; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║   Sweflow API — Nginx + TLS Hardening                    ║"
+echo "║   Vupi.us API — Nginx + TLS Hardening                    ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -73,9 +73,9 @@ fi
 # ── 4. Hardening TCP — desativa TCP timestamps ───────────
 info "Desativando TCP timestamps (CVE information disclosure)..."
 
-SYSCTL_CONF="/etc/sysctl.d/99-sweflow-hardening.conf"
+SYSCTL_CONF="/etc/sysctl.d/99-vupi.us-hardening.conf"
 cat > "$SYSCTL_CONF" << 'EOF'
-# Sweflow API — Kernel hardening
+# Vupi.us API — Kernel hardening
 # Desativa TCP timestamps para evitar uptime disclosure (OpenVAS LOW)
 net.ipv4.tcp_timestamps = 0
 

@@ -13,11 +13,11 @@ final class RelogioTimeZone
     public static function obterTimeZone(): \DateTimeZone
     {
         if (self::$timeZone === null) {
-            $timeZoneString = $_ENV['APP_TIMEZONE'] ?? 'UTC';
+            $timeZoneString = $_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE') ?: 'UTC';
 
             try {
                 self::$timeZone = new \DateTimeZone($timeZoneString);
-            } catch (\Exception $e) {
+            } catch (\Throwable) {
                 self::$timeZone = new \DateTimeZone('UTC');
             }
         }
@@ -28,5 +28,11 @@ final class RelogioTimeZone
     public static function agora(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('now', self::obterTimeZone());
+    }
+
+    /** Limpa o cache — útil em testes que alteram APP_TIMEZONE. */
+    public static function reset(): void
+    {
+        self::$timeZone = null;
     }
 }

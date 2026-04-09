@@ -1,15 +1,15 @@
 #!/usr/bin/env php
 <?php
 /**
- * Sweflow CLI
+ * Vupi CLI
  *
  * Uso:
- *   php sweflow migrate [--seed] [--rollback]
- *   php sweflow make:module NomeModulo
- *   php sweflow make:plugin NomePlugin
- *   php sweflow plugin:migrate
- *   php sweflow plugin:rollback [plugin]
- *   php sweflow setup
+ *   php vupi migrate [--seed] [--rollback]
+ *   php vupi make:module NomeModulo
+ *   php vupi make:plugin NomePlugin
+ *   php vupi plugin:migrate
+ *   php vupi plugin:rollback [plugin]
+ *   php vupi setup
  */
 
 require __DIR__ . '/vendor/autoload.php';
@@ -19,4 +19,4 @@ if (file_exists(__DIR__ . '/.env')) {
     $dotenv->load();
 }
 
-(new Src\CLI\CommandRunner())->run($argv);
+(new Src\CLI\CommandRunner())->run(array_slice($argv, 1));

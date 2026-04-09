@@ -3,22 +3,19 @@
 namespace Src\Kernel\Middlewares;
 
 use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Contracts\RateLimitStorageInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\IpResolver;
+use Src\Kernel\Support\Storage\RateLimitStorageFactory;
 use Src\Kernel\Support\TokenExtractor;
 
 /**
- * Rate Limiting por IP + usuário autenticado (sem dependência de Redis).
+ * Rate Limiting por IP + usuário autenticado.
+ * Suporta Redis (distribuído) e File (servidor único) via RateLimitStorageInterface.
  *
  * Uso nas rotas:
  *   [RateLimitMiddleware::class, ['limit' => 5, 'window' => 60, 'key' => 'auth.login']]
- *
- * Parâmetros:
- *   limit      — máximo de requisições na janela (padrão: 60)
- *   window     — janela em segundos (padrão: 60)
- *   key        — prefixo de chave customizado (padrão: usa URI da rota)
- *   user_limit — limite adicional por usuário autenticado (padrão: igual ao limit)
  */
 class RateLimitMiddleware implements MiddlewareInterface
 {
@@ -26,53 +23,54 @@ class RateLimitMiddleware implements MiddlewareInterface
     private int    $window;
     private string $keyPrefix;
     private int    $userLimit;
-    private string $storageDir;
+    private RateLimitStorageInterface $storage;
 
     public function __construct(
         int    $limit      = 60,
         int    $window     = 60,
         string $key        = '',
-        int    $user_limit = 0
+        int    $user_limit = 0,
+        ?RateLimitStorageInterface $storage = null
     ) {
-        $this->limit      = $limit;
-        $this->window     = $window;
-        $this->keyPrefix  = $key;
-        $this->userLimit  = $user_limit > 0 ? $user_limit : $limit;
-        $this->storageDir = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'ratelimit';
+        $this->limit     = $limit;
+        $this->window    = $window;
+        $this->keyPrefix = $key;
+        $this->userLimit = $user_limit > 0 ? $user_limit : $limit;
+        $this->storage   = $storage ?? RateLimitStorageFactory::create();
     }
 
     public function handle(Request $request, callable $next): Response
     {
-        $ip = $this->resolveIp();
+        $ip = IpResolver::resolve();
 
         // ── Rate limit por IP ────────────────────────────
-        $ipKey              = $this->buildKey($request, 'ip:' . $ip);
-        [$ipCount, $resetAt] = $this->increment($ipKey);
+        $ipKey             = $this->buildKey($request, 'ip:' . $ip);
+        [$ipCount, $resetAt] = $this->storage->increment($ipKey, $this->window);
 
         if ($ipCount > $this->limit) {
             $retryAfter = max(0, $resetAt - time());
             $this->logAbuse('rate_limit.ip', $ip, $request->getUri(), $ipCount);
-            (new \Src\Kernel\Support\ThreatScorer())->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_RATE_LIMIT);
-            return $this->tooManyResponse($retryAfter, $resetAt);
+            // Acumula score no ThreatScorer (singleton via container se disponível)
+            $this->addThreatScore($ip, \Src\Kernel\Support\ThreatScorer::SCORE_RATE_LIMIT);
+            return $this->tooManyResponse((int) $retryAfter, $resetAt);
         }
 
         // ── Rate limit por usuário autenticado ───────────
-        // Protege contra atacantes que rotacionam IPs/VPNs
         $userIdentifier = $this->resolveUserIdentifier($request);
         if ($userIdentifier !== null) {
-            $userKey              = $this->buildKey($request, 'user:' . $userIdentifier);
-            [$userCount, $userReset] = $this->increment($userKey);
+            $userKey               = $this->buildKey($request, 'user:' . $userIdentifier);
+            [$userCount, $userReset] = $this->storage->increment($userKey, $this->window);
 
             if ($userCount > $this->userLimit) {
                 $retryAfter = max(0, $userReset - time());
                 $this->logAbuse('rate_limit.user', $ip, $request->getUri(), $userCount, $userIdentifier);
-                return $this->tooManyResponse($retryAfter, $userReset);
+                return $this->tooManyResponse((int) $retryAfter, $userReset);
             }
         }
 
-        // Limpeza ocasional de arquivos expirados (1% das requisições)
+        // Purge ocasional (1% das req) — no-op em Redis
         if (random_int(1, 100) === 1) {
-            $this->purgeExpired();
+            $this->storage->purgeExpired();
         }
 
         $remaining = max(0, $this->limit - $ipCount);
@@ -84,8 +82,6 @@ class RateLimitMiddleware implements MiddlewareInterface
             'X-RateLimit-Reset'     => (string) $resetAt,
         ]);
     }
-
-    // ── Helpers ──────────────────────────────────────────
 
     private function tooManyResponse(int $retryAfter, int $resetAt): Response
     {
@@ -100,19 +96,12 @@ class RateLimitMiddleware implements MiddlewareInterface
         ]);
     }
 
-    /**
-     * Resolve o identificador do usuário autenticado a partir do request.
-     * Tenta: atributo auth_user (injetado por AuthHybridMiddleware) → sub do JWT → null.
-     */
     private function resolveUserIdentifier(Request $request): ?string
     {
-        // Usuário já autenticado pelo middleware anterior
         $authUser = $request->attribute('auth_user');
-        if ($authUser !== null && method_exists($authUser, 'getUuid')) {
+        if ($authUser !== null && is_object($authUser) && method_exists($authUser, 'getUuid')) {
             return (string) $authUser->getUuid();
         }
-
-        // Tenta extrair sub do JWT sem validar assinatura (só para rate limit — não é auth)
         $token = TokenExtractor::fromRequest();
         if ($token !== '') {
             $sub = $this->extractSubFromToken($token);
@@ -120,50 +109,7 @@ class RateLimitMiddleware implements MiddlewareInterface
                 return $sub;
             }
         }
-
         return null;
-    }
-
-    private function increment(string $key): array
-    {
-        if (!is_dir($this->storageDir)) {
-            mkdir($this->storageDir, 0750, true);
-        }
-
-        $file = $this->storageDir . DIRECTORY_SEPARATOR . hash('sha256', $key) . '.json';
-        $now  = time();
-
-        $fp = fopen($file, 'c+');
-        if (!$fp) {
-            return [0, $now + $this->window];
-        }
-
-        flock($fp, LOCK_EX);
-
-        $data = [];
-        $raw  = stream_get_contents($fp);
-        if ($raw !== false && $raw !== '') {
-            $data = json_decode($raw, true) ?? [];
-        }
-
-        $resetAt = (int) ($data['reset_at'] ?? 0);
-        $count   = (int) ($data['count']    ?? 0);
-
-        if ($now >= $resetAt) {
-            $resetAt = $now + $this->window;
-            $count   = 0;
-        }
-
-        $count++;
-        $data = ['count' => $count, 'reset_at' => $resetAt];
-
-        ftruncate($fp, 0);
-        rewind($fp);
-        fwrite($fp, json_encode($data));
-        flock($fp, LOCK_UN);
-        fclose($fp);
-
-        return [$count, $resetAt];
     }
 
     private function buildKey(Request $request, string $suffix): string
@@ -172,24 +118,22 @@ class RateLimitMiddleware implements MiddlewareInterface
         return 'rl:' . $prefix . ':' . $suffix;
     }
 
-    /**
-     * Loga abuso em stderr no formato estruturado para Fail2Ban e observabilidade.
-     * Formato: JSON com campo "type": "RATE_LIMIT_EXCEEDED" — Fail2Ban filtra por isso.
-     * Em ambiente de teste (APP_ENV=testing) suprime o log para não poluir o output do PHPUnit.
-     */
-    private function logAbuse(
-        string  $type,
-        string  $ip,
-        string  $uri,
-        int     $count,
-        ?string $userIdentifier = null
-    ): void {
-        // Suprime logs em ambiente de teste
+    private function addThreatScore(string $ip, int $score): void
+    {
+        try {
+            // Reutiliza o mesmo storage já instanciado — evita I/O redundante
+            (new \Src\Kernel\Support\ThreatScorer($this->storage))->add($ip, $score);
+        } catch (\Throwable) {
+            // Falha silenciosa — rate limit não deve quebrar por isso
+        }
+    }
+
+    private function logAbuse(string $type, string $ip, string $uri, int $count, ?string $userId = null): void
+    {
         $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
         if ($env === 'testing') {
             return;
         }
-
         $line = json_encode([
             'timestamp'       => date('Y-m-d\TH:i:sP'),
             'type'            => 'RATE_LIMIT_EXCEEDED',
@@ -197,44 +141,12 @@ class RateLimitMiddleware implements MiddlewareInterface
             'ip'              => $ip,
             'uri'             => $uri,
             'count'           => $count,
-            'user_identifier' => $userIdentifier,
+            'user_identifier' => $userId,
             'user_agent'      => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200),
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
         file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
     }
 
-    private function purgeExpired(): void
-    {
-        if (!is_dir($this->storageDir)) {
-            return;
-        }
-        $now = time();
-        foreach (glob($this->storageDir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $file) {
-            if (!is_file($file) || !is_readable($file)) {
-                continue;
-            }
-            $raw = file_get_contents($file);
-            if ($raw === false) {
-                continue;
-            }
-            $data    = json_decode($raw, true) ?? [];
-            $resetAt = (int) ($data['reset_at'] ?? 0);
-            if ($resetAt > 0 && $now > $resetAt + 300 && is_writable($file)) {
-                unlink($file);
-            }
-        }
-    }
-
-    private function resolveIp(): string
-    {
-        return IpResolver::resolve();
-    }
-
-    /**
-     * Extrai o claim "sub" do JWT sem validar assinatura.
-     * Usado apenas para rate limiting por usuário — não é autenticação.
-     */
     private function extractSubFromToken(string $token): ?string
     {
         $parts = explode('.', $token);

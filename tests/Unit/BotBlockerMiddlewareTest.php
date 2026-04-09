@@ -33,7 +33,7 @@ class BotBlockerMiddlewareTest extends TestCase
         $_ENV['TRUST_PROXY']  = 'false';
 
         // Diretório de threat isolado para testes
-        $this->threatDir = sys_get_temp_dir() . '/sweflow_threat_bot_' . uniqid();
+        $this->threatDir = sys_get_temp_dir() . '/vupi_threat_bot_' . uniqid();
         mkdir($this->threatDir, 0750, true);
     }
 
@@ -50,11 +50,9 @@ class BotBlockerMiddlewareTest extends TestCase
 
     private function makeMw(): BotBlockerMiddleware
     {
-        // Scorer isolado com diretório temporário — sem estado entre testes
-        $scorer = new ThreatScorer();
-        $ref = new \ReflectionProperty(ThreatScorer::class, 'storageDir');
-        $ref->setAccessible(true);
-        $ref->setValue($scorer, $this->threatDir);
+        $scorer = new ThreatScorer(
+            new \Src\Kernel\Support\Storage\FileRateLimitStorage($this->threatDir)
+        );
         return new BotBlockerMiddleware($scorer);
     }
 

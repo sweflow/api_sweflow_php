@@ -1,0 +1,316 @@
+/* ═══════════════════════════════════════════════════════════
+   PÁGINA DE CONFIGURAÇÕES — acessibilidade + dark mode
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Variáveis light ── */
+.cfg-body {
+    --cfg-bg:          #f1f5f9;
+    --cfg-bg-card:     #ffffff;
+    --cfg-bg-input:    #f8fafc;
+    --cfg-bg-hover:    #f1f5f9;
+    --cfg-border:      rgba(0,0,0,0.10);
+    --cfg-border-input:rgba(0,0,0,0.14);
+    --cfg-text:        #0f172a;
+    --cfg-text-sub:    #475569;
+    --cfg-text-muted:  #64748b;
+    --cfg-text-label:  #334155;
+    --cfg-accent:      #4f46e5;
+    --cfg-accent-light:rgba(79,70,229,0.10);
+    --cfg-success:     #16a34a;
+    --cfg-danger:      #dc2626;
+    --cfg-warning:     #d97706;
+    --cfg-topbar:      rgba(255,255,255,0.95);
+    --cfg-sidebar:     #ffffff;
+    --cfg-shadow:      0 2px 16px rgba(0,0,0,0.07);
+    --cfg-shadow-card: 0 1px 6px rgba(0,0,0,0.06);
+    font-size: 18px; /* base maior para acessibilidade */
+}
+
+/* ── Variáveis dark ── */
+.cfg-body.dark {
+    --cfg-bg:          #0b0d18;
+    --cfg-bg-card:     #161929;
+    --cfg-bg-input:    rgba(255,255,255,0.05);
+    --cfg-bg-hover:    rgba(255,255,255,0.06);
+    --cfg-border:      rgba(255,255,255,0.08);
+    --cfg-border-input:rgba(255,255,255,0.12);
+    --cfg-text:        #f1f5f9;
+    --cfg-text-sub:    #94a3b8;
+    --cfg-text-muted:  #64748b;
+    --cfg-text-label:  #cbd5e1;
+    --cfg-accent:      #818cf8;
+    --cfg-accent-light:rgba(129,140,248,0.12);
+    --cfg-success:     #4ade80;
+    --cfg-danger:      #f87171;
+    --cfg-warning:     #fbbf24;
+    --cfg-topbar:      rgba(11,13,24,0.95);
+    --cfg-sidebar:     #0d0f1a;
+    --cfg-shadow:      0 2px 16px rgba(0,0,0,0.4);
+    --cfg-shadow-card: 0 1px 6px rgba(0,0,0,0.3);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; }
+.cfg-body { margin: 0; padding: 0; background: var(--cfg-bg); color: var(--cfg-text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+/* ── Topbar ── */
+.cfg-topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--cfg-topbar);
+    border-bottom: 1.5px solid var(--cfg-border);
+    backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 64px;
+    box-shadow: var(--cfg-shadow);
+}
+.cfg-topbar-left { display: flex; align-items: center; gap: 16px; }
+.cfg-back-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: none; border: 1.5px solid var(--cfg-border);
+    border-radius: 10px; padding: 8px 16px;
+    color: var(--cfg-text-sub); font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: all .15s; text-decoration: none;
+}
+.cfg-back-btn:hover { background: var(--cfg-bg-hover); color: var(--cfg-text); border-color: var(--cfg-accent); }
+.cfg-topbar-title { font-size: 1.15rem; font-weight: 800; color: var(--cfg-text); display: flex; align-items: center; gap: 10px; }
+.cfg-topbar-title i { color: var(--cfg-accent); }
+.cfg-topbar-right { display: flex; align-items: center; gap: 12px; }
+
+/* ── Layout ── */
+.cfg-layout { display: flex; min-height: calc(100vh - 64px); }
+
+/* ── Sidebar de navegação ── */
+.cfg-sidenav {
+    width: 260px; flex-shrink: 0;
+    background: var(--cfg-sidebar);
+    border-right: 1.5px solid var(--cfg-border);
+    padding: 24px 0;
+    position: sticky; top: 64px; height: calc(100vh - 64px);
+    overflow-y: auto;
+}
+.cfg-sidenav-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--cfg-text-muted);
+    padding: 0 20px 8px; display: block;
+}
+.cfg-sidenav-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px; font-size: 1rem; font-weight: 600;
+    color: var(--cfg-text-sub); text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all .15s; cursor: pointer;
+}
+.cfg-sidenav-link:hover, .cfg-sidenav-link.active {
+    background: var(--cfg-accent-light);
+    color: var(--cfg-accent);
+    border-left-color: var(--cfg-accent);
+}
+.cfg-sidenav-link i { width: 20px; text-align: center; font-size: 1.05rem; }
+
+/* ── Main content ── */
+.cfg-main {
+    flex: 1;
+    padding: 36px 40px;
+    overflow-y: auto;
+    min-width: 0; /* evita overflow em flex */
+}
+
+/* ── Grid de seções — cards lado a lado ── */
+.cfg-sections-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
+    gap: 28px;
+    align-items: start;
+    max-width: 1400px;
+}
+
+/* Seções que ocupam largura total (CORS tem lista longa) */
+.cfg-section.cfg-full-width {
+    grid-column: 1 / -1;
+}
+
+/* ── Seção ── */
+.cfg-section {
+    background: var(--cfg-bg-card);
+    border: 1.5px solid var(--cfg-border);
+    border-radius: 18px;
+    box-shadow: var(--cfg-shadow-card);
+    overflow: hidden;
+    scroll-margin-top: 80px;
+    display: flex;
+    flex-direction: column;
+}
+
+.cfg-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 28px 20px;
+    border-bottom: 1.5px solid var(--cfg-border);
+    gap: 16px;
+}
+.cfg-section-title-wrap { display: flex; align-items: center; gap: 16px; }
+.cfg-section-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 1.4rem;
+}
+.cfg-section-title { font-size: 1.25rem; font-weight: 800; color: var(--cfg-text); margin: 0; }
+.cfg-section-sub   { font-size: 0.92rem; color: var(--cfg-text-sub); margin: 4px 0 0; }
+
+/* ── Botão editar / salvar ── */
+.cfg-edit-btn, .cfg-save-btn, .cfg-cancel-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: 10px;
+    font-size: 1rem; font-weight: 700; cursor: pointer;
+    border: 2px solid transparent; transition: all .15s;
+    min-height: 44px; /* acessibilidade — área de toque mínima */
+}
+.cfg-edit-btn {
+    background: var(--cfg-accent-light); color: var(--cfg-accent);
+    border-color: var(--cfg-accent);
+}
+.cfg-edit-btn:hover { background: var(--cfg-accent); color: #fff; }
+.cfg-save-btn {
+    background: var(--cfg-accent); color: #fff;
+    border-color: var(--cfg-accent);
+}
+.cfg-save-btn:hover { opacity: .88; }
+.cfg-save-btn:disabled { opacity: .5; cursor: not-allowed; }
+.cfg-cancel-btn {
+    background: none; color: var(--cfg-text-sub);
+    border-color: var(--cfg-border-input);
+}
+.cfg-cancel-btn:hover { background: var(--cfg-bg-hover); color: var(--cfg-text); }
+
+/* ── Corpo da seção ── */
+.cfg-section-body { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Campo ── */
+.cfg-field { display: flex; flex-direction: column; gap: 8px; }
+.cfg-field-label {
+    font-size: 1rem; font-weight: 700; color: var(--cfg-text-label);
+    display: flex; align-items: center; gap: 8px;
+}
+.cfg-field-label i { color: var(--cfg-accent); font-size: 1rem; width: 18px; text-align: center; }
+.cfg-field-desc { font-size: 0.88rem; color: var(--cfg-text-muted); margin: 0; }
+
+/* ── Input / Select ── */
+.cfg-input, .cfg-select {
+    width: 100%; padding: 13px 16px;
+    border: 2px solid var(--cfg-border-input);
+    border-radius: 10px; font-size: 1.05rem;
+    background: var(--cfg-bg-input); color: var(--cfg-text);
+    font-family: inherit; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+    min-height: 50px;
+}
+.cfg-input:focus, .cfg-select:focus {
+    border-color: var(--cfg-accent);
+    box-shadow: 0 0 0 3px var(--cfg-accent-light);
+}
+.cfg-input:disabled, .cfg-select:disabled {
+    opacity: .55; cursor: not-allowed;
+    background: var(--cfg-bg-hover);
+}
+.cfg-input[type="password"] { letter-spacing: .12em; }
+
+/* ── Valor somente leitura ── */
+.cfg-value-display {
+    padding: 13px 16px; border-radius: 10px;
+    background: var(--cfg-bg-hover); border: 2px solid var(--cfg-border);
+    font-size: 1.05rem; color: var(--cfg-text);
+    min-height: 50px; display: flex; align-items: center; gap: 10px;
+    word-break: break-all;
+}
+.cfg-value-display.sensitive { letter-spacing: .15em; color: var(--cfg-text-muted); }
+.cfg-value-display i { color: var(--cfg-warning); flex-shrink: 0; }
+
+/* ── Grid de campos ── */
+.cfg-fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 640px) { .cfg-fields-grid { grid-template-columns: 1fr; } }
+
+/* ── Feedback inline ── */
+.cfg-feedback {
+    font-size: 0.95rem; font-weight: 600; min-height: 22px;
+    display: flex; align-items: center; gap: 8px;
+}
+.cfg-feedback.ok    { color: var(--cfg-success); }
+.cfg-feedback.error { color: var(--cfg-danger); }
+
+/* ── Seção CORS — lista de URLs ── */
+.cfg-url-list { display: flex; flex-direction: column; gap: 10px; }
+.cfg-url-row  { display: flex; align-items: center; gap: 10px; }
+.cfg-url-row .cfg-input { flex: 1; }
+.cfg-url-remove {
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    background: rgba(220,38,38,0.08); border: 2px solid rgba(220,38,38,0.2);
+    color: var(--cfg-danger); font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.cfg-url-remove:hover { background: var(--cfg-danger); color: #fff; }
+.cfg-add-url-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 10px; font-size: 1rem; font-weight: 700;
+    background: none; border: 2px dashed var(--cfg-border-input);
+    color: var(--cfg-text-sub); cursor: pointer; transition: all .15s;
+    min-height: 44px; width: 100%; justify-content: center;
+}
+.cfg-add-url-btn:hover { border-color: var(--cfg-accent); color: var(--cfg-accent); background: var(--cfg-accent-light); }
+
+/* ── Badge de status ── */
+.cfg-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+}
+.cfg-badge.prod     { background: rgba(220,38,38,0.12); color: var(--cfg-danger); }
+.cfg-badge.dev      { background: rgba(245,158,11,0.12); color: var(--cfg-warning); }
+.cfg-badge.ok       { background: rgba(22,163,74,0.12);  color: var(--cfg-success); }
+.cfg-badge.readonly { background: rgba(100,116,139,0.12); color: var(--cfg-text-muted); }
+
+/* ── Seção bloqueada (somente leitura) ── */
+.cfg-section.cfg-locked .cfg-section-header {
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 18px,
+        rgba(100,116,139,0.04) 18px,
+        rgba(100,116,139,0.04) 36px
+    );
+}
+.cfg-locked-notice {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-radius: 10px;
+    background: rgba(100,116,139,0.08);
+    border: 1.5px solid rgba(100,116,139,0.18);
+    color: var(--cfg-text-muted); font-size: 0.92rem; font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* ── Divider ── */
+.cfg-divider { border: none; border-top: 1.5px solid var(--cfg-border); margin: 4px 0; }
+
+/* ── Theme toggle ── */
+.cfg-theme-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--cfg-bg-hover); border: 1.5px solid var(--cfg-border);
+    color: var(--cfg-text-sub); font-size: 1.1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.cfg-theme-btn:hover { background: var(--cfg-accent-light); color: var(--cfg-accent); }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+    .cfg-sections-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    .cfg-sidenav { display: none; }
+    .cfg-main { padding: 16px; }
+    .cfg-section-header { flex-direction: column; align-items: flex-start; }
+    .cfg-sections-grid { gap: 16px; }
+}
+@media (max-width: 480px) {
+    .cfg-topbar { padding: 0 14px; }
+    .cfg-topbar-title { font-size: 0.95rem; }
+    .cfg-fields-grid { grid-template-columns: 1fr; }
+}

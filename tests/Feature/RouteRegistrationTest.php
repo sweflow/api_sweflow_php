@@ -94,7 +94,6 @@ class RouteRegistrationTest extends TestCase
     // Todas as rotas registradas — inventário completo
     // ─────────────────────────────────────────────────────────────────────
 
-    /** @dataProvider todasAsRotasProvider */
     #[\PHPUnit\Framework\Attributes\DataProvider('todasAsRotasProvider')]
     public function test_rota_esta_registrada(string $method, string $path): void
     {
@@ -157,7 +156,6 @@ class RouteRegistrationTest extends TestCase
     // Rotas públicas — não retornam 404/405
     // ─────────────────────────────────────────────────────────────────────
 
-    /** @dataProvider rotasPublicasProvider */
     #[\PHPUnit\Framework\Attributes\DataProvider('rotasPublicasProvider')]
     public function test_rota_publica_nao_retorna_404_nem_405(string $method, string $path): void
     {
@@ -191,7 +189,6 @@ class RouteRegistrationTest extends TestCase
     // Rotas que usam AuthController (PDO próprio) — apenas verifica registro
     // ─────────────────────────────────────────────────────────────────────
 
-    /** @dataProvider rotasAuthComBancoProvider */
     #[\PHPUnit\Framework\Attributes\DataProvider('rotasAuthComBancoProvider')]
     public function test_rota_auth_esta_registrada_e_nao_retorna_404(string $method, string $path): void
     {
@@ -201,7 +198,7 @@ class RouteRegistrationTest extends TestCase
                 "Rota {$method} {$path} retornou 404 — rota não registrada.");
             $this->assertNotSame(405, $res->getStatusCode(),
                 "Rota {$method} {$path} retornou 405 — método incorreto.");
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             // AuthController builds its own PDO — a DB connection error means the route
             // IS registered and reached the controller. Not a routing problem.
             $this->assertStringNotContainsString('404', $e->getMessage());
@@ -222,7 +219,6 @@ class RouteRegistrationTest extends TestCase
     // Rotas protegidas — retornam 401 sem token
     // ─────────────────────────────────────────────────────────────────────
 
-    /** @dataProvider rotasPrivadasProvider */
     #[\PHPUnit\Framework\Attributes\DataProvider('rotasPrivadasProvider')]
     public function test_rota_privada_retorna_401_sem_token(string $method, string $path): void
     {

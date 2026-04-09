@@ -2,34 +2,29 @@
 
 namespace Src\Kernel\Contracts;
 
-use Src\Kernel\Http\Response\Response;
-
 interface ModuleProviderInterface
 {
-    /**
-     * Register module routes using only contracts.
-     */
     public function registerRoutes(RouterInterface $router): void;
-
-    /**
-     * Optional boot hook for bindings.
-     */
     public function boot(ContainerInterface $container): void;
-
-    /**
-     * Optional health/status info for introspection endpoints.
-     */
     public function describe(): array;
-
-    /**
-     * Get the module name.
-     */
     public function getName(): string;
+    public function setName(string $name): void;
 
     /**
-     * Set the module name.
+     * Declara qual conexão de banco este módulo prefere usar.
+     *
+     * Valores aceitos:
+     *   'core'    — usa DB_* (banco principal)
+     *   'modules' — usa DB2_* (banco secundário, se configurado)
+     *   'auto'    — o core decide baseado na origem do módulo
+     *
+     * OPCIONAL — módulos que não implementam este método recebem 'auto' por padrão.
+     * O ModuleLoader usa method_exists() antes de chamar, garantindo compatibilidade
+     * com módulos externos que não implementam este método.
+     *
+     * Não declarado na interface pois é opcional.
+     * Assinatura esperada: public function preferredConnection(): string
      */
-    public function setName(string $name): void;
 
     public function onInstall(): void;
     public function onEnable(): void;

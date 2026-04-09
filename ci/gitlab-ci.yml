@@ -4,7 +4,7 @@ stages:
 variables:
   APP_URL: "http://localhost:3005"
   DB_HOST: "postgres"
-  DB_NOME: "sweflow_db"
+  DB_NOME: "vupi_db"
   DB_USUARIO: "admin"
   DB_SENHA: "123456"
 
@@ -15,7 +15,7 @@ security-check:
     - name: postgres:15
       alias: postgres
       variables:
-        POSTGRES_DB: sweflow_db
+        POSTGRES_DB: vupi_db
         POSTGRES_USER: admin
         POSTGRES_PASSWORD: "123456"
   before_script:
@@ -28,7 +28,7 @@ security-check:
     - sed -i "s/APP_ENV=.*/APP_ENV=testing/" .env
     - sed -i "s/APP_DEBUG=.*/APP_DEBUG=false/" .env
   script:
-    - php sweflow migrate --seed
+    - php vupi migrate --seed
     - php -S localhost:3005 index.php &
     - sleep 3
     - php tests/SecurityTest.php http://localhost:3005

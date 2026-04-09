@@ -3,7 +3,9 @@ namespace Src\Kernel\Nucleo;
 
 use Src\Kernel\Contracts\ContainerInterface;
 use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Request\RequestFactory;
+use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Exceptions\Handler;
 use Src\Kernel\Support\RequestContext;
 use Src\Kernel\Support\Logger;
@@ -19,16 +21,14 @@ class Application
 
     public function __construct(ContainerInterface $container, RouterInterface $router, ModuleLoader $modules)
     {
-        $this->container = $container;
-        $this->router = $router;
-        $this->modules = $modules;
+        $this->container        = $container;
+        $this->router           = $router;
+        $this->modules          = $modules;
         $this->exceptionHandler = new Handler();
-        
-        // Inicializa Contexto da Requisição (SaaS Pillar 1)
+
         $this->context = new RequestContext();
-        $this->container->bind(RequestContext::class, $this->context, true); // Singleton por request
-        
-        // Inicializa Logger Estruturado (SaaS Pillar 3)
+        $this->container->bind(RequestContext::class, $this->context, true);
+
         $this->logger = new Logger($this->context);
         $this->container->bind(Logger::class, $this->logger, true);
     }
@@ -42,10 +42,9 @@ class Application
         $this->logger->debug('Application booting...', ['env' => $_ENV['APP_ENV'] ?? 'unknown']);
 
         // 2. Boot dos módulos (Serviços, Rotas)
-        // Ajuste de path: dirname(__DIR__, 2) sai de Src/Nucleo -> Src -> Raiz -> src/Modules
-        // Mas a estrutura é src/Modules. O path correto é dirname(__DIR__, 2) . '/Modules'
         // dirname(__DIR__) = src/Kernel
         // dirname(__DIR__, 2) = src
+        // dirname(__DIR__, 2) . '/Modules' = src/Modules
         $this->modules->discover(dirname(__DIR__, 2) . '/Modules');
         $this->modules->bootAll();
         $this->modules->registerRoutes($this->router);
@@ -64,24 +63,26 @@ class Application
             // Bloqueia HTTP quando COOKIE_SECURE=true e COOKIE_HTTPONLY=true
             if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
                 $enforcer = new \Src\Kernel\Middlewares\HttpsEnforcerMiddleware();
-                $enforcer->handle($request, fn($r) => null)->Enviar();
+                $enforcer->handle($request, fn($r) => null)->send();
                 return;
             }
 
             // Bloqueia bots maliciosos por User-Agent antes de qualquer processamento
-            $botBlocker  = new \Src\Kernel\Middlewares\BotBlockerMiddleware();
-            $passThrough = false;
-            $botBlocker->handle($request, function ($r) use (&$passThrough, &$request) {
-                $passThrough = true;
-                $request     = $r;
-                return new \Src\Kernel\Http\Response\Response('', 200);
-            });
-            if (!$passThrough) {
-                (new \Src\Kernel\Http\Response\Response('', 403))->Enviar();
+            $threatScorer = null;
+            try {
+                $threatScorer = $this->container->make(\Src\Kernel\Support\ThreatScorer::class);
+            } catch (\Throwable) {}
+            $botBlocker  = new \Src\Kernel\Middlewares\BotBlockerMiddleware($threatScorer);
+            $botResponse = $botBlocker->handle($request, static fn(Request $r) => new Response('', 200));
+            if ($botResponse->getStatusCode() === 403) {
+                $botResponse->send();
                 return;
             }
 
-            $response = $this->router->dispatch($request);
+            // Injeta SecurityHeadersMiddleware globalmente — garante headers em TODAS as respostas,
+            // incluindo 404, 405, erros de rota e respostas que escapem do pipeline de middlewares.
+            $secHeaders = new \Src\Kernel\Middlewares\SecurityHeadersMiddleware();
+            $response   = $secHeaders->handle($request, fn($r) => $this->router->dispatch($r));
 
             // Observabilidade: loga 401, 403, 429 automaticamente para Fail2Ban e análise
             $statusCode = $response->getStatusCode();
@@ -95,7 +96,7 @@ class Application
                 }
             }
 
-            $response->Enviar();
+            $response->send();
         } catch (\Throwable $e) {
             $this->exceptionHandler->handle($e);
         }

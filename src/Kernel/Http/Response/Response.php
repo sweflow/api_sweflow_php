@@ -18,20 +18,26 @@ class Response
     public static function json($data, int $status = 200): self
     {
         $origin = self::resolveOrigin();
-        $allowCredentials = $origin !== '';
+        // Headers de segurança são adicionados aqui como fallback para respostas que
+        // escapem do SecurityHeadersMiddleware (ex: erros de roteamento, 404, etc).
+        // O middleware sobrescreve esses headers via withHeader() quando presente.
         $securityHeaders = self::securityHeaders();
-        return new self(
-            $data,
-            $status,
-            [
-                'Content-Type' => 'application/json; charset=utf-8',
-                'Access-Control-Allow-Origin' => $origin,
-                'Access-Control-Allow-Credentials' => $allowCredentials ? 'true' : 'false',
-                'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-CSRF-Token, X-Device-Id, X-Client-Public-IP',
-                'Vary' => 'Origin'
-            ] + $securityHeaders
-        );
+
+        $headers = ['Content-Type' => 'application/json; charset=utf-8'] + $securityHeaders;
+
+        // Vary: Origin deve estar sempre presente em respostas JSON para que proxies/CDNs
+        // não sirvam respostas sem CORS para clientes que precisam delas.
+        $headers['Vary'] = 'Origin';
+
+        // Só emite headers CORS quando há uma origem cross-origin válida
+        if ($origin !== '') {
+            $headers['Access-Control-Allow-Origin']      = $origin;
+            $headers['Access-Control-Allow-Credentials'] = 'true';
+            $headers['Access-Control-Allow-Methods']     = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+            $headers['Access-Control-Allow-Headers']     = 'Content-Type, Authorization, X-CSRF-Token, X-Device-Id, X-Client-Public-IP';
+        }
+
+        return new self($data, $status, $headers);
     }
 
     public static function html(string $html, int $status = 200): self
@@ -46,16 +52,20 @@ class Response
 
     private static function resolveOrigin(): string
     {
-        $allowed = self::allowedOrigins();
         $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-        if ($requestOrigin !== '' && in_array($requestOrigin, $allowed, true)) {
+        // Sem header Origin = requisição direta (não cross-origin) — não emite CORS
+        if ($requestOrigin === '') {
+            return '';
+        }
+
+        $allowed = self::allowedOrigins();
+        if (in_array($requestOrigin, $allowed, true)) {
             return $requestOrigin;
         }
 
-        // Sem origem configurada: bloqueia CORS (não retorna '*' — evita acesso cross-origin irrestrito)
-        // Retorna a primeira origem configurada, ou vazio para bloquear
-        return $allowed[0] ?? '';
+        // Origem não permitida — retorna vazio para bloquear CORS
+        return '';
     }
 
     private static function allowedOrigins(): array
@@ -81,15 +91,25 @@ class Response
 
     private static function securityHeaders(bool $isApi = true): array
     {
+        return self::buildSecurityHeaders($isApi, \Src\Kernel\Support\CookieConfig::isHttps());
+    }
+
+    /**
+     * Constrói os headers de segurança.
+     * Público para permitir reuso em SecurityHeadersMiddleware sem duplicar a lógica.
+     */
+    public static function buildSecurityHeaders(bool $isApi = true, bool $isHttps = false): array
+    {
         if ($isApi) {
             // API pura: política máxima — nenhum recurso permitido, base-uri none (sem <base> tag em JSON)
             $csp = "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
         } else {
             $nonce = \Src\Kernel\Nonce::get();
-            // Página HTML: scripts via nonce, estilos do CDN permitido, sem object/embed
+            // Página HTML: scripts via nonce + SRI para CDN externo.
+            // SRI (Subresource Integrity) garante que scripts externos não foram adulterados.
+            // require-sri-for bloqueia scripts/styles sem integrity attribute.
             // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
-            // trusted-types inclui 'dompurify' para que o DOMPurify possa criar sua política interna.
-            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
+            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify";
         }
 
         $headers = [
@@ -110,7 +130,7 @@ class Response
             'Cross-Origin-Embedder-Policy'    => $isApi ? 'require-corp' : 'credentialless',
         ];
 
-        if (\Src\Kernel\Support\CookieConfig::isHttps()) {
+        if ($isHttps) {
             $headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload';
         }
 
@@ -135,7 +155,7 @@ class Response
         return $clone;
     }
 
-    public function Enviar(): void
+    public function send(): void
     {
         // Descarta qualquer output espúrio (warnings, notices) capturado pelo ob_start() do index.php
         if (ob_get_level() > 0) {
@@ -156,9 +176,13 @@ class Response
         }
 
         if (is_array($this->body) || is_object($this->body)) {
-            echo json_encode($this->body, JSON_UNESCAPED_UNICODE);
+            try {
+                echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                echo json_encode(['error' => 'Erro interno ao serializar resposta.']);
+            }
         } else {
-            echo is_string($this->body) ? $this->body : json_encode($this->body, JSON_UNESCAPED_UNICODE);
+            echo is_string($this->body) ? $this->body : (string) json_encode($this->body, JSON_UNESCAPED_UNICODE);
         }
     }
 

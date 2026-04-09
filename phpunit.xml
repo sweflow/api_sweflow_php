@@ -4,7 +4,8 @@
          bootstrap="vendor/autoload.php"
          colors="true"
          displayDetailsOnTestsThatTriggerWarnings="false"
-         displayDetailsOnTestsThatTriggerDeprecations="false">
+         displayDetailsOnTestsThatTriggerDeprecations="false"
+         displayDetailsOnTestsThatTriggerNotices="false">
     <php>
         <env name="APP_ENV" value="testing" />
         <env name="APP_DEBUG" value="false" />

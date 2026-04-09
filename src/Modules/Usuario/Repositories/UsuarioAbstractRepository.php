@@ -7,7 +7,7 @@ use PDOException;
 use Src\Modules\Usuario\Entities\Usuario;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
-use Src\Database\Exceptions\DatabaseQueryException;
+use Src\Kernel\Database\Exceptions\DatabaseQueryException;
 use InvalidArgumentException;
 use Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface;
 
@@ -42,11 +42,17 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
         $this->pdo = $pdo;
     }
 
+    /** Expõe o PDO para uso por serviços que precisam de acesso direto (ex: deleção em cascata). */
+    public function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
+
     /**
      * Executa uma operação de banco e converte PDOException
      * em DatabaseQueryException
      */
-    protected function executarQuery(callable $operacao, string $mensagemErro)
+    protected function executarQuery(callable $operacao, string $mensagemErro = 'Erro na operação de banco')
     {
         try {
             return $operacao();
@@ -158,19 +164,15 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
         $colunaBanco = $this->resolverColuna($coluna);
 
         return $this->executarQuery(function () use ($colunaBanco, $valor) {
-            // Busca case-insensitive para username
-            if ($colunaBanco === 'username') {
-                $sql = "SELECT * FROM {$this->tabela}
-                        WHERE LOWER({$colunaBanco}) = LOWER(:valor)
-                        LIMIT 1";
-            } else {
-                $sql = "SELECT * FROM {$this->tabela}
-                        WHERE {$colunaBanco} = :valor
-                        LIMIT 1";
-            }
+            // Username já é normalizado para lowercase na entity — comparação direta usa índice
+            $sql = "SELECT * FROM {$this->tabela}
+                    WHERE {$colunaBanco} = :valor
+                    LIMIT 1";
 
             $stmt = $this->pdo->prepare($sql);
-            $stmt->bindValue(':valor', $valor);
+            // Normaliza username para lowercase antes da comparação
+            $bindValue = ($colunaBanco === 'username') ? strtolower((string) $valor) : $valor;
+            $stmt->bindValue(':valor', $bindValue);
             $stmt->execute();
 
             $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -220,15 +222,18 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
             $dados['senha_hash'],
             $dados['nivel_acesso'],
             (bool) $dados['ativo'],
-            (bool) $dados['verificado_email'],
+            // Suporta tanto 'verificado_email' (legado) quanto 'status_verificacao' para compatibilidade
+            isset($dados['verificado_email'])
+                ? (bool) $dados['verificado_email']
+                : (($dados['status_verificacao'] ?? '') === 'Verificado'),
             new DateTimeImmutable($dados['criado_em']),
             $dados['url_avatar'] ?? null,
             $dados['url_capa'] ?? null,
             $dados['biografia'] ?? null,
             $dados['token_recuperacao_senha'] ?? null,
             $dados['token_verificacao_email'] ?? null,
-            isset($dados['atualizado_em']) && $dados['atualizado_em'] !== null
-                ? new DateTimeImmutable($dados['atualizado_em'])
+            isset($dados['atualizado_em'])
+                ? new DateTimeImmutable((string) $dados['atualizado_em'])
                 : null,
             $dados['status_verificacao'] ?? 'Não verificado'
         );

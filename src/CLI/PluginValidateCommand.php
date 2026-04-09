@@ -97,8 +97,8 @@ class PluginValidateCommand
     {
         $warnings = [];
         $pkg = $meta['name'] ?? '';
-        if (!$pkg || !str_starts_with($pkg, 'sweflow/')) {
-            $warnings[] = "composer.name deve começar com 'sweflow/'";
+        if (!$pkg || !str_starts_with($pkg, 'vupi.us/')) {
+            $warnings[] = "composer.name deve começar com 'vupi.us/'";
         }
         return $warnings;
     }
@@ -107,9 +107,9 @@ class PluginValidateCommand
     {
         $errors = [];
         $warnings = [];
-        $extraProviders = $meta['extra']['sweflow']['providers'] ?? null;
+        $extraProviders = $meta['extra']['vupi.us']['providers'] ?? null;
         if (!is_array($extraProviders) || count($extraProviders) === 0) {
-            $errors[] = "extra.sweflow.providers não definido";
+            $errors[] = "extra.vupi.us.providers não definido";
         } else {
             foreach ($extraProviders as $prov) {
                 if (!$this->classFileLikelyExists($path, $prov)) {
@@ -138,10 +138,27 @@ class PluginValidateCommand
 
     private function classFileLikelyExists(string $pluginPath, string $fqcn): bool
     {
-        $parts = explode('\\', ltrim($fqcn, '\\'));
-        // Assume PSR-4 "SweflowModules\\X\\..." mapped to "src/"
-        $relative = implode(DIRECTORY_SEPARATOR, array_slice($parts, 2)) . '.php';
-        $file = $pluginPath . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $relative;
-        return is_file($file);
+        // Tenta resolver via autoload.psr-4 do composer.json do plugin
+        $composerPath = $pluginPath . DIRECTORY_SEPARATOR . 'composer.json';
+        if (is_file($composerPath)) {
+            $raw  = file_get_contents($composerPath);
+            $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
+            $psr4 = $meta['autoload']['psr-4'] ?? [];
+            foreach ($psr4 as $ns => $srcPath) {
+                $ns = rtrim($ns, '\\') . '\\';
+                if (str_starts_with($fqcn, $ns)) {
+                    $relative = str_replace('\\', DIRECTORY_SEPARATOR, substr($fqcn, strlen($ns)));
+                    $file = $pluginPath . DIRECTORY_SEPARATOR . rtrim($srcPath, '/\\') . DIRECTORY_SEPARATOR . $relative . '.php';
+                    if (is_file($file)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Fallback: assume PSR-4 com src/ como raiz
+        $parts    = explode('\\', ltrim($fqcn, '\\'));
+        $relative = implode(DIRECTORY_SEPARATOR, array_slice($parts, 1)) . '.php';
+        return is_file($pluginPath . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $relative);
     }
 }

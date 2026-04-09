@@ -8,14 +8,14 @@ on:
 
 jobs:
   security:
-    name: OWASP API Security Tests
+    name: OWASP + Fuzz + Load Attack Tests
     runs-on: ubuntu-latest
 
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_DB: sweflow_db
+          POSTGRES_DB: vupi_db
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: "123456"
         ports:
@@ -44,14 +44,14 @@ jobs:
         run: |
           cp EXEMPLO.env .env
           sed -i 's/DB_HOST=.*/DB_HOST=localhost/' .env
-          sed -i 's/DB_NOME=.*/DB_NOME=sweflow_db/' .env
+          sed -i 's/DB_NOME=.*/DB_NOME=vupi_db/' .env
           sed -i 's/DB_USUARIO=.*/DB_USUARIO=admin/' .env
           sed -i 's/DB_SENHA=.*/DB_SENHA=123456/' .env
           sed -i 's/APP_ENV=.*/APP_ENV=testing/' .env
           sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
 
       - name: Run migrations
-        run: php sweflow migrate --seed
+        run: php vupi migrate --seed
 
       - name: Start server
         run: php -S localhost:3005 index.php &
@@ -61,8 +61,14 @@ jobs:
       - name: Wait for server
         run: sleep 3
 
-      - name: Run security tests
+      - name: Run security tests (OWASP)
         run: php tests/SecurityTest.php http://localhost:3005
+
+      - name: Run fuzz tests
+        run: php tests/FuzzTest.php http://localhost:3005
+
+      - name: Run load + attack tests
+        run: php tests/LoadAttackTest.php http://localhost:3005
 
       - name: Upload test results
         if: always()

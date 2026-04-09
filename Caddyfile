@@ -1,47 +1,20 @@
-# ============================================================
-# Caddyfile — Sweflow API (Produção)
-#
-# Instalação do Caddy:
-#   Ubuntu/Debian:
-#     sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-#     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-#     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-#     sudo apt update && sudo apt install caddy
-#
-# Uso:
-#   sudo caddy run --config Caddyfile          # foreground
-#   sudo caddy start --config Caddyfile        # background
-#   sudo caddy reload --config Caddyfile       # reload sem downtime
-#   sudo caddy stop                            # para
-#
-# O Caddy escuta nas portas 80 (redirect HTTP→HTTPS) e 443 (HTTPS) automaticamente.
-# Requer que as portas 80 e 443 estejam abertas e o domínio aponte para este servidor.
-# ============================================================
-
 {
-    email admin@typper.shop
-
-    log {
-        output file /var/log/caddy/sweflow.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-        format json
-        level  INFO
-    }
+    email {$CADDY_EMAIL:admin@vupi.us}
 }
 
-api.typper.shop {
-    # ── TLS automático (Let's Encrypt) ───────────────────
+api.vupi.us {
     tls {
         protocols tls1.2 tls1.3
         ciphers TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     }
 
-    # ── Compressão ───────────────────────────────────────
     encode zstd gzip
 
-    # ── Headers de segurança ─────────────────────────────
+    # Limita tamanho do body — protege contra payloads gigantes antes de chegar no PHP
+    request_body {
+        max_size 10MB
+    }
+
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options    "nosniff"
@@ -51,7 +24,6 @@ api.typper.shop {
         -X-Powered-By
     }
 
-    # ── Bloqueia User-Agents de scanners conhecidos ──────
     @malicious_ua {
         header User-Agent *sqlmap*
         header User-Agent *nikto*
@@ -73,33 +45,20 @@ api.typper.shop {
     }
     respond @malicious_ua 403
 
-    # ── Bloqueia acesso a arquivos sensíveis ─────────────
     @sensitive {
         path /.env* /.git* /*.json /*.lock /*.md /*.sh /*.sql /*.yml /*.yaml
     }
     respond @sensitive 404
 
-    # ── Proxy reverso para o PHP ─────────────────────────
-    # IMPORTANTE: header_up X-Forwarded-Proto "https" é obrigatório.
-    # O Caddy não adiciona esse header automaticamente na conexão interna
-    # Caddy→PHP (que é HTTP). Sem ele, o HttpsEnforcerMiddleware do PHP
-    # bloqueia todas as requisições com 403.
-    reverse_proxy 127.0.0.1:3005 {
+    reverse_proxy {$APP_HOST:127.0.0.1}:{$APP_PORT:8000} {
         header_up X-Forwarded-Proto "https"
         header_up X-Real-IP         {remote_host}
 
         transport http {
             dial_timeout            10s
             response_header_timeout 30s
+            # Fecha conexões ociosas — protege contra slow loris e connection exhaustion
+            keepalive_idle_conns    32
         }
-    }
-
-    # ── Logs de acesso ───────────────────────────────────
-    log {
-        output file /var/log/caddy/sweflow-access.log {
-            roll_size 50mb
-            roll_keep 10
-        }
-        format json
     }
 }

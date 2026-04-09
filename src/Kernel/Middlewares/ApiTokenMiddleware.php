@@ -22,7 +22,7 @@ class ApiTokenMiddleware implements MiddlewareInterface
             return Response::json(['error' => 'Token de API ausente.'], 401);
         }
 
-        $secret = trim((string) ($_ENV['JWT_API_SECRET'] ?? getenv('JWT_API_SECRET') ?? ''));
+        $secret = trim((string) ($_ENV['JWT_API_SECRET'] ?? (getenv('JWT_API_SECRET') ?: '')));
         if ($secret === '') {
             return Response::json(['error' => 'JWT_API_SECRET não configurado no servidor.'], 500);
         }

@@ -50,19 +50,22 @@ class EmailHistory
 
         if ($search !== '') {
             $like = '%' . $search . '%';
-            // ILIKE for PostgreSQL, LIKE for MySQL
             $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-            $op     = $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+            $opMap  = ['pgsql' => 'ILIKE', 'mysql' => 'LIKE'];
+            $op     = $opMap[$driver] ?? 'LIKE';
             $stmt   = $this->pdo->prepare(
                 "SELECT * FROM email_history
-                 WHERE subject {$op} :s OR status {$op} :s OR error {$op} :s
+                 WHERE subject {$op} :s1 OR status {$op} :s2 OR error {$op} :s3
                  ORDER BY created_at DESC LIMIT 500"
             );
-            $stmt->execute([':s' => $like]);
+            $stmt->execute([':s1' => $like, ':s2' => $like, ':s3' => $like]);
         } else {
             $stmt = $this->pdo->query(
                 "SELECT * FROM email_history ORDER BY created_at DESC LIMIT 500"
             );
+            if ($stmt === false) {
+                return [];
+            }
         }
 
         return array_map([$this, 'decodeRow'], $stmt->fetchAll());

@@ -1,8 +1,8 @@
 /**
- * api.js — Camada de comunicação com a Sweflow API
+ * api.js — Camada de comunicação com a Vupi.us API
  */
 
-const API_BASE = 'https://api.typper.shop';
+const API_BASE = 'https://api.vupi.us';
 
 // ── Storage ───────────────────────────────────────────────────────────────
 

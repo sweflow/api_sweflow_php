@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Gerenciar Usuários — Sweflow</title>
+    <title>Gerenciar Usuários — Vupi.us</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
         html, body { margin: 0; padding: 0; background: #f8fafc; }
@@ -90,9 +90,9 @@
             <?php if (!empty($logo_url)): ?>
                 <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" />
             <?php else: ?>
-                <img src="/favicon.ico" alt="Sweflow" class="dash-brand-img" />
+                <img src="/favicon.ico" alt="Vupi.us" class="dash-brand-img" />
             <?php endif; ?>
-            <span class="dash-brand-name">Sweflow <span class="dash-brand-accent">API</span></span>
+            <span class="dash-brand-name">Vupi.us <span class="dash-brand-accent">API</span></span>
         </a>
     </div>
 

@@ -80,7 +80,7 @@ class PluginManager
             $inVendor  = str_contains($realPath, 'vendor' . DIRECTORY_SEPARATOR);
 
             $base = basename($realPath);
-            $safe = !in_array($base, ['src', 'Modules', 'plugins', 'vendor', 'sweflow'], true);
+            $safe = !in_array($base, ['src', 'Modules', 'plugins', 'vendor', 'vupi.us'], true);
 
             if ($safe && ($inPlugins || $inModules || $inVendor)) {
                 $this->deleteDirectory($path); // use original $path to handle junctions
@@ -93,14 +93,20 @@ class PluginManager
         $stateFile = dirname($this->registry) . DIRECTORY_SEPARATOR . 'modules_state.json';
         $data = [];
         if (is_file($stateFile)) {
-            $data = json_decode((string) file_get_contents($stateFile), true) ?? [];
+            $fp = fopen($stateFile, 'r');
+            if ($fp) {
+                flock($fp, LOCK_SH);
+                $raw = stream_get_contents($fp);
+                flock($fp, LOCK_UN);
+                fclose($fp);
+                $data = json_decode((string) $raw, true) ?? [];
+            }
         }
-        // Remove todas as variantes antigas e grava com o nome canônico (ucfirst)
         foreach ([ucfirst($pluginName), strtolower($pluginName), $pluginName] as $v) {
             unset($data[$v]);
         }
         $data[ucfirst($pluginName)] = $enabled;
-        file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->writeJsonFile($stateFile, $data);
     }
 
     private function removeFromModulesState(string $pluginName): void
@@ -109,36 +115,33 @@ class PluginManager
         if (!is_file($stateFile)) {
             return;
         }
-        $data = json_decode((string) file_get_contents($stateFile), true);
+        $fp = fopen($stateFile, 'r');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_SH);
+        $raw = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        $data = json_decode((string) $raw, true);
         if (!is_array($data)) {
             return;
         }
 
-        // Marca como false (não remove a chave) para que o ModuleLoader
-        // não readicione o módulo automaticamente ao redescobrir via composer.
-        $variants = [
-            $pluginName,
-            ucfirst($pluginName),
-            strtolower($pluginName),
-        ];
-
-        $changed = false;
+        $variants = [$pluginName, ucfirst($pluginName), strtolower($pluginName)];
+        $changed  = false;
         foreach ($variants as $v) {
             if (array_key_exists($v, $data)) {
                 $data[$v] = false;
-                $changed = true;
+                $changed  = true;
             }
         }
-
-        // Se nenhuma variante existia, adiciona com false para bloquear redescoberta
         if (!$changed) {
             $data[ucfirst($pluginName)] = false;
-            $changed = true;
         }
 
-        if ($changed) {
-            file_put_contents($stateFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-        }
+        $this->writeJsonFile($stateFile, $data);
     }
 
     private function deleteDirectory(string $dir): bool
@@ -169,15 +172,15 @@ class PluginManager
         }
 
         foreach ($items as $item) {
-            if ($item == '.' || $item == '..') {
+            if ($item === '.' || $item === '..') {
                 continue;
             }
 
             $itemPath = $dir . DIRECTORY_SEPARATOR . $item;
             
             if (!$this->deleteDirectory($itemPath)) {
-                // Tenta mudar permissão recursiva e deletar novamente
                 chmod($itemPath, 0777);
+                /** @phpstan-ignore-next-line */
                 if (!$this->deleteDirectory($itemPath)) {
                     return false;
                 }
@@ -200,14 +203,38 @@ class PluginManager
 
     public function read(): array
     {
-        $json = file_get_contents($this->registry);
+        $fp = @fopen($this->registry, 'r');
+        if (!$fp) {
+            return [];
+        }
+        flock($fp, LOCK_SH);
+        $json = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
         $data = $json ? json_decode($json, true) : [];
         return is_array($data) ? $data : [];
     }
 
     private function write(array $state): void
     {
-        file_put_contents($this->registry, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $this->writeJsonFile($this->registry, $state);
+    }
+
+    /**
+     * Escreve JSON em arquivo com lock exclusivo para evitar race conditions.
+     */
+    private function writeJsonFile(string $path, array $data): void
+    {
+        $fp = fopen($path, 'c+');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_EX);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 
     private function callLifecycle(string $pluginName, string $method): void
@@ -223,8 +250,9 @@ class PluginManager
         $pluginPath = $this->resolvePluginPath($pluginName);
         if (!$pluginPath) return;
         $pj = $pluginPath . DIRECTORY_SEPARATOR . 'plugin.json';
-        if (!is_file($pj)) return;
-        $data = json_decode(file_get_contents($pj), true) ?: [];
+        if (!is_file($pj) || !is_readable($pj)) return;
+        $raw = file_get_contents($pj);
+        $data = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
         $provides = $data['provides'] ?? [];
         if (!is_array($provides) || empty($provides)) return;
         $resolver = new CapabilityResolver(dirname($this->registry));
@@ -239,14 +267,14 @@ class PluginManager
     {
         $projectRoot = dirname(__DIR__, 3);
         
-        // Normalize name to handle "email", "module-email", "sweflow-module-email", "sweflow/module-email"
-        // Also handle "sweflow/module-email" -> "email"
+        // Normalize name to handle "email", "module-email", "vupi.us-module-email", "vupi.us/module-email"
+        // Also handle "vupi.us/module-email" -> "email"
         $simpleName = $pluginName;
         if (str_contains($simpleName, '/')) {
             $parts = explode('/', $simpleName);
             $simpleName = end($parts); // "module-email"
         }
-        $simpleName = str_replace(['sweflow-module-', 'module-'], '', $simpleName); // "email"
+        $simpleName = str_replace(['vupi.us-module-', 'module-'], '', $simpleName); // "email"
         
         // Capitalize for Modules (Email)
         $moduleName = ucfirst($simpleName);
@@ -254,12 +282,12 @@ class PluginManager
         $candidates = [
             // 1. Native Modules (src/Modules/Email)
             $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules' . DIRECTORY_SEPARATOR . $moduleName,
-            // 2. Local dev path (plugins/sweflow-module-email) - Legacy/Dev
-            $projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . 'sweflow-module-' . $simpleName,
+            // 2. Local dev path (plugins/vupi.us-module-email) - Legacy/Dev
+            $projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . 'vupi.us-module-' . $simpleName,
             // 3. Local dev path (plugins/email)
             $projectRoot . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . $simpleName, // Usar simpleName aqui também
             // 4. Vendor path
-            $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'sweflow' . DIRECTORY_SEPARATOR . 'module-' . $simpleName,
+            $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'vupi.us' . DIRECTORY_SEPARATOR . 'module-' . $simpleName,
         ];
 
         foreach ($candidates as $p) {
@@ -274,10 +302,11 @@ class PluginManager
         if (!$path) return null;
 
         $composer = $path . DIRECTORY_SEPARATOR . 'composer.json';
-        if (!is_file($composer)) return null;
+        if (!is_file($composer) || !is_readable($composer)) return null;
 
-        $meta = json_decode(file_get_contents($composer), true) ?: [];
-        $providers = $meta['extra']['sweflow']['providers'] ?? [];
+        $raw = file_get_contents($composer);
+        $meta = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
+        $providers = $meta['extra']['vupi.us']['providers'] ?? [];
 
         if (!is_array($providers)) return null;
 

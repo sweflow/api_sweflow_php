@@ -18,12 +18,12 @@ class MailerService implements EmailSenderInterface
         $mail->Username   = (string) ($_ENV['MAILER_USERNAME']   ?? '');
         $mail->Password   = (string) ($_ENV['MAILER_PASSWORD']   ?? '');
         $mail->SMTPSecure = (string) ($_ENV['MAILER_ENCRYPTION'] ?? PHPMailer::ENCRYPTION_STARTTLS);
-        $mail->SMTPAuth   = $mail->Username !== '';
+        $mail->SMTPAuth   = $mail->Username !== '' && $mail->Password !== '';
         $mail->CharSet    = 'UTF-8';
         $mail->isHTML(true);
 
         $fromEmail = (string) ($_ENV['MAILER_FROM_EMAIL'] ?? $mail->Username);
-        $fromName  = (string) ($_ENV['MAILER_FROM_NAME']  ?? 'Sweflow');
+        $fromName  = (string) ($_ENV['MAILER_FROM_NAME']  ?? 'Vupi.us');
         if ($fromEmail !== '') {
             $mail->setFrom($fromEmail, $fromName);
         }
@@ -70,21 +70,32 @@ class MailerService implements EmailSenderInterface
 
     public function sendConfirmation(string $toEmail, string $toName, string $confirmLink, ?string $logoUrl = null): void
     {
-        $logo  = $logoUrl ? "<img src='{$logoUrl}' alt='Logo' style='max-height:48px;margin-bottom:16px;'><br>" : '';
-        $html  = "{$logo}<h2>Confirme seu e-mail</h2>"
-               . "<p>Olá, {$toName}! Clique no link abaixo para confirmar seu e-mail:</p>"
-               . "<p><a href='{$confirmLink}'>{$confirmLink}</a></p>";
+        $safeName = htmlspecialchars($toName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $safeLink = htmlspecialchars($confirmLink, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $logo     = $logoUrl ? "<img src='" . htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8') . "' alt='Logo' style='max-height:48px;margin-bottom:16px;display:block;'><br>" : '';
+        $html     = "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'></head><body style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;'>"
+                  . "{$logo}<h2 style='color:#1e293b;'>Confirme seu e-mail</h2>"
+                  . "<p>Olá, {$safeName}! Clique no botão abaixo para confirmar seu e-mail:</p>"
+                  . "<p><a href='{$safeLink}' style='display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;'>Confirmar e-mail</a></p>"
+                  . "<p style='color:#64748b;font-size:0.9em;'>Ou copie e cole este link: {$safeLink}</p>"
+                  . "<p style='color:#94a3b8;font-size:0.8em;'>Se você não criou uma conta, ignore este e-mail.</p>"
+                  . "</body></html>";
 
         $this->sendCustom($toEmail, 'Confirme seu e-mail', $html, $logoUrl);
     }
 
     public function sendPasswordReset(string $toEmail, string $toName, string $resetLink, ?string $logoUrl = null): void
     {
-        $logo  = $logoUrl ? "<img src='{$logoUrl}' alt='Logo' style='max-height:48px;margin-bottom:16px;'><br>" : '';
-        $html  = "{$logo}<h2>Redefinição de senha</h2>"
-               . "<p>Olá, {$toName}! Clique no link abaixo para redefinir sua senha:</p>"
-               . "<p><a href='{$resetLink}'>{$resetLink}</a></p>"
-               . "<p>Se não solicitou, ignore este e-mail.</p>";
+        $safeName = htmlspecialchars($toName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $safeLink = htmlspecialchars($resetLink, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $logo     = $logoUrl ? "<img src='" . htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8') . "' alt='Logo' style='max-height:48px;margin-bottom:16px;display:block;'><br>" : '';
+        $html     = "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'></head><body style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;'>"
+                  . "{$logo}<h2 style='color:#1e293b;'>Redefinição de senha</h2>"
+                  . "<p>Olá, {$safeName}! Clique no botão abaixo para redefinir sua senha:</p>"
+                  . "<p><a href='{$safeLink}' style='display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;'>Redefinir senha</a></p>"
+                  . "<p style='color:#64748b;font-size:0.9em;'>Ou copie e cole este link: {$safeLink}</p>"
+                  . "<p style='color:#94a3b8;font-size:0.8em;'>Se você não solicitou a redefinição, ignore este e-mail. O link expira em breve.</p>"
+                  . "</body></html>";
 
         $this->sendCustom($toEmail, 'Redefinição de senha', $html, $logoUrl);
     }

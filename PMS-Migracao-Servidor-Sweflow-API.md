@@ -1,6 +1,6 @@
-# PMS — Plano de Execução para Migração de Servidor (Sweflow API)
+# PMS — Plano de Execução para Migração de Servidor (Vupi.us API)
 
-Repositório alvo: `https://github.com/sweflow/api_sweflow_php.git`
+Repositório alvo: `https://github.com/vupi.us/api_vupi.us_php.git`
 
 Este PMS descreve um passo a passo completo para preparar um servidor Ubuntu, clonar o repositório, configurar variáveis de ambiente, subir banco (PostgreSQL ou MySQL), criar banco/tabelas, executar migrations/seeders e manter a API rodando em produção usando PM2.
 
@@ -183,15 +183,15 @@ sudo docker run --rm hello-world
 Via HTTPS:
 
 ```bash
-git clone https://github.com/sweflow/api_sweflow_php.git
-cd api_sweflow_php
+git clone https://github.com/vupi.us/api_vupi.us_php.git
+cd api_vupi.us_php
 ```
 
 Ou via SSH:
 
 ```bash
-git clone git@github.com:sweflow/api_sweflow_php.git
-cd api_sweflow_php
+git clone git@github.com:vupi.us/api_vupi.us_php.git
+cd api_vupi.us_php
 ```
 
 Instalar dependências PHP:
@@ -204,17 +204,17 @@ composer install --no-dev
 
 ## 7.1) Comandos principais (help) — visão rápida
 
-CLI do Sweflow (lista de comandos):
+CLI do Vupi.us (lista de comandos):
 
 ```bash
-php sweflow
+php vupi
 ```
 
 Setup automatizado com menu:
 
 ```bash
-php sweflow setup --help
-php sweflow setup
+php vupi setup --help
+php vupi setup
 ```
 
 Runner de banco (migrations/seed):
@@ -248,7 +248,7 @@ Ajuste variáveis essenciais (exemplos):
   - `DB_CONEXAO=postgresql` (ou `mysql`)
   - `DB_HOST=localhost`
   - `DB_PORT=5432` (ou `3306`)
-  - `DB_NOME=sweflow_db`
+  - `DB_NOME=vupi_db`
   - `DB_USUARIO=admin`
   - `DB_SENHA=...`
 - JWT:
@@ -264,7 +264,7 @@ php -r 'echo bin2hex(random_bytes(32)) . PHP_EOL;'
 Gerar secrets automaticamente (recomendado):
 
 ```bash
-php sweflow setup --auto --db-mode=skip --server=php --jwt=if-empty
+php vupi setup --auto --db-mode=skip --server=php --jwt=if-empty
 ```
 
 Crie diretórios usados em runtime (se não existirem) e ajuste permissões:
@@ -285,10 +285,10 @@ Você pode usar Docker para criar o banco automaticamente (recomendado para padr
 Subir PostgreSQL e já criar a database:
 
 ```bash
-docker run -d --name sweflow-postgres \
+docker run -d --name vupi.us-postgres \
   -e POSTGRES_USER=admin \
   -e POSTGRES_PASSWORD='SENHA_FORTE_AQUI' \
-  -e POSTGRES_DB=sweflow_db \
+  -e POSTGRES_DB=vupi_db \
   -p 5432:5432 \
   postgres:16
 ```
@@ -296,14 +296,14 @@ docker run -d --name sweflow-postgres \
 Validar:
 
 ```bash
-docker logs -n 50 sweflow-postgres
+docker logs -n 50 vupi.us-postgres
 ```
 
 No `.env`, use:
 - `DB_CONEXAO=postgresql`
 - `DB_HOST=localhost`
 - `DB_PORT=5432`
-- `DB_NOME=sweflow_db`
+- `DB_NOME=vupi_db`
 - `DB_USUARIO=admin`
 - `DB_SENHA=SENHA_FORTE_AQUI`
 
@@ -312,9 +312,9 @@ No `.env`, use:
 Subir MySQL e já criar a database:
 
 ```bash
-docker run -d --name sweflow-mysql \
+docker run -d --name vupi.us-mysql \
   -e MYSQL_ROOT_PASSWORD='SENHA_ROOT_FORTE' \
-  -e MYSQL_DATABASE=sweflow_db \
+  -e MYSQL_DATABASE=vupi_db \
   -e MYSQL_USER=admin \
   -e MYSQL_PASSWORD='SENHA_FORTE_AQUI' \
   -p 3306:3306 \
@@ -325,7 +325,7 @@ No `.env`, use:
 - `DB_CONEXAO=mysql`
 - `DB_HOST=localhost`
 - `DB_PORT=3306`
-- `DB_NOME=sweflow_db`
+- `DB_NOME=vupi_db`
 - `DB_USUARIO=admin`
 - `DB_SENHA=SENHA_FORTE_AQUI`
 
@@ -346,7 +346,7 @@ Criar usuário e banco:
 
 ```bash
 sudo -u postgres psql -c "CREATE USER admin WITH PASSWORD 'SENHA_FORTE_AQUI';"
-sudo -u postgres psql -c "CREATE DATABASE sweflow_db OWNER admin;"
+sudo -u postgres psql -c "CREATE DATABASE vupi_db OWNER admin;"
 ```
 
 ### MySQL (host)
@@ -361,14 +361,14 @@ sudo systemctl enable --now mysql
 Criar usuário e banco:
 
 ```bash
-sudo mysql -e "CREATE DATABASE IF NOT EXISTS sweflow_db;"
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS vupi_db;"
 sudo mysql -e "CREATE USER IF NOT EXISTS 'admin'@'localhost' IDENTIFIED BY 'SENHA_FORTE_AQUI';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON sweflow_db.* TO 'admin'@'localhost'; FLUSH PRIVILEGES;"
+sudo mysql -e "GRANT ALL PRIVILEGES ON vupi_db.* TO 'admin'@'localhost'; FLUSH PRIVILEGES;"
 ```
 
 ---
 
-## 11) Criar tabelas do Sweflow API (migrations e/ou import SQL)
+## 11) Criar tabelas do Vupi.us API (migrations e/ou import SQL)
 
 O projeto possui um runner de banco chamado `db` (na raiz do repositório) que executa:
 - migrations de módulos (`src/Modules/*/Database/Migrations/*.php`)
@@ -398,15 +398,15 @@ php db rollback
 Rollback de plugin (última migration aplicada em plugins):
 
 ```bash
-php sweflow plugin:rollback NOME_DO_PLUGIN
+php vupi plugin:rollback NOME_DO_PLUGIN
 ```
 
 ### 11.1.1) Help dos comandos (explicação objetiva)
 
-**`php sweflow setup`**
+**`php vupi setup`**
 - Abre um menu interativo para: preparar `.env`, criar DB via Docker, rodar migrations/seed, validar DB, iniciar servidor e gerar JWT.
 
-**`php sweflow setup --help`**
+**`php vupi setup --help`**
 - Mostra flags do modo automático.
 - Flags principais:
   - `--auto`: roda pipeline automático (env → db (opcional) → migrate → seed → server).
@@ -421,10 +421,10 @@ php sweflow plugin:rollback NOME_DO_PLUGIN
   - `php db seed`: roda seeders de módulos e plugins.
   - `php db rollback`: reverte a última migration de módulos.
 
-**`php sweflow plugin:migrate`**
+**`php vupi plugin:migrate`**
 - Roda apenas migrations de plugins instalados.
 
-**`php sweflow plugin:rollback [plugin]`**
+**`php vupi plugin:rollback [plugin]`**
 - Reverte a última migration aplicada em plugins (opcionalmente filtrando por nome do plugin).
 
 ---
@@ -436,7 +436,7 @@ O arquivo `gerar_jwt.php` gera um token JWT de API (válido por 1 hora) usando `
 1) Garanta que `JWT_API_SECRET` esteja preenchido (pode gerar automaticamente):
 
 ```bash
-php sweflow setup --auto --db-mode=skip --server=php --jwt=if-empty
+php vupi setup --auto --db-mode=skip --server=php --jwt=if-empty
 ```
 
 2) Gerar o token:
@@ -454,13 +454,13 @@ curl -H "Authorization: Bearer SEU_TOKEN_AQUI" http://localhost:3005/api/status
 ### 11.2) Importar o schema/tabelas via SQL (bootstrap rápido)
 
 Se você quiser subir todas as tabelas rapidamente via SQL, há um dump em:
-- `src/Kernel/Database/sweflow_db_2026-03-02_013709.sql`
+- `src/Kernel/Database/vupi_db_2026-03-02_013709.sql`
 
 PostgreSQL (exemplo):
 
 ```bash
-psql "host=localhost port=5432 dbname=sweflow_db user=admin password=SENHA_FORTE_AQUI" \
-  -f src/Kernel/Database/sweflow_db_2026-03-02_013709.sql
+psql "host=localhost port=5432 dbname=vupi_db user=admin password=SENHA_FORTE_AQUI" \
+  -f src/Kernel/Database/vupi_db_2026-03-02_013709.sql
 ```
 
 Depois disso, ainda é válido rodar:
@@ -516,16 +516,16 @@ php db migrate
 
 Para plugins, o caminho padrão é:
 
-`plugins/sweflow-module-seu-plugin/src/Database/Migrations/<versao>/*.php`
+`plugins/vupi.us-module-seu-plugin/src/Database/Migrations/<versao>/*.php`
 
 Exemplo:
 
-`plugins/sweflow-module-meu-plugin/src/Database/Migrations/1.0.0/create_meu_plugin_table.php`
+`plugins/vupi.us-module-meu-plugin/src/Database/Migrations/1.0.0/create_meu_plugin_table.php`
 
 Depois aplique:
 
 ```bash
-php sweflow plugin:migrate
+php vupi plugin:migrate
 ```
 
 Ou, para rodar tudo (módulos + plugins):
@@ -619,7 +619,7 @@ php -S 0.0.0.0:3005 index.php
 Inicie o processo:
 
 ```bash
-pm2 start php --name sweflow-api -- -S 0.0.0.0:3005 index.php
+pm2 start php --name vupi.us-api -- -S 0.0.0.0:3005 index.php
 pm2 status
 ```
 
@@ -633,7 +633,7 @@ pm2 save
 Logs:
 
 ```bash
-pm2 logs sweflow-api --lines 200
+pm2 logs vupi.us-api --lines 200
 ```
 
 ---

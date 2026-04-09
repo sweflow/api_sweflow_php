@@ -168,7 +168,7 @@ class UsuarioServiceTest extends TestCase
     public function test_listar_delega_para_repo(): void
     {
         $repo = $this->makeRepo();
-        $repo->method('buscarPorNomePaginado')->willReturn([$this->makeUsuario()]);
+        $repo->method('buscarTodos')->willReturn([$this->makeUsuario()]);
 
         $service = new UsuarioService($repo);
         $result  = $service->listar(1, 10);

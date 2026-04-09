@@ -1,7 +1,7 @@
 <?php
-namespace Src\Database\Exceptions;
+namespace Src\Kernel\Database\Exceptions;
 
-use Src\Database\Exceptions\DatabaseException;
+use Src\Kernel\Database\Exceptions\DatabaseException;
 
 /**
  * Exceção para erro de consulta SQL (SELECT, INSERT, UPDATE, DELETE).

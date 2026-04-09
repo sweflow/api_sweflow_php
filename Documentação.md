@@ -1,8 +1,8 @@
-# 📘 Documentação Oficial Sweflow API
+# 📘 Documentação Oficial Vupi.us API
 
-Bem-vindo à documentação oficial da **Sweflow API**, uma plataforma modular, moderna e robusta desenvolvida em PHP. 
+Bem-vindo à documentação oficial da **Vupi.us API**, uma plataforma modular, moderna e robusta desenvolvida em PHP. 
 
-O Sweflow foi projetado com uma filosofia clara: **Simplicidade por fora, Poder por dentro.**
+O Vupi.us foi projetado com uma filosofia clara: **Simplicidade por fora, Poder por dentro.**
 
 Esta documentação irá guiá-lo desde a configuração inicial do ambiente até a criação de módulos complexos e integrados.
 
@@ -40,8 +40,8 @@ Antes de começar, certifique-se de ter em sua máquina:
 
 1.  **Clone o repositório:**
     ```bash
-    git clone https://github.com/sweflow/api_sweflow_php.git
-    cd api_sweflow_php
+    git clone https://github.com/vupi.us/api_vupi.us_php.git
+    cd api_vupi.us_php
     ```
 
 2.  **Instale as dependências do projeto:**
@@ -67,7 +67,7 @@ Antes de começar, certifique-se de ter em sua máquina:
 
 ## 2. Configuração do Ambiente
 
-O Sweflow utiliza variáveis de ambiente para configuração segura. Nunca edite o código para mudar senhas ou chaves de API.
+O Vupi.us utiliza variáveis de ambiente para configuração segura. Nunca edite o código para mudar senhas ou chaves de API.
 
 1.  **Copie o arquivo de exemplo:**
     ```bash
@@ -81,7 +81,7 @@ O Sweflow utiliza variáveis de ambiente para configuração segura. Nunca edite
     DB_CONEXAO=postgresql  # ou mysql
     DB_HOST=localhost
     DB_PORT=5432
-    DB_NOME=sweflow_db
+    DB_NOME=vupi_db
     DB_USUARIO=admin
     DB_SENHA=sua_senha
 
@@ -100,17 +100,17 @@ O Sweflow utiliza variáveis de ambiente para configuração segura. Nunca edite
 
     *   Menu interativo:
         ```bash
-        php sweflow setup
+        php vupi setup
         ```
 
     *   Tudo automático (gera secrets JWT se vazios, cria DB via Docker, migra, seed e sobe servidor):
         ```bash
-        php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty
+        php vupi setup --auto --db-mode=docker --server=php --jwt=if-empty
         ```
 
     Ajuda:
     ```bash
-    php sweflow setup --help
+    php vupi setup --help
     ```
 
 4.  **Inicie o servidor de desenvolvimento:**
@@ -137,7 +137,7 @@ O Sweflow utiliza variáveis de ambiente para configuração segura. Nunca edite
 
 ## 3. Arquitetura do Sistema
 
-O Sweflow segue uma arquitetura modular "Zero Config".
+O Vupi.us segue uma arquitetura modular "Zero Config".
 
 *   **Kernel (`src/Kernel/`):** O núcleo do sistema. Contém o Container de Injeção de Dependência, Roteador, Logger e Loader de Módulos. Você raramente precisará mexer aqui.
 *   **Módulos (`src/Modules/`):** Onde sua aplicação vive. Cada pasta aqui é um módulo independente.
@@ -149,7 +149,7 @@ O Sweflow segue uma arquitetura modular "Zero Config".
 
 ### 4.1. Criando seu Primeiro Módulo
 
-No Sweflow, **uma pasta é um módulo**. Para criar um módulo chamado `Financeiro`, basta criar a pasta:
+No Vupi.us, **uma pasta é um módulo**. Para criar um módulo chamado `Financeiro`, basta criar a pasta:
 
 `src/Modules/Financeiro`
 
@@ -184,7 +184,7 @@ $router->post('/api/faturas', [FaturaController::class, 'criar'], [
 
 ### 4.3. Injeção de Dependência
 
-O Sweflow possui um Container poderoso. Você não precisa instanciar classes manualmente com `new`. Apenas declare o que precisa no construtor.
+O Vupi.us possui um Container poderoso. Você não precisa instanciar classes manualmente com `new`. Apenas declare o que precisa no construtor.
 
 **Exemplo: Controller usando Service**
 
@@ -213,7 +213,7 @@ class FaturaController
 
 ## 5. Comunicação Entre Módulos
 
-Módulos frequentemente precisam conversar. O Sweflow facilita isso de forma elegante.
+Módulos frequentemente precisam conversar. O Vupi.us facilita isso de forma elegante.
 
 ### 5.1. Dependência Obrigatória (Hard)
 
@@ -294,8 +294,8 @@ class FaturaService
     `php -S localhost:3005 index.php`
     
 *   **Setup (menu / automático):**
-    `php sweflow setup`
-    `php sweflow setup --auto --db-mode=docker --server=php --jwt=if-empty`
+    `php vupi setup`
+    `php vupi setup --auto --db-mode=docker --server=php --jwt=if-empty`
 
 *   **Banco (migrations/seed):**
     `php db migrate`
@@ -313,4 +313,4 @@ class FaturaService
 
 ---
 
-**Sweflow API** — Construído para escalar. 🚀
+**Vupi.us API** — Construído para escalar. 🚀

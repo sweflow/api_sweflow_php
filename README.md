@@ -1,4 +1,4 @@
-# Sweflow API
+# Vupi.us API
 
 API modular em PHP com autenticação JWT, suporte a PostgreSQL e MySQL, HTTPS automático via Caddy e setup totalmente automatizado.
 
@@ -7,8 +7,8 @@ API modular em PHP com autenticação JWT, suporte a PostgreSQL e MySQL, HTTPS a
 > Ubuntu 22.04 / 24.04
 
 ```bash
-git clone https://github.com/seu-repo/api_sweflow_php.git
-cd api_sweflow_php
+git clone https://github.com/seu-repo/api_vupi.us_php.git
+cd api_vupi.us_php
 sudo bash install.sh
 ```
 
@@ -20,13 +20,13 @@ Instala PHP 8.2, Docker, drivers de banco, Composer, sobe o banco via docker-com
 
 ```bash
 composer install
-php sweflow setup        # menu interativo
+php vupi setup        # menu interativo
 ```
 
 Ou tudo de uma vez sem interação:
 
 ```bash
-php sweflow setup --auto
+php vupi setup --auto
 ```
 
 ---
@@ -42,11 +42,11 @@ O Caddy atua como proxy reverso na frente do `php -S`, fornecendo TLS automátic
 make caddy-install                  # instala o Caddy (uma vez)
 php -S localhost:3005 index.php &   # sobe o PHP em background
 make caddy-start                    # sobe o Caddy com TLS automático
-# → https://api.typper.shop funcionando com TLS
+# → https://api.vupi.us funcionando com TLS
 
-# Via sweflow CLI (recomendado — faz tudo de uma vez)
-php sweflow setup --auto --server=pm2+caddy   # PM2 + Caddy (mais robusto)
-php sweflow setup --auto --caddy=production   # php -S + Caddy
+# Via vupi.us CLI (recomendado — faz tudo de uma vez)
+php vupi setup --auto --server=pm2+caddy   # PM2 + Caddy (mais robusto)
+php vupi setup --auto --caddy=production   # php -S + Caddy
 ```
 
 ### Desenvolvimento local (HTTPS via mkcert)
@@ -57,14 +57,14 @@ make caddy-dev                      # gera cert local e sobe Caddy
 php -S localhost:3005 index.php     # sobe o PHP
 # → https://localhost:2443 com HTTPS real
 
-# Via sweflow CLI
-php sweflow setup --auto --db-mode=skip --caddy=dev
+# Via vupi.us CLI
+php vupi setup --auto --db-mode=skip --caddy=dev
 ```
 
 ### Menu interativo
 
 ```bash
-php sweflow setup
+php vupi setup
 # Opção 14 → Instalar Caddy + subir HTTPS em produção
 # Opção 15 → Subir Caddy em desenvolvimento (HTTPS local via mkcert)
 # Opção 16 → Subir PM2 + Caddy em produção (recomendado)
@@ -85,7 +85,7 @@ Amanhã (quando crescer):
       ↓
   Nginx (roteamento interno)
       ↓
-  API Sweflow (PM2)
+  API Vupi.us (PM2)
 ```
 
 ---
@@ -94,17 +94,17 @@ Amanhã (quando crescer):
 
 ```bash
 # Migrations
-php sweflow migrate              # roda migrations
-php sweflow migrate --seed       # migrations + seeders
+php vupi migrate              # roda migrations
+php vupi migrate --seed       # migrations + seeders
 
 # Módulos
-php sweflow make:module Nome     # cria um novo módulo
-php sweflow make:plugin Nome     # cria um novo plugin
+php vupi make:module Nome     # cria um novo módulo
+php vupi make:plugin Nome     # cria um novo plugin
 
 # Setup
-php sweflow setup --help         # ajuda completa do setup
-php sweflow setup --auto --server=pm2+caddy   # produção completa
-php sweflow setup --auto --caddy=dev          # dev com HTTPS local
+php vupi setup --help         # ajuda completa do setup
+php vupi setup --auto --server=pm2+caddy   # produção completa
+php vupi setup --auto --caddy=dev          # dev com HTTPS local
 
 # Makefile
 make caddy-install   # instala o Caddy
@@ -133,4 +133,4 @@ Veja [Documentação.md](Documentação.md) para guia completo de uso, criação
 
 ## Licença
 
-MIT — Sweflow API © 2026
+MIT — Vupi.us API © 2026

@@ -18,9 +18,9 @@ use Src\Kernel\Nucleo\Application;
 use Src\Kernel\Nucleo\Container;
 use Src\Kernel\Nucleo\ModuleLoader;
 use Src\Kernel\Nucleo\PluginManager;
+use Src\Kernel\Nucleo\Router;
 use Src\Kernel\Support\AuditLogger;
 use Src\Kernel\Support\DB\PluginMigrator;
-use Src\Kernel\Nucleo\Router;
 
 require __DIR__ . '/vendor/autoload.php';
 
@@ -147,11 +147,11 @@ if ($uri !== '/') {
             exit;
         }
 
-        $isHttps = \Src\Kernel\Support\CookieConfig::isHttps();        header_remove('X-Powered-By');
+        $isHttps = \Src\Kernel\Support\CookieConfig::isHttps();
+        header_remove('X-Powered-By');
         header('Content-Type: ' . $mimeMap[$ext]);
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
-        header('X-XSS-Protection: 1; mode=block');
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
         header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
@@ -164,45 +164,9 @@ if ($uri !== '/') {
     }
 }
 
-function isDbConnectionError(\Throwable $e): bool
+function renderDbConnectionError(string $uri, string $reason = ''): void
 {
-    $stack = [$e];
-    if ($e->getPrevious() instanceof \Throwable) {
-        $stack[] = $e->getPrevious();
-    }
-
-    foreach ($stack as $err) {
-        if ($err instanceof \PDOException) {
-            return true;
-        }
-
-        $msg = strtolower($err->getMessage());
-        if (str_contains($msg, 'sqlstate[08006]') || str_contains($msg, 'connection refused') || str_contains($msg, 'não foi possível conectar ao banco')) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function requestWantsJson(string $uri): bool
-{
-    if (strpos($uri, '/api/') === 0) {
-        return true;
-    }
-
-    $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
-    if ($accept !== '' && str_contains($accept, 'application/json')) {
-        return true;
-    }
-
-    $xrw = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
-    return $xrw === 'xmlhttprequest';
-}
-
-function renderDbConnectionError(string $uri): void
-{
-    if (requestWantsJson($uri)) {
+    if (\Src\Kernel\Exceptions\Handler::requestWantsJson($uri)) {
         if (!headers_sent()) {
             http_response_code(503);
             header('Content-Type: application/json; charset=utf-8');
@@ -211,10 +175,10 @@ function renderDbConnectionError(string $uri): void
             header('Content-Security-Policy: default-src \'none\'; frame-ancestors \'none\'');
         }
         if (ob_get_level() > 0) ob_end_clean();
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Banco de dados indisponível. Tente novamente em instantes.',
-        ], JSON_UNESCAPED_UNICODE);
+        $msg = $reason === 'timeout'
+            ? 'Banco de dados não respondeu dentro do tempo limite. Verifique host/porta no .env.'
+            : 'Banco de dados indisponível. Tente novamente em instantes.';
+        echo json_encode(['status' => 'error', 'message' => $msg], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -237,6 +201,15 @@ function renderDbConnectionError(string $uri): void
     ];
     $html = strtr($html, $replacements);
 
+    // Injeta ?reason=timeout na URL do botão "Tentar novamente" para o JS exibir o badge correto
+    if ($reason === 'timeout') {
+        $html = str_replace(
+            "var params = new URLSearchParams(window.location.search);",
+            "var params = new URLSearchParams('reason=timeout');",
+            $html
+        );
+    }
+
     if (!headers_sent()) {
         http_response_code(503);
         header('Content-Type: text/html; charset=utf-8');
@@ -249,9 +222,45 @@ function renderDbConnectionError(string $uri): void
     exit;
 }
 
-if (!isset($GLOBALS['__raw_input'])) {
-    $GLOBALS['__raw_input'] = file_get_contents('php://input');
-}
+// ── Captura Fatal Errors (ex: max_execution_time) e exibe página amigável ─
+// register_shutdown_function é o único jeito de interceptar erros fatais no PHP.
+register_shutdown_function(static function () use ($uri): void {
+    $error = error_get_last();
+    if ($error === null) {
+        return;
+    }
+    // E_ERROR cobre: fatal errors, max_execution_time, memory exhausted, etc.
+    if (($error['type'] & E_ERROR) === 0) {
+        return;
+    }
+
+    $isTimeout = str_contains($error['message'], 'Maximum execution time')
+        || str_contains($error['message'], 'maximum execution time');
+
+    $isDbRelated = str_contains($error['file'] ?? '', 'PdoFactory')
+        || str_contains($error['file'] ?? '', 'Conexao')
+        || str_contains($error['message'], 'PDO')
+        || str_contains($error['message'], 'database');
+
+    // Timeout em arquivo de banco = banco travou a conexão
+    if ($isTimeout && $isDbRelated) {
+        if (ob_get_level() > 0) ob_end_clean();
+        renderDbConnectionError($uri, 'timeout');
+        return;
+    }
+
+    // Outros fatais em produção: página genérica sem vazar detalhes
+    $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
+    if ($isProduction && !headers_sent()) {
+        ob_end_clean();
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Erro interno</title></head>'
+            . '<body style="font-family:sans-serif;text-align:center;padding:4rem">'
+            . '<h1>500 — Erro interno</h1><p>Algo deu errado. Tente novamente em instantes.</p>'
+            . '</body></html>';
+    }
+});
 
 // ── /api/db-status — responde antes de tentar conectar ao banco ───────────
 // Permite que a página de erro verifique se o banco voltou sem depender do boot completo.
@@ -286,12 +295,19 @@ $container = new Container();
 $container->bind(ContainerInterface::class, $container, true);
 
 try {
-    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv(), true);
+    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv('DB'), true);
 
-    $migrator = new PluginMigrator(PdoFactory::fromEnv(), __DIR__);
+    // Segunda conexão para módulos externos (DB2_*).
+    // Se DB2_NOME não estiver definido, módulos externos usam a mesma conexão do core.
+    $container->bind('pdo.modules', static fn() => PdoFactory::hasSecondaryConnection()
+        ? PdoFactory::fromEnv('DB2')
+        : PdoFactory::fromEnv('DB'),
+    true);
+
+    $migrator = new PluginMigrator(PdoFactory::fromEnv('DB'), __DIR__);
     $container->bind(PluginMigrator::class, $migrator, true);
 } catch (\Throwable $e) {
-    if (isDbConnectionError($e)) {
+    if (\Src\Kernel\Exceptions\Handler::isDbConnectionError($e)) {
         renderDbConnectionError($uri);
     }
     throw $e;
@@ -299,6 +315,24 @@ try {
 
 $manager = new PluginManager($migrator, __DIR__ . '/storage');
 $container->bind(PluginManager::class, $manager, true);
+
+// Registra RateLimitStorage — Redis se disponível, File como fallback
+$container->bind(
+    \Src\Kernel\Contracts\RateLimitStorageInterface::class,
+    static fn() => \Src\Kernel\Support\Storage\RateLimitStorageFactory::create(),
+    true
+);
+
+// Registra ThreatScorer como singleton (evita I/O redundante por request)
+$container->bind(
+    \Src\Kernel\Support\ThreatScorer::class,
+    static function () use ($container) {
+        return new \Src\Kernel\Support\ThreatScorer(
+            $container->make(\Src\Kernel\Contracts\RateLimitStorageInterface::class)
+        );
+    },
+    true
+);
 
 // Registra AuditLogger como singleton
 $container->bind(AuditLogger::class, static function () use ($container) {
@@ -341,11 +375,29 @@ $container->bind(AuditLogger::class, static function () use ($container) {
 // Registra implementações dos contratos do Kernel.
 // Estes bindings conectam o kernel aos módulos — único lugar onde isso acontece.
 // O desenvolvedor de módulos não precisa tocar aqui.
-$container->bind(
-    \Src\Kernel\Contracts\UserRepositoryInterface::class,
-    \Src\Modules\Usuario\Repositories\UsuarioRepository::class,
-    true
-);
+
+// Determina qual PDO usar para o módulo Usuario baseado no connection.php
+// O ModuleConnectionResolver lança RuntimeException(503) se a conexão declarada não estiver configurada.
+(static function () use ($container): void {
+    // UserRepositoryInterface (kernel) — usado pelo AuthController e outros
+    $container->bind(
+        \Src\Kernel\Contracts\UserRepositoryInterface::class,
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+        ),
+        true
+    );
+
+    // UsuarioRepositoryInterface (módulo) — usado pelo UsuarioService/UsuarioController
+    $container->bind(
+        \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+        ),
+        true
+    );
+})();
+
 $container->bind(
     \Src\Kernel\Contracts\TokenBlacklistInterface::class,
     \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
@@ -366,6 +418,46 @@ $container->bind(
     true
 );
 
+// Registra AuthController com todas as dependências injetadas via container
+// Elimina Service Locator e new() dentro do controller
+$container->bind(
+    \Src\Modules\Auth\Controllers\AuthController::class,
+    static function () use ($container) {
+        $pdo             = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Auth');
+        $userRepo        = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+        $refreshRepo     = new \Src\Modules\Auth\Repositories\RefreshTokenRepository($pdo);
+        $blacklist        = new \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository($pdo);
+        $authService     = new \Src\Modules\Auth\Services\AuthService($userRepo, $refreshRepo);
+        $auditLogger     = $container->make(\Src\Kernel\Support\AuditLogger::class);
+        $threatScorer    = $container->make(\Src\Kernel\Support\ThreatScorer::class);
+        $emailService    = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+        $requestContext  = $container->make(\Src\Kernel\Support\RequestContext::class);
+        return new \Src\Modules\Auth\Controllers\AuthController(
+            $authService,
+            $refreshRepo,
+            $blacklist,
+            $auditLogger,
+            $threatScorer,
+            $emailService,
+            $requestContext,
+        );
+    },
+    true
+);
+
+// Registra UsuarioController com EmailThrottle injetado
+$container->bind(
+    \Src\Modules\Usuario\Controllers\UsuarioController::class,
+    static function () use ($container) {
+        $pdo         = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
+        $service     = $container->make(\Src\Modules\Usuario\Services\UsuarioServiceInterface::class);
+        $emailSender = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+        $emailThrottle = new \Src\Kernel\Support\EmailThrottle($pdo);
+        return new \Src\Modules\Usuario\Controllers\UsuarioController($service, $emailThrottle, $emailSender);
+    },
+    true
+);
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -380,6 +472,10 @@ $app->boot();
 $router->get('/', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/index.php', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/dashboard', [DashboardController::class, 'index'], [
+    AuthPageMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->get('/dashboard/configuracoes', [DashboardController::class, 'configuracoes'], [
     AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
@@ -407,11 +503,36 @@ $router->post('/api/system/modules/uninstall', [\Src\Kernel\Controllers\SystemMo
 ]);
 
 // Modules Management API (Dashboard toggles)
-$router->get('/api/system/modules', [\Src\Kernel\Controllers\StatusController::class, 'modules'], [
+$router->get('/api/system/modules', function () use ($modules) {
+    $states = $modules->states();
+    $list = [];
+    foreach ($states as $name => $enabled) {
+        $list[] = ['name' => $name, 'enabled' => $enabled];
+    }
+    return Response::json(['modules' => $list]);
+}, [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
-$router->post('/api/system/modules/toggle', [\Src\Kernel\Controllers\StatusController::class, 'toggle'], [
+
+// Migrations status API
+$router->get('/api/system/migrations/status', function () use ($container) {
+    try {
+        $pdo  = $container->make(\PDO::class);
+        $root = __DIR__;
+
+        $pdoModules = null;
+        try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
+
+        $migrator = new \Src\Kernel\Support\DB\Migrator($pdo, $root, $pdoModules);
+
+        $json = $migrator->status(true) ?? '{}';
+        $data = json_decode($json, true) ?? ['core' => [], 'modules' => []];
+        return Response::json(['status' => 'ok', 'migrations' => $data]);
+    } catch (\Throwable $e) {
+        return Response::json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+}, [
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
@@ -483,7 +604,8 @@ function absoluteUrl(string $uri): string {
     }
     // Fallback: detecta esquema via CookieConfig (respeita TRUST_PROXY e X-Forwarded-Proto)
     $scheme = \Src\Kernel\Support\CookieConfig::isHttps() ? 'https' : 'http';
-    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    // Sanitiza HTTP_HOST para evitar header injection no sitemap
+    $host   = preg_replace('/[^a-zA-Z0-9.\-:\[\]]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
     return $scheme . '://' . $host . $uri;
 }
 
@@ -592,15 +714,20 @@ $router->get('/robots.txt', function () use ($router) {
 
 // ── Honeypot — rotas que bots costumam escanear ───────────────────────────
 // Qualquer acesso é registrado para Fail2Ban. Retorna 404 para não revelar que é honeypot.
-(static function () use ($router): void {
+(static function () use ($router, $container): void {
     $honeypotPaths = honeypotUris();
-    $honeypotHandler = function (): Response {
+    $honeypotHandler = function () use ($container): Response {
         $ip  = \Src\Kernel\Support\IpResolver::resolve();
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         $ua  = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 300);
         $env = $_ENV['APP_ENV'] ?? 'production';
 
-        (new \Src\Kernel\Support\ThreatScorer())->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_HONEYPOT);
+        try {
+            $scorer = $container->make(\Src\Kernel\Support\ThreatScorer::class);
+        } catch (\Throwable) {
+            $scorer = new \Src\Kernel\Support\ThreatScorer();
+        }
+        $scorer->add($ip, \Src\Kernel\Support\ThreatScorer::SCORE_HONEYPOT);
 
         if ($env !== 'testing') {
             $line = json_encode([
@@ -654,6 +781,16 @@ $router->get('/api/db-status/details', function () use ($container) {
     AdminOnlyMiddleware::class,
 ]);
 
+// Env editor (admin only)
+$router->get('/api/env', [\Src\Kernel\Controllers\EnvController::class, 'index'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+$router->put('/api/env', [\Src\Kernel\Controllers\EnvController::class, 'update'], [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
 $router->get('/api/dashboard/metrics', function () use ($container, $modules) {
     $status = [
         'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
@@ -686,7 +823,7 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules) {
 
     $usuarios = ['total' => null];
     try {
-        $repo = $container->make(\Src\Modules\Usuario\Repositories\UsuarioRepository::class);
+        $repo = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
         $usuarios['total'] = $repo->contar();
     } catch (\Throwable $e) {
         // silently fail

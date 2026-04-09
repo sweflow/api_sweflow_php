@@ -1,5 +1,6 @@
 {
     "Auth": true,
     "Usuario": true,
+    "Documentacao": true,
     "Email": false
 }

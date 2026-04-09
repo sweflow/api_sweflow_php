@@ -8,7 +8,7 @@ class MakePluginCommand
         $slug = strtolower(preg_replace('/([a-z])([A-Z])/', '$1-$2', $name));
         $capability = $options['capability'] ?? ($slug . "-capability");
         $description = $options['description'] ?? ("Integração com {$name} e capability {$capability}.");
-        $pluginDir = __DIR__ . "/../../plugins/sweflow-module-$slug";
+        $pluginDir = __DIR__ . "/../../plugins/vupi.us-module-$slug";
         $dirs = [
             "src/Providers",
             "src/Routes",
@@ -29,24 +29,24 @@ class MakePluginCommand
         $this->createPluginJson($pluginDir, $name, $slug, $capability);
         $this->createReadme($pluginDir, $name, $slug, $capability, $description);
         $this->createLicense($pluginDir);
-        echo "✔ Plugin sweflow-module-$slug criado\n";
+        echo "✔ Plugin vupi.us-module-$slug criado\n";
     }
 
     private function createComposer(string $dir, string $name, string $slug): void
     {
         $composer = [
-            "name" => "sweflow/module-$slug",
-            "description" => "Sweflow module $name",
+            "name" => "vupi.us/module-$slug",
+            "description" => "Vupi.us module $name",
             "type" => "library",
             "autoload" => [
                 "psr-4" => [
-                    "SweflowModules\\\\$name\\\\" => "src/"
+                    "VupiUsModules\\$name\\" => "src/"
                 ]
             ],
             "extra" => [
-                "sweflow" => [
+                "vupi.us" => [
                     "providers" => [
-                        "SweflowModules\\\\$name\\\\{$name}ServiceProvider"
+                        "VupiUsModules\\$name\\{$name}ServiceProvider"
                     ]
                 ]
             ],
@@ -62,10 +62,51 @@ class MakePluginCommand
 
     private function createProvider(string $dir, string $name): void
     {
-        $ns = "SweflowModules\\\\" . $name;
+        $ns    = "VupiUsModules\\" . $name;
         $class = $name . "ServiceProvider";
-        $content = "<?php\nnamespace $ns;\nuse Src\\Kernel\\Contracts\\ContainerInterface;\nuse Src\\Kernel\\Contracts\\ModuleProviderInterface;\nuse Src\\Kernel\\Contracts\\RouterInterface;\nclass $class implements ModuleProviderInterface\n{\n    public function registerRoutes(RouterInterface \$router): void\n    {\n        \$file = __DIR__ . '/../Routes/routes.php';\n        if (is_file(\$file)) {\n            \$r = \$router;\n            unset(\$router);\n            \$router = \$r;\n            require \$file;\n        }\n    }\n    public function boot(ContainerInterface \$container): void\n    {\n    }\n    public function describe(): array\n    {\n        return [];\n    }\n    public function onInstall(): void {}\n    public function onEnable(): void {}\n    public function onDisable(): void {}\n    public function onUninstall(): void {}\n}\n";
-        file_put_contents("$dir/src/Providers/$class.php", $content);
+        $content = <<<PHP
+<?php
+namespace {$ns};
+
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\ModuleProviderInterface;
+use Src\Kernel\Contracts\RouterInterface;
+
+class {$class} implements ModuleProviderInterface
+{
+    private string \$name = '{$name}';
+
+    public function registerRoutes(RouterInterface \$router): void
+    {
+        \$file = __DIR__ . '/../Routes/routes.php';
+        if (is_file(\$file)) {
+            require \$file;
+        }
+    }
+
+    public function boot(ContainerInterface \$container): void {}
+
+    public function describe(): array { return []; }
+
+    public function getName(): string { return \$this->name; }
+
+    public function setName(string \$name): void { \$this->name = \$name; }
+
+    /**
+     * Declara qual conexão este módulo usa.
+     * 'modules' = usa DB2_* (banco de módulos externos)
+     * 'core'    = usa DB_*  (banco principal do sistema)
+     * 'auto'    = o core decide (padrão para módulos externos = 'modules')
+     */
+    public function preferredConnection(): string { return 'modules'; }
+
+    public function onInstall(): void {}
+    public function onEnable(): void {}
+    public function onDisable(): void {}
+    public function onUninstall(): void {}
+}
+PHP;
+        file_put_contents("{$dir}/src/Providers/{$class}.php", $content);
     }
 
     private function createRoutes(string $dir, string $name): void
@@ -76,7 +117,7 @@ class MakePluginCommand
 
     private function createService(string $dir, string $name): void
     {
-        $ns = "SweflowModules\\\\" . $name;
+        $ns = "VupiUsModules\\" . $name;
         $class = $name . "Service";
         $content = "<?php\nnamespace $ns;\nclass $class\n{\n    public function status(): string\n    {\n        return 'ok';\n    }\n}\n";
         file_put_contents("$dir/src/Services/$class.php", $content);
@@ -97,9 +138,9 @@ class MakePluginCommand
     private function createReadme(string $dir, string $name, string $slug, string $capability, string $description): void
     {
         $tpl = [];
-        $tpl[] = "Sweflow {{PLUGIN_NAME}} Plugin";
+        $tpl[] = "Vupi.us {{PLUGIN_NAME}} Plugin";
         $tpl[] = "";
-        $tpl[] = "Plugin {{PLUGIN_NAME}} para a plataforma Sweflow API.";
+        $tpl[] = "Plugin {{PLUGIN_NAME}} para a plataforma Vupi.us API.";
         $tpl[] = "";
         $tpl[] = "{{DESCRIPTION}}";
         $tpl[] = "";
@@ -108,11 +149,11 @@ class MakePluginCommand
         $tpl[] = "- Capability {{CAPABILITY}}";
         $tpl[] = "- Rotas API para testes";
         $tpl[] = "- Migrations versionadas";
-        $tpl[] = "- Integração com sistema de plugins Sweflow";
+        $tpl[] = "- Integração com sistema de plugins Vupi.us";
         $tpl[] = "";
         $tpl[] = "Instalação";
         $tpl[] = "";
-        $tpl[] = "composer require sweflow/module-{{PLUGIN_SLUG}}";
+        $tpl[] = "composer require vupi.us/module-{{PLUGIN_SLUG}}";
         $tpl[] = "";
         $tpl[] = "Depois rode as migrations:";
         $tpl[] = "";
@@ -120,7 +161,7 @@ class MakePluginCommand
         $tpl[] = "";
         $tpl[] = "Ou apenas as migrations de plugins:";
         $tpl[] = "";
-        $tpl[] = "php sweflow plugin:migrate";
+        $tpl[] = "php vupi plugin:migrate";
         $tpl[] = "";
         $tpl[] = "Configuração (.env)";
         $tpl[] = "Adicione as variáveis no .env:";
@@ -130,7 +171,7 @@ class MakePluginCommand
         $tpl[] = "";
         $tpl[] = "Uso na API";
         $tpl[] = "";
-        $tpl[] = "O Sweflow utiliza injeção por contratos/capabilities.";
+        $tpl[] = "O Vupi.us utiliza injeção por contratos/capabilities.";
         $tpl[] = "";
         $tpl[] = "Rotas";
         $tpl[] = "GET /{{PLUGIN_SLUG}}/ping";
@@ -145,14 +186,14 @@ class MakePluginCommand
         $tpl[] = "- provides: [\"{{CAPABILITY}}\"]";
         $tpl[] = "";
         $tpl[] = "Desenvolvimento local";
-        $tpl[] = "composer require sweflow/module-{{PLUGIN_SLUG}}:*";
+        $tpl[] = "composer require vupi.us/module-{{PLUGIN_SLUG}}:*";
         $tpl[] = "";
         $tpl[] = "Atualizações";
-        $tpl[] = "composer update sweflow/module-{{PLUGIN_SLUG}}";
-        $tpl[] = "php sweflow plugin:migrate";
+        $tpl[] = "composer update vupi.us/module-{{PLUGIN_SLUG}}";
+        $tpl[] = "php vupi plugin:migrate";
         $tpl[] = "";
         $tpl[] = "Rollback";
-        $tpl[] = "php sweflow plugin:rollback {{PLUGIN_SLUG}}";
+        $tpl[] = "php vupi plugin:rollback {{PLUGIN_SLUG}}";
         $tpl[] = "";
         $tpl[] = "Licença";
         $tpl[] = "MIT License";

@@ -1,0 +1,9 @@
+parameters:
+    level: 8
+    paths:
+        - src
+
+    ignoreErrors: []
+
+includes:
+    - phpstan-security.neon

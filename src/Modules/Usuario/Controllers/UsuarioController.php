@@ -5,6 +5,7 @@ namespace Src\Modules\Usuario\Controllers;
 use DomainException;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\EmailThrottle;
 use Src\Kernel\Utils\ImageProcessor;
 use Src\Kernel\Utils\Sanitizer;
 use Src\Modules\Usuario\Entities\Usuario;
@@ -13,19 +14,15 @@ use Src\Modules\Usuario\Services\UsuarioServiceInterface;
 
 class UsuarioController
 {
-    private ?\PDO $pdo = null;
+    private bool $debug;
 
     public function __construct(
-        private UsuarioServiceInterface $service,
-        private ?\Src\Kernel\Contracts\EmailSenderInterface $emailSender = null
-    ) {}
-
-    private function pdo(): \PDO
-    {
-        if ($this->pdo === null) {
-            $this->pdo = \Src\Kernel\Database\PdoFactory::fromEnv();
-        }
-        return $this->pdo;
+        private readonly UsuarioServiceInterface              $service,
+        private readonly \Src\Kernel\Support\EmailThrottle   $emailThrottle,
+        private readonly ?\Src\Kernel\Contracts\EmailSenderInterface $emailSender = null,
+    ) {
+        $this->debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true'
+            || ($_ENV['APP_DEBUG'] ?? '') === '1';
     }
 
     // ── Registro público ──────────────────────────────────────────────────
@@ -85,7 +82,7 @@ class UsuarioController
 
             if (!$usuario) {
                 // Registra throttle mesmo assim para evitar enumeração por timing
-                $this->registrarReenvioVerificacao($email);
+                $this->tentarRegistrarReenvioVerificacao($email);
                 return Response::json(['status' => 'success', 'message' => $msgGenerica]);
             }
 
@@ -102,83 +99,60 @@ class UsuarioController
         }
     }
 
-    private function podeReenviarVerificacao(string $email): bool
+    /**
+     * Tenta registrar o throttle de verificação de forma atômica.
+     * Retorna true se autorizado e registrado, false se ainda no cooldown.
+     */
+    private function tentarRegistrarReenvioVerificacao(string $email): bool
     {
         try {
-            $stmt = $this->pdo()->prepare(
-                "SELECT sent_at FROM email_throttle WHERE type = 'verification' AND email = :email"
-            );
-            $stmt->execute([':email' => strtolower(trim($email))]);
-            $row = $stmt->fetch();
-            if (!$row) {
-                return true;
-            }
-            return (time() - strtotime($row['sent_at'])) >= 120;
+            return $this->emailThrottle->tryRecord('verification', $email);
         } catch (\Throwable) {
             return true;
         }
     }
 
-    private function registrarReenvioVerificacao(string $email): void
+    /**
+     * Gera token de verificação e envia e-mail de confirmação.
+     * Não envia se o e-mail já estiver verificado ou throttle ativo.
+     */
+    private function enviarEmailConfirmacaoRegistro(\Src\Modules\Usuario\Entities\Usuario $usuario): void
     {
-        try {
-            $pdo    = $this->pdo();
-            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-
-            if ($driver === 'pgsql') {
-                $pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('verification', :email, NOW())
-                     ON CONFLICT (type, email) DO UPDATE SET sent_at = NOW()"
-                )->execute([':email' => strtolower(trim($email))]);
-                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < NOW() - INTERVAL '3600 seconds'");
-            } else {
-                $pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES ('verification', :email, NOW())
-                     ON DUPLICATE KEY UPDATE sent_at = NOW()"
-                )->execute([':email' => strtolower(trim($email))]);
-                $pdo->exec("DELETE FROM email_throttle WHERE sent_at < DATE_SUB(NOW(), INTERVAL 3600 SECOND)");
-            }
-        } catch (\Throwable $e) {
-            error_log('[UsuarioController] throttle record failed: ' . $e->getMessage());
+        if ($this->emailSender === null || $usuario->isEmailVerificado()) {
+            return;
         }
+
+        // tryRecord é atômico — verifica cooldown e registra em uma única operação
+        if (!$this->tentarRegistrarReenvioVerificacao($usuario->getEmail())) {
+            return;
+        }
+
+        $this->dispararEmailVerificacao($usuario);
     }
 
     /**
-     * Gera token de verificação e envia e-mail de confirmação.
-     * Não envia se o e-mail já estiver verificado.
-     * Não envia se o throttle de 120s ainda estiver ativo.
+     * Envia e-mail de verificação sem verificar throttle.
+     * Usado por ações administrativas explícitas.
      */
-    private function enviarEmailConfirmacaoRegistro(\Src\Modules\Usuario\Entities\Usuario $usuario): void
+    private function enviarEmailVerificacaoForcado(\Src\Modules\Usuario\Entities\Usuario $usuario): void
     {
         if ($this->emailSender === null) {
             return;
         }
+        $this->dispararEmailVerificacao($usuario);
+    }
 
-        // Não envia se já verificado
-        if ($usuario->isEmailVerificado()) {
-            return;
-        }
-
-        // Throttle: evita disparos duplicados em menos de 120s
-        if (!$this->podeReenviarVerificacao($usuario->getEmail())) {
-            return;
-        }
-
+    /**
+     * Gera token, persiste e envia o e-mail de verificação.
+     * Lógica compartilhada entre envio normal (com throttle) e forçado (admin).
+     */
+    private function dispararEmailVerificacao(\Src\Modules\Usuario\Entities\Usuario $usuario): void
+    {
         try {
             $token = bin2hex(random_bytes(32));
             $this->service->salvarTokenVerificacaoEmail($usuario->getUuid()->toString(), $token);
 
-            // Registra throttle antes de enviar para evitar race condition
-            $this->registrarReenvioVerificacao($usuario->getEmail());
-
-            $base = rtrim($_ENV['APP_URL_FRONTEND'] ?? $_ENV['APP_URL'] ?? '', '/');
-            if ($base === '') {
-                $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
-                $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                $base   = $scheme . '://' . $host;
-            }
-            // Link aponta para o frontend — o frontend chama a API com o token
-            $link = $base . '/verificar-email?token=' . urlencode($token);
+            $link = \Src\Kernel\Support\UrlHelper::to('verificar-email?token=' . urlencode($token));
 
             $this->emailSender->sendConfirmation(
                 $usuario->getEmail(),
@@ -187,7 +161,7 @@ class UsuarioController
                 $_ENV['APP_LOGO_URL'] ?? null
             );
         } catch (\Throwable $e) {
-            error_log('[UsuarioController] Falha ao enviar e-mail de confirmação: ' . $e->getMessage());
+            error_log('[UsuarioController] Falha ao enviar e-mail de verificação: ' . $e->getMessage());
         }
     }
 
@@ -369,12 +343,10 @@ class UsuarioController
             }
 
             $body  = $request->body ?? [];
-            $dados = [];
-            if (isset($body['nome_completo'])) $dados['nome_completo'] = Sanitizer::string($body['nome_completo'], 150);
-            if (isset($body['username']))       $dados['username']      = Sanitizer::username($body['username']);
-            if (isset($body['url_avatar']))     $dados['url_avatar']    = Sanitizer::url($body['url_avatar']);
-            if (isset($body['url_capa']))       $dados['url_capa']      = Sanitizer::url($body['url_capa']);
-            if (isset($body['biografia']))      $dados['biografia']     = Sanitizer::text($body['biografia'], 500);
+            // Filtra apenas campos permitidos para perfil (sem email, senha e nivel_acesso)
+            $perfilKeys = ['nome_completo', 'username', 'url_avatar', 'url_capa', 'biografia'];
+            $bodyFiltrado = array_intersect_key($body, array_flip($perfilKeys));
+            $dados = $this->sanitizarCamposUsuario($bodyFiltrado);
 
             if (empty($dados)) {
                 return Response::json(['status' => 'error', 'message' => 'Nenhum campo válido enviado.'], 422);
@@ -419,11 +391,12 @@ class UsuarioController
             $uuid = $authUser->getUuid()->toString();
             $this->service->atualizar($uuid, ['email' => $email]);
 
-            // Reseta verificação e envia novo e-mail de confirmação para o novo endereço
+            // Reseta verificação no banco e envia e-mail de confirmação para o novo endereço.
+            // A ordem importa: resetar primeiro, depois buscar o objeto atualizado,
+            // para que isEmailVerificado() retorne false e o envio não seja bloqueado.
+            $this->service->resetarVerificacaoEmail($uuid);
             $usuarioAtualizado = $this->service->buscarPorUuid($uuid);
             if ($usuarioAtualizado) {
-                $this->service->resetarVerificacaoEmail($uuid);
-                $usuarioAtualizado->setEmailVerificado(false);
                 $this->enviarEmailConfirmacaoRegistro($usuarioAtualizado);
             }
 
@@ -547,7 +520,8 @@ class UsuarioController
     {
         $extMap = ['image/jpeg' => 'jpg', 'image/jpg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
         $ext    = $extMap[$mime] ?? 'jpg';
-        return $uuid . '_' . $tipo . '_' . time() . '.' . $ext;
+        // uniqid com more_entropy evita colisões em uploads simultâneos no mesmo segundo
+        return $uuid . '_' . $tipo . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
     }
 
     public function deletarMinhaConta(Request $request): Response
@@ -559,7 +533,7 @@ class UsuarioController
             }
 
             $body = $request->body ?? [];
-            $senha = (string) ($body['senha'] ?? $body['password'] ?? '');
+            $senha = Sanitizer::password($body['senha'] ?? $body['password'] ?? '');
             if ($senha === '' || !$authUser->verificarSenha($senha)) {
                 return Response::json(['status' => 'error', 'message' => 'Senha incorreta.'], 403);
             }
@@ -600,10 +574,13 @@ class UsuarioController
             $usernameHtml = htmlspecialchars($usuario->getUsername(), ENT_QUOTES, 'UTF-8');
             $avatar     = htmlspecialchars($usuario->getUrlAvatar() ?? '', ENT_QUOTES, 'UTF-8');
             $bio        = htmlspecialchars($usuario->getBiografia() ?? '', ENT_QUOTES, 'UTF-8');
-            $html = "<!doctype html><meta charset='utf-8'><title>{$nome}</title>"
-                  . ($avatar ? "<img src='{$avatar}' alt='Avatar'>" : '')
+            $html = "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'>"
+                  . "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+                  . "<title>{$nome}</title></head><body>"
+                  . ($avatar ? "<img src='{$avatar}' alt='Avatar de {$nome}'>" : '')
                   . "<h1>{$nome}</h1><p>@{$usernameHtml}</p>"
-                  . ($bio ? "<p>{$bio}</p>" : '');
+                  . ($bio ? "<p>{$bio}</p>" : '')
+                  . "</body></html>";
             return Response::html($html);
         } catch (\Throwable $e) {
             return Response::html('<h1>Erro interno</h1>', 500);
@@ -693,39 +670,6 @@ class UsuarioController
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    /**
-     * Envia e-mail de verificação sem verificar throttle.
-     * Usado por ações administrativas explícitas.
-     */
-    private function enviarEmailVerificacaoForcado(\Src\Modules\Usuario\Entities\Usuario $usuario): void
-    {
-        if ($this->emailSender === null) {
-            return;
-        }
-        try {
-            $token = bin2hex(random_bytes(32));
-            $this->service->salvarTokenVerificacaoEmail($usuario->getUuid()->toString(), $token);
-            $this->registrarReenvioVerificacao($usuario->getEmail());
-
-            $base = rtrim($_ENV['APP_URL_FRONTEND'] ?? $_ENV['APP_URL'] ?? '', '/');
-            if ($base === '') {
-                $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
-                $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                $base   = $scheme . '://' . $host;
-            }
-            $link = $base . '/verificar-email?token=' . urlencode($token);
-
-            $this->emailSender->sendConfirmation(
-                $usuario->getEmail(),
-                $usuario->getNomeCompleto(),
-                $link,
-                $_ENV['APP_LOGO_URL'] ?? null
-            );
-        } catch (\Throwable $e) {
-            error_log('[UsuarioController] Falha ao enviar e-mail de verificação: ' . $e->getMessage());
-        }
-    }
-
     private function serializar(Usuario $u): array
     {
         return [
@@ -757,6 +701,6 @@ class UsuarioController
 
     private function debug(\Throwable $e): ?string
     {
-        return ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? $e->getMessage() : null;
+        return $this->debug ? $e->getMessage() : null;
     }
 }

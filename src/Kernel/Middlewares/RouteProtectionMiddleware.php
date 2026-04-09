@@ -1,16 +1,19 @@
 <?php
+
 namespace Src\Kernel\Middlewares;
 
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\JwtDecoder;
 use Src\Kernel\Support\TokenExtractor;
 
 /**
  * Protege rotas que aceitam tanto token de usuário quanto token de API.
  * Sempre valida a assinatura JWT antes de inspecionar o payload.
+ *
+ * Nota: este middleware não verifica a blacklist de tokens revogados.
+ * Para rotas que exigem verificação de revogação, use AuthHybridMiddleware.
  */
 class RouteProtectionMiddleware implements MiddlewareInterface
 {
@@ -18,56 +21,34 @@ class RouteProtectionMiddleware implements MiddlewareInterface
     {
         $roles = $request->attribute('roles', []);
 
-        $secretApi  = trim((string)($_ENV['JWT_API_SECRET']  ?? getenv('JWT_API_SECRET')  ?? ''));
-        $secretUser = trim((string)($_ENV['JWT_SECRET']      ?? getenv('JWT_SECRET')      ?? ''));
-
-        if ($secretApi === '' || $secretUser === '') {
-            return Response::json(['error' => 'JWT secrets não configurados.'], 500);
+        $token = TokenExtractor::fromApiRequest();
+        if ($token === '') {
+            return Response::json(['error' => 'Token ausente.'], 401);
         }
 
-        // Extrai token do header Authorization Bearer ou X-API-KEY
-        $jwt         = TokenExtractor::fromBearer();
-        $apiKeyHeader = TokenExtractor::fromApiKey();
-
-        // Tenta validar como token de API (JWT_API_SECRET)
-        $decodedApi  = null;
-        $decodedUser = null;
-
-        if ($jwt !== '') {
-            try {
-                $decodedApi = JWT::decode($jwt, new Key($secretApi, 'HS256'));
-            } catch (\Throwable) {}
-
-            try {
-                $decodedUser = JWT::decode($jwt, new Key($secretUser, 'HS256'));
-            } catch (\Throwable) {}
-        } elseif ($apiKeyHeader !== '') {
-            // X-API-KEY só aceita token de API
-            try {
-                $decodedApi = JWT::decode($apiKeyHeader, new Key($secretApi, 'HS256'));
-            } catch (\Throwable) {}
-        }
-
-        // Rota com restrição de papel (role-based)
-        if (!empty($roles)) {
-            if ($decodedUser === null) {
-                return Response::json(['error' => 'Token de usuário inválido ou ausente.'], 401);
-            }
-            $userRole = $decodedUser->nivel_acesso ?? null;
-            if (!in_array($userRole, $roles, true)) {
-                return Response::json(['error' => 'Acesso restrito para este papel.'], 403);
+        // Token de API puro (tipo: 'api') — acesso sem usuário
+        if (JwtDecoder::isApiToken($token)) {
+            if (!empty($roles)) {
+                return Response::json(['error' => 'Token de API não suporta restrição por papel.'], 403);
             }
             return $next($request);
         }
 
-        // Rota de API pura: exige token de API válido com tipo='api'
-        if ($decodedApi !== null) {
-            $isApiToken = !empty($decodedApi->api_access) || ($decodedApi->tipo ?? '') === 'api';
-            if ($isApiToken) {
-                return $next($request);
+        // Token de usuário
+        try {
+            [$payload] = JwtDecoder::decodeUser($token);
+            JwtDecoder::validateUserClaims($payload);
+        } catch (\Throwable) {
+            return Response::json(['error' => 'Token inválido ou expirado.'], 401);
+        }
+
+        if (!empty($roles)) {
+            $userRole = $payload->nivel_acesso ?? null;
+            if (!in_array($userRole, $roles, true)) {
+                return Response::json(['error' => 'Acesso restrito para este papel.'], 403);
             }
         }
 
-        return Response::json(['error' => 'Acesso negado: token de API inválido ou ausente.'], 403);
+        return $next($request);
     }
 }

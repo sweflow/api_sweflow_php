@@ -31,9 +31,6 @@ class ImageProcessor
 
         $width = (int) $info[0];
         $height = (int) $info[1];
-        if ($width <= 0 || $height <= 0) {
-            return @move_uploaded_file($tmpPath, $destPath);
-        }
 
         $scale = min($maxWidth / $width, $maxHeight / $height, 1);
         $newWidth = (int) max(1, round($width * $scale));
@@ -46,7 +43,7 @@ class ImageProcessor
 
         $dst = imagecreatetruecolor($newWidth, $newHeight);
         if (!$dst) {
-            $src = null;
+            imagedestroy($src);
             return self::fallbackMove($tmpPath, $destPath);
         }
 
@@ -61,14 +58,13 @@ class ImageProcessor
 
         $saved = self::saveImage($dst, $destPath, $mime, $quality);
 
+        imagedestroy($src);
+        imagedestroy($dst);
+
         if (!$saved) {
-            $src = null;
-            $dst = null;
             return self::fallbackMove($tmpPath, $destPath);
         }
 
-        $src = null;
-        $dst = null;
         return true;
     }
 

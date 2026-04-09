@@ -4,6 +4,7 @@ namespace Src\Kernel\Nucleo;
 use ReflectionClass;
 use ReflectionNamedType;
 use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Exceptions\NotFoundException;
 
 class Container implements ContainerInterface
 {
@@ -20,7 +21,18 @@ class Container implements ContainerInterface
         ];
     }
 
-    public function make(string $abstract)
+    /**
+     * Ao clonar o container (ex: para módulos externos com PDO diferente),
+     * limpa as instâncias singleton para que sejam recriadas com os novos bindings.
+     * Os bindings são preservados — apenas as instâncias resolvidas são descartadas.
+     */
+    public function __clone()
+    {
+        $this->instances  = [];
+        $this->buildStack = [];
+    }
+
+    public function make(string $abstract): mixed
     {
         if (array_key_exists($abstract, $this->instances)) {
             return $this->instances[$abstract];
@@ -47,10 +59,10 @@ class Container implements ContainerInterface
             return $this->build($candidate);
         }
 
-        throw new \RuntimeException("Não há binding ou classe para {$abstract}");
+        throw new NotFoundException("Não há binding ou classe para {$abstract}");
     }
 
-    private function build(string $concrete)
+    private function build(string $concrete): mixed
     {
         if (isset($this->buildStack[$concrete])) {
             throw new \RuntimeException("Dependência Circular detectada: " . implode(' -> ', array_keys($this->buildStack)) . " -> " . $concrete);
@@ -99,22 +111,17 @@ class Container implements ContainerInterface
                 try {
                     $dependencies[] = $this->make($dependencyName);
                 } catch (\Throwable $e) {
-                    // Só engolimos o erro se for "Classe não encontrada" E o parâmetro for nullable.
-                    // Erros de runtime (ex: erro de sintaxe, db connection fail) devem explodir.
-                    
-                    $isMissingClass = str_contains($e->getMessage(), "Não há binding ou classe para");
-                    // Ou se for um ReflectionException de classe inexistente vindo do build
+                    // Engole apenas "binding/classe não encontrada" em parâmetros nullable.
+                    // Usa instanceof para não depender do texto da mensagem.
+                    $isNotFound = $e instanceof NotFoundException;
                     $isReflectionError = $e instanceof \ReflectionException;
-                    
-                    if (($isMissingClass || $isReflectionError) && $param->allowsNull()) {
-                         // Se tem valor default (ex: = null), usa ele. Senão usa null.
-                         if ($param->isDefaultValueAvailable()) {
-                             $dependencies[] = $param->getDefaultValue();
-                         } else {
-                             $dependencies[] = null;
-                         }
+
+                    if (($isNotFound || $isReflectionError) && $param->allowsNull()) {
+                        $dependencies[] = $param->isDefaultValueAvailable()
+                            ? $param->getDefaultValue()
+                            : null;
                     } else {
-                         throw $e;
+                        throw $e;
                     }
                 }
                 continue;
@@ -145,7 +152,7 @@ class Container implements ContainerInterface
         return class_exists($candidate) ? $candidate : null;
     }
 
-    private function resolveConcrete(callable|object|string $definition, string $abstract)
+    private function resolveConcrete(callable|object|string $definition, string $abstract): mixed
     {
         if (is_object($definition) && !($definition instanceof \Closure)) {
             return $definition;

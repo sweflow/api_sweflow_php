@@ -31,7 +31,7 @@ class RateLimitMiddlewareTest extends TestCase
         $_ENV['TRUST_PROXY']    = 'false';
         $_SERVER['REMOTE_ADDR'] = '10.0.0.1';
 
-        $this->storageDir = sys_get_temp_dir() . '/sweflow_rl_test_' . uniqid();
+        $this->storageDir = sys_get_temp_dir() . '/vupi_rl_test_' . uniqid();
         mkdir($this->storageDir, 0750, true);
     }
 
@@ -48,11 +48,10 @@ class RateLimitMiddlewareTest extends TestCase
 
     private function makeMw(int $limit = 3, int $window = 60): RateLimitMiddleware
     {
-        $mw = new RateLimitMiddleware($limit, $window, 'test.route', 0);
-        $ref = new \ReflectionProperty(RateLimitMiddleware::class, 'storageDir');
-        $ref->setAccessible(true);
-        $ref->setValue($mw, $this->storageDir);
-        return $mw;
+        return new RateLimitMiddleware(
+            $limit, $window, 'test.route', 0,
+            new \Src\Kernel\Support\Storage\FileRateLimitStorage($this->storageDir)
+        );
     }
 
     private function buildRequest(): Request

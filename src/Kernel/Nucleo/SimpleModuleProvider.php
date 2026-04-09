@@ -15,6 +15,8 @@ class SimpleModuleProvider implements ModuleProviderInterface
     private string $path;
     private array $routes = [];
     private array $metadata = [];
+    /** @var array<string,mixed>|null Cache do resultado de describe() */
+    private ?array $describeCache = null;
 
     public function __construct(string $name, string $path)
     {
@@ -25,26 +27,24 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     private function loadConfig(): void
     {
-        // Carrega rotas se existirem
-        $webRoutes = $this->path . '/Routes/web.php';
-        if (file_exists($webRoutes)) {
-            // Em vez de include direto que executa, vamos apenas salvar o caminho
-            // O registro real acontece em registerRoutes passando o router
-        }
-
-        // Carrega metadados (composer.json ou plugin.json)
         $composerJson = $this->path . '/composer.json';
         if (file_exists($composerJson)) {
-            $data = json_decode(file_get_contents($composerJson), true);
-            $this->metadata['description'] = $data['description'] ?? '';
-            $this->metadata['version'] = $data['version'] ?? '1.0.0';
+            $raw = file_get_contents($composerJson);
+            if ($raw !== false) {
+                $data = json_decode($raw, true) ?? [];
+                $this->metadata['description'] = $data['description'] ?? '';
+                $this->metadata['version']     = $data['version'] ?? '1.0.0';
+            }
         }
-        
+
         $pluginJson = $this->path . '/plugin.json';
         if (file_exists($pluginJson)) {
-            $data = json_decode(file_get_contents($pluginJson), true);
-            if (!empty($data['description'])) $this->metadata['description'] = $data['description'];
-            if (!empty($data['version'])) $this->metadata['version'] = $data['version'];
+            $raw = file_get_contents($pluginJson);
+            if ($raw !== false) {
+                $data = json_decode($raw, true) ?? [];
+                if (!empty($data['description'])) $this->metadata['description'] = $data['description'];
+                if (!empty($data['version']))     $this->metadata['version']     = $data['version'];
+            }
         }
     }
 
@@ -70,13 +70,30 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function registerRoutes(RouterInterface $router): void
     {
-        // Tenta achar arquivos de rotas e carrega TODOS que encontrar
-        // Padrão 1: raiz/Routes/web.php (Módulos Nativos)
-        // Padrão 2: raiz/src/Routes/routes.php (Plugins Sweflow instalados)
-        // Padrão 3: raiz/Routes/api.php
-        // Padrão 4: raiz/Routes/Routes.php
-        
-        $candidates = [
+        $realBase = realpath($this->path);
+        if ($realBase === false) {
+            return;
+        }
+
+        $found = false;
+        foreach (array_unique($this->routeCandidates()) as $f) {
+            $realFile = realpath($f);
+            if ($realFile !== false && str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
+                require $realFile;
+                $found = true;
+            }
+        }
+
+        if ($found && $router instanceof ModuleScopedRouter) {
+            $this->routes       = $router->getRegisteredRoutes();
+            $this->describeCache = null;
+        }
+    }
+
+    /** Retorna os caminhos candidatos de arquivos de rota deste módulo. */
+    private function routeCandidates(): array
+    {
+        return [
             $this->path . '/Routes/web.php',
             $this->path . '/Routes/api.php',
             $this->path . '/Routes/Routes.php',
@@ -84,27 +101,16 @@ class SimpleModuleProvider implements ModuleProviderInterface
             $this->path . '/src/Routes/web.php',
             $this->path . '/src/Routes/api.php',
         ];
-        
-        // Remove duplicatas (caso haja links simbolicos ou paths iguais)
-        $candidates = array_unique($candidates);
-        
-        $found = false;
-        foreach ($candidates as $f) {
-            if (file_exists($f)) {
-                require $f;
-                $found = true;
-            }
-        }
-
-        if ($found && $router instanceof ModuleScopedRouter) {
-             $this->routes = $router->getRegisteredRoutes();
-        }
     }
 
     public function describe(): array
     {
-        // Se as rotas ainda não foram populadas (módulo desativado não passa por registerRoutes),
-        // coleta-as agora usando um router collector temporário.
+        if ($this->describeCache !== null) {
+            return $this->describeCache;
+        }
+
+        // Coleta rotas via router temporário apenas se ainda não foram populadas
+        // (registerRoutes popula $this->routes durante o boot normal)
         if (empty($this->routes)) {
             $collector = new class implements RouterInterface {
                 public array $collected = [];
@@ -120,22 +126,17 @@ class SimpleModuleProvider implements ModuleProviderInterface
                 public function all(): array { return $this->collected; }
             };
 
-            $candidates = [
-                $this->path . '/Routes/web.php',
-                $this->path . '/Routes/api.php',
-                $this->path . '/Routes/Routes.php',
-                $this->path . '/src/Routes/routes.php',
-                $this->path . '/src/Routes/web.php',
-                $this->path . '/src/Routes/api.php',
-            ];
-            foreach (array_unique($candidates) as $f) {
-                if (file_exists($f)) {
-                    try {
-                        $router = $collector;
-                        include $f;
-                    } catch (\Throwable) {}
+            foreach (array_unique($this->routeCandidates()) as $f) {
+                    $realBase = realpath($this->path);
+                    $realFile = realpath($f);
+                    if ($realBase !== false && $realFile !== false
+                        && str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
+                        try {
+                            $router = $collector;
+                            include $realFile;
+                        } catch (\Throwable) {}
+                    }
                 }
-            }
             $this->routes = $collector->collected;
         }
         // Middlewares que indicam autenticação obrigatória (rota privada)
@@ -147,10 +148,11 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'OptionalAuthHybridMiddleware',
         ];
 
-        return [
+        return $this->describeCache = [
             'name'        => $this->name,
             'description' => $this->metadata['description'] ?? '',
             'version'     => $this->metadata['version'] ?? '1.0.0',
+            'connection'  => $this->preferredConnection(),
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
@@ -205,5 +207,33 @@ class SimpleModuleProvider implements ModuleProviderInterface
     public function onUninstall(): void
     {
         // Default empty implementation for simple modules
+    }
+
+    /**
+     * Lê o arquivo Database/connection.php do módulo para determinar a conexão.
+     * Se não existir, retorna 'auto' (core decide baseado na origem do módulo).
+     *
+     * Para definir a conexão no seu módulo, crie:
+     *   src/Modules/SeuModulo/Database/connection.php
+     * com o conteúdo:
+     *   <?php return 'core';    // usa DB_*
+     *   <?php return 'modules'; // usa DB2_*
+     */
+    public function preferredConnection(): string
+    {
+        $candidates = [
+            $this->path . '/Database/connection.php',
+            $this->path . '/src/Database/connection.php',
+            $this->path . '/database/connection.php',
+        ];
+        foreach ($candidates as $file) {
+            if (is_file($file)) {
+                $value = include $file;
+                if (is_string($value) && in_array($value, ['core', 'modules', 'auto'], true)) {
+                    return $value;
+                }
+            }
+        }
+        return 'auto';
     }
 }

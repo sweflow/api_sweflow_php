@@ -26,6 +26,7 @@ class OptionalAuthHybridMiddleware implements MiddlewareInterface
 
         try {
             [$payload] = JwtDecoder::decodeUser($token);
+            JwtDecoder::validateUserClaims($payload);
 
             if ($this->blacklistRepo->isRevoked($payload->jti ?? '')) {
                 return $next($request);

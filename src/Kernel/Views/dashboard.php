@@ -94,9 +94,9 @@
             <?php if (!empty($logo_url)): ?>
                 <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" />
             <?php else: ?>
-                <img src="/favicon.ico" alt="Sweflow" class="dash-brand-img" />
+                <img src="/favicon.ico" alt="Vupi.us" class="dash-brand-img" />
             <?php endif; ?>
-            <span class="dash-brand-name">Sweflow <span class="dash-brand-accent">API</span></span>
+            <span class="dash-brand-name">Vupi.us <span class="dash-brand-accent">API</span></span>
         </a>
     </div>
 
@@ -203,8 +203,10 @@
                 <div class="dash-sidenav-section">
                     <span class="dash-sidenav-label">Configuração</span>
                     <a href="#capabilities"        class="dash-sidenav-link"><i class="fa-solid fa-plug"></i> Capacidades</a>
+                    <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
+                    <a href="/dashboard/configuracoes" class="dash-sidenav-link"><i class="fa-solid fa-sliders"></i> Configurações</a>
                 </div>
                 <div class="dash-sidenav-section">
                     <span class="dash-sidenav-label">Conta</span>
@@ -228,10 +230,10 @@
         <section class="dash-hero" id="metrics">
             <div class="dash-hero-text">
                 <div class="dash-hero-brand">
-                    <img src="/favicon.ico" alt="Sweflow API" class="dash-hero-logo" />
-                    <span class="dash-hero-brand-name">Sweflow <span style="color:#818cf8">API</span></span>
+                    <img src="/favicon.ico" alt="Vupi.us API" class="dash-hero-logo" />
+                    <span class="dash-hero-brand-name">Vupi.us <span style="color:#818cf8">API</span></span>
                 </div>
-                <h1 class="dash-hero-title">Dashboard <span id="hero-username"></span></h1>
+                <h1 class="dash-hero-title">Olá, <span id="hero-username">...</span> 👋</h1>
                 <p class="dash-hero-sub">Monitoramento em tempo real do núcleo da API.</p>
             </div>
         </section>
@@ -289,6 +291,9 @@
                     <span class="toggle-name">Login só após e-mail verificado</span>
                     <span class="toggle-tag" id="auth-verify-tag">Carregando...</span>
                     <small style="color:#64748b;">Exige <code>verificado_email = true</code> para novos logins.</small>
+                    <a id="auth-verify-marketplace-link" href="/modules/marketplace" style="display:none;margin-top:6px;font-size:0.82rem;color:#7c5cff;text-decoration:none;">
+                        <i class="fa-solid fa-store"></i> Instalar módulo de E-mail no Marketplace
+                    </a>
                 </div>
                 <label class="switch">
                     <input type="checkbox" id="require-email-verification" />
@@ -319,6 +324,22 @@
                 <h2 class="dash-section-title"><i class="fa-solid fa-plug"></i> Capacidades</h2>
             </div>
             <div id="capabilities-list"><span class="dash-loading">Carregando...</span></div>
+        </section>
+
+        <!-- Migrations -->
+        <section class="dash-card dash-section" id="migrations">
+            <div class="dash-section-header">
+                <div>
+                    <h2 class="dash-section-title"><i class="fa-solid fa-database"></i> Migrations</h2>
+                    <p class="dash-section-sub">Status das migrations por banco de dados.</p>
+                </div>
+                <div class="dash-section-actions">
+                    <button class="dash-btn-ghost" id="migrations-refresh-btn">
+                        <i class="fa-solid fa-rotate-right"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+            <div id="migrations-list"><span class="dash-loading">Carregando...</span></div>
         </section>
 
     </main>

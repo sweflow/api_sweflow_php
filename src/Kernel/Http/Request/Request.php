@@ -5,6 +5,7 @@ namespace Src\Kernel\Http\Request;
 class Request
 {
     private array $attributes = [];
+    /** @var array<string, string> */
     public array $params = [];
 
     public function __construct(
@@ -15,6 +16,13 @@ class Request
         public ?string $path = null,
         public ?string $rawBody = null
     ) {}
+
+    public function withParams(array $params): self
+    {
+        $clone = clone $this;
+        $clone->params = $params;
+        return $clone;
+    }
 
     public function withAttribute(string $key, $value): self
     {

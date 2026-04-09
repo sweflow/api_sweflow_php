@@ -23,8 +23,9 @@ class CapabilityListCommand
         // List all capabilities present in registry
         $mapFile = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'capabilities_registry.json';
         $map = [];
-        if (is_file($mapFile)) {
-            $map = json_decode(@file_get_contents($mapFile), true) ?: [];
+        if (is_file($mapFile) && is_readable($mapFile)) {
+            $raw = file_get_contents($mapFile);
+            $map = $raw !== false ? (json_decode($raw, true) ?: []) : [];
         }
         if (!$map) {
             echo "Nenhuma capability configurada\n";

@@ -70,7 +70,7 @@ class AuthHybridMiddleware implements MiddlewareInterface
 
     private function limparCookieAuth(): void
     {
-        if (isset($_COOKIE['auth_token'])) {
+        if (isset($_COOKIE['auth_token']) && !headers_sent()) {
             setcookie('auth_token', '', \Src\Kernel\Support\CookieConfig::options(time() - 3600));
         }
     }

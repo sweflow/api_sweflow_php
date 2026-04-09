@@ -1,3 +1,9 @@
+-- NOTA: Este arquivo SQL é executado pelo MigrateCommand/SetupCommand via exec() direto.
+-- Usa sintaxe PostgreSQL (BIGSERIAL, JSONB, TIMESTAMPTZ).
+-- Para MySQL, o Migrator usa migrations PHP com bifurcação de driver.
+-- Se você usa MySQL, estas tabelas são criadas automaticamente pelo index.php via CREATE TABLE IF NOT EXISTS
+-- com sintaxe MySQL (BIGINT AUTO_INCREMENT, JSON, DATETIME).
+
 CREATE TABLE IF NOT EXISTS audit_logs (
     id           BIGSERIAL    PRIMARY KEY,
     evento       VARCHAR(100) NOT NULL,

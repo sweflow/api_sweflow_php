@@ -100,26 +100,36 @@ class AuditLogger
      */
     private function detectarComportamentoSuspeito(string $evento, string $ip, ?string $usuarioUuid): void
     {
-        if ($evento !== 'auth.login.failed') {
+        if ($evento !== 'auth.login.failed' || $this->pdo === null) {
             return;
         }
 
         try {
-            // Conta falhas de login do mesmo IP nos últimos 5 minutos
-            $stmt = $this->pdo->prepare("
-                SELECT COUNT(*) FROM audit_logs
-                WHERE evento = 'auth.login.failed'
-                  AND ip = :ip
-                  AND criado_em > NOW() - INTERVAL '5 minutes'
-            ");
+            $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+            // Sintaxe de intervalo difere entre MySQL e PostgreSQL
+            // Valor gerado internamente — sem input do usuário
+            if ($driver === 'pgsql') {
+                $sql = "SELECT COUNT(*) FROM audit_logs
+                        WHERE evento = 'auth.login.failed'
+                          AND ip = :ip
+                          AND criado_em > NOW() - INTERVAL '5 minutes'";
+            } else {
+                $sql = "SELECT COUNT(*) FROM audit_logs
+                        WHERE evento = 'auth.login.failed'
+                          AND ip = :ip
+                          AND criado_em > DATE_SUB(NOW(), INTERVAL 5 MINUTE)";
+            }
+
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute([':ip' => $ip]);
             $count = (int) $stmt->fetchColumn();
 
             if ($count >= $this->loginFailThreshold) {
                 $this->emitirAlerta('BRUTE_FORCE_DETECTED', [
-                    'ip'           => $ip,
-                    'falhas_5min'  => $count,
-                    'threshold'    => $this->loginFailThreshold,
+                    'ip'            => $ip,
+                    'falhas_5min'   => $count,
+                    'threshold'     => $this->loginFailThreshold,
                     'acao_sugerida' => 'Bloquear IP temporariamente',
                 ]);
             }
@@ -153,29 +163,37 @@ class AuditLogger
 
     private function enviarWebhook(string $url, string $tipo, array $dados): void
     {
-        // Valida que a URL é HTTPS e não aponta para endereços internos (SSRF prevention)
         $parsed = parse_url($url);
         if (!$parsed || ($parsed['scheme'] ?? '') !== 'https') {
             return;
         }
-        $host = $parsed['host'] ?? '';
-        // Bloqueia IPs privados, loopback e metadados de cloud
-        if ($this->isInternalHost($host)) {
+        if ($this->isInternalHost($parsed['host'] ?? '')) {
+            return;
+        }
+
+        if (!function_exists('curl_init')) {
             return;
         }
 
         try {
-            $payload = json_encode(['alert' => $tipo, 'dados' => $dados, 'timestamp' => date('c')]);
-            $ctx = stream_context_create([
-                'http' => [
-                    'method'  => 'POST',
-                    'header'  => "Content-Type: application/json\r\nContent-Length: " . strlen($payload),
-                    'content' => $payload,
-                    'timeout' => 3,
-                    'ignore_errors' => true,
-                ],
+            $payload = (string) json_encode(['alert' => $tipo, 'dados' => $dados, 'timestamp' => date('c')]);
+            $ch = curl_init($url);
+            if ($ch === false) {
+                return;
+            }
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $payload,
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Content-Length: ' . strlen($payload)],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 3,
+                CURLOPT_CONNECTTIMEOUT => 2,
+                CURLOPT_FOLLOWLOCATION => false, // sem redirects — previne SSRF
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
             ]);
-            file_get_contents($url, false, $ctx);
+            curl_exec($ch);
+            curl_close($ch);
         } catch (\Throwable) {
             // Falha silenciosa
         }
@@ -188,10 +206,25 @@ class AuditLogger
         if (in_array(strtolower($host), $blocked, true)) {
             return true;
         }
-        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : (gethostbyname($host) ?: '');
-        if ($ip && !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+
+        // Se o host já é um IP, valida diretamente sem DNS lookup
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return !filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+        }
+
+        // Para hostnames, não fazemos DNS lookup (evita SSRF via DNS rebinding e latência).
+        // Bloqueia padrões de hostname interno comuns.
+        $hostLower = strtolower($host);
+        if (
+            str_ends_with($hostLower, '.internal') ||
+            str_ends_with($hostLower, '.local') ||
+            str_ends_with($hostLower, '.localhost') ||
+            str_starts_with($hostLower, '10.') ||
+            str_starts_with($hostLower, '192.168.')
+        ) {
             return true;
         }
+
         return false;
     }
 
@@ -203,6 +236,9 @@ class AuditLogger
         string $userAgent,
         string $endpoint
     ): void {
+        if ($this->pdo === null) {
+            return;
+        }
         try {
             $sql = "INSERT INTO audit_logs
                         (evento, usuario_uuid, contexto, ip, user_agent, endpoint, criado_em)

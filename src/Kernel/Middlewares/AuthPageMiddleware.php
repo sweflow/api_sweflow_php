@@ -62,9 +62,7 @@ class AuthPageMiddleware implements MiddlewareInterface
                     ->withAttribute('token_signed_with_api_secret', $assinadoComApiSecret)
             );
 
-        } catch (\Firebase\JWT\ExpiredException) {
-            return $this->redirecionar(true);
-        } catch (\Firebase\JWT\SignatureInvalidException) {
+        } catch (\Firebase\JWT\ExpiredException|\Firebase\JWT\SignatureInvalidException) {
             return $this->redirecionar(true);
         } catch (\Throwable) {
             return $this->redirecionar(false);

@@ -77,14 +77,22 @@ function initPage() {
     }
 
     async function checkSession() {
-        if (localStorage.getItem(SESSION_FLAG) !== '1') {
+        // Sem flag local não há sessão ativa — evita 401 desnecessário no console
+        let hasFlag = false;
+        try { hasFlag = localStorage.getItem(SESSION_FLAG) === '1'; } catch(_) {}
+        if (!hasFlag) {
             updateLoginLabels(false);
             return false;
         }
+
         try {
             const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-            if (res.ok) { updateLoginLabels(true); return true; }
-            if (res.status === 401 || res.status === 403) localStorage.removeItem(SESSION_FLAG);
+            if (res.ok) {
+                updateLoginLabels(true);
+                return true;
+            }
+            // Token expirado ou revogado — limpa flag
+            try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
         } catch (_) {}
         updateLoginLabels(false);
         return false;
@@ -94,14 +102,24 @@ function initPage() {
     async function handleLoginClick(e) {
         e.preventDefault();
         e.stopPropagation();
-        if (localStorage.getItem(SESSION_FLAG) !== '1') { openModal(); return; }
-        try {
-            const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-            if (res.ok) { window.location.href = '/dashboard'; return; }
-            localStorage.removeItem(SESSION_FLAG);
-        } catch (_) {
-            localStorage.removeItem(SESSION_FLAG);
+
+        // Verifica flag local antes de fazer qualquer request — evita 401 no console
+        let hasFlag = false;
+        try { hasFlag = localStorage.getItem(SESSION_FLAG) === '1'; } catch(_) {}
+
+        if (hasFlag) {
+            // Confirma sessão ainda válida antes de redirecionar
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                if (res.ok) {
+                    window.location.href = '/dashboard';
+                    return;
+                }
+                // Token expirado — limpa flag e abre modal
+                try { localStorage.removeItem(SESSION_FLAG); } catch(_) {}
+            } catch (_) {}
         }
+
         openModal();
     }
 
@@ -279,7 +297,7 @@ function initPage() {
         });
     })();
 
-    updateLoginLabels(localStorage.getItem(SESSION_FLAG) === '1');
+    updateLoginLabels(false); // estado inicial — checkSession() corrige se houver sessão ativa
     checkSession();
 }
 

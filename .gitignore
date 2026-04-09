@@ -1,8 +1,19 @@
 # Ignore diretórios:
 /vendor/
 /storage/ratelimit/
+/storage/threat/
+/storage/circuit/
 /storage/modules_cache.php
 /storage/backups/
+/storage/server.log
+/storage/server.pid
+/cache/
+/src/storage/ratelimit/
+/src/storage/threat/
+
+# Backups de banco de dados
+*.sql
+*.sql.gz
 
 # Ignore arquivos:
 .env
@@ -25,6 +36,10 @@ _token_clean.txt
 *.token.txt
 gerar_jwt.php
 
-# Scripts de debug locais
+# Scripts de debug e teste locais
 _debug_*.php
 _debug_*.txt
+diagnostico.php
+_test_*.php
+_check_*.php
+fix_producao.sh

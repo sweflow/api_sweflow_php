@@ -6,7 +6,6 @@ use PDO;
 use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Modules\Usuario\Entities\Usuario;
 use Src\Kernel\Utils\RelogioTimeZone;
-use Src\Modules\Usuario\Repositories\UsuarioAbstractRepository;
 
 class UsuarioRepository extends UsuarioAbstractRepository implements UserRepositoryInterface
 {
@@ -16,103 +15,77 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
     }
 
     /**
-     * Salva um usuário no banco de dados
-     *
-     * @param Usuario $usuario
-     * @return void
+     * Salva (upsert) um usuário no banco de dados.
+     * Usa INSERT ... ON DUPLICATE KEY UPDATE (MySQL) ou ON CONFLICT DO UPDATE (PostgreSQL)
+     * para evitar a query extra de verificação de existência dentro da transação.
      */
     public function salvar(Usuario $usuario): void
     {
         $this->executarQuery(function () use ($usuario) {
-            try {
-                $this->pdo->beginTransaction();
+            $agora  = RelogioTimeZone::agora()->format('Y-m-d H:i:s');
+            $uuid   = $usuario->getUuid()->toString();
+            $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-                $agora = RelogioTimeZone::agora()->format('Y-m-d H:i:sP');
-
-                $uuidObj = $usuario->getUuid();
-                if (!$uuidObj) {
-                    throw new \DomainException('Usuário deve possuir UUID antes de ser persistido');
-                }
-
-                $uuid = $uuidObj->toString();
-                $existe = $this->buscarPorUuid($uuid) !== null;
-
-                if ($existe) {
-                    // UPDATE
-                    $sql = "UPDATE {$this->tabela} SET 
-                                nome_completo = :nome_completo,
-                                email = :email,
-                                username = :username,
-                                senha_hash = :senha_hash,
-                                url_avatar = :url_avatar,
-                                url_capa = :url_capa,
-                                biografia = :biografia,
-                                nivel_acesso = :nivel_acesso,
-                                ativo = :ativo,
-                                status_verificacao = :status_verificacao,
-                                token_verificacao_email = :token_verificacao_email,
-                                atualizado_em = :atualizado_em
-                            WHERE {$this->colunaId} = :uuid";
-
-                    $stmt = $this->pdo->prepare($sql);
-                    $stmt->bindValue(':nome_completo', $usuario->getNomeCompleto());
-                    $stmt->bindValue(':email', $usuario->getEmail());
-                    $stmt->bindValue(':username', $usuario->getUsername());
-                    $stmt->bindValue(':senha_hash', $usuario->getSenhaHash());
-                    $stmt->bindValue(':url_avatar', $usuario->getUrlAvatar());
-                    $stmt->bindValue(':url_capa', $usuario->getUrlCapa());
-                    $stmt->bindValue(':biografia', $usuario->getBiografia());
-                    $stmt->bindValue(':nivel_acesso', $usuario->getNivelAcesso());
-                    $stmt->bindValue(':ativo', $usuario->isAtivo() ? 1 : 0, PDO::PARAM_INT);
-                    $stmt->bindValue(':status_verificacao', $usuario->getStatusVerificacao());
-                    $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
-                    $stmt->bindValue(':uuid', $uuid);
-                    $stmt->bindValue(':atualizado_em', $agora);
-                    $stmt->execute();
-                    if ($stmt->rowCount() === 0) {
-                        throw new \RuntimeException('Falha ao atualizar: Nenhuma linha afetada. Verifique se o UUID existe e se os dados realmente mudaram.');
-                    }
-                } else {
-                    // INSERT
-                    $sql = "INSERT INTO {$this->tabela} 
-                        (uuid, nome_completo, email, username, senha_hash, url_avatar, url_capa, biografia, nivel_acesso, ativo, status_verificacao, token_verificacao_email, criado_em) 
-                        VALUES (:uuid, :nome_completo, :email, :username, :senha_hash, :url_avatar, :url_capa, :biografia, :nivel_acesso, :ativo, :status_verificacao, :token_verificacao_email, :criado_em)";
-
-                    $stmt = $this->pdo->prepare($sql);
-                    $stmt->bindValue(':uuid', $uuid);
-                    $stmt->bindValue(':nome_completo', $usuario->getNomeCompleto());
-                    $stmt->bindValue(':email', $usuario->getEmail());
-                    $stmt->bindValue(':username', $usuario->getUsername());
-                    $stmt->bindValue(':senha_hash', $usuario->getSenhaHash());
-                    $stmt->bindValue(':url_avatar', $usuario->getUrlAvatar());
-                    $stmt->bindValue(':url_capa', $usuario->getUrlCapa());
-                    $stmt->bindValue(':biografia', $usuario->getBiografia());
-                    $stmt->bindValue(':nivel_acesso', $usuario->getNivelAcesso());
-                    $stmt->bindValue(':ativo', $usuario->isAtivo() ? 1 : 0, PDO::PARAM_INT);
-                    $stmt->bindValue(':status_verificacao', $usuario->getStatusVerificacao());
-                    $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
-                    $stmt->bindValue(':criado_em', $agora);
-                    $stmt->execute();
-                }
-
-                $this->pdo->commit();
-
-            } catch (\PDOException $e) {
-                $this->pdo->rollBack();
-
-                // Violação de UNIQUE / FK / constraint
-                if ($e->getCode() === '23000') {
-                    throw new \RuntimeException(
-                        'Já existe usuário com este email ou username'
-                    );
-                }
-
-                throw $e;
-
-            } catch (\Throwable $e) {
-                $this->pdo->rollBack();
-                throw $e;
+            if ($driver === 'pgsql') {
+                $sql = "INSERT INTO {$this->tabela}
+                            (uuid, nome_completo, email, username, senha_hash, url_avatar, url_capa,
+                             biografia, nivel_acesso, ativo, status_verificacao, token_verificacao_email, criado_em)
+                        VALUES
+                            (:uuid, :nome_completo, :email, :username, :senha_hash, :url_avatar, :url_capa,
+                             :biografia, :nivel_acesso, :ativo, :status_verificacao, :token_verificacao_email, :criado_em)
+                        ON CONFLICT ({$this->colunaId}) DO UPDATE SET
+                            nome_completo           = EXCLUDED.nome_completo,
+                            email                   = EXCLUDED.email,
+                            username                = EXCLUDED.username,
+                            senha_hash              = EXCLUDED.senha_hash,
+                            url_avatar              = EXCLUDED.url_avatar,
+                            url_capa                = EXCLUDED.url_capa,
+                            biografia               = EXCLUDED.biografia,
+                            nivel_acesso            = EXCLUDED.nivel_acesso,
+                            ativo                   = EXCLUDED.ativo,
+                            status_verificacao      = EXCLUDED.status_verificacao,
+                            token_verificacao_email = EXCLUDED.token_verificacao_email,
+                            atualizado_em           = NOW()";
+            } else {
+                $sql = "INSERT INTO {$this->tabela}
+                            (uuid, nome_completo, email, username, senha_hash, url_avatar, url_capa,
+                             biografia, nivel_acesso, ativo, status_verificacao, token_verificacao_email, criado_em)
+                        VALUES
+                            (:uuid, :nome_completo, :email, :username, :senha_hash, :url_avatar, :url_capa,
+                             :biografia, :nivel_acesso, :ativo, :status_verificacao, :token_verificacao_email, :criado_em)
+                        ON DUPLICATE KEY UPDATE
+                            nome_completo           = VALUES(nome_completo),
+                            email                   = VALUES(email),
+                            username                = VALUES(username),
+                            senha_hash              = VALUES(senha_hash),
+                            url_avatar              = VALUES(url_avatar),
+                            url_capa                = VALUES(url_capa),
+                            biografia               = VALUES(biografia),
+                            nivel_acesso            = VALUES(nivel_acesso),
+                            ativo                   = VALUES(ativo),
+                            status_verificacao      = VALUES(status_verificacao),
+                            token_verificacao_email = VALUES(token_verificacao_email),
+                            atualizado_em           = :atualizado_em";
             }
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindValue(':uuid',                    $uuid);
+            $stmt->bindValue(':nome_completo',           $usuario->getNomeCompleto());
+            $stmt->bindValue(':email',                   $usuario->getEmail());
+            $stmt->bindValue(':username',                $usuario->getUsername());
+            $stmt->bindValue(':senha_hash',              $usuario->getSenhaHash());
+            $stmt->bindValue(':url_avatar',              $usuario->getUrlAvatar());
+            $stmt->bindValue(':url_capa',                $usuario->getUrlCapa());
+            $stmt->bindValue(':biografia',               $usuario->getBiografia());
+            $stmt->bindValue(':nivel_acesso',            $usuario->getNivelAcesso());
+            $stmt->bindValue(':ativo',                   $usuario->isAtivo(), PDO::PARAM_BOOL);
+            $stmt->bindValue(':status_verificacao',      $usuario->getStatusVerificacao());
+            $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
+            $stmt->bindValue(':criado_em',               $agora);
+            if ($driver !== 'pgsql') {
+                $stmt->bindValue(':atualizado_em', $agora);
+            }
+            $stmt->execute();
         }, 'Erro ao salvar usuário no banco de dados');
     }
 
@@ -150,10 +123,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
         $stmt->bindValue(':token', $token);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row) {
-            return $this->mapearParaEntity($row);
-        }
-        return null;
+        return $row !== false ? $this->mapearParaEntity($row) : null;
     }
 
     /**
@@ -172,25 +142,17 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
      */
     public function buscarPorTokenVerificacaoEmail(string $token): ?Usuario
     {
-        // Aceita qualquer token, mesmo se expirado (a lógica de expiração não está no SQL)
-        // Mas o token deve existir e não ser vazio
-        if (empty($token)) return null;
-        
+        if (empty($token)) {
+            return null;
+        }
+
         $sql = "SELECT * FROM {$this->tabela} WHERE token_verificacao_email = :token LIMIT 1";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':token', $token);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row) {
-            return $this->mapearParaEntity($row);
-        }
-        
-        // Se não achou pelo token exato, pode ser que o usuário já tenha sido verificado e o token limpo.
-        // Nesse caso, não temos como saber QUAL usuário era pelo token (pois ele foi apagado).
-        // Então retornar null é correto. O controller vai dizer "Token inválido".
-        // Isso é o comportamento esperado se o token já foi usado.
-        
-        return null;
+
+        return $row !== false ? $this->mapearParaEntity($row) : null;
     }
 
     /**
@@ -198,16 +160,13 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
      */
     public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void
     {
-        $sql = "UPDATE {$this->tabela} SET verificado_email = :verificado WHERE {$this->colunaId} = :uuid";
-        // Se estiver verificando, limpamos o token. Se desverificando, talvez devessemos manter ou gerar novo?
-        // Por simplicidade, vamos limpar o token apenas se verificado=true.
         if ($verificado) {
-             $sql = "UPDATE {$this->tabela} SET verificado_email = TRUE, token_verificacao_email = NULL WHERE {$this->colunaId} = :uuid";
+            $sql = "UPDATE {$this->tabela} SET verificado_email = :v, token_verificacao_email = NULL WHERE {$this->colunaId} = :uuid";
         } else {
-             $sql = "UPDATE {$this->tabela} SET verificado_email = FALSE WHERE {$this->colunaId} = :uuid";
+            $sql = "UPDATE {$this->tabela} SET verificado_email = :v WHERE {$this->colunaId} = :uuid";
         }
-        
         $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':v', $verificado, PDO::PARAM_BOOL);
         $stmt->bindValue(':uuid', $uuid);
         $stmt->execute();
     }
@@ -268,7 +227,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                 LIMIT :limite OFFSET :offset";
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->bindValue(':nome', "%{$nome}%");
+        $stmt->bindValue(':nome', '%' . $nome . '%');
         $stmt->bindValue(':limite', $porPagina, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -357,13 +316,14 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
         return $this->executarQuery(function () use ($limite, $offset) {
             $sql = "SELECT username, atualizado_em, criado_em
                     FROM {$this->tabela}
-                    WHERE ativo = TRUE
+                    WHERE ativo = :ativo
                       AND username IS NOT NULL
                       AND username <> ''
                     ORDER BY criado_em DESC
                     LIMIT :limite OFFSET :offset";
 
             $stmt = $this->pdo->prepare($sql);
+            $stmt->bindValue(':ativo', true, PDO::PARAM_BOOL);
             $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();

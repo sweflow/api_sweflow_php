@@ -5,6 +5,7 @@ namespace Src\Kernel\Middlewares;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
+use Src\Kernel\Support\Storage\RateLimitStorageFactory;
 
 /**
  * Circuit Breaker — protege o backend de falhas em cascata.
@@ -14,15 +15,21 @@ use Src\Kernel\Http\Response\Response;
  *   OPEN    — muitas falhas detectadas, rejeita imediatamente sem tocar o backend
  *   HALF    — após cooldown, deixa passar uma requisição de teste
  *
+ * Storage:
+ *   Redis disponível → estado compartilhado entre todos os nós (escala horizontal)
+ *   Redis indisponível → arquivo local por nó (servidor único / dev)
+ *
  * Uso nas rotas que dependem de DB ou serviços externos:
  *   [CircuitBreakerMiddleware::class, ['service' => 'database', 'threshold' => 5, 'cooldown' => 30]]
  */
 class CircuitBreakerMiddleware implements MiddlewareInterface
 {
     private string $service;
-    private int    $threshold;  // falhas consecutivas para abrir o circuito
-    private int    $cooldown;   // segundos antes de tentar HALF
+    private int    $threshold;
+    private int    $cooldown;
     private string $storageDir;
+    private ?\Redis $redisConnection = null;
+    private bool $redisAttempted = false;
 
     public function __construct(
         string $service   = 'default',
@@ -54,7 +61,6 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
                     'X-CB-Service'  => $this->service,
                 ]);
             }
-            // Cooldown expirou — transita para HALF
             $state['status'] = 'HALF';
             $this->writeState($state);
         }
@@ -64,7 +70,6 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
             $response = $next($request);
             $status   = $response->getStatusCode();
 
-            // 5xx do backend = falha
             if ($status >= 500 && $status < 600) {
                 $this->recordFailure($state);
             } else {
@@ -75,8 +80,6 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
 
         } catch (\Throwable $e) {
             $this->recordFailure($state);
-
-            // Relança para o handler global tratar
             throw $e;
         }
     }
@@ -100,12 +103,10 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
     private function recordSuccess(array $state): void
     {
         if ($state['status'] === 'HALF') {
-            // Uma requisição bem-sucedida em HALF fecha o circuito
             $state['status']   = 'CLOSED';
             $state['failures'] = 0;
             $this->log('circuit_breaker.closed', $state);
         } elseif ($state['status'] === 'CLOSED') {
-            // Reseta contador de falhas em operação normal
             $state['failures']  = 0;
             $state['successes'] = ($state['successes'] ?? 0) + 1;
         }
@@ -113,42 +114,105 @@ class CircuitBreakerMiddleware implements MiddlewareInterface
         $this->writeState($state);
     }
 
-    // ── Persistência ──────────────────────────────────────
+    // ── Persistência (Redis ou File) ──────────────────────
+
+    private function redisKey(): string
+    {
+        return 'cb:' . preg_replace('/[^a-z0-9_]/', '_', $this->service);
+    }
 
     private function readState(): array
     {
+        $default = ['status' => 'CLOSED', 'failures' => 0, 'successes' => 0, 'opened_at' => 0];
+
+        // Tenta Redis primeiro — estado compartilhado entre nós
+        $redis = $this->connectRedis();
+        if ($redis !== null) {
+            $raw = $redis->get($this->redisKey());
+            if ($raw === false || $raw === null) {
+                return $default;
+            }
+            $data = json_decode((string) $raw, true);
+            return is_array($data) ? $data : $default;
+        }
+
+        // Fallback: arquivo local
         $file = $this->stateFile();
         if (!is_file($file)) {
-            return ['status' => 'CLOSED', 'failures' => 0, 'successes' => 0, 'opened_at' => 0];
+            return $default;
         }
-
         $raw = @file_get_contents($file);
         if ($raw === false) {
-            return ['status' => 'CLOSED', 'failures' => 0, 'successes' => 0, 'opened_at' => 0];
+            return $default;
         }
-
         $data = json_decode($raw, true);
-        return is_array($data) ? $data : ['status' => 'CLOSED', 'failures' => 0, 'successes' => 0, 'opened_at' => 0];
+        return is_array($data) ? $data : $default;
     }
 
     private function writeState(array $state): void
     {
+        $json = (string) json_encode($state);
+
+        // Tenta Redis primeiro
+        $redis = $this->connectRedis();
+        if ($redis !== null) {
+            // TTL = cooldown * 3 — estado expira automaticamente se não houver atividade
+            $redis->setex($this->redisKey(), $this->cooldown * 3, $json);
+            return;
+        }
+
+        // Fallback: arquivo local com flock
         if (!is_dir($this->storageDir)) {
             mkdir($this->storageDir, 0750, true);
         }
-
         $file = $this->stateFile();
         $fp   = fopen($file, 'c+');
         if (!$fp) {
             return;
         }
-
         flock($fp, LOCK_EX);
         ftruncate($fp, 0);
         rewind($fp);
-        fwrite($fp, json_encode($state));
+        fwrite($fp, $json);
         flock($fp, LOCK_UN);
         fclose($fp);
+    }
+
+    /**
+     * Cria e cacheia a conexão Redis por instância do middleware.
+     */
+    private function connectRedis(): ?\Redis
+    {
+        if ($this->redisAttempted) {
+            return $this->redisConnection;
+        }
+        $this->redisAttempted = true;
+
+        $host = trim($_ENV['REDIS_HOST'] ?? getenv('REDIS_HOST') ?: '');
+        if ($host === '' || !extension_loaded('redis')) {
+            return null;
+        }
+
+        try {
+            $r = new \Redis();
+            $r->connect(
+                $host,
+                (int) ($_ENV['REDIS_PORT'] ?? getenv('REDIS_PORT') ?: 6379),
+                2.0
+            );
+            $pass = trim($_ENV['REDIS_PASSWORD'] ?? getenv('REDIS_PASSWORD') ?: '');
+            if ($pass !== '') {
+                $r->auth($pass);
+            }
+            $r->select((int) ($_ENV['REDIS_DB'] ?? getenv('REDIS_DB') ?: 0));
+            $prefix = trim($_ENV['REDIS_PREFIX'] ?? getenv('REDIS_PREFIX') ?: 'vupi:');
+            $r->setOption(\Redis::OPT_PREFIX, $prefix);
+            $this->redisConnection = $r;
+        } catch (\Throwable) {
+            $this->redisConnection = null;
+        }
+
+        return $this->redisConnection;
     }
 
     private function stateFile(): string

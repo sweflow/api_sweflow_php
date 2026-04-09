@@ -1,11 +1,11 @@
 # ============================================================
-# Sweflow API — Makefile
+# Vupi API — Makefile
 # Uso: make <comando>
 # ============================================================
 
 .PHONY: help up down restart logs ps \
         up-pg up-mysql up-all \
-        install migrate seed test \
+        install migrate seed test analyse \
         shell-pg shell-mysql \
         caddy-start caddy-stop caddy-reload caddy-dev \
         clean reset
@@ -44,10 +44,10 @@ ps: ## Lista containers em execução
 # ── Banco de dados ───────────────────────────────────────
 
 shell-pg: ## Abre o psql no container PostgreSQL
-	$(COMPOSE) exec postgres psql -U $${DB_USUARIO:-admin} -d $${DB_NOME:-sweflow_db}
+	$(COMPOSE) exec postgres psql -U $${DB_USUARIO:-admin} -d $${DB_NOME:-vupi_db}
 
 shell-mysql: ## Abre o mysql no container MySQL
-	$(COMPOSE) exec mysql mysql -u $${DB_USUARIO:-admin} -p$${DB_SENHA:-123456} $${DB_NOME:-sweflow_db}
+	$(COMPOSE) exec mysql mysql -u $${DB_USUARIO:-admin} -p$${DB_SENHA:-123456} $${DB_NOME:-vupi_db}
 
 # ── Projeto ──────────────────────────────────────────────
 
@@ -55,14 +55,17 @@ install: ## Instala dependências PHP
 	composer install
 
 migrate: ## Executa migrations de todos os módulos
-	php sweflow migrate
+	php vupi migrate
 
 seed: ## Executa migrations + seeders
-	php sweflow migrate --seed
+	php vupi migrate --seed
 
 test: ## Roda os testes de segurança
 	@if [ -d storage/ratelimit ]; then rm -f storage/ratelimit/*.json; fi
 	php tests/SecurityTest.php http://localhost:$${APP_PORT:-3005}
+
+analyse: ## Análise estática com PHPStan (nível 6)
+	vendor/bin/phpstan analyse --memory-limit=256M
 
 # ── Setup completo ───────────────────────────────────────
 
@@ -77,7 +80,7 @@ setup: ## Setup completo: sobe banco, instala deps, migra e sobe servidor
 	@echo "▶ Instalando dependências..."
 	composer install --no-interaction
 	@echo "▶ Executando migrations..."
-	php sweflow migrate --seed
+	php vupi migrate --seed
 	@echo ""
 	@echo "✓ Setup concluído! Inicie o servidor:"
 	@echo "  php -S localhost:$${APP_PORT:-3005} index.php"
@@ -110,7 +113,7 @@ caddy-install: ## Instala o Caddy no Ubuntu/Debian
 	@echo "✓ Caddy instalado. Configure o Caddyfile e rode: make caddy-start"
 
 clean: ## Remove cache e arquivos temporários
-	rm -rf storage/ratelimit/*.json storage/modules_cache.php
+	rm -rf storage/ratelimit/*.json storage/threat/*.json storage/circuit/*.json storage/modules_cache.php
 	@echo "✓ Cache limpo"
 
 reset: ## Para containers e remove volumes (APAGA DADOS!)

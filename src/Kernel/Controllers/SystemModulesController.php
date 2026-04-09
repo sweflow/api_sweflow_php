@@ -21,9 +21,21 @@ class SystemModulesController
         $localPlugins  = $this->scanLocalPlugins($query);
         $remotePlugins = $this->searchPackagist($query);
 
-        // Merge: locais têm prioridade
+        // Merge: locais têm prioridade, mas downloads vêm do Packagist quando disponível
         $localNames = array_column($localPlugins, 'name');
-        $merged = $localPlugins;
+        $remoteByName = [];
+        foreach ($remotePlugins as $remote) {
+            $remoteByName[$remote['name']] = $remote;
+        }
+
+        $merged = [];
+        foreach ($localPlugins as $local) {
+            // Se o pacote existe no Packagist, usa os downloads reais de lá
+            if (isset($remoteByName[$local['name']])) {
+                $local['downloads'] = $remoteByName[$local['name']]['downloads'];
+            }
+            $merged[] = $local;
+        }
         foreach ($remotePlugins as $remote) {
             if (!in_array($remote['name'], $localNames, true)) {
                 $merged[] = $remote;
@@ -33,8 +45,8 @@ class SystemModulesController
         // Marca status de instalação
         $installed = $this->pluginManager->read();
         foreach ($merged as &$pkg) {
-            $shortName = preg_replace('/^(sweflow\/module-|sweflow\/|module-)/', '', $pkg['name']);
-            // Registry stores keys as lowercase (pluginName) — check both cases
+            // Remove qualquer prefixo vendor/module- para obter o nome curto
+            $shortName = preg_replace('/^[^\/]+\/(?:module-)?/', '', $pkg['name']);
             $pkg['installed'] = isset($installed[$shortName])
                 || isset($installed[strtolower($shortName)])
                 || isset($installed[ucfirst($shortName)]);
@@ -69,6 +81,7 @@ class SystemModulesController
                 'ignore_errors' => true,
             ]]);
 
+            // Busca vazia ou genérica — lista todos os pacotes do vendor sweflow
             if ($query === '' || $query === 'sweflow/module' || $query === 'sweflow') {
                 $url  = $baseUrl . '/packages/list.json?vendor=sweflow';
                 $json = file_get_contents($url, false, $context);
@@ -92,13 +105,21 @@ class SystemModulesController
             $json = file_get_contents($url, false, $context);
             $data = $json ? json_decode($json, true) : [];
 
-            return array_map(fn($r) => [
-                'name'        => $r['name'] ?? '',
-                'description' => $r['description'] ?? '',
-                'downloads'   => $r['downloads'] ?? 0,
-                'url'         => $r['url'] ?? '',
-                'repository'  => $r['repository'] ?? '',
-            ], is_array($data) ? ($data['results'] ?? []) : []);
+            $results = [];
+            foreach (is_array($data) ? ($data['results'] ?? []) : [] as $r) {
+                $name = $r['name'] ?? '';
+                if ($name === '') continue;
+                // Busca detalhes individuais para pegar downloads reais do Packagist
+                $detail = $this->fetchPackagistDetail($name, $context, $baseUrl);
+                $results[] = $detail ?? [
+                    'name'        => $name,
+                    'description' => $r['description'] ?? '',
+                    'downloads'   => $r['downloads'] ?? 0,
+                    'url'         => $r['url'] ?? '',
+                    'repository'  => $r['repository'] ?? '',
+                ];
+            }
+            return $results;
 
         } catch (\Throwable) {
             return [];
@@ -132,22 +153,21 @@ class SystemModulesController
 
     public function uninstall(Request $request): Response
     {
-        $body = $request->body;
-        $package = $body['package'] ?? null;
+        $body    = $request->body;
+        $package = trim((string) ($body['package'] ?? ''));
 
-        if (!$package) {
-            return Response::json(['message' => 'Pacote não informado'], 400);
+        if ($package === '') {
+            return Response::json(['message' => 'Pacote não informado.'], 400);
+        }
+
+        // Valida formato: vendor/package (ex: vupi.us/module-email)
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return Response::json(['message' => 'Formato de pacote inválido. Use: vendor/package.'], 422);
         }
 
         try {
-            $pluginName = $package;
-            if (str_starts_with($package, 'sweflow/module-')) {
-                $pluginName = str_replace('sweflow/module-', '', $package);
-            } elseif (str_starts_with($package, 'sweflow/')) {
-                $pluginName = str_replace('sweflow/', '', $package);
-            }
-
-            $shortName = ucfirst($pluginName);
+            $pluginName = $this->resolvePluginName($package);
+            $shortName  = $this->getShortName($pluginName);
 
             // 1. Remove do PluginManager (registry + modules_state)
             $this->pluginManager->uninstall($pluginName);
@@ -159,7 +179,7 @@ class SystemModulesController
             $this->removeModuleFromComposer($shortName, $package);
 
             // 4. Remove TODOS os diretórios do módulo (src/Modules/, vendor/, clone local)
-            $this->removeAllModuleDirectories($pluginName, $shortName);
+            $this->removeAllModuleDirectories($pluginName, $shortName, $package);
 
             // 5. Roda composer remove para limpar installed.json
             $this->tryComposerRemove($package);
@@ -179,25 +199,27 @@ class SystemModulesController
     /**
      * Remove todos os diretórios onde o módulo pode estar instalado.
      */
-    private function removeAllModuleDirectories(string $pluginName, string $shortName): void
+    private function removeAllModuleDirectories(string $pluginName, string $shortName, string $package = ''): void
     {
         $root       = dirname(__DIR__, 3);
         $simpleName = strtolower($pluginName);
+        $vendor     = $package !== '' && str_contains($package, '/') ? explode('/', $package)[0] : null;
 
         $candidates = [
             // src/Modules/Email
             $root . '/src/Modules/' . $shortName,
-            // vendor/sweflow/module-email
-            $root . '/vendor/sweflow/module-' . $simpleName,
-            // vendor/sweflow/email
-            $root . '/vendor/sweflow/' . $simpleName,
             // module-email/ (clone local na raiz)
             $root . '/module-' . $simpleName,
-            // plugins/sweflow-module-email
-            $root . '/plugins/sweflow-module-' . $simpleName,
             // plugins/email
             $root . '/plugins/' . $simpleName,
         ];
+
+        // Adiciona paths específicos do vendor do pacote
+        if ($vendor) {
+            $candidates[] = $root . '/vendor/' . $vendor . '/module-' . $simpleName;
+            $candidates[] = $root . '/vendor/' . $vendor . '/' . $simpleName;
+            $candidates[] = $root . '/plugins/' . $vendor . '-module-' . $simpleName;
+        }
 
         foreach ($candidates as $dir) {
             if (is_dir($dir)) {
@@ -235,7 +257,7 @@ class SystemModulesController
         $proc->run();
 
         // Also clear the modules cache file
-        $cacheFile = $root . '/storage/modules_cache.php';
+        $cacheFile = $root . '/storage/modules_cache.json';
         if (is_file($cacheFile)) {
             unlink($cacheFile);
         }
@@ -266,16 +288,26 @@ class SystemModulesController
 
     private function getPackageFromRequest(Request $request): ?string
     {
-        return $request->body['package'] ?? null;
+        $package = trim((string) ($request->body['package'] ?? ''));
+        if ($package === '') {
+            return null;
+        }
+        // Valida formato vendor/package
+        if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $package)) {
+            return null;
+        }
+        return $package;
     }
 
     private function resolvePluginName(string $package): string
     {
-        if (str_starts_with($package, 'sweflow/module-')) {
-            return str_replace('sweflow/module-', '', $package);
+        // Remove qualquer prefixo vendor/module- para obter o nome curto do plugin
+        // Ex: sweflow/module-email -> email | vupi.us/module-email -> email | sweflow/email -> email
+        if (preg_match('/^[^\/]+\/module-(.+)$/', $package, $m)) {
+            return $m[1];
         }
-        if (str_starts_with($package, 'sweflow/')) {
-            return str_replace('sweflow/', '', $package);
+        if (preg_match('/^[^\/]+\/(.+)$/', $package, $m)) {
+            return $m[1];
         }
         return $package;
     }
@@ -317,7 +349,8 @@ class SystemModulesController
         if ($this->composerAvailable()) {
             if ($this->tryComposerInstall($package)) {
                 // Copia de vendor/ para src/Modules/ para seguir o padrão
-                $vendorPath = dirname(__DIR__, 3) . '/vendor/sweflow/module-' . strtolower($pluginName);
+                // O vendor path é derivado do package name (ex: sweflow/module-email -> vendor/sweflow/module-email)
+                $vendorPath = dirname(__DIR__, 3) . '/vendor/' . $package;
                 if (is_dir($vendorPath)) {
                     $this->copyModuleToModules($vendorPath, $targetDir);
                     // Remove do vendor após copiar
@@ -472,10 +505,16 @@ class SystemModulesController
         }
 
         if ($changed) {
-            file_put_contents(
-                $composerPath,
-                json_encode($projectComposer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
-            );
+            $json = json_encode($projectComposer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $fp = fopen($composerPath, 'c+');
+            if ($fp) {
+                flock($fp, LOCK_EX);
+                ftruncate($fp, 0);
+                rewind($fp);
+                fwrite($fp, $json);
+                flock($fp, LOCK_UN);
+                fclose($fp);
+            }
             // Regenera autoload para que as classes sejam encontradas imediatamente
             if ($this->composerAvailable()) {
                 $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
@@ -522,7 +561,7 @@ class SystemModulesController
             return null;
         }
         try {
-            $context = stream_context_create(['http' => ['timeout' => 6, 'user_agent' => 'SweflowAPI/1.0']]);
+            $context = stream_context_create(['http' => ['timeout' => 6, 'user_agent' => 'Vupi.usAPI/1.0']]);
             $json = file_get_contents("https://packagist.org/packages/{$package}.json", false, $context);
             if (!$json) return null;
             $data = json_decode($json, true);
@@ -605,9 +644,9 @@ class SystemModulesController
 
     private function incrementDownload(string $package): void
     {
-        // Normalize to full package name
+        // Usa o package name completo como chave (ex: sweflow/module-email)
         if (!str_contains($package, '/')) {
-            $package = 'sweflow/module-' . strtolower($package);
+            return; // sem vendor, não normaliza
         }
         $stats = $this->loadStats();
         $stats[$package] = ($stats[$package] ?? 0) + 1;
@@ -635,27 +674,33 @@ class SystemModulesController
             return;
         }
 
-        $pkgLower = 'sweflow/module-' . strtolower($moduleName);
-        $pkgFull  = $packageName ?: $pkgLower;
+        $pkgFull  = $packageName ?: ('module-' . strtolower($moduleName));
         $changed  = false;
 
-        $changed = $this->removeComposerRequire($json, $pkgFull, $pkgLower) || $changed;
+        $changed = $this->removeComposerRequire($json, $pkgFull) || $changed;
         $changed = $this->removeComposerAutoload($json, $moduleName) || $changed;
         $changed = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
 
         if ($changed) {
-            file_put_contents($composerPath, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+            $json = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $fp = fopen($composerPath, 'c+');
+            if ($fp) {
+                flock($fp, LOCK_EX);
+                ftruncate($fp, 0);
+                rewind($fp);
+                fwrite($fp, $json);
+                flock($fp, LOCK_UN);
+                fclose($fp);
+            }
         }
     }
 
-    private function removeComposerRequire(array &$json, string $pkgFull, string $pkgLower): bool
+    private function removeComposerRequire(array &$json, string $pkgFull): bool
     {
         $changed = false;
-        foreach ([$pkgFull, $pkgLower] as $pkg) {
-            if (isset($json['require'][$pkg])) {
-                unset($json['require'][$pkg]);
-                $changed = true;
-            }
+        if (isset($json['require'][$pkgFull])) {
+            unset($json['require'][$pkgFull]);
+            $changed = true;
         }
         return $changed;
     }
@@ -681,7 +726,7 @@ class SystemModulesController
             return false;
         }
         $simpleName = strtolower($moduleName);
-        $pkgSimple  = strtolower(str_replace('sweflow/', '', $pkgFull));
+        $pkgSimple  = strtolower(preg_replace('/^[^\/]+\/(?:module-)?/', '', $pkgFull));
         $before     = count($json['repositories']);
         $json['repositories'] = array_values(array_filter(
             $json['repositories'],
@@ -704,24 +749,28 @@ class SystemModulesController
         $storageDir = dirname(__DIR__, 3) . '/storage';
         $registryFile = $storageDir . '/capabilities_registry.json';
         
-        if (!file_exists($registryFile)) {
+        if (!is_file($registryFile) || !is_readable($registryFile)) {
             return;
         }
         
         $json = file_get_contents($registryFile);
-        $map = $json ? json_decode($json, true) : [];
+        $map = ($json !== false) ? (json_decode($json, true) ?? []) : [];
         $changed = false;
         
-        // O plugin name salvo no registry pode variar (ex: 'sweflow-module-email', 'email', 'Email')
+        // O plugin name salvo no registry pode variar (ex: 'vupi.us-module-email', 'email', 'Email')
         // Vamos varrer e remover qualquer valor que pareça ser este módulo
         $candidates = [
             $moduleName,
-            ucfirst($moduleName), // Email
-            strtolower($moduleName), // email
-            'sweflow-module-' . strtolower($moduleName),
-            'module-' . strtolower($moduleName),
-            'sweflow/module-' . strtolower($moduleName)
+            ucfirst($moduleName),
+            strtolower($moduleName),
         ];
+        // Adiciona variações com prefixo se o package name foi passado
+        if (str_contains($moduleName, '/')) {
+            $short = preg_replace('/^[^\/]+\/(?:module-)?/', '', $moduleName);
+            $candidates[] = $short;
+            $candidates[] = ucfirst($short);
+            $candidates[] = strtolower($short);
+        }
         
         foreach ($map as $cap => $activePlugin) {
             // Verifica se o activePlugin está na lista de candidatos
@@ -732,54 +781,57 @@ class SystemModulesController
         }
         
         if ($changed) {
-            file_put_contents($registryFile, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $fp = fopen($registryFile, 'c+');
+            if ($fp) {
+                flock($fp, LOCK_EX);
+                ftruncate($fp, 0);
+                rewind($fp);
+                fwrite($fp, json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                flock($fp, LOCK_UN);
+                fclose($fp);
+            }
         }
     }
 
 
     private function scanLocalPlugins(string $query): array
     {
-        // Agora buscamos em src/Modules também
         $root = dirname(__DIR__, 3) . '/src/Modules';
         if (!is_dir($root)) return [];
-        
+
         $results = [];
-        $dirs = scandir($root);
-        
-        foreach ($dirs as $dir) {
+        foreach (scandir($root) as $dir) {
             if ($dir === '.' || $dir === '..') continue;
             if (!is_dir($root . '/' . $dir)) continue;
 
             $composerJson = $root . '/' . $dir . '/composer.json';
             $meta = [];
-            if (file_exists($composerJson)) {
-                $meta = json_decode(file_get_contents($composerJson), true) ?: [];
+            if (is_file($composerJson) && is_readable($composerJson)) {
+                $raw  = file_get_contents($composerJson);
+                $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
             }
 
-            // Normaliza nome
             $name = $meta['name'] ?? 'sweflow/module-' . strtolower($dir);
             $desc = $meta['description'] ?? 'Módulo do Sistema';
-            
-            // Filtro
-            if ($query && 
-                stripos($name, $query) === false && 
+
+            if ($query !== '' &&
+                stripos($name, $query) === false &&
                 stripos($desc, $query) === false &&
                 stripos($dir, $query) === false
             ) {
                 continue;
             }
 
-            // Ignora módulos de sistema protegidos (Auth, Usuario) para não poluir o Marketplace
-            if (in_array(strtolower($dir), ['auth', 'usuario'])) {
+            if (in_array(strtolower($dir), ['auth', 'usuario', 'documentacao'], true)) {
                 continue;
             }
 
             $results[] = [
-                'name' => $name,
+                'name'        => $name,
                 'description' => $desc . ' (src/Modules)',
-                'downloads' => $this->getDownloadCount($name),
-                'url' => '',
-                'repository' => ''
+                'downloads'   => $this->getDownloadCount($name),
+                'url'         => '',
+                'repository'  => '',
             ];
         }
         return $results;
@@ -792,19 +844,14 @@ class SystemModulesController
     }
 
 
-    private function decrementDownload(string $moduleName): void
+    private function decrementDownload(string $package): void
     {
-        // Normalize name
-        if (str_starts_with($moduleName, 'sweflow/module-')) {
-            $moduleName = 'sweflow/module-' . str_replace('sweflow/module-', '', $moduleName);
-        } elseif (!str_contains($moduleName, '/')) {
-            // Assume short name like 'email', convert to package name
-            $moduleName = 'sweflow/module-' . strtolower($moduleName);
+        if (!str_contains($package, '/')) {
+            return;
         }
-
         $stats = $this->loadStats();
-        if (isset($stats[$moduleName]) && $stats[$moduleName] > 0) {
-            $stats[$moduleName]--;
+        if (isset($stats[$package]) && $stats[$package] > 0) {
+            $stats[$package]--;
             $this->saveStats($stats);
         }
     }
@@ -812,16 +859,25 @@ class SystemModulesController
     private function loadStats(): array
     {
         $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
-        if (!file_exists($file)) {
+        if (!is_file($file) || !is_readable($file)) {
             return [];
         }
         $json = file_get_contents($file);
-        return $json ? (json_decode($json, true) ?? []) : [];
+        return $json !== false ? (json_decode($json, true) ?? []) : [];
     }
 
     private function saveStats(array $stats): void
     {
         $file = dirname(__DIR__, 3) . '/storage/marketplace_stats.json';
-        file_put_contents($file, json_encode($stats, JSON_PRETTY_PRINT));
+        $fp   = fopen($file, 'c+');
+        if (!$fp) {
+            return;
+        }
+        flock($fp, LOCK_EX);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 }
