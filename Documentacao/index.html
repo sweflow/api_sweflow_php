@@ -120,11 +120,38 @@
       <a class="docs-nav-link" data-page="ide-intro" href="#ide-intro">
         <i class="fa-solid fa-code"></i> Introdução à IDE
       </a>
+      <a class="docs-nav-link" data-page="ide-quickstart" href="#ide-quickstart">
+        <i class="fa-solid fa-rocket"></i> Início Rápido (5 min)
+      </a>
+      <a class="docs-nav-link" data-page="ide-exemplo" href="#ide-exemplo">
+        <i class="fa-solid fa-layer-group"></i> Exemplo Completo
+      </a>
+      <a class="docs-nav-link" data-page="ide-exemplo-middleware" href="#ide-exemplo-middleware">
+        <i class="fa-solid fa-shield-halved"></i> Exemplo com Middleware Própria
+      </a>
+      <a class="docs-nav-link" data-page="ide-fluxo" href="#ide-fluxo">
+        <i class="fa-solid fa-list-check"></i> Fluxo Completo
+      </a>
       <a class="docs-nav-link" data-page="ide-modulos" href="#ide-modulos">
         <i class="fa-solid fa-cube"></i> Criando Módulos
       </a>
+      <a class="docs-nav-link" data-page="ide-estrutura" href="#ide-estrutura">
+        <i class="fa-solid fa-folder-tree"></i> Estrutura do Módulo
+      </a>
       <a class="docs-nav-link" data-page="ide-rotas" href="#ide-rotas">
         <i class="fa-solid fa-route"></i> Rotas e Proteção
+      </a>
+      <a class="docs-nav-link" data-page="ide-middlewares" href="#ide-middlewares">
+        <i class="fa-solid fa-shield-halved"></i> Middlewares Disponíveis
+      </a>
+      <a class="docs-nav-link" data-page="ide-banco" href="#ide-banco">
+        <i class="fa-solid fa-database"></i> Banco de Dados
+      </a>
+      <a class="docs-nav-link" data-page="ide-analise" href="#ide-analise">
+        <i class="fa-solid fa-magnifying-glass-chart"></i> Análise de Código
+      </a>
+      <a class="docs-nav-link" data-page="ide-comunicacao" href="#ide-comunicacao">
+        <i class="fa-solid fa-arrows-left-right"></i> Comunicação entre Módulos
       </a>
       <a class="docs-nav-link" data-page="ide-conectar" href="#ide-conectar">
         <i class="fa-solid fa-globe"></i> Conectar App Externa
@@ -4189,6 +4216,1273 @@ ADMIN_PASSWORD=senha php tests/EnvConfigTest.php          # testes de configura�
     </section>
 
     <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — INÍCIO RÁPIDO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-quickstart">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-rocket"></i></div>
+        <div>
+          <h1>Início Rápido — Módulo em 5 minutos</h1>
+          <p>Crie um módulo de Tarefas (To-Do) completo e funcional do zero.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-circle-info"></i></div>
+        <div class="callout-body">
+          <strong>O que você vai criar</strong>
+          <p>Um módulo <code>Tarefa</code> com CRUD completo: listar, criar, buscar, atualizar e deletar tarefas. Com banco de dados, autenticação e rotas funcionando.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Não quer usar Controllers?</strong>
+          <p>Você pode usar closures diretamente nas rotas, sem criar nenhum Controller. O sistema aceita qualquer callable como handler. Veja o <strong>Exemplo Completo</strong> para o padrão com todas as camadas.</p>
+          <pre style="margin:8px 0 0;"><code>$router->get('/api/ping', function (Request $request): Response {
+    return Response::json(['pong' => true]);
+});</code></pre>
+        </div>
+      </div>
+
+      <h2>1. Criar o projeto na IDE</h2>
+      <ol>
+        <li>Acesse <code>/dashboard/ide</code> e clique em <strong>"Novo Projeto"</strong></li>
+        <li>Nome do projeto: <code>Módulo de Tarefas</code></li>
+        <li>Nome do módulo: <code>Tarefa</code> (PascalCase, sem espaços)</li>
+        <li>Marque <strong>"Gerar estrutura padrão automaticamente"</strong></li>
+        <li>Clique em <strong>"Criar Projeto"</strong></li>
+      </ol>
+      <p>A IDE abre com 16 arquivos já criados. Você só precisa editar 4 deles.</p>
+
+      <h2>2. Editar a Migration (criar a tabela)</h2>
+      <p>Abra <code>Database/Migrations/2026_01_01_000001_create_tarefas_table.php</code> e substitua o conteúdo por:</p>
+<pre><code>&lt;?php
+
+use PDO;
+
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS tarefas (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                titulo VARCHAR(255) NOT NULL,
+                concluida BOOLEAN NOT NULL DEFAULT FALSE,
+                user_id VARCHAR(255) NOT NULL,
+                criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS tarefas (
+                id CHAR(36) PRIMARY KEY,
+                titulo VARCHAR(255) NOT NULL,
+                concluida TINYINT(1) NOT NULL DEFAULT 0,
+                user_id VARCHAR(255) NOT NULL,
+                criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS tarefas");
+    },
+];</code></pre>
+
+      <h2>3. Editar o Repository (queries SQL)</h2>
+      <p>Abra <code>Repositories/TarefaRepository.php</code> e substitua por:</p>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Tarefa\Repositories;
+
+use PDO;
+
+final class TarefaRepository
+{
+    private string $table = 'tarefas';
+
+    public function __construct(private readonly PDO $pdo) {}
+
+    public function findByUser(string $userId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->table} WHERE user_id = ? ORDER BY criado_em DESC"
+        );
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function findById(string $id, string $userId): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->table} WHERE id = ? AND user_id = ?"
+        );
+        $stmt->execute([$id, $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row !== false ? $row : null;
+    }
+
+    public function create(array $data): array
+    {
+        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $id = $driver === 'pgsql'
+            ? $this->pdo->query('SELECT gen_random_uuid()')->fetchColumn()
+            : bin2hex(random_bytes(16));
+
+        $this->pdo->prepare(
+            "INSERT INTO {$this->table} (id, titulo, user_id) VALUES (?, ?, ?)"
+        )->execute([$id, $data['titulo'], $data['user_id']]);
+
+        return $this->findById($id, $data['user_id']) ?? ['id' => $id];
+    }
+
+    public function update(string $id, string $userId, array $data): void
+    {
+        $this->pdo->prepare(
+            "UPDATE {$this->table} SET titulo = ?, concluida = ? WHERE id = ? AND user_id = ?"
+        )->execute([$data['titulo'], $data['concluida'] ? 1 : 0, $id, $userId]);
+    }
+
+    public function delete(string $id, string $userId): void
+    {
+        $this->pdo->prepare(
+            "DELETE FROM {$this->table} WHERE id = ? AND user_id = ?"
+        )->execute([$id, $userId]);
+    }
+}</code></pre>
+
+      <h2>4. Editar o Controller (endpoints)</h2>
+      <p>Abra <code>Controllers/TarefaController.php</code> e substitua por:</p>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Tarefa\Controllers;
+
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+use Src\Modules\Tarefa\Repositories\TarefaRepository;
+
+final class TarefaController
+{
+    public function __construct(
+        private readonly TarefaRepository $repository
+    ) {}
+
+    public function listar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        return Response::json(['tarefas' => $this->repository->findByUser($userId)]);
+    }
+
+    public function criar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        $titulo = trim($request->body['titulo'] ?? '');
+
+        if ($titulo === '') {
+            return Response::json(['error' => 'O campo titulo e obrigatorio.'], 422);
+        }
+
+        $tarefa = $this->repository->create(['titulo' => $titulo, 'user_id' => $userId]);
+        return Response::json(['tarefa' => $tarefa], 201);
+    }
+
+    public function buscar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        $tarefa = $this->repository->findById($request->params['id'], $userId);
+
+        if ($tarefa === null) {
+            return Response::json(['error' => 'Tarefa nao encontrada.'], 404);
+        }
+        return Response::json(['tarefa' => $tarefa]);
+    }
+
+    public function atualizar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        $id = $request->params['id'];
+
+        if ($this->repository->findById($id, $userId) === null) {
+            return Response::json(['error' => 'Tarefa nao encontrada.'], 404);
+        }
+
+        $this->repository->update($id, $userId, [
+            'titulo'    => trim($request->body['titulo'] ?? ''),
+            'concluida' => (bool) ($request->body['concluida'] ?? false),
+        ]);
+        return Response::json(['updated' => true]);
+    }
+
+    public function deletar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        $id = $request->params['id'];
+
+        if ($this->repository->findById($id, $userId) === null) {
+            return Response::json(['error' => 'Tarefa nao encontrada.'], 404);
+        }
+
+        $this->repository->delete($id, $userId);
+        return Response::json(['deleted' => true]);
+    }
+}</code></pre>
+
+      <h2>5. Editar as Rotas</h2>
+      <p>Abra <code>Routes/web.php</code> e substitua por:</p>
+<pre><code>&lt;?php
+
+use Src\Modules\Tarefa\Controllers\TarefaController;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+$auth = [AuthHybridMiddleware::class];
+
+$router->get('/api/tarefa',       [TarefaController::class, 'listar'],    $auth);
+$router->post('/api/tarefa',      [TarefaController::class, 'criar'],     $auth);
+$router->get('/api/tarefa/{id}',  [TarefaController::class, 'buscar'],    $auth);
+$router->put('/api/tarefa/{id}',  [TarefaController::class, 'atualizar'], $auth);
+$router->delete('/api/tarefa/{id}', [TarefaController::class, 'deletar'], $auth);</code></pre>
+
+      <h2>6. Publicar e ativar</h2>
+      <ol>
+        <li>No painel lateral, clique em <strong>"Analisar código"</strong> — deve aparecer "Módulo aprovado"</li>
+        <li>Clique em <strong>"Publicar em src/Modules/"</strong> — a tabela <code>tarefas</code> é criada automaticamente</li>
+        <li>Clique em <strong>"Ativar"</strong> — as rotas ficam disponíveis</li>
+      </ol>
+
+      <h2>7. Testar as rotas</h2>
+      <p>Pressione <code>Ctrl + T</code> para abrir o API Route Tester.</p>
+
+      <p><strong>Primeiro, faça login para obter o token:</strong></p>
+<pre><code>POST /api/login
+Body (JSON):
+{
+  "login": "seu_usuario",
+  "senha": "sua_senha"
+}
+// Copie o access_token da resposta</code></pre>
+
+      <p><strong>Criar uma tarefa:</strong></p>
+<pre><code>POST /api/tarefa
+Auth: Bearer {seu_token}
+Body (JSON):
+{
+  "titulo": "Minha primeira tarefa"
+}
+// Resposta: { "tarefa": { "id": "...", "titulo": "Minha primeira tarefa", ... } }</code></pre>
+
+      <p><strong>Listar tarefas:</strong></p>
+<pre><code>GET /api/tarefa
+Auth: Bearer {seu_token}
+// Resposta: { "tarefas": [...] }</code></pre>
+
+      <p><strong>Marcar como concluída:</strong></p>
+<pre><code>PUT /api/tarefa/{id}
+Auth: Bearer {seu_token}
+Body (JSON):
+{
+  "titulo": "Minha primeira tarefa",
+  "concluida": true
+}</code></pre>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check" style="color:#3fb950"></i></div>
+        <div class="callout-body">
+          <strong>Pronto!</strong>
+          <p>Você tem um módulo de tarefas completo e funcional com banco de dados, autenticação e CRUD. Cada usuário só vê suas próprias tarefas. Para conectar um frontend, veja a página <strong>"Conectar App Externa"</strong>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — EXEMPLO COMPLETO (TODAS AS CAMADAS)
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-exemplo">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-layer-group"></i></div>
+        <div>
+          <h1>Exemplo Completo — Módulo com Todas as Camadas</h1>
+          <p>Módulo <strong>Nota</strong> com Controller, Service, Repository, Entity, Migration, Seeder e Routes — cada camada se comunicando com a próxima.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Módulo sem Controller também funciona</strong>
+          <p>Você pode usar closures diretamente nas rotas, sem criar um Controller. O sistema aceita qualquer callable como handler:</p>
+          <pre style="margin:8px 0 0;"><code>$router->get('/api/ping', function (Request $request): Response {
+    return Response::json(['pong' => true]);
+});</code></pre>
+        </div>
+      </div>
+
+      <h2>Estrutura do módulo Nota</h2>
+<pre><code>Nota/
+├── Controllers/NotaController.php
+├── Services/NotaService.php
+├── Repositories/NotaRepository.php
+├── Entities/Nota.php
+├── Database/
+│   ├── connection.php
+│   ├── Migrations/2026_01_01_000001_create_notas_table.php
+│   └── Seeders/NotaSeeder.php
+└── Routes/web.php</code></pre>
+
+      <h2>Database/connection.php</h2>
+<pre><code>&lt;?php
+return 'core';</code></pre>
+
+      <h2>Database/Migrations/2026_01_01_000001_create_notas_table.php</h2>
+<pre><code>&lt;?php
+
+use PDO;
+
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS notas (
+                id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+                titulo      VARCHAR(255) NOT NULL,
+                conteudo    TEXT         NOT NULL DEFAULT '',
+                user_id     VARCHAR(255) NOT NULL,
+                criado_em   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                atualizado_em TIMESTAMPTZ NULL
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS notas (
+                id            CHAR(36)     PRIMARY KEY,
+                titulo        VARCHAR(255) NOT NULL,
+                conteudo      TEXT         NOT NULL DEFAULT '',
+                user_id       VARCHAR(255) NOT NULL,
+                criado_em     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS notas");
+    },
+];</code></pre>
+
+      <h2>Database/Seeders/NotaSeeder.php</h2>
+<pre><code>&lt;?php
+
+use PDO;
+
+return function (PDO $pdo): void {
+    // Seeder de exemplo — insere uma nota de demonstração
+    // Em produção, remova ou adapte conforme necessário
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $id = $driver === 'pgsql'
+        ? $pdo->query('SELECT gen_random_uuid()')->fetchColumn()
+        : bin2hex(random_bytes(16));
+
+    $pdo->prepare(
+        "INSERT INTO notas (id, titulo, conteudo, user_id) VALUES (?, ?, ?, ?)"
+    )->execute([$id, 'Nota de boas-vindas', 'Bem-vindo ao módulo Nota!', 'sistema']);
+};</code></pre>
+
+      <h2>Entities/Nota.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Nota\Entities;
+
+final class Nota
+{
+    public function __construct(
+        private readonly string $id,
+        private string $titulo,
+        private string $conteudo,
+        private readonly string $userId,
+        private readonly string $criadoEm,
+    ) {}
+
+    public function getId(): string      { return $this->id; }
+    public function getTitulo(): string  { return $this->titulo; }
+    public function getConteudo(): string { return $this->conteudo; }
+    public function getUserId(): string  { return $this->userId; }
+    public function getCriadoEm(): string { return $this->criadoEm; }
+
+    public function atualizar(string $titulo, string $conteudo): void
+    {
+        $this->titulo   = $titulo;
+        $this->conteudo = $conteudo;
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'id'        => $this->id,
+            'titulo'    => $this->titulo,
+            'conteudo'  => $this->conteudo,
+            'user_id'   => $this->userId,
+            'criado_em' => $this->criadoEm,
+        ];
+    }
+
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            id:        $data['id'],
+            titulo:    $data['titulo'],
+            conteudo:  $data['conteudo'],
+            userId:    $data['user_id'],
+            criadoEm:  $data['criado_em'],
+        );
+    }
+}</code></pre>
+
+      <h2>Repositories/NotaRepository.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Nota\Repositories;
+
+use PDO;
+use Src\Modules\Nota\Entities\Nota;
+
+final class NotaRepository
+{
+    private string $table = 'notas';
+
+    public function __construct(private readonly PDO $pdo) {}
+
+    /** @return Nota[] */
+    public function findByUser(string $userId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->table} WHERE user_id = ? ORDER BY criado_em DESC"
+        );
+        $stmt->execute([$userId]);
+        return array_map(
+            fn(array $row) => Nota::fromArray($row),
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+    public function findById(string $id, string $userId): ?Nota
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->table} WHERE id = ? AND user_id = ?"
+        );
+        $stmt->execute([$id, $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row !== false ? Nota::fromArray($row) : null;
+    }
+
+    public function save(Nota $nota): void
+    {
+        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $now    = $driver === 'pgsql' ? 'NOW()' : 'CURRENT_TIMESTAMP';
+
+        $exists = $this->pdo->prepare(
+            "SELECT 1 FROM {$this->table} WHERE id = ?"
+        );
+        $exists->execute([$nota->getId()]);
+
+        if ($exists->fetchColumn()) {
+            $this->pdo->prepare(
+                "UPDATE {$this->table}
+                 SET titulo = ?, conteudo = ?, atualizado_em = {$now}
+                 WHERE id = ? AND user_id = ?"
+            )->execute([$nota->getTitulo(), $nota->getConteudo(), $nota->getId(), $nota->getUserId()]);
+        } else {
+            $this->pdo->prepare(
+                "INSERT INTO {$this->table} (id, titulo, conteudo, user_id)
+                 VALUES (?, ?, ?, ?)"
+            )->execute([$nota->getId(), $nota->getTitulo(), $nota->getConteudo(), $nota->getUserId()]);
+        }
+    }
+
+    public function delete(string $id, string $userId): void
+    {
+        $this->pdo->prepare(
+            "DELETE FROM {$this->table} WHERE id = ? AND user_id = ?"
+        )->execute([$id, $userId]);
+    }
+
+    private function generateId(): string
+    {
+        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        return $driver === 'pgsql'
+            ? $this->pdo->query('SELECT gen_random_uuid()')->fetchColumn()
+            : bin2hex(random_bytes(16));
+    }
+
+    public function createNew(string $titulo, string $conteudo, string $userId): Nota
+    {
+        $nota = Nota::fromArray([
+            'id'        => $this->generateId(),
+            'titulo'    => $titulo,
+            'conteudo'  => $conteudo,
+            'user_id'   => $userId,
+            'criado_em' => date('c'),
+        ]);
+        $this->save($nota);
+        return $nota;
+    }
+}</code></pre>
+
+      <h2>Services/NotaService.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Nota\Services;
+
+use Src\Modules\Nota\Entities\Nota;
+use Src\Modules\Nota\Repositories\NotaRepository;
+
+final class NotaService
+{
+    public function __construct(
+        private readonly NotaRepository $repository
+    ) {}
+
+    /** @return array[] */
+    public function listar(string $userId): array
+    {
+        return array_map(
+            fn(Nota $nota) => $nota->toArray(),
+            $this->repository->findByUser($userId)
+        );
+    }
+
+    public function criar(string $titulo, string $conteudo, string $userId): array
+    {
+        $titulo   = trim($titulo);
+        $conteudo = trim($conteudo);
+
+        if ($titulo === '') {
+            throw new \InvalidArgumentException('O titulo e obrigatorio.');
+        }
+
+        return $this->repository->createNew($titulo, $conteudo, $userId)->toArray();
+    }
+
+    public function buscar(string $id, string $userId): ?array
+    {
+        $nota = $this->repository->findById($id, $userId);
+        return $nota?->toArray();
+    }
+
+    public function atualizar(string $id, string $userId, string $titulo, string $conteudo): array
+    {
+        $nota = $this->repository->findById($id, $userId);
+        if ($nota === null) {
+            throw new \RuntimeException('Nota nao encontrada.', 404);
+        }
+
+        $titulo = trim($titulo);
+        if ($titulo === '') {
+            throw new \InvalidArgumentException('O titulo e obrigatorio.');
+        }
+
+        $nota->atualizar($titulo, trim($conteudo));
+        $this->repository->save($nota);
+        return $nota->toArray();
+    }
+
+    public function deletar(string $id, string $userId): void
+    {
+        if ($this->repository->findById($id, $userId) === null) {
+            throw new \RuntimeException('Nota nao encontrada.', 404);
+        }
+        $this->repository->delete($id, $userId);
+    }
+}</code></pre>
+
+      <h2>Controllers/NotaController.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Nota\Controllers;
+
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+use Src\Modules\Nota\Services\NotaService;
+
+final class NotaController
+{
+    public function __construct(
+        private readonly NotaService $service
+    ) {}
+
+    public function listar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        return Response::json(['notas' => $this->service->listar($userId)]);
+    }
+
+    public function criar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        try {
+            $nota = $this->service->criar(
+                $request->body['titulo']   ?? '',
+                $request->body['conteudo'] ?? '',
+                $userId
+            );
+            return Response::json(['nota' => $nota], 201);
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function buscar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        $nota   = $this->service->buscar($request->params['id'], $userId);
+        if ($nota === null) {
+            return Response::json(['error' => 'Nota nao encontrada.'], 404);
+        }
+        return Response::json(['nota' => $nota]);
+    }
+
+    public function atualizar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        try {
+            $nota = $this->service->atualizar(
+                $request->params['id'],
+                $userId,
+                $request->body['titulo']   ?? '',
+                $request->body['conteudo'] ?? ''
+            );
+            return Response::json(['nota' => $nota]);
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['error' => $e->getMessage()], 422);
+        } catch (\RuntimeException $e) {
+            return Response::json(['error' => $e->getMessage()], (int) $e->getCode() ?: 400);
+        }
+    }
+
+    public function deletar(Request $request): Response
+    {
+        $userId = $request->attribute('auth_user')->getUuid()->toString();
+        try {
+            $this->service->deletar($request->params['id'], $userId);
+            return Response::json(['deleted' => true]);
+        } catch (\RuntimeException $e) {
+            return Response::json(['error' => $e->getMessage()], (int) $e->getCode() ?: 400);
+        }
+    }
+}</code></pre>
+
+      <h2>Routes/web.php</h2>
+<pre><code>&lt;?php
+
+use Src\Modules\Nota\Controllers\NotaController;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+$auth = [AuthHybridMiddleware::class];
+
+$router->get('/api/nota',       [NotaController::class, 'listar'],    $auth);
+$router->post('/api/nota',      [NotaController::class, 'criar'],     $auth);
+$router->get('/api/nota/{id}',  [NotaController::class, 'buscar'],    $auth);
+$router->put('/api/nota/{id}',  [NotaController::class, 'atualizar'], $auth);
+$router->delete('/api/nota/{id}', [NotaController::class, 'deletar'], $auth);</code></pre>
+
+      <h2>Fluxo das camadas</h2>
+      <p>Cada requisição percorre o seguinte caminho:</p>
+<pre><code>Request HTTP
+    ↓
+AuthHybridMiddleware  ← verifica token JWT, popula auth_user
+    ↓
+NotaController        ← recebe Request, extrai userId, chama Service
+    ↓
+NotaService           ← valida dados, aplica regras de negócio
+    ↓
+NotaRepository        ← executa SQL, converte rows em Entities
+    ↓
+Nota (Entity)         ← representa o dado com comportamento
+    ↓
+Response::json()      ← retorna JSON para o cliente</code></pre>
+
+      <h2>Publicar e testar</h2>
+      <ol>
+        <li>Crie o projeto na IDE com nome do módulo <code>Nota</code></li>
+        <li>Substitua cada arquivo pelo código acima</li>
+        <li>Clique em <strong>"Analisar código"</strong> — deve aparecer "Módulo aprovado"</li>
+        <li>Clique em <strong>"Publicar em src/Modules/"</strong></li>
+        <li>Clique em <strong>"Ativar"</strong></li>
+        <li>Pressione <code>Ctrl + T</code> e teste:</li>
+      </ol>
+<pre><code>// 1. Login
+POST /api/login
+{"login": "seu_usuario", "senha": "sua_senha"}
+
+// 2. Criar nota
+POST /api/nota
+Authorization: Bearer {token}
+{"titulo": "Minha nota", "conteudo": "Conteudo da nota"}
+
+// 3. Listar notas
+GET /api/nota
+Authorization: Bearer {token}
+
+// 4. Atualizar nota
+PUT /api/nota/{id}
+Authorization: Bearer {token}
+{"titulo": "Titulo atualizado", "conteudo": "Novo conteudo"}
+
+// 5. Deletar nota
+DELETE /api/nota/{id}
+Authorization: Bearer {token}</code></pre>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — EXEMPLO COM MIDDLEWARE PRÓPRIA
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-exemplo-middleware">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <h1>Exemplo com Middleware Própria</h1>
+          <p>Módulo <strong>Comentario</strong> com todas as camadas + middleware própria que valida um header customizado antes de processar a requisição.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-circle-info"></i></div>
+        <div class="callout-body">
+          <strong>O que este exemplo demonstra</strong>
+          <p>Como criar uma middleware própria do módulo que verifica um header <code>X-App-Version</code> obrigatório. A middleware é usada nas rotas junto com <code>AuthHybridMiddleware</code>, mostrando como combinar middlewares do kernel com middlewares próprias.</p>
+        </div>
+      </div>
+
+      <h2>Estrutura do módulo Comentario</h2>
+<pre><code>Comentario/
+├── Controllers/ComentarioController.php
+├── Services/ComentarioService.php
+├── Repositories/ComentarioRepository.php
+├── Entities/Comentario.php
+├── Middlewares/AppVersionMiddleware.php   ← middleware própria
+├── Database/
+│   ├── connection.php
+│   ├── Migrations/2026_01_01_000001_create_comentarios_table.php
+│   └── Seeders/ComentarioSeeder.php
+└── Routes/web.php</code></pre>
+
+      <h2>Database/connection.php</h2>
+<pre><code>&lt;?php
+return 'core';</code></pre>
+
+      <h2>Database/Migrations/2026_01_01_000001_create_comentarios_table.php</h2>
+<pre><code>&lt;?php
+
+use PDO;
+
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS comentarios (
+                id        UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+                texto     TEXT         NOT NULL,
+                autor_id  VARCHAR(255) NOT NULL,
+                criado_em TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS comentarios (
+                id        CHAR(36)  PRIMARY KEY,
+                texto     TEXT      NOT NULL,
+                autor_id  VARCHAR(255) NOT NULL,
+                criado_em DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS comentarios");
+    },
+];</code></pre>
+
+      <h2>Database/Seeders/ComentarioSeeder.php</h2>
+<pre><code>&lt;?php
+
+use PDO;
+
+return function (PDO $pdo): void {
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $id = $driver === 'pgsql'
+        ? $pdo->query('SELECT gen_random_uuid()')->fetchColumn()
+        : bin2hex(random_bytes(16));
+
+    $pdo->prepare(
+        "INSERT INTO comentarios (id, texto, autor_id) VALUES (?, ?, ?)"
+    )->execute([$id, 'Primeiro comentario de exemplo!', 'sistema']);
+};</code></pre>
+
+      <h2>Entities/Comentario.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Comentario\Entities;
+
+final class Comentario
+{
+    public function __construct(
+        private readonly string $id,
+        private readonly string $texto,
+        private readonly string $autorId,
+        private readonly string $criadoEm,
+    ) {}
+
+    public function getId(): string      { return $this->id; }
+    public function getTexto(): string   { return $this->texto; }
+    public function getAutorId(): string { return $this->autorId; }
+    public function getCriadoEm(): string { return $this->criadoEm; }
+
+    public function toArray(): array
+    {
+        return [
+            'id'        => $this->id,
+            'texto'     => $this->texto,
+            'autor_id'  => $this->autorId,
+            'criado_em' => $this->criadoEm,
+        ];
+    }
+
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            id:        $data['id'],
+            texto:     $data['texto'],
+            autorId:   $data['autor_id'],
+            criadoEm:  $data['criado_em'],
+        );
+    }
+}</code></pre>
+
+      <h2>Repositories/ComentarioRepository.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Comentario\Repositories;
+
+use PDO;
+use Src\Modules\Comentario\Entities\Comentario;
+
+final class ComentarioRepository
+{
+    private string $table = 'comentarios';
+
+    public function __construct(private readonly PDO $pdo) {}
+
+    /** @return Comentario[] */
+    public function findAll(): array
+    {
+        $stmt = $this->pdo->query(
+            "SELECT * FROM {$this->table} ORDER BY criado_em DESC"
+        );
+        return array_map(
+            fn(array $row) => Comentario::fromArray($row),
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+    public function findById(string $id): ?Comentario
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->table} WHERE id = ?"
+        );
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row !== false ? Comentario::fromArray($row) : null;
+    }
+
+    public function create(string $texto, string $autorId): Comentario
+    {
+        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $id = $driver === 'pgsql'
+            ? $this->pdo->query('SELECT gen_random_uuid()')->fetchColumn()
+            : bin2hex(random_bytes(16));
+
+        $this->pdo->prepare(
+            "INSERT INTO {$this->table} (id, texto, autor_id) VALUES (?, ?, ?)"
+        )->execute([$id, $texto, $autorId]);
+
+        return $this->findById($id) ?? Comentario::fromArray([
+            'id'        => $id,
+            'texto'     => $texto,
+            'autor_id'  => $autorId,
+            'criado_em' => date('c'),
+        ]);
+    }
+
+    public function delete(string $id): void
+    {
+        $this->pdo->prepare(
+            "DELETE FROM {$this->table} WHERE id = ?"
+        )->execute([$id]);
+    }
+}</code></pre>
+
+      <h2>Services/ComentarioService.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Comentario\Services;
+
+use Src\Modules\Comentario\Entities\Comentario;
+use Src\Modules\Comentario\Repositories\ComentarioRepository;
+
+final class ComentarioService
+{
+    public function __construct(
+        private readonly ComentarioRepository $repository
+    ) {}
+
+    /** @return array[] */
+    public function listar(): array
+    {
+        return array_map(
+            fn(Comentario $c) => $c->toArray(),
+            $this->repository->findAll()
+        );
+    }
+
+    public function criar(string $texto, string $autorId): array
+    {
+        $texto = trim($texto);
+        if ($texto === '') {
+            throw new \InvalidArgumentException('O texto do comentario e obrigatorio.');
+        }
+        if (mb_strlen($texto) > 1000) {
+            throw new \InvalidArgumentException('O comentario deve ter no maximo 1000 caracteres.');
+        }
+        return $this->repository->create($texto, $autorId)->toArray();
+    }
+
+    public function buscar(string $id): ?array
+    {
+        return $this->repository->findById($id)?->toArray();
+    }
+
+    public function deletar(string $id): void
+    {
+        if ($this->repository->findById($id) === null) {
+            throw new \RuntimeException('Comentario nao encontrado.', 404);
+        }
+        $this->repository->delete($id);
+    }
+}</code></pre>
+
+      <h2>Middlewares/AppVersionMiddleware.php</h2>
+      <p>Esta middleware verifica se o cliente enviou o header <code>X-App-Version</code>. Se não enviou, bloqueia a requisição com erro 400. Isso simula um cenário real onde você quer garantir que apenas versões específicas do seu app possam usar a API.</p>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Comentario\Middlewares;
+
+use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+
+/**
+ * Verifica se o cliente enviou o header X-App-Version.
+ * Bloqueia requisicoes sem versao declarada.
+ */
+final class AppVersionMiddleware implements MiddlewareInterface
+{
+    private const VERSOES_SUPORTADAS = ['1.0', '1.1', '2.0'];
+
+    public function handle(Request $request, callable $next): Response
+    {
+        $versao = $request->header('X-App-Version');
+
+        // Header ausente
+        if ($versao === null || trim($versao) === '') {
+            return Response::json([
+                'error' => 'Header X-App-Version e obrigatorio.',
+                'hint'  => 'Envie o header: X-App-Version: 2.0',
+            ], 400);
+        }
+
+        // Versao nao suportada
+        if (!in_array(trim($versao), self::VERSOES_SUPORTADAS, true)) {
+            return Response::json([
+                'error'    => "Versao '{$versao}' nao suportada.",
+                'suportadas' => self::VERSOES_SUPORTADAS,
+            ], 400);
+        }
+
+        // Versao valida — passa para o proximo middleware/controller
+        return $next($request);
+    }
+}</code></pre>
+
+      <h2>Controllers/ComentarioController.php</h2>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Comentario\Controllers;
+
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+use Src\Modules\Comentario\Services\ComentarioService;
+
+final class ComentarioController
+{
+    public function __construct(
+        private readonly ComentarioService $service
+    ) {}
+
+    public function listar(Request $request): Response
+    {
+        return Response::json(['comentarios' => $this->service->listar()]);
+    }
+
+    public function criar(Request $request): Response
+    {
+        $autorId = $request->attribute('auth_user')->getUuid()->toString();
+        try {
+            $comentario = $this->service->criar(
+                $request->body['texto'] ?? '',
+                $autorId
+            );
+            return Response::json(['comentario' => $comentario], 201);
+        } catch (\InvalidArgumentException $e) {
+            return Response::json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function buscar(Request $request): Response
+    {
+        $comentario = $this->service->buscar($request->params['id']);
+        if ($comentario === null) {
+            return Response::json(['error' => 'Comentario nao encontrado.'], 404);
+        }
+        return Response::json(['comentario' => $comentario]);
+    }
+
+    public function deletar(Request $request): Response
+    {
+        try {
+            $this->service->deletar($request->params['id']);
+            return Response::json(['deleted' => true]);
+        } catch (\RuntimeException $e) {
+            return Response::json(['error' => $e->getMessage()], (int) $e->getCode() ?: 400);
+        }
+    }
+}</code></pre>
+
+      <h2>Routes/web.php</h2>
+      <p>Aqui combinamos três middlewares: <code>AppVersionMiddleware</code> (própria), <code>AuthHybridMiddleware</code> (kernel) e <code>AdminOnlyMiddleware</code> (kernel). A ordem importa — são executadas da esquerda para a direita.</p>
+<pre><code>&lt;?php
+
+use Src\Modules\Comentario\Controllers\ComentarioController;
+use Src\Modules\Comentario\Middlewares\AppVersionMiddleware;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+// Middleware própria do módulo + autenticação do kernel
+$protegido = [AppVersionMiddleware::class, AuthHybridMiddleware::class];
+
+// Apenas admin pode deletar
+$admin = [AppVersionMiddleware::class, AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
+
+// Leitura: exige versão do app, mas não precisa de login
+$publico = [AppVersionMiddleware::class];
+
+$router->get('/api/comentario',       [ComentarioController::class, 'listar'],  $publico);
+$router->post('/api/comentario',      [ComentarioController::class, 'criar'],   $protegido);
+$router->get('/api/comentario/{id}',  [ComentarioController::class, 'buscar'],  $publico);
+$router->delete('/api/comentario/{id}', [ComentarioController::class, 'deletar'], $admin);</code></pre>
+
+      <h2>Fluxo com middleware própria</h2>
+<pre><code>Request HTTP
+    ↓
+AppVersionMiddleware   ← verifica X-App-Version (middleware própria do módulo)
+    ↓
+AuthHybridMiddleware   ← verifica token JWT (middleware do kernel)
+    ↓
+ComentarioController   ← processa a requisição
+    ↓
+ComentarioService      ← valida e aplica regras de negócio
+    ↓
+ComentarioRepository   ← executa SQL, retorna Entities
+    ↓
+Response::json()       ← retorna JSON</code></pre>
+
+      <h2>Publicar e testar</h2>
+      <ol>
+        <li>Crie o projeto na IDE com nome do módulo <code>Comentario</code></li>
+        <li>Crie os arquivos com o código acima</li>
+        <li>Clique em <strong>"Analisar código"</strong> → <strong>"Publicar"</strong> → <strong>"Ativar"</strong></li>
+        <li>Pressione <code>Ctrl + T</code> e teste:</li>
+      </ol>
+
+<pre><code>// Sem o header — deve retornar erro 400
+GET /api/comentario
+// Resposta: {"error": "Header X-App-Version e obrigatorio.", "hint": "..."}
+
+// Com versao invalida — deve retornar erro 400
+GET /api/comentario
+X-App-Version: 3.0
+// Resposta: {"error": "Versao '3.0' nao suportada.", "suportadas": [...]}
+
+// Correto — deve listar comentarios
+GET /api/comentario
+X-App-Version: 2.0
+// Resposta: {"comentarios": [...]}
+
+// Criar comentario (precisa de login + versao)
+POST /api/comentario
+X-App-Version: 2.0
+Authorization: Bearer {token}
+{"texto": "Meu primeiro comentario!"}
+// Resposta: {"comentario": {"id": "...", "texto": "...", ...}}</code></pre>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check" style="color:#3fb950"></i></div>
+        <div class="callout-body">
+          <strong>Middleware própria funcionando</strong>
+          <p>A <code>AppVersionMiddleware</code> é executada antes de qualquer outra lógica. Se o header estiver errado, a requisição é bloqueada imediatamente — o controller nem chega a ser chamado. Você pode criar quantas middlewares próprias quiser e combiná-las livremente com as do kernel.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — FLUXO COMPLETO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-fluxo">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-list-check"></i></div>
+        <div>
+          <h1>Fluxo Completo — Do Zero ao Módulo em Produção</h1>
+          <p>Passo a passo completo para criar, testar e publicar um módulo funcional.</p>
+        </div>
+      </div>
+
+      <h2>Visão geral do fluxo</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(99,102,241,.12)"><span style="font-size:1.4rem;font-weight:800;color:#6366f1">1</span></div>
+          <h3>Criar projeto</h3>
+          <p>Acesse a IDE, clique em "Novo Projeto", preencha o nome e o nome do módulo.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(99,102,241,.12)"><span style="font-size:1.4rem;font-weight:800;color:#6366f1">2</span></div>
+          <h3>Desenvolver</h3>
+          <p>Edite os arquivos no editor Monaco. Use o terminal para testar código PHP.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(99,102,241,.12)"><span style="font-size:1.4rem;font-weight:800;color:#6366f1">3</span></div>
+          <h3>Analisar</h3>
+          <p>Clique em "Analisar código" para verificar erros antes de publicar.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><span style="font-size:1.4rem;font-weight:800;color:#3fb950">4</span></div>
+          <h3>Publicar</h3>
+          <p>Clique em "Publicar em src/Modules/". Migrations e seeders rodam automaticamente.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><span style="font-size:1.4rem;font-weight:800;color:#3fb950">5</span></div>
+          <h3>Ativar</h3>
+          <p>Clique em "Ativar" no painel lateral. As rotas ficam disponíveis imediatamente.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><span style="font-size:1.4rem;font-weight:800;color:#3fb950">6</span></div>
+          <h3>Testar</h3>
+          <p>Use o API Route Tester (Ctrl+T) para testar as rotas diretamente na IDE.</p>
+        </div>
+      </div>
+
+      <h2>Passo 1 — Criar o projeto</h2>
+      <ol>
+        <li>Acesse <code>/dashboard/ide</code></li>
+        <li>Clique em <strong>"Novo Projeto"</strong></li>
+        <li>Preencha: Nome do projeto (ex: "Loja de Produtos") e Nome do módulo em PascalCase (ex: <code>Produto</code>)</li>
+        <li>Marque <strong>"Gerar estrutura padrão"</strong></li>
+        <li>Clique em <strong>"Criar Projeto"</strong> — a IDE abre automaticamente</li>
+      </ol>
+
+      <h2>Passo 2 — Configurar o banco de dados</h2>
+      <p>Abra <code>Database/connection.php</code> e defina qual banco usar:</p>
+<pre><code>&lt;?php
+return 'core'; // usa DB_* do .env</code></pre>
+      <p>Abra <code>Database/Migrations/</code> e edite a migration para criar sua tabela:</p>
+<pre><code>'up' => function (PDO $pdo): void {
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    if ($driver === 'pgsql') {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS produtos (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            nome VARCHAR(255) NOT NULL,
+            preco DECIMAL(10,2) NOT NULL DEFAULT 0,
+            criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )");
+    } else {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS produtos (
+            id CHAR(36) PRIMARY KEY,
+            nome VARCHAR(255) NOT NULL,
+            preco DECIMAL(10,2) NOT NULL DEFAULT 0,
+            criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
+},</code></pre>
+
+      <h2>Passo 3 — Definir as rotas</h2>
+      <p>Abra <code>Routes/web.php</code> e defina as rotas com os middlewares adequados:</p>
+<pre><code>&lt;?php
+
+use Src\Modules\Produto\Controllers\ProdutoController;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+$auth  = [AuthHybridMiddleware::class];
+$admin = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
+
+$router->get('/api/produto',       [ProdutoController::class, 'listar'],    $auth);
+$router->get('/api/produto/{id}',  [ProdutoController::class, 'buscar'],    $auth);
+$router->post('/api/produto',      [ProdutoController::class, 'criar'],     $auth);
+$router->put('/api/produto/{id}',  [ProdutoController::class, 'atualizar'], $auth);
+$router->delete('/api/produto/{id}', [ProdutoController::class, 'deletar'], $admin);</code></pre>
+
+      <h2>Passo 4 — Analisar e corrigir</h2>
+      <ol>
+        <li>No painel lateral da IDE, clique em <strong>"Analisar código"</strong></li>
+        <li>Se houver erros, clique em <strong>"Corrigir automaticamente"</strong></li>
+        <li>Corrija manualmente os erros que não têm correção automática</li>
+        <li>Repita até não haver erros bloqueantes</li>
+      </ol>
+
+      <h2>Passo 5 — Publicar o módulo</h2>
+      <ol>
+        <li>Clique em <strong>"Publicar em src/Modules/"</strong> no painel lateral</li>
+        <li>O sistema copia os arquivos para <code>src/Modules/Produto/</code></li>
+        <li>As migrations são executadas automaticamente — a tabela <code>produtos</code> é criada</li>
+        <li>Os seeders são executados automaticamente</li>
+      </ol>
+
+      <h2>Passo 6 — Ativar o módulo</h2>
+      <ol>
+        <li>Clique em <strong>"Ativar"</strong> no painel lateral</li>
+        <li>As rotas <code>/api/produto</code> ficam disponíveis imediatamente</li>
+        <li>Para desativar, clique em <strong>"Desativar"</strong> — as rotas somem sem apagar os dados</li>
+      </ol>
+
+      <h2>Passo 7 — Testar as rotas</h2>
+      <ol>
+        <li>Pressione <code>Ctrl + T</code> para abrir o API Route Tester</li>
+        <li>Na aba <strong>"Rotas"</strong>, clique em <code>GET /api/produto</code></li>
+        <li>Na aba <strong>"Auth"</strong>, selecione <strong>Bearer Token</strong> e cole seu token JWT</li>
+        <li>Clique em <strong>"Enviar"</strong> — veja a resposta em tempo real</li>
+        <li>Salve a requisição clicando em <strong>"Salvar"</strong> para reutilizar depois</li>
+      </ol>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-key"></i></div>
+        <div class="callout-body">
+          <strong>Como obter o token JWT para testar</strong>
+          <p>No API Route Tester, faça um POST para <code>/api/login</code> com <code>{"login": "seu_usuario", "senha": "sua_senha"}</code>. O campo <code>access_token</code> da resposta é o Bearer token para usar nas outras requisições.</p>
+        </div>
+      </div>
+
+      <h2>Passo 8 — Conectar ao frontend (opcional)</h2>
+      <p>Se precisar conectar uma aplicação frontend externa, envie um e-mail para <a href="mailto:contato@vupi.us">contato@vupi.us</a> com a URL do seu frontend. O admin adicionará ao CORS e sua aplicação poderá fazer requisições à API.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
          PAGE: IDE — CRIANDO MÓDULOS
     ══════════════════════════════════════════════════════ -->
     <section class="docs-page" id="page-ide-modulos">
@@ -4488,6 +5782,510 @@ const { task } = await res.json();
 
       <h2>Salvar requisições</h2>
       <p>Clique em <strong>"Salvar"</strong> para guardar a requisição atual. Requisições salvas aparecem no painel lateral esquerdo e podem ser reutilizadas a qualquer momento com todos os dados preenchidos (URL, headers, token, body).</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — ESTRUTURA DO MÓDULO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-estrutura">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-folder-tree"></i></div>
+        <div>
+          <h1>Estrutura Completa do Módulo</h1>
+          <p>Entenda cada arquivo gerado pelo scaffold e como usá-los para construir módulos robustos.</p>
+        </div>
+      </div>
+
+      <h2>Visão geral</h2>
+      <p>Ao criar um módulo com scaffold, a IDE gera 16 arquivos organizados em camadas. Você tem total liberdade para adicionar, remover ou modificar qualquer arquivo.</p>
+
+<pre><code>MeuModulo/
+├── Controllers/MeuModuloController.php   ← Endpoints HTTP (CRUD)
+├── Services/MeuModuloService.php         ← Lógica de negócio
+├── Repositories/MeuModuloRepository.php  ← Acesso ao banco (PDO)
+├── Entities/MeuModulo.php                ← Entidade de domínio
+├── DTOs/
+│   ├── CreateMeuModuloDTO.php            ← Dados de entrada (criação)
+│   └── UpdateMeuModuloDTO.php            ← Dados de entrada (atualização)
+├── Middlewares/MeuModuloMiddleware.php   ← Middleware próprio
+├── Validators/MeuModuloValidator.php     ← Validação e sanitização
+├── Exceptions/MeuModuloException.php     ← Exceções de domínio
+├── Helpers/MeuModuloHelper.php           ← Funções utilitárias
+├── Config/config.php                     ← Configurações do módulo
+├── Database/
+│   ├── connection.php                    ← Seleção de banco
+│   ├── Migrations/...                    ← Criação de tabelas
+│   └── Seeders/MeuModuloSeeder.php       ← Dados iniciais
+├── Routes/web.php                        ← Definição de rotas
+└── README.md                             ← Documentação</code></pre>
+
+      <h2>Controller — Endpoints HTTP</h2>
+      <p>O controller recebe a requisição, valida os dados e retorna a resposta. Dependências são injetadas automaticamente pelo container.</p>
+<pre><code>final class ProdutoController
+{
+    public function __construct(
+        private readonly ProdutoService $service
+    ) {}
+
+    public function listar(Request $request): Response
+    {
+        $page = max(1, (int) ($request->query['page'] ?? 1));
+        return Response::json($this->service->listar($page, 20));
+    }
+
+    public function criar(Request $request): Response
+    {
+        $erro = ProdutoValidator::validarCriacao($request->body);
+        if ($erro !== null) {
+            return Response::json(['error' => $erro], 422);
+        }
+        $item = $this->service->criar(ProdutoValidator::sanitizar($request->body));
+        return Response::json(['produto' => $item], 201);
+    }
+}</code></pre>
+
+      <h2>Service — Lógica de negócio</h2>
+      <p>O service contém as regras de negócio e orquestra o repository. Nunca acessa o banco diretamente.</p>
+<pre><code>final class ProdutoService
+{
+    public function __construct(
+        private readonly ProdutoRepository $repository
+    ) {}
+
+    public function listar(int $page = 1, int $perPage = 20): array
+    {
+        $total = $this->repository->count();
+        $items = $this->repository->findPaginated($page, $perPage);
+        return ['data' => $items, 'total' => $total, 'page' => $page];
+    }
+
+    public function criar(array $data): array
+    {
+        return $this->repository->create($data);
+    }
+}</code></pre>
+
+      <h2>Repository — Acesso ao banco</h2>
+      <p>O repository encapsula todas as queries SQL. Recebe PDO via injeção de dependência.</p>
+<pre><code>final class ProdutoRepository
+{
+    private string $table = 'produtos';
+
+    public function __construct(private readonly PDO $pdo) {}
+
+    public function findPaginated(int $page, int $perPage): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->table} ORDER BY criado_em DESC LIMIT ? OFFSET ?"
+        );
+        $stmt->execute([$perPage, ($page - 1) * $perPage]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function create(array $data): array
+    {
+        $id = bin2hex(random_bytes(16));
+        $this->pdo->prepare(
+            "INSERT INTO {$this->table} (id, nome, preco) VALUES (?, ?, ?)"
+        )->execute([$id, $data['nome'], $data['preco']]);
+        return $this->findById($id) ?? ['id' => $id];
+    }
+}</code></pre>
+
+      <h2>Validator — Validação e sanitização</h2>
+<pre><code>final class ProdutoValidator
+{
+    public static function validarCriacao(array $data): ?string
+    {
+        if (empty(trim($data['nome'] ?? ''))) return 'Nome é obrigatório.';
+        if (!isset($data['preco']) || $data['preco'] <= 0) return 'Preço deve ser positivo.';
+        return null;
+    }
+
+    public static function sanitizar(array $data): array
+    {
+        return [
+            'nome'  => trim(strip_tags($data['nome'] ?? '')),
+            'preco' => (float) ($data['preco'] ?? 0),
+        ];
+    }
+}</code></pre>
+
+      <h2>Exception — Erros de domínio</h2>
+<pre><code>final class ProdutoException extends \DomainException
+{
+    private int $statusCode;
+
+    public function __construct(string $message, int $statusCode = 400)
+    {
+        parent::__construct($message);
+        $this->statusCode = $statusCode;
+    }
+
+    public function getStatusCode(): int { return $this->statusCode; }
+
+    public static function naoEncontrado(): self
+    {
+        return new self('Produto não encontrado.', 404);
+    }
+}</code></pre>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Liberdade total</strong>
+          <p>Você pode criar quantas classes, pastas e arquivos quiser dentro do módulo. O scaffold é apenas um ponto de partida. Adicione Events, Observers, Jobs, Caches, ou qualquer padrão que seu projeto precisar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — MIDDLEWARES DISPONÍVEIS
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-middlewares">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <h1>Middlewares Disponíveis</h1>
+          <p>Todos os middlewares do kernel que você pode usar nas rotas do seu módulo.</p>
+        </div>
+      </div>
+
+      <h2>Middlewares de autenticação</h2>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Descrição</th><th>Uso típico</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthHybridMiddleware</code></td><td>Aceita cookie ou Bearer token. Popula <code>$request->attribute('auth_user')</code></td><td>Rotas protegidas para usuários logados</td></tr>
+          <tr><td><code>AdminOnlyMiddleware</code></td><td>Exige nível <code>admin_system</code></td><td>Rotas administrativas</td></tr>
+          <tr><td><code>OptionalAuthHybridMiddleware</code></td><td>Autentica se token presente, mas não bloqueia</td><td>Rotas públicas com comportamento diferente para logados</td></tr>
+          <tr><td><code>ApiTokenMiddleware</code></td><td>Valida token de API (X-API-KEY)</td><td>Integrações machine-to-machine</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Middlewares de proteção</h2>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Parâmetros</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>RateLimitMiddleware</code></td><td><code>limit</code>, <code>window</code>, <code>key</code></td><td>Limita requisições por janela de tempo</td></tr>
+          <tr><td><code>CircuitBreakerMiddleware</code></td><td><code>service</code>, <code>threshold</code>, <code>cooldown</code></td><td>Abre o circuito após N falhas consecutivas</td></tr>
+          <tr><td><code>BotBlockerMiddleware</code></td><td>—</td><td>Bloqueia bots e scrapers</td></tr>
+          <tr><td><code>HttpsEnforcerMiddleware</code></td><td>—</td><td>Redireciona HTTP para HTTPS</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Exemplos de uso nas rotas</h2>
+<pre><code>&lt;?php
+
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
+use Src\Kernel\Middlewares\CircuitBreakerMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+// Apenas autenticado
+$auth = [AuthHybridMiddleware::class];
+
+// Apenas admin
+$admin = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
+
+// Com rate limit: 30 req/min
+$rateLimit = [RateLimitMiddleware::class, ['limit' => 30, 'window' => 60, 'key' => 'produto']];
+
+// Com circuit breaker
+$circuit = [CircuitBreakerMiddleware::class, ['service' => 'database', 'threshold' => 5, 'cooldown' => 30]];
+
+// Combinando múltiplos middlewares
+$router->post('/api/produto', [ProdutoController::class, 'criar'], [
+    AuthHybridMiddleware::class,
+    [RateLimitMiddleware::class, ['limit' => 10, 'window' => 60, 'key' => 'produto.criar']],
+    [CircuitBreakerMiddleware::class, ['service' => 'database', 'threshold' => 3, 'cooldown' => 20]],
+]);</code></pre>
+
+      <h2>Acessando o usuário autenticado no controller</h2>
+<pre><code>public function criar(Request $request): Response
+{
+    // Obtém o usuário logado (injetado pelo AuthHybridMiddleware)
+    $user = $request->attribute('auth_user');
+    $userId = $user->getUuid()->toString();
+    $username = $user->getUsername();
+    $nivel = $user->getNivelAcesso(); // 'admin_system' | 'usuario'
+
+    // Usa o userId para associar o recurso ao usuário
+    $item = $this->service->criar($request->body, $userId);
+    return Response::json(['produto' => $item], 201);
+}</code></pre>
+
+      <h2>Middleware próprio do módulo</h2>
+      <p>Você pode criar middlewares específicos para o seu módulo implementando <code>MiddlewareInterface</code>:</p>
+<pre><code>use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+
+final class ApiKeyMiddleware implements MiddlewareInterface
+{
+    public function handle(Request $request, callable $next): Response
+    {
+        $key = $request->header('X-Api-Key');
+        if ($key !== 'minha-chave-secreta') {
+            return Response::json(['error' => 'API Key inválida.'], 401);
+        }
+        return $next($request);
+    }
+}</code></pre>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — BANCO DE DADOS
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-banco">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-database"></i></div>
+        <div>
+          <h1>Banco de Dados no Módulo</h1>
+          <p>Como configurar conexões, criar migrations e seeders no seu módulo.</p>
+        </div>
+      </div>
+
+      <h2>Seleção de banco (connection.php)</h2>
+      <p>Cada módulo declara qual banco usa em <code>Database/connection.php</code>:</p>
+<pre><code>&lt;?php
+// Opções: 'core' | 'modules' | 'auto'
+return 'core';</code></pre>
+
+      <table class="docs-table">
+        <thead><tr><th>Valor</th><th>Banco usado</th><th>Variáveis .env</th></tr></thead>
+        <tbody>
+          <tr><td><code>'core'</code></td><td>Banco principal</td><td><code>DB_HOST</code>, <code>DB_NOME</code>, <code>DB_USUARIO</code>, <code>DB_SENHA</code></td></tr>
+          <tr><td><code>'modules'</code></td><td>Banco secundário</td><td><code>DB2_HOST</code>, <code>DB2_NOME</code>, <code>DB2_USUARIO</code>, <code>DB2_SENHA</code></td></tr>
+          <tr><td><code>'auto'</code></td><td>Detecta automaticamente</td><td>Usa DB2 se configurado, senão DB</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Migrations</h2>
+      <p>Migrations criam e removem tabelas. Devem ter funções <code>up</code> e <code>down</code> e verificar o driver do banco:</p>
+<pre><code>&lt;?php
+
+use PDO;
+
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS produtos (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                nome VARCHAR(255) NOT NULL,
+                preco DECIMAL(10,2) NOT NULL DEFAULT 0,
+                criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS produtos (
+                id CHAR(36) PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                preco DECIMAL(10,2) NOT NULL DEFAULT 0,
+                criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS produtos");
+    },
+];</code></pre>
+
+      <h2>Seeders</h2>
+      <p>Seeders inserem dados iniciais. São executados automaticamente após o deploy:</p>
+<pre><code>&lt;?php
+
+use PDO;
+
+return function (PDO $pdo): void {
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $id = $driver === 'pgsql'
+        ? $pdo->query('SELECT gen_random_uuid()')->fetchColumn()
+        : bin2hex(random_bytes(16));
+
+    $pdo->prepare("INSERT INTO produtos (id, nome, preco) VALUES (?, ?, ?)")
+        ->execute([$id, 'Produto Exemplo', 99.90]);
+};</code></pre>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Execução automática</strong>
+          <p>Ao publicar o módulo em <strong>src/Modules/</strong>, as migrations e seeders são executados automaticamente. Ao excluir o projeto, as tabelas são removidas automaticamente via <code>down()</code>.</p>
+        </div>
+      </div>
+
+      <h2>Injeção de PDO no Repository</h2>
+      <p>O container injeta o PDO automaticamente via constructor injection:</p>
+<pre><code>final class ProdutoRepository
+{
+    // PDO é injetado automaticamente pelo container
+    public function __construct(private readonly PDO $pdo) {}
+
+    public function findAll(): array
+    {
+        return $this->pdo
+            ->query("SELECT * FROM produtos ORDER BY criado_em DESC")
+            ->fetchAll(PDO::FETCH_ASSOC);
+    }
+}</code></pre>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — ANÁLISE DE CÓDIGO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-analise">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+        <div>
+          <h1>Análise de Código</h1>
+          <p>O que o analisador verifica antes de publicar seu módulo.</p>
+        </div>
+      </div>
+
+      <h2>Como funciona</h2>
+      <p>Antes de publicar, clique em <strong>"Analisar código"</strong> no painel lateral. O analisador verifica todos os arquivos PHP do módulo e classifica os problemas em 3 categorias:</p>
+
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(248,81,73,.12)"><i class="fa-solid fa-circle-xmark" style="color:#f85149"></i></div>
+          <h3>Erros (bloqueantes)</h3>
+          <p>Impedem a publicação. Devem ser corrigidos antes de publicar.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,.12)"><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b"></i></div>
+          <h3>Avisos</h3>
+          <p>Publicação permitida, mas recomenda-se corrigir para segurança e qualidade.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><i class="fa-solid fa-circle-info" style="color:#3fb950"></i></div>
+          <h3>Sugestões</h3>
+          <p>Melhorias opcionais de boas práticas.</p>
+        </div>
+      </div>
+
+      <h2>O que é verificado</h2>
+      <table class="docs-table">
+        <thead><tr><th>Código</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>SYNTAX_ERROR</code></td><td>Erro</td><td>Erro de sintaxe PHP no arquivo</td></tr>
+          <tr><td><code>WRONG_NAMESPACE</code></td><td>Erro</td><td>Namespace não segue o padrão <code>Src\Modules\{Nome}\</code></td></tr>
+          <tr><td><code>SHELL_EXECUTION</code></td><td>Erro</td><td>Uso de exec, system, shell_exec, passthru</td></tr>
+          <tr><td><code>EVAL_USAGE</code></td><td>Erro</td><td>Uso de eval()</td></tr>
+          <tr><td><code>DIRECT_HEADER</code></td><td>Erro</td><td>Uso de header() diretamente (use Response::json())</td></tr>
+          <tr><td><code>DIE_EXIT</code></td><td>Erro</td><td>Uso de die() ou exit() em controllers</td></tr>
+          <tr><td><code>ENV_FILE_ACCESS</code></td><td>Erro</td><td>Leitura direta do arquivo .env</td></tr>
+          <tr><td><code>PATH_TRAVERSAL</code></td><td>Erro</td><td>Tentativa de path traversal (../)</td></tr>
+          <tr><td><code>MISSING_UP</code></td><td>Erro</td><td>Migration sem função up()</td></tr>
+          <tr><td><code>INVALID_CONNECTION</code></td><td>Erro</td><td>connection.php com valor inválido</td></tr>
+          <tr><td><code>UNPROTECTED_WRITE_ROUTE</code></td><td>Aviso</td><td>Rota POST/PUT/DELETE sem middleware de autenticação</td></tr>
+          <tr><td><code>MISSING_DOWN</code></td><td>Aviso</td><td>Migration sem função down() para rollback</td></tr>
+          <tr><td><code>NO_DRIVER_CHECK</code></td><td>Aviso</td><td>Migration sem verificação de driver (MySQL/PostgreSQL)</td></tr>
+          <tr><td><code>POTENTIAL_SQL_INJECTION</code></td><td>Aviso</td><td>Concatenação de variáveis em queries SQL</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Correção automática</h2>
+      <p>Clique em <strong>"Corrigir automaticamente"</strong> para que a IDE corrija automaticamente os problemas que têm solução automática: migrations sem up/down, rotas sem middleware, uso de header() direto, etc.</p>
+
+      <div class="callout warning">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Prefixos de URI reservados</strong>
+          <p>Módulos não podem registrar rotas nos prefixos: <code>/api/auth/</code>, <code>/api/login</code>, <code>/api/usuario</code>, <code>/api/system/</code>, <code>/api/ide/</code>, <code>/dashboard</code>. Use prefixos próprios como <code>/api/meumodulo/</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — COMUNICAÇÃO ENTRE MÓDULOS
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-comunicacao">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-arrows-left-right"></i></div>
+        <div>
+          <h1>Comunicação entre Módulos</h1>
+          <p>Como usar classes de outros módulos e declarar dependências no seu módulo.</p>
+        </div>
+      </div>
+
+      <h2>Usar o Service de outro módulo</h2>
+      <p>O container injeta automaticamente qualquer classe disponível. Para usar o <code>UsuarioService</code> no seu módulo, basta declarar no construtor:</p>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Pedido\Services;
+
+use Src\Modules\Usuario\Services\UsuarioService;
+
+final class PedidoService
+{
+    // Container injeta UsuarioService automaticamente
+    public function __construct(
+        private readonly PedidoRepository $repository,
+        private readonly UsuarioService $usuarioService
+    ) {}
+
+    public function criar(array $data, string $userId): array
+    {
+        // Verifica se o usuário existe
+        $usuario = $this->usuarioService->buscarPorUuid($userId);
+        if (!$usuario) {
+            throw new \RuntimeException('Usuário não encontrado.');
+        }
+        return $this->repository->create($data + ['user_id' => $userId]);
+    }
+}</code></pre>
+
+      <h2>Dependência opcional (módulo pode não existir)</h2>
+      <p>Use <code>?</code> para tornar a dependência opcional. O container injeta <code>null</code> se o módulo não estiver instalado:</p>
+<pre><code>use Src\Kernel\Contracts\EmailSenderInterface;
+
+final class PedidoService
+{
+    public function __construct(
+        private readonly PedidoRepository $repository,
+        private readonly ?EmailSenderInterface $email = null
+    ) {}
+
+    public function criar(array $data): array
+    {
+        $pedido = $this->repository->create($data);
+        // Envia e-mail apenas se o serviço estiver disponível
+        $this->email?->sendCustom($data['email'], 'Pedido criado', '&lt;p&gt;Seu pedido foi criado!&lt;/p&gt;');
+        return $pedido;
+    }
+}</code></pre>
+
+      <h2>Declarar dependência de instalação (plugin.json)</h2>
+      <p>Para impedir que seu módulo seja instalado sem que outro já esteja presente, crie <code>plugin.json</code> na raiz do módulo:</p>
+<pre><code>{
+  "name": "meu-vendor/pedido",
+  "description": "Módulo de pedidos",
+  "version": "1.0.0",
+  "requires": {
+    "modules": ["Usuario", "Produto"]
+  }
+}</code></pre>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Regra de ouro</strong>
+          <p>Nunca acesse a tabela de outro módulo diretamente via SQL. Sempre use o Service do módulo para obter dados. Isso garante que as regras de negócio sejam respeitadas.</p>
+        </div>
+      </div>
+
+      <h2>Resumo</h2>
+      <table class="docs-table">
+        <thead><tr><th>Situação</th><th>Como fazer</th></tr></thead>
+        <tbody>
+          <tr><td>Usar classes de outro módulo (obrigatório)</td><td>Type hint no construtor sem <code>?</code></td></tr>
+          <tr><td>Usar classes de outro módulo (opcional)</td><td>Type hint nullable: <code>?Tipo = null</code></td></tr>
+          <tr><td>Impedir instalação sem dependência</td><td><code>plugin.json</code> com <code>requires.modules</code></td></tr>
+          <tr><td>Verificar se módulo está ativo em runtime</td><td><code>is_dir('src/Modules/NomeModulo')</code></td></tr>
+        </tbody>
+      </table>
     </section>
 
   </main>
