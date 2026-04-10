@@ -121,6 +121,7 @@
             <div class="dash-dropdown-menu" id="dd-config">
                 <a href="#capabilities"        class="dash-dd-item"><i class="fa-solid fa-plug"></i> Capacidades</a>
                 <a href="/modules/marketplace" class="dash-dd-item"><i class="fa-solid fa-store"></i> Marketplace</a>
+                <a href="/dashboard/ide"       class="dash-dd-item" style="color:#818cf8;font-weight:700;"><i class="fa-solid fa-code"></i> Vupi.us IDE</a>
                 <a href="#email-actions"       class="dash-dd-item"><i class="fa-solid fa-envelope"></i> E-mail</a>
             </div>
         </div>
@@ -205,6 +206,7 @@
                     <a href="#capabilities"        class="dash-sidenav-link"><i class="fa-solid fa-plug"></i> Capacidades</a>
                     <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
+                    <a href="/dashboard/ide"        class="dash-sidenav-link" style="color:#818cf8;font-weight:700;"><i class="fa-solid fa-code"></i> Vupi.us IDE</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
                     <a href="/dashboard/configuracoes" class="dash-sidenav-link"><i class="fa-solid fa-sliders"></i> Configurações</a>
                 </div>

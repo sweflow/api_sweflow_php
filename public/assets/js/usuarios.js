@@ -303,6 +303,7 @@ function renderTable() {
 
         actDiv.appendChild(makeBtn('fa-eye',         'Ver detalhes', '',             function () { openDetail(u.uuid); }));
         actDiv.appendChild(makeBtn('fa-user-shield', 'Alterar nivel','',             function () { openNivelModal(u.uuid); }));
+        actDiv.appendChild(makeBtn('fa-code',        'Limite projetos IDE','',       function () { openProjectLimitModal(u.uuid, u.username); }));
 
         var toggleBtn = makeBtn(
             ativo ? 'fa-ban' : 'fa-circle-check',
@@ -647,6 +648,141 @@ document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
         if (e.target === overlay) overlay.classList.remove('show');
     });
 });
+
+// ── Project Limit Modal ────────────────────────────────────────────────────
+var limitModal = null;
+function ensureLimitModal() {
+    if (limitModal) return limitModal;
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-project-limit';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); } });
+
+    var modal = document.createElement('div');
+    modal.className = 'u-modal';
+    modal.style.maxWidth = '420px';
+
+    var header = document.createElement('div');
+    header.className = 'u-modal-header';
+    var title = document.createElement('h3');
+    title.id = 'limit-modal-title';
+    title.textContent = 'Limite de Projetos IDE';
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'u-modal-close';
+    closeBtn.type = 'button';
+    var closeIcon = document.createElement('i');
+    closeIcon.className = 'fa-solid fa-xmark';
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener('click', function () { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); });
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    var body = document.createElement('div');
+    body.className = 'u-modal-body';
+    body.id = 'limit-modal-body';
+
+    var infoP = document.createElement('p');
+    infoP.id = 'limit-modal-info';
+    infoP.style.cssText = 'font-size:.92rem;color:#64748b;margin:0 0 16px;';
+
+    var label = document.createElement('label');
+    label.style.cssText = 'display:block;font-weight:600;margin-bottom:8px;font-size:.95rem;';
+    label.textContent = 'Máximo de projetos:';
+
+    var select = document.createElement('select');
+    select.id = 'limit-modal-select';
+    select.className = 'cfg-select';
+    select.style.cssText = 'width:100%;padding:10px 14px;font-size:1rem;border-radius:10px;border:1.5px solid rgba(0,0,0,.12);';
+    var opts = [{ v: '-1', t: 'Ilimitado' }, { v: '0', t: 'Bloqueado (não pode criar)' }];
+    for (var i = 1; i <= 100; i++) opts.push({ v: String(i), t: String(i) + ' projeto' + (i > 1 ? 's' : '') });
+    opts.forEach(function (o) {
+        var opt = document.createElement('option');
+        opt.value = o.v;
+        opt.textContent = o.t;
+        select.appendChild(opt);
+    });
+
+    body.appendChild(infoP);
+    body.appendChild(label);
+    body.appendChild(select);
+
+    var footer = document.createElement('div');
+    footer.className = 'u-modal-footer';
+    footer.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid rgba(0,0,0,.06);';
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 'u-btn u-btn-secondary';
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.addEventListener('click', function () { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); });
+
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 'u-btn u-btn-primary';
+    saveBtn.type = 'button';
+    saveBtn.id = 'limit-modal-save';
+    saveBtn.textContent = 'Salvar';
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(saveBtn);
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    limitModal = overlay;
+    return overlay;
+}
+
+async function openProjectLimitModal(uuid, username) {
+    var modal = ensureLimitModal();
+    var titleEl = document.getElementById('limit-modal-title');
+    var infoEl = document.getElementById('limit-modal-info');
+    var selectEl = document.getElementById('limit-modal-select');
+    var saveBtn = document.getElementById('limit-modal-save');
+
+    titleEl.textContent = 'Limite IDE — @' + (username || uuid);
+    infoEl.textContent = 'Carregando...';
+    selectEl.value = '0';
+
+    modal.removeAttribute('aria-hidden');
+    modal.classList.add('show');
+
+    try {
+        var data = await fetch('/api/ide/user-limit/' + uuid, { credentials: 'same-origin' }).then(function (r) { return r.json(); });
+        infoEl.textContent = 'Projetos atuais: ' + (data.count || 0) + (data.unlimited ? ' (sem limite)' : data.blocked ? ' (bloqueado)' : ' — Limite: ' + data.limit + (data.remaining !== null ? ' (' + data.remaining + ' restante' + (data.remaining !== 1 ? 's' : '') + ')' : ''));
+        selectEl.value = String(data.limit != null ? data.limit : -1);
+    } catch (e) {
+        infoEl.textContent = 'Erro ao carregar limite.';
+    }
+
+    // Remove old listener
+    var newSave = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSave, saveBtn);
+    newSave.addEventListener('click', async function () {
+        var val = parseInt(selectEl.value, 10);
+        newSave.disabled = true;
+        newSave.textContent = 'Salvando...';
+        try {
+            await fetch('/api/ide/user-limit/' + uuid, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_projects: val })
+            });
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+            showLoading('Limite atualizado para @' + username);
+            setTimeout(hideLoading, 1500);
+        } catch (e) {
+            infoEl.textContent = 'Erro ao salvar: ' + e.message;
+        } finally {
+            newSave.disabled = false;
+            newSave.textContent = 'Salvar';
+        }
+    });
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 (async function () {

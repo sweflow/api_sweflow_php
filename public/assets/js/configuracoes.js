@@ -78,6 +78,12 @@ const CFG_GROUPS = [
     ]},
   { id:'cors', title:'URLs permitidas (CORS)', icon:'fa-globe', color:'#34d399',
     cors: true },
+  { id:'ide-limits', title:'Limites da IDE', icon:'fa-code', color:'#818cf8',
+    fields:[
+      {key:'IDE_MAX_PROJECTS_PER_USER', label:'Máx. projetos por desenvolvedor', type:'select', icon:'fa-layer-group',
+       options:['-1','0','1','2','3','4','5','6','7','8','9','10','15','20','30','50','100'],
+       labels:{'-1':'Ilimitado','0':'Bloqueado (não pode criar)','1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','10':'10','15':'15','20':'20','30':'30','50':'50','100':'100'}},
+    ]},
   { id:'redis', title:'Redis', icon:'fa-bolt', color:'#fb923c',
     fields:[
       {key:'REDIS_HOST',     label:'Host',     type:'text',    icon:'fa-server'},
@@ -326,7 +332,7 @@ function renderFieldsBody(body, group, editing) {
                 (field.options || []).forEach(opt => {
                     const o = document.createElement('option');
                     o.value = opt;
-                    o.textContent = opt === '' ? '(não definido)' : opt;
+                    o.textContent = (field.labels && field.labels[opt]) ? field.labels[opt] : (opt === '' ? '(não definido)' : opt);
                     if (opt === val) o.selected = true;
                     inp.appendChild(o);
                 });

@@ -480,8 +480,8 @@ class SecurityHeadersTest extends TestCase
     {
         $csp = Response::html('<p>ok</p>')->getHeaders()['Content-Security-Policy'];
 
-        $this->assertStringContainsString('trusted-types default dompurify', $csp,
-            "trusted-types deve incluir 'dompurify' para que o DOMPurify crie sua política interna");
+        $this->assertStringContainsString('trusted-types default dompurify monaco-editor', $csp,
+            "trusted-types deve incluir 'dompurify' e 'monaco-editor' para que o DOMPurify e Monaco criem suas políticas internas");
     }
 
     public function test_csp_html_connect_src_inclui_cdnjs(): void

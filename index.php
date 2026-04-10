@@ -458,6 +458,19 @@ $container->bind(
     true
 );
 
+// Registra IdeProjectController com PDO injetado
+$container->bind(
+    \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController::class,
+    static function () use ($container) {
+        $pdo        = $container->make(\PDO::class);
+        $pdoModules = null;
+        try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
+        $service = new \Src\Modules\IdeModuleBuilder\Services\IdeProjectService($pdo);
+        return new \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController($service, $pdo, $pdoModules);
+    },
+    true
+);
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -486,6 +499,27 @@ $router->get('/dashboard/usuarios', [\Src\Kernel\Controllers\UsuariosPageControl
 $router->get('/modules/marketplace', [\Src\Kernel\Controllers\MarketplacePageController::class, 'index'], [
     AuthPageMiddleware::class,
     AdminOnlyMiddleware::class,
+]);
+$router->get('/ide/login', [\Src\Kernel\Controllers\IdeController::class, 'login']);
+$router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'index'], [
+    static function ($request, $next) use ($container) {
+        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware(
+            $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class),
+            $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class),
+            false // qualquer usuário autenticado — não exige admin_system
+        );
+        return $mw->handle($request, $next);
+    },
+]);
+$router->get('/dashboard/ide/editor', [\Src\Kernel\Controllers\IdeController::class, 'editor'], [
+    static function ($request, $next) use ($container) {
+        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware(
+            $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class),
+            $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class),
+            false
+        );
+        return $mw->handle($request, $next);
+    },
 ]);
 
 // Marketplace API (busca e instalação)

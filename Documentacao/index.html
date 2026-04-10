@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
@@ -28,6 +28,11 @@
     <span class="docs-version">v1.0</span>
   </div>
   <div class="docs-topbar-right">
+    <a href="/" class="docs-back-btn" title="Acessar Vupi.us API" aria-label="Acessar Vupi.us API">
+      <span class="docs-back-btn-icon"><i class="fa-solid fa-bolt"></i></span>
+      <span class="docs-back-btn-text">Acessar api.vupi.us</span>
+      <i class="fa-solid fa-arrow-up-right-from-square docs-back-btn-arrow"></i>
+    </a>
     <button class="docs-theme-btn" id="theme-btn" aria-label="Alternar tema">
       <i class="fa-solid fa-moon" id="theme-icon"></i>
     </button>
@@ -107,6 +112,28 @@
       </a>
       <a class="docs-nav-link" data-page="comandos" href="#comandos">
         <i class="fa-solid fa-terminal"></i> Comandos CLI
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Vupi.us IDE</span>
+      <a class="docs-nav-link" data-page="ide-intro" href="#ide-intro">
+        <i class="fa-solid fa-code"></i> Introdução à IDE
+      </a>
+      <a class="docs-nav-link" data-page="ide-modulos" href="#ide-modulos">
+        <i class="fa-solid fa-cube"></i> Criando Módulos
+      </a>
+      <a class="docs-nav-link" data-page="ide-rotas" href="#ide-rotas">
+        <i class="fa-solid fa-route"></i> Rotas e Proteção
+      </a>
+      <a class="docs-nav-link" data-page="ide-conectar" href="#ide-conectar">
+        <i class="fa-solid fa-globe"></i> Conectar App Externa
+      </a>
+      <a class="docs-nav-link" data-page="ide-terminal" href="#ide-terminal">
+        <i class="fa-solid fa-terminal"></i> Terminal e Debug
+      </a>
+      <a class="docs-nav-link" data-page="ide-tester" href="#ide-tester">
+        <i class="fa-solid fa-bolt"></i> API Route Tester
       </a>
     </div>
 
@@ -4098,6 +4125,369 @@ ADMIN_PASSWORD=senha php tests/EnvConfigTest.php          # testes de configura�
         </div>
 
       </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — INTRODUÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-intro">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-code"></i></div>
+        <div>
+          <h1>Vupi.us IDE</h1>
+          <p>Ambiente de desenvolvimento integrado para criar, testar e publicar módulos diretamente no navegador.</p>
+        </div>
+      </div>
+
+      <h2>O que é a Vupi.us IDE?</h2>
+      <p>A Vupi.us IDE é um editor de código completo integrado à plataforma Vupi.us API. Com ela, qualquer desenvolvedor autenticado pode criar módulos PHP que funcionam como backends independentes para aplicações reais.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Acesso</strong>
+          <p>Acesse a IDE em <code>/dashboard/ide</code> ou clique em "IDE" no menu principal. Qualquer usuário autenticado pode usar — não precisa ser admin.</p>
+        </div>
+      </div>
+
+      <h2>Recursos da IDE</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(99,102,241,0.12)"><i class="fa-solid fa-file-code" style="color:#6366f1"></i></div>
+          <h3>Editor Monaco</h3>
+          <p>O mesmo editor do VS Code, com syntax highlighting, autocomplete e suporte a múltiplas linguagens.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(63,185,80,0.12)"><i class="fa-solid fa-terminal" style="color:#3fb950"></i></div>
+          <h3>Terminal PHP</h3>
+          <p>Execute código PHP, navegue por arquivos e teste seu módulo diretamente no terminal integrado.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-bolt" style="color:#f59e0b"></i></div>
+          <h3>API Route Tester</h3>
+          <p>Teste suas rotas como no Insomnia/Postman — com headers, auth, body e resposta formatada.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(248,81,73,0.12)"><i class="fa-solid fa-bug" style="color:#f85149"></i></div>
+          <h3>Debug</h3>
+          <p>Execute debug dos seus arquivos PHP com detecção de erros, linha e arquivo.</p>
+        </div>
+      </div>
+
+      <h2>Atalhos de Teclado</h2>
+      <table class="docs-table">
+        <thead><tr><th>Atalho</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr><td><code>F5</code></td><td>Executar arquivo PHP aberto</td></tr>
+          <tr><td><code>F6</code></td><td>Debug do arquivo PHP aberto</td></tr>
+          <tr><td><code>Ctrl + `</code></td><td>Abrir/fechar terminal</td></tr>
+          <tr><td><code>Ctrl + T</code></td><td>Abrir API Route Tester</td></tr>
+          <tr><td><code>Ctrl + S</code></td><td>Salvar todos os arquivos</td></tr>
+          <tr><td><code>Ctrl + \</code></td><td>Dividir editor em dois painéis</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — CRIANDO MÓDULOS
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-modulos">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-cube"></i></div>
+        <div>
+          <h1>Criando Módulos na IDE</h1>
+          <p>Passo a passo para criar um módulo completo para a Vupi.us API.</p>
+        </div>
+      </div>
+
+      <h2>1. Criar um novo projeto</h2>
+      <ol>
+        <li>Acesse <code>/dashboard/ide</code></li>
+        <li>Clique em <strong>"Novo Projeto"</strong></li>
+        <li>Preencha o <strong>Nome do projeto</strong> (ex: "Gerenciador de Tarefas")</li>
+        <li>Preencha o <strong>Nome do módulo</strong> em PascalCase (ex: <code>Task</code>)</li>
+        <li>Marque <strong>"Gerar estrutura padrão"</strong> para criar o scaffold completo</li>
+        <li>Clique em <strong>"Criar Projeto"</strong></li>
+      </ol>
+
+      <div class="callout warning">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Nome do módulo</strong>
+          <p>O nome deve ser único, PascalCase, sem espaços. Nomes reservados (Auth, Usuario, Kernel, etc.) são bloqueados.</p>
+        </div>
+      </div>
+
+      <h2>2. Estrutura gerada</h2>
+      <p>Ao marcar "Gerar estrutura padrão", a IDE cria:</p>
+<pre><code>Task/
+├── Controllers/TaskController.php    — Endpoints da API (CRUD)
+├── Services/TaskService.php          — Lógica de negócio
+├── Repositories/TaskRepository.php   — Acesso a dados (PDO)
+├── Entities/Task.php                 — Entidade de domínio
+├── DTOs/CreateTaskDTO.php            — Data Transfer Object
+├── DTOs/UpdateTaskDTO.php
+├── Middlewares/TaskMiddleware.php     — Middleware próprio
+├── Validators/TaskValidator.php      — Validação de dados
+├── Exceptions/TaskException.php      — Exceções de domínio
+├── Helpers/TaskHelper.php            — Funções utilitárias
+├── Config/config.php                 — Configurações do módulo
+├── Database/
+│   ├── connection.php                — Seleção de banco
+│   ├── Migrations/...                — Criação de tabelas
+│   └── Seeders/TaskSeeder.php        — Dados iniciais
+├── Routes/web.php                    — Definição de rotas
+└── README.md                         — Documentação</code></pre>
+
+      <h2>3. Publicar o módulo</h2>
+      <p>No painel lateral da IDE, clique em <strong>"Publicar em src/Modules/"</strong>. O sistema:</p>
+      <ol>
+        <li>Analisa o código automaticamente (erros bloqueiam a publicação)</li>
+        <li>Copia os arquivos para <code>src/Modules/NomeDoModulo/</code></li>
+        <li>Executa as migrations automaticamente</li>
+        <li>Executa os seeders automaticamente</li>
+      </ol>
+
+      <h2>4. Ativar o módulo</h2>
+      <p>Módulos são criados <strong>desativados</strong> por padrão. Para ativar, clique em <strong>"Ativar"</strong> no painel lateral da IDE. Após ativar, as rotas do módulo ficam disponíveis na API.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — ROTAS E PROTEÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-rotas">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-route"></i></div>
+        <div>
+          <h1>Rotas e Proteção</h1>
+          <p>Como definir rotas públicas e protegidas no seu módulo.</p>
+        </div>
+      </div>
+
+      <h2>Arquivo de rotas</h2>
+      <p>As rotas são definidas em <code>Routes/web.php</code>. O framework injeta a variável <code>$router</code> automaticamente:</p>
+
+<pre><code>&lt;?php
+
+use Src\Modules\Task\Controllers\TaskController;
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+// Middlewares reutilizáveis
+$auth  = [AuthHybridMiddleware::class];
+$admin = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];
+
+// Rotas de leitura (autenticado)
+$router-&gt;get('/api/task',      [TaskController::class, 'listar'],    $auth);
+$router-&gt;get('/api/task/{id}', [TaskController::class, 'buscar'],    $auth);
+
+// Rotas de escrita (autenticado)
+$router-&gt;post('/api/task',      [TaskController::class, 'criar'],     $auth);
+$router-&gt;put('/api/task/{id}',  [TaskController::class, 'atualizar'], $auth);
+
+// Rota de exclusão (apenas admin)
+$router-&gt;delete('/api/task/{id}', [TaskController::class, 'deletar'], $admin);</code></pre>
+
+      <h2>Tipos de proteção</h2>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Quem acessa</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthHybridMiddleware</code></td><td>Qualquer usuário autenticado</td><td>Rotas de leitura e escrita</td></tr>
+          <tr><td><code>AdminOnlyMiddleware</code></td><td>Apenas admin_system</td><td>Rotas administrativas</td></tr>
+          <tr><td><code>RateLimitMiddleware</code></td><td>Todos (com limite)</td><td>Proteção contra abuso</td></tr>
+          <tr><td>Sem middleware</td><td>Qualquer pessoa</td><td>Rotas públicas (cuidado!)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warning">
+        <div class="callout-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="callout-body">
+          <strong>Rotas de escrita sem proteção</strong>
+          <p>O analisador de código da IDE detecta rotas POST/PUT/DELETE sem middleware e emite um aviso. Sempre proteja rotas que modificam dados.</p>
+        </div>
+      </div>
+
+      <h2>Middleware próprio do módulo</h2>
+      <p>Você pode criar middlewares específicos para o seu módulo em <code>Middlewares/</code>:</p>
+<pre><code>&lt;?php
+
+namespace Src\Modules\Task\Middlewares;
+
+use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+
+final class TaskMiddleware implements MiddlewareInterface
+{
+    public function handle(Request $request, callable $next): Response
+    {
+        // Lógica antes da requisição
+        $response = $next($request);
+        // Lógica depois da requisição
+        return $response;
+    }
+}</code></pre>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — CONECTAR APP EXTERNA
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-conectar">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-globe"></i></div>
+        <div>
+          <h1>Conectar Aplicação Externa</h1>
+          <p>Como conectar seu frontend ou aplicação externa às rotas do seu módulo.</p>
+        </div>
+      </div>
+
+      <h2>Passo a passo</h2>
+      <ol>
+        <li>Desenvolva e publique seu módulo na IDE</li>
+        <li>Ative o módulo no painel lateral</li>
+        <li>Envie um e-mail para <strong><a href="mailto:contato@vupi.us">contato@vupi.us</a></strong> solicitando a inclusão da URL do seu frontend no CORS da plataforma</li>
+        <li>Informe no e-mail: <strong>URL do frontend</strong> (ex: <code>https://meuapp.com</code>), <strong>nome do módulo</strong> e <strong>seu username na plataforma</strong></li>
+        <li>O admin_system adicionará a URL via <strong>Dashboard &gt; Configurações &gt; CORS</strong></li>
+        <li>Após aprovação, sua aplicação poderá fazer requisições à API</li>
+      </ol>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-clock"></i></div>
+        <div class="callout-body">
+          <strong>Tempo de aprovação</strong>
+          <p>A liberação do CORS é feita manualmente pelo admin. O prazo pode variar. Após aprovação, a comunicação é imediata.</p>
+        </div>
+      </div>
+
+      <h2>Exemplo de conexão (JavaScript)</h2>
+      <p>Após a URL ser adicionada ao CORS, seu frontend pode fazer requisições normalmente:</p>
+
+<pre><code>// Login — obtém o token JWT
+const loginRes = await fetch('https://api.vupi.us/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+        login: 'meu_usuario',
+        senha: 'minha_senha'
+    })
+});
+const { access_token } = await loginRes.json();
+
+// Usar as rotas do módulo com o token
+const res = await fetch('https://api.vupi.us/api/task', {
+    method: 'GET',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + access_token
+    }
+});
+const data = await res.json();
+console.log(data);</code></pre>
+
+      <h2>Exemplo de criação de recurso</h2>
+<pre><code>const res = await fetch('https://api.vupi.us/api/task', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + access_token
+    },
+    body: JSON.stringify({
+        nome: 'Minha nova tarefa'
+    })
+});
+const { task } = await res.json();
+// task = { id: '...', nome: 'Minha nova tarefa', criado_em: '...' }</code></pre>
+
+      <div class="callout warning">
+        <div class="callout-icon"><i class="fa-solid fa-lock"></i></div>
+        <div class="callout-body">
+          <strong>Segurança</strong>
+          <p>Nunca exponha o <code>access_token</code> no código-fonte do frontend. Use cookies HttpOnly quando possível. O token expira conforme configurado no <code>.env</code> (padrão: 1 hora).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — TERMINAL E DEBUG
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-terminal">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-terminal"></i></div>
+        <div>
+          <h1>Terminal e Debug</h1>
+          <p>Execute código PHP, navegue por arquivos e depure erros diretamente na IDE.</p>
+        </div>
+      </div>
+
+      <h2>Terminal PHP</h2>
+      <p>O terminal integrado permite executar código PHP interativamente. Abra com <code>Ctrl + `</code> ou clique em "Terminal" na barra superior.</p>
+
+      <h3>Comandos disponíveis</h3>
+      <table class="docs-table">
+        <thead><tr><th>Comando</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>echo "texto";</code></td><td>Executa código PHP inline</td></tr>
+          <tr><td><code>run arquivo.php</code></td><td>Executa um arquivo PHP do módulo</td></tr>
+          <tr><td><code>ls [pasta]</code></td><td>Lista arquivos e pastas</td></tr>
+          <tr><td><code>cat arquivo</code></td><td>Exibe conteúdo de um arquivo</td></tr>
+          <tr><td><code>cd pasta</code></td><td>Navega para uma pasta do módulo</td></tr>
+          <tr><td><code>cd ..</code></td><td>Volta para a pasta anterior</td></tr>
+          <tr><td><code>pwd</code></td><td>Mostra o diretório atual</td></tr>
+          <tr><td><code>clear</code></td><td>Limpa o terminal</td></tr>
+          <tr><td><code>history</code></td><td>Mostra histórico de comandos</td></tr>
+          <tr><td><code>help</code></td><td>Exibe ajuda completa</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Debug</h2>
+      <p>Pressione <code>F6</code> para executar o debug do arquivo aberto. O sistema detecta erros de sintaxe, erros de execução e mostra o arquivo e linha exatos do problema.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="callout-body">
+          <strong>Sandbox de segurança</strong>
+          <p>O terminal executa código em ambiente isolado. Funções de sistema (<code>exec</code>, <code>shell_exec</code>), acesso a rede (<code>curl</code>) e navegação fora do módulo são bloqueados.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — API ROUTE TESTER
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-tester">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div>
+          <h1>API Route Tester</h1>
+          <p>Teste suas rotas diretamente na IDE, como no Insomnia ou Thunder Client.</p>
+        </div>
+      </div>
+
+      <h2>Como usar</h2>
+      <ol>
+        <li>Clique em <strong>"Rotas"</strong> na barra superior ou pressione <code>Ctrl + T</code></li>
+        <li>Na aba <strong>"Rotas"</strong>, clique em uma rota detectada para preencher automaticamente</li>
+        <li>Configure headers, autenticação e body conforme necessário</li>
+        <li>Clique em <strong>"Enviar"</strong> ou pressione <code>Enter</code></li>
+      </ol>
+
+      <h2>Funcionalidades</h2>
+      <table class="docs-table">
+        <thead><tr><th>Aba</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Query</strong></td><td>Parâmetros de query string (?key=value)</td></tr>
+          <tr><td><strong>Headers</strong></td><td>Headers HTTP customizáveis</td></tr>
+          <tr><td><strong>Auth</strong></td><td>Nenhuma, Bearer Token ou Basic Auth</td></tr>
+          <tr><td><strong>Body</strong></td><td>JSON, Form, Form URL-Encoded, Texto ou XML</td></tr>
+          <tr><td><strong>Rotas</strong></td><td>Rotas detectadas automaticamente do módulo</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Salvar requisições</h2>
+      <p>Clique em <strong>"Salvar"</strong> para guardar a requisição atual. Requisições salvas aparecem no painel lateral esquerdo e podem ser reutilizadas a qualquer momento com todos os dados preenchidos (URL, headers, token, body).</p>
     </section>
 
   </main>

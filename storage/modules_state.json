@@ -1,7 +1,7 @@
 {
     "Auth": true,
     "Usuario": true,
-    "Documentacao": true,
     "Aviso": true,
-    "Email": false
+    "Documentacao": true,
+    "IdeModuleBuilder": true
 }

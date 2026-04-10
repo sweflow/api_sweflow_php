@@ -1,0 +1,554 @@
+<?php
+
+namespace Src\Modules\IdeModuleBuilder\Services;
+
+/**
+ * Executa código PHP de forma isolada e segura para a IDE.
+ *
+ * SEGURANÇA:
+ * - Código roda em processo separado com open_basedir restrito ao módulo + /tmp
+ * - disable_functions bloqueia exec, system, shell_exec, passthru, popen, proc_open, etc.
+ * - Funções de rede, filesystem externo e manipulação de processo são bloqueadas
+ * - Path traversal impossível: realpath + containment check
+ * - Timeout rígido mata o processo se exceder o limite
+ * - Código inline é escaneado por padrões perigosos antes de executar
+ */
+class PhpExecutor
+{
+    private string $modulesBase;
+    private int $timeout;
+
+    /** Funções PHP proibidas — bloqueadas via disable_functions no processo filho */
+    private const DISABLED_FUNCTIONS = [
+        // Execução de sistema — NUNCA permitir
+        'exec', 'system', 'shell_exec', 'passthru', 'popen', 'proc_open', 'proc_close',
+        'proc_get_status', 'proc_terminate', 'proc_nice', 'pcntl_exec', 'pcntl_fork',
+        // Rede — bloqueia acesso externo
+        'fsockopen', 'pfsockopen', 'stream_socket_client', 'stream_socket_server',
+        'curl_init', 'curl_exec', 'curl_multi_init',
+        // Manipulação de ambiente
+        'putenv', 'apache_setenv',
+        // Info sensível do servidor
+        'phpinfo', 'php_uname', 'getmyuid', 'getmypid', 'get_current_user',
+        // Código dinâmico perigoso
+        'eval', 'assert', 'create_function',
+        // Filesystem perigoso (fora do módulo — open_basedir já restringe)
+        'link', 'symlink', 'readlink', 'chown', 'chgrp', 'lchown', 'lchgrp',
+        'ini_set', 'ini_restore', 'dl',
+        // Ações de servidor
+        'mail', 'header', 'setcookie', 'session_start',
+    ];
+
+    /** Padrões perigosos em código inline — bloqueados antes de executar */
+    private const DANGEROUS_PATTERNS = [
+        '/\b(exec|system|shell_exec|passthru|popen|proc_open)\s*\(/i',
+        '/`[^`]+`/',                                    // backtick execution
+        '/\b(file_get_contents|file_put_contents|fopen|fwrite|fread|unlink|rmdir|mkdir|rename|copy)\s*\(/i',
+        '/\b(curl_init|curl_exec|fsockopen|stream_socket_client)\s*\(/i',
+        '/\b(eval|assert|create_function)\s*\(/i',
+        '/\b(phpinfo|php_uname|getenv|putenv)\s*\(/i',
+        '/\b(include|include_once|require|require_once)\s*[\s(]/i',
+        '/\b(header|setcookie|session_start|mail)\s*\(/i',
+        '/\$_(GET|POST|REQUEST|SERVER|ENV|FILES|COOKIE|SESSION)\b/',
+        '/\b(base64_decode|gzinflate|gzuncompress|str_rot13)\s*\(/i',
+        '/\b(chmod|chown|chgrp|symlink|link|readlink)\s*\(/i',
+        '/\.\.\//i',                                    // path traversal
+    ];
+
+    public function __construct(int $timeout = 10)
+    {
+        $this->modulesBase = dirname(__DIR__, 4) . '/src/Modules';
+        $this->timeout = $timeout;
+    }
+
+    /**
+     * Executa um arquivo PHP do módulo.
+     */
+    public function runFile(string $moduleName, string $filePath): array
+    {
+        $moduleDir = $this->resolveModuleDir($moduleName);
+        if ($moduleDir === null) {
+            return $this->error("Módulo '{$moduleName}' não encontrado em src/Modules/.");
+        }
+
+        $fullPath = $this->resolveFilePath($moduleDir, $filePath);
+        if ($fullPath === null) {
+            return $this->error("Acesso negado ou arquivo não encontrado: {$filePath}");
+        }
+
+        if (pathinfo($fullPath, PATHINFO_EXTENSION) !== 'php') {
+            return $this->error("Apenas arquivos .php podem ser executados.");
+        }
+
+        $lint = $this->lint($fullPath);
+        if ($lint !== null) return $lint;
+
+        return $this->executeSandboxed($fullPath, $moduleDir);
+    }
+
+    /**
+     * Executa código PHP inline (terminal interativo).
+     * Escaneia por padrões perigosos antes de executar.
+     */
+    public function runCode(string $code, string $moduleName): array
+    {
+        $moduleDir = $this->resolveModuleDir($moduleName);
+        if ($moduleDir === null) {
+            return $this->error("Módulo '{$moduleName}' não encontrado.");
+        }
+
+        // Scan de segurança no código inline
+        $blocked = $this->scanDangerousCode($code);
+        if ($blocked !== null) {
+            return $this->error("Bloqueado por segurança: {$blocked}");
+        }
+
+        // Prepara código
+        $trimmed = ltrim($code);
+        if (!str_starts_with($trimmed, '<?php') && !str_starts_with($trimmed, '<?')) {
+            $code = "<?php\n" . $code;
+        }
+
+        $tmpBase = tempnam(sys_get_temp_dir(), 'ide_php_');
+        if ($tmpBase === false) {
+            return $this->error("Não foi possível criar arquivo temporário.");
+        }
+        $tmpFile = $tmpBase . '.php';
+        @unlink($tmpBase); // remove o arquivo sem extensão
+        file_put_contents($tmpFile, $code);
+
+        $lint = $this->lint($tmpFile);
+        if ($lint !== null) {
+            $lint['errors'] = str_replace([$tmpFile, basename($tmpFile)], 'terminal.php', $lint['errors']);
+            @unlink($tmpFile);
+            return $lint;
+        }
+
+        $result = $this->executeSandboxed($tmpFile, $moduleDir);
+        @unlink($tmpFile);
+        return $result;
+    }
+
+    /**
+     * Debug: executa arquivo com análise de erros detalhada.
+     */
+    public function debug(string $moduleName, string $filePath, ?int $breakLine = null): array
+    {
+        $moduleDir = $this->resolveModuleDir($moduleName);
+        if ($moduleDir === null) {
+            return $this->error("Módulo '{$moduleName}' não encontrado.");
+        }
+
+        $fullPath = $this->resolveFilePath($moduleDir, $filePath);
+        if ($fullPath === null) {
+            return $this->error("Acesso negado ou arquivo não encontrado: {$filePath}");
+        }
+
+        $source = file_get_contents($fullPath);
+        if ($source === false) {
+            return $this->error("Não foi possível ler o arquivo.");
+        }
+
+        $lint = $this->lint($fullPath);
+        if ($lint !== null) return $lint;
+
+        $result = $this->executeSandboxed($fullPath, $moduleDir);
+
+        $lines = explode("\n", $source);
+        $result['debug'] = [
+            'file'        => $filePath,
+            'total_lines' => count($lines),
+            'break_line'  => $breakLine,
+            'source'      => $lines,
+        ];
+
+        if ($result['exit_code'] !== 0) {
+            $parsed = $this->parseRuntimeError($result['output'] . "\n" . $result['errors'], $filePath);
+            $result['debug']['error_line'] = $parsed['line'];
+            $result['debug']['error_message'] = $parsed['message'] ?? $result['errors'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Lista arquivos do módulo (para comando ls/dir no terminal).
+     */
+    public function listFiles(string $moduleName, string $subPath = ''): array
+    {
+        $moduleDir = $this->resolveModuleDir($moduleName);
+        if ($moduleDir === null) {
+            return ['error' => "Módulo não encontrado."];
+        }
+
+        $target = $moduleDir;
+        if ($subPath !== '') {
+            $safe = $this->sanitizePath($subPath);
+            $target = $moduleDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $safe);
+            $real = realpath($target);
+            if ($real === false || !str_starts_with($real, $moduleDir)) {
+                return ['error' => "Caminho fora do módulo."];
+            }
+            $target = $real;
+        }
+
+        if (!is_dir($target)) {
+            return ['error' => "Diretório não encontrado: {$subPath}"];
+        }
+
+        $items = [];
+        foreach (scandir($target) ?: [] as $item) {
+            if ($item === '.' || $item === '..') continue;
+            $full = $target . DIRECTORY_SEPARATOR . $item;
+            $items[] = [
+                'name' => $item,
+                'type' => is_dir($full) ? 'dir' : 'file',
+                'size' => is_file($full) ? filesize($full) : null,
+            ];
+        }
+        return ['files' => $items, 'path' => $subPath ?: '/'];
+    }
+
+    /**
+     * Lê conteúdo de um arquivo do módulo (para comando cat no terminal).
+     */
+    public function readFile(string $moduleName, string $filePath): array
+    {
+        $moduleDir = $this->resolveModuleDir($moduleName);
+        if ($moduleDir === null) return ['error' => "Módulo não encontrado."];
+
+        $fullPath = $this->resolveFilePath($moduleDir, $filePath);
+        if ($fullPath === null) return ['error' => "Acesso negado ou arquivo não encontrado."];
+
+        $content = file_get_contents($fullPath);
+        if ($content === false) return ['error' => "Não foi possível ler o arquivo."];
+
+        // Limita a 50KB para segurança
+        if (strlen($content) > 51200) {
+            $content = substr($content, 0, 51200) . "\n... (truncado em 50KB)";
+        }
+
+        return ['content' => $content, 'file' => $filePath];
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Segurança
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Resolve e valida o diretório do módulo. Retorna realpath ou null.
+     */
+    private function resolveModuleDir(string $moduleName): ?string
+    {
+        if (!preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $moduleName)) return null;
+        $dir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        if (!is_dir($dir)) return null;
+        $real = realpath($dir);
+        if ($real === false) return null;
+        // Garante que está dentro de src/Modules/
+        $realBase = realpath($this->modulesBase);
+        if ($realBase === false || !str_starts_with($real, $realBase . DIRECTORY_SEPARATOR)) return null;
+        return $real;
+    }
+
+    /**
+     * Resolve um caminho de arquivo dentro do módulo. Anti path traversal.
+     */
+    private function resolveFilePath(string $moduleDir, string $filePath): ?string
+    {
+        $safe = $this->sanitizePath($filePath);
+        if ($safe === '') return null;
+
+        $full = $moduleDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $safe);
+        $real = realpath($full);
+        if ($real === false || !is_file($real)) return null;
+
+        // Containment: deve estar dentro do moduleDir
+        if (!str_starts_with($real, $moduleDir . DIRECTORY_SEPARATOR)) return null;
+
+        return $real;
+    }
+
+    /**
+     * Escaneia código inline por padrões perigosos.
+     * Retorna descrição do problema ou null se seguro.
+     */
+    private function scanDangerousCode(string $code): ?string
+    {
+        foreach (self::DANGEROUS_PATTERNS as $pattern) {
+            if (preg_match($pattern, $code, $m)) {
+                $found = $m[0];
+                // Mensagem amigável
+                if (stripos($found, 'exec') !== false || stripos($found, 'system') !== false || stripos($found, 'shell') !== false || stripos($found, 'passthru') !== false) {
+                    return "Funções de execução de sistema não são permitidas ({$found}).";
+                }
+                if (stripos($found, 'file_') !== false || stripos($found, 'fopen') !== false || stripos($found, 'unlink') !== false || stripos($found, 'mkdir') !== false) {
+                    return "Operações de filesystem não são permitidas no terminal. Use a IDE para gerenciar arquivos.";
+                }
+                if (stripos($found, 'curl') !== false || stripos($found, 'fsock') !== false || stripos($found, 'stream_socket') !== false) {
+                    return "Operações de rede não são permitidas ({$found}).";
+                }
+                if (stripos($found, 'eval') !== false || stripos($found, 'assert') !== false) {
+                    return "Execução dinâmica de código não é permitida ({$found}).";
+                }
+                if (stripos($found, 'include') !== false || stripos($found, 'require') !== false) {
+                    return "Include/require não é permitido no terminal. Use 'run arquivo.php' para executar arquivos.";
+                }
+                if (stripos($found, '$_') !== false) {
+                    return "Acesso a superglobais (\$_GET, \$_POST, \$_SERVER, etc.) não é permitido.";
+                }
+                if (stripos($found, '..') !== false) {
+                    return "Path traversal não é permitido.";
+                }
+                return "Padrão bloqueado por segurança: {$found}";
+            }
+        }
+        return null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Execução sandboxed
+    // ══════════════════════════════════════════════════════════════════════
+
+    private function lint(string $filePath): ?array
+    {
+        $phpBin = $this->findPhp();
+        $cmd = escapeshellarg($phpBin) . ' -l ' . escapeshellarg($filePath) . ' 2>&1';
+        $output = [];
+        $code = 0;
+        exec($cmd, $output, $code);
+        $text = $this->filterPhpNoise(implode("\n", $output));
+
+        if ($code !== 0) {
+            $parsed = $this->parseSyntaxError($text, $filePath);
+            return [
+                'output'      => '',
+                'errors'      => $parsed['message'],
+                'exit_code'   => 1,
+                'duration_ms' => 0,
+                'type'        => 'syntax_error',
+                'file'        => $parsed['file'],
+                'line'        => $parsed['line'],
+            ];
+        }
+        return null;
+    }
+
+    /**
+     * Executa PHP em sandbox com disable_functions e open_basedir.
+     */
+    private function executeSandboxed(string $filePath, string $moduleDir): array
+    {
+        $phpBin = $this->findPhp();
+        $disabled = implode(',', self::DISABLED_FUNCTIONS);
+        $tmpDir = sys_get_temp_dir();
+
+        // Cria wrapper que configura sandbox e inclui o arquivo do usuário
+        $wrapperCode = "<?php\n"
+            . "ini_set('display_errors','1');\n"
+            . "ini_set('error_reporting'," . E_ALL . ");\n"
+            . "ini_set('max_execution_time'," . $this->timeout . ");\n"
+            . "ini_set('memory_limit','64M');\n"
+            . "ini_set('allow_url_fopen','0');\n"
+            . "ini_set('allow_url_include','0');\n"
+            . "ini_set('log_errors','0');\n"
+            . "require " . var_export($filePath, true) . ";\n";
+
+        $wrapperFile = tempnam($tmpDir, 'ide_wrap_');
+        if ($wrapperFile === false) {
+            return $this->error("Não foi possível criar arquivo temporário.");
+        }
+        $wrapperPhp = $wrapperFile . '.php';
+        @unlink($wrapperFile);
+        file_put_contents($wrapperPhp, $wrapperCode);
+
+        // Comando simples — disable_functions via -d (seguro, sem open_basedir problemático)
+        $cmd = escapeshellarg($phpBin)
+            . ' -d disable_functions=' . escapeshellarg($disabled)
+            . ' -d open_basedir=' . escapeshellarg($moduleDir . PATH_SEPARATOR . $tmpDir)
+            . ' ' . escapeshellarg($wrapperPhp)
+            . ' 2>&1';
+
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $start = hrtime(true);
+        $proc = proc_open($cmd, $descriptors, $pipes, $moduleDir);
+
+        if (!is_resource($proc)) {
+            @unlink($wrapperPhp);
+            return $this->error("Não foi possível iniciar o processo PHP.");
+        }
+
+        fclose($pipes[0]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $stdout = '';
+        $stderr = '';
+        $maxOutput = 512 * 1024; // 512KB max output
+        $deadline = time() + $this->timeout;
+
+        while (time() < $deadline) {
+            $status = proc_get_status($proc);
+            $stdout .= stream_get_contents($pipes[1]);
+            $stderr .= stream_get_contents($pipes[2]);
+            if (!$status['running']) break;
+            // Limite de output para evitar memory exhaustion
+            if (strlen($stdout) + strlen($stderr) > $maxOutput) {
+                proc_terminate($proc, 9);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+                proc_close($proc);
+                return $this->error("Output excedeu 512KB e foi encerrado.");
+            }
+            usleep(10000);
+        }
+
+        $status = proc_get_status($proc);
+        if ($status['running']) {
+            proc_terminate($proc, 9);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($proc);
+            @unlink($wrapperPhp);
+            $elapsed = (int)((hrtime(true) - $start) / 1e6);
+            return [
+                'output'      => $this->filterPhpNoise($stdout),
+                'errors'      => "Timeout: execução excedeu {$this->timeout}s e foi encerrada.",
+                'exit_code'   => 137,
+                'duration_ms' => $elapsed,
+                'type'        => 'timeout',
+            ];
+        }
+
+        $stdout .= stream_get_contents($pipes[1]);
+        $stderr .= stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($proc);
+        @unlink($wrapperPhp);
+        $elapsed = (int)((hrtime(true) - $start) / 1e6);
+
+        $stdout = $this->filterPhpNoise($stdout);
+        $stderr = $this->filterPhpNoise($stderr);
+
+        // Limpa caminhos absolutos do output para não vazar estrutura do servidor
+        $stdout = $this->sanitizeOutput($stdout, $moduleDir);
+        $stderr = $this->sanitizeOutput($stderr, $moduleDir);
+        // Remove referências ao wrapper temporário
+        $stdout = str_replace([basename($wrapperPhp), $wrapperPhp], ['terminal.php', 'terminal.php'], $stdout);
+        $stderr = str_replace([basename($wrapperPhp), $wrapperPhp], ['terminal.php', 'terminal.php'], $stderr);
+
+        $combined = trim($stdout . "\n" . $stderr);
+        $errorInfo = null;
+        if ($exitCode !== 0 || $stderr !== '') {
+            $errorInfo = $this->parseRuntimeError($combined, basename($filePath));
+        }
+
+        return [
+            'output'      => $stdout,
+            'errors'      => $stderr,
+            'exit_code'   => $exitCode,
+            'duration_ms' => $elapsed,
+            'type'        => $exitCode === 0 ? 'success' : 'runtime_error',
+            'file'        => $errorInfo['file'] ?? null,
+            'line'        => $errorInfo['line'] ?? null,
+            'error_type'  => $errorInfo['type'] ?? null,
+        ];
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Helpers
+    // ══════════════════════════════════════════════════════════════════════
+
+    private function parseSyntaxError(string $text, string $filePath): array
+    {
+        $file = basename($filePath);
+        $line = null;
+        $message = $text;
+        if (preg_match('/in\s+(.+?)\s+on\s+line\s+(\d+)/i', $text, $m)) {
+            $file = basename($m[1]);
+            $line = (int)$m[2];
+        }
+        $message = preg_replace('/in\s+[\/\\\\][^\s]+/', 'in ' . $file, $message);
+        return ['file' => $file, 'line' => $line, 'message' => trim($message)];
+    }
+
+    private function parseRuntimeError(string $text, string $filePath): array
+    {
+        $file = basename($filePath);
+        $line = null;
+        $type = null;
+        $message = null;
+        if (preg_match('/(Fatal error|Warning|Notice|Deprecated|Error):\s*(.+?)\s+in\s+(.+?)\s+on\s+line\s+(\d+)/i', $text, $m)) {
+            $type = $m[1];
+            $message = $m[2];
+            $file = basename($m[3]);
+            $line = (int)$m[4];
+        }
+        return ['file' => $file, 'line' => $line, 'type' => $type, 'message' => $message];
+    }
+
+    /**
+     * Remove warnings internos do PHP irrelevantes para o desenvolvedor.
+     */
+    private function filterPhpNoise(string $text): string
+    {
+        if ($text === '') return '';
+        $lines = explode("\n", $text);
+        $filtered = [];
+        foreach ($lines as $line) {
+            $t = trim($line);
+            if (preg_match('/Module\s+".+"\s+is already loaded/i', $t)) continue;
+            if (preg_match('/^(PHP\s+)?Warning:\s+Module\s+".+"\s+is already loaded/i', $t)) continue;
+            if (preg_match('/^(PHP\s+)?Warning:\s+PHP Startup:/i', $t)) continue;
+            $filtered[] = $line;
+        }
+        return implode("\n", $filtered);
+    }
+
+    /**
+     * Remove caminhos absolutos do output para não vazar estrutura do servidor.
+     */
+    private function sanitizeOutput(string $text, string $moduleDir): string
+    {
+        if ($text === '') return '';
+        // Substitui o caminho absoluto do módulo por caminho relativo
+        $text = str_replace($moduleDir . DIRECTORY_SEPARATOR, '', $text);
+        $text = str_replace($moduleDir . '/', '', $text);
+        $text = str_replace($moduleDir, '.', $text);
+        // Remove qualquer caminho absoluto restante
+        $text = preg_replace('#/[a-z0-9_/.-]+/src/Modules/[A-Za-z0-9]+/#i', '', $text);
+        $text = preg_replace('#[A-Z]:\\\\[^\\s]+\\\\src\\\\Modules\\\\[A-Za-z0-9]+\\\\#i', '', $text);
+        return $text;
+    }
+
+    private function findPhp(): string
+    {
+        if (defined('PHP_BINARY') && is_file(PHP_BINARY)) {
+            return PHP_BINARY;
+        }
+        return 'php';
+    }
+
+    private function sanitizePath(string $path): string
+    {
+        $path = str_replace(['..', '\\'], ['', '/'], $path);
+        return ltrim($path, '/');
+    }
+
+    private function error(string $msg): array
+    {
+        return [
+            'output'      => '',
+            'errors'      => $msg,
+            'exit_code'   => 1,
+            'duration_ms' => 0,
+            'type'        => 'error',
+        ];
+    }
+}

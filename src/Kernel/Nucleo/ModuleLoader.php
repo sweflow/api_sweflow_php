@@ -195,6 +195,19 @@ class ModuleLoader
             return;
         }
 
+        // Valida apenas módulos EXTERNOS (não os módulos internos do kernel em src/Modules/).
+        // Módulos internos como Auth, Usuario, IdeModuleBuilder são parte do sistema
+        // e não precisam de validação de segurança — eles já são confiáveis.
+        $isInternalModule = $this->isInternalModulesPath($modulesPath);
+        if (!$isInternalModule) {
+            try {
+                ModuleGuard::assertModuleAllowed($module, $moduleDir);
+            } catch (\RuntimeException $e) {
+                error_log('[ModuleGuard] Módulo externo bloqueado: ' . $e->getMessage());
+                return;
+            }
+        }
+
         // Tenta carregar um provider real se o módulo tiver composer.json com extra.vupi.us.providers
         $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
         if (is_file($composerFile)) {
@@ -237,19 +250,47 @@ class ModuleLoader
         foreach ($this->providers as $name => $provider) {
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
-            $provider->boot($this->container);
+
+            // Módulos internos (protegidos) executam diretamente — erros devem subir
+            // Módulos externos são isolados — erros não derrubam o sistema
+            if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
+                $provider->boot($this->container);
+            } else {
+                ModuleGuard::safeBoot(fn() => $provider->boot($this->container), $name);
+            }
         }
     }
 
     public function registerRoutes(RouterInterface $router): void
     {
-        // Reutiliza o mesmo resolver — evita instanciar duas vezes por request
         $resolver = new CapabilityResolver($this->storageDir());
         foreach ($this->providers as $name => $provider) {
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
-            $provider->registerRoutes(new ModuleScopedRouter($router, $this, $name));
+
+            // Módulos internos executam diretamente — módulos externos são isolados
+            if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
+                $provider->registerRoutes(new ModuleScopedRouter($router, $this, $name));
+            } else {
+                ModuleGuard::safeLoadRoutes(
+                    fn() => $provider->registerRoutes(new ModuleScopedRouter($router, $this, $name)),
+                    $name
+                );
+            }
         }
+    }
+
+    /**
+     * Verifica se um provider é interno (vive em src/Modules/).
+     * Providers internos são confiáveis e não precisam de isolamento.
+     */
+    private function isInternalProvider(ModuleProviderInterface $provider): bool
+    {
+        if (!($provider instanceof SimpleModuleProvider)) return false;
+        $path = realpath($provider->getPath());
+        if ($path === false) return false;
+        $sep = DIRECTORY_SEPARATOR;
+        return str_contains($path, "{$sep}src{$sep}Modules{$sep}");
     }
 
     public function providers(): array
@@ -315,6 +356,21 @@ class ModuleLoader
             ];
         }
         return $modules;
+    }
+
+    /**
+     * Verifica se o caminho de módulos é o diretório interno do kernel (src/Modules/).
+     * Módulos internos são confiáveis e não passam pela validação do ModuleGuard.
+     * Apenas módulos externos (vendor/, storage/modules/) são validados.
+     */
+    private function isInternalModulesPath(string $modulesPath): bool
+    {
+        $root = dirname(__DIR__, 3);
+        $internalPath = realpath($root . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules');
+        $realModulesPath = realpath($modulesPath);
+        return $internalPath !== false
+            && $realModulesPath !== false
+            && $internalPath === $realModulesPath;
     }
 
     private function registerSimple(string $name, string $path): void

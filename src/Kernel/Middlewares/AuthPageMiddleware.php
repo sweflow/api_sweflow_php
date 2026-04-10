@@ -13,13 +13,16 @@ use Src\Kernel\Support\TokenExtractor;
 /**
  * Middleware de autenticação para rotas de página (HTML).
  * Redireciona para / quando não autenticado, em vez de retornar JSON 401.
- * Exclusivo para admin_system com token assinado via JWT_API_SECRET.
+ *
+ * Por padrão (requireAdmin=true): exclusivo para admin_system com JWT_API_SECRET.
+ * Com requireAdmin=false: aceita qualquer usuário autenticado — usado pela IDE.
  */
 class AuthPageMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private UserRepositoryInterface $usuarios,
-        private TokenBlacklistInterface $blacklistRepo
+        private TokenBlacklistInterface $blacklistRepo,
+        private bool $requireAdmin = true
     ) {}
 
     public function handle(Request $request, callable $next): Response
@@ -47,12 +50,15 @@ class AuthPageMiddleware implements MiddlewareInterface
                 return $this->redirecionar(true);
             }
 
-            // Dashboard exclusivo para admin_system com token JWT_API_SECRET
-            $nivelPayload = $payload->nivel_acesso ?? null;
-            $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
+            // Se requireAdmin=true: exclusivo para admin_system com JWT_API_SECRET
+            // Se requireAdmin=false: qualquer usuário ativo pode acessar (IDE)
+            if ($this->requireAdmin) {
+                $nivelPayload = $payload->nivel_acesso ?? null;
+                $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
 
-            if ($nivelPayload !== 'admin_system' || $nivelUsuario !== 'admin_system' || !$assinadoComApiSecret) {
-                return $this->redirecionar(true);
+                if ($nivelPayload !== 'admin_system' || $nivelUsuario !== 'admin_system' || !$assinadoComApiSecret) {
+                    return $this->redirecionar(true);
+                }
             }
 
             return $next(
@@ -79,6 +85,13 @@ class AuthPageMiddleware implements MiddlewareInterface
         if (str_contains($accept, 'application/json')) {
             return Response::json(['error' => 'Não autenticado.'], 401);
         }
+
+        // IDE usa login próprio; dashboard usa a home com modal de login
+        $uri = $_SERVER['REQUEST_URI'] ?? '/';
+        if (str_starts_with($uri, '/dashboard/ide')) {
+            return new Response('', 302, ['Location' => '/ide/login']);
+        }
+
         return new Response('', 302, ['Location' => '/']);
     }
 }

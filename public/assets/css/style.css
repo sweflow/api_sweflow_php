@@ -475,6 +475,27 @@
 }
 .btn-hero-ghost:hover { color: var(--hghost-h-color); border-color: var(--hghost-h-border); background: var(--hghost-h-bg); }
 
+/* Botão IDE na hero */
+.btn-hero-ide {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 22px;
+    background: rgba(99,102,241,.12);
+    color: #818cf8;
+    border: 1px solid rgba(99,102,241,.4);
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .1s;
+    text-decoration: none;
+}
+.btn-hero-ide:hover { background: rgba(99,102,241,.22); border-color: #818cf8; transform: translateY(-2px); }
+
+/* Link IDE na nav */
+.home-nav-link-ide { color: #818cf8 !important; font-weight: 700; }
+
 /* ── HERO CODE BLOCK ─────────────────────────────────────── */
 .home-hero-visual {
     flex: 1 1 280px;

@@ -44,8 +44,11 @@
                 <a href="#features" class="home-nav-link">
                     <i class="fa-solid fa-layer-group"></i> Recursos
                 </a>
-                <a href="#docs" class="home-nav-link">
+                <a href="/doc" class="home-nav-link">
                     <i class="fa-solid fa-book-open"></i> Docs
+                </a>
+                <a href="/dashboard/ide" class="home-nav-link home-nav-link-ide">
+                    <i class="fa-solid fa-code"></i> IDE
                 </a>
             </nav>
 
@@ -76,9 +79,14 @@
                     <span>Recursos</span>
                     <i class="fa-solid fa-chevron-right mobile-link-arrow"></i>
                 </a>
-                <a href="#docs" class="home-nav-mobile-link">
+                <a href="/doc" class="home-nav-mobile-link">
                     <span class="mobile-link-icon"><i class="fa-solid fa-book-open"></i></span>
                     <span>Docs</span>
+                    <i class="fa-solid fa-chevron-right mobile-link-arrow"></i>
+                </a>
+                <a href="/dashboard/ide" class="home-nav-mobile-link" style="color:#818cf8;">
+                    <span class="mobile-link-icon"><i class="fa-solid fa-code"></i></span>
+                    <span>IDE</span>
                     <i class="fa-solid fa-chevron-right mobile-link-arrow"></i>
                 </a>
                 <div class="home-nav-mobile-divider"></div>
@@ -114,6 +122,10 @@
                     <i class="fa-solid fa-door-open"></i>
                     <span id="cta-login-text">Acessar Dashboard</span>
                 </button>
+                <a href="/dashboard/ide" class="btn-hero-ide">
+                    <i class="fa-solid fa-code"></i>
+                    <span>Abrir IDE</span>
+                </a>
                 <a href="#features" class="btn-hero-ghost">
                     <i class="fa-solid fa-circle-info"></i> Saiba mais
                 </a>
@@ -167,40 +179,6 @@
                     <div class="feature-icon"><i class="fa-solid fa-terminal"></i></div>
                     <h3>CLI poderosa</h3>
                     <p>Comandos para setup, migrations, seeders, geração de JWT e gerenciamento de módulos.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- DOCS / QUICK START -->
-    <section class="home-docs" id="docs">
-        <div class="home-section-inner">
-            <h2 class="home-section-title">Início rápido</h2>
-            <p class="home-section-sub">Três passos para ter a API rodando.</p>
-            <div class="docs-steps">
-                <div class="docs-step">
-                    <div class="step-num">1</div>
-                    <div class="step-body">
-                        <h3>Configure o ambiente</h3>
-                        <p>Copie o arquivo de exemplo e ajuste as variáveis.</p>
-                        <div class="code-snippet"><code>cp EXEMPLO.env .env</code></div>
-                    </div>
-                </div>
-                <div class="docs-step">
-                    <div class="step-num">2</div>
-                    <div class="step-body">
-                        <h3>Suba o banco de dados</h3>
-                        <p>Use Docker Compose para subir o MySQL/PostgreSQL.</p>
-                        <div class="code-snippet"><code>docker-compose up -d</code></div>
-                    </div>
-                </div>
-                <div class="docs-step">
-                    <div class="step-num">3</div>
-                    <div class="step-body">
-                        <h3>Execute o setup</h3>
-                        <p>O CLI cuida de migrations, seeders e servidor.</p>
-                        <div class="code-snippet"><code>php db setup</code></div>
-                    </div>
                 </div>
             </div>
         </div>

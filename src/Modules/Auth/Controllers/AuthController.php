@@ -66,13 +66,43 @@ class AuthController
             $login = trim((string) ($body['login'] ?? $body['identifier'] ?? $body['email'] ?? $body['username'] ?? ''));
             $senha = (string) ($body['senha'] ?? $body['password'] ?? '');
 
-            // Remove null bytes e caracteres de controle antes de usar em logs
+            // Remove null bytes, caracteres de controle e espaços internos
             $login = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $login);
+            $login = (string) preg_replace('/\s+/', '', $login); // sem espaços em qualquer posição
             $login = mb_substr($login, 0, 254);
 
-            if (trim($login) === '' || trim($senha) === '') {
+            if ($login === '' || trim($senha) === '') {
                 $this->enforceMinResponseTime($startTime);
                 throw new DomainException('Login e senha são obrigatórios.', 400);
+            }
+
+            // Detecta se é e-mail ou username e valida o formato
+            $isEmail = str_contains($login, '@');
+            if ($isEmail) {
+                if (!filter_var($login, FILTER_VALIDATE_EMAIL)) {
+                    $this->enforceMinResponseTime($startTime);
+                    throw new DomainException('Endereço de e-mail inválido.', 400);
+                }
+                // Normaliza o e-mail (lowercase)
+                $login = mb_strtolower($login);
+            } else {
+                // Username: apenas letras, números, underscores e hífens
+                if (!preg_match('/^[a-zA-Z0-9_\-\.]{3,64}$/', $login)) {
+                    $this->enforceMinResponseTime($startTime);
+                    throw new DomainException('Username inválido. Use apenas letras, números, _ ou - (3 a 64 caracteres).', 400);
+                }
+                $login = mb_strtolower($login);
+            }
+
+            // Senha: sem espaços no início/fim, comprimento mínimo
+            $senha = trim($senha);
+            if (mb_strlen($senha) < 6) {
+                $this->enforceMinResponseTime($startTime);
+                throw new DomainException('Senha deve ter pelo menos 6 caracteres.', 400);
+            }
+            if (mb_strlen($senha) > 128) {
+                $this->enforceMinResponseTime($startTime);
+                throw new DomainException('Senha muito longa.', 400);
             }
 
             $usuario = $apenasAdmin
