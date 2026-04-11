@@ -3930,3 +3930,40 @@ input.input-error { border-color: #e74c3c !important; }
     color: #f59e0b;
     padding-left: 20px;
 }
+
+/* ── Link Limits Admin Section ── */
+.link-limit-form { padding: 4px 0; }
+.link-limit-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.link-limit-row .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+}
+.link-limit-row .field-group label {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.link-limit-row input[type="text"],
+.link-limit-row select {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: .92rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .2s;
+}
+.link-limit-row input[type="text"]:focus,
+.link-limit-row select:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129,140,248,.12);
+}

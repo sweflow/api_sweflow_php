@@ -4453,33 +4453,56 @@ $router->delete('/api/tarefa/{id}', [TarefaController::class, 'deletar'], $auth)
       <h2>7. Testar as rotas</h2>
       <p>Pressione <code>Ctrl + T</code> para abrir o API Route Tester.</p>
 
-      <p><strong>Primeiro, faça login para obter o token:</strong></p>
-<pre><code>POST /api/login
-Body (JSON):
+      <div class="callout callout-warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>O API Route Tester não envia cookies automaticamente.</strong>
+          <p>Para testar rotas protegidas, você precisa obter um token JWT e configurá-lo na aba <strong>Auth → Bearer Token</strong>. Sem isso, a rota retorna <code>401</code>.</p>
+        </div>
+      </div>
+
+      <p><strong>Passo 1 — Fazer login para obter o token:</strong></p>
+<pre><code>Método: POST
+URL:    http://localhost:3005/api/auth/login
+Aba:    Body → JSON
+Body:
 {
-  "login": "seu_usuario",
+  "login": "seu_email_ou_username",
   "senha": "sua_senha"
 }
-// Copie o access_token da resposta</code></pre>
 
-      <p><strong>Criar uma tarefa:</strong></p>
-<pre><code>POST /api/tarefa
-Auth: Bearer {seu_token}
-Body (JSON):
+Resposta:
+{
+  "access_token": "eyJ...",   ← copie este valor
+  "token_type": "Bearer",
+  "expires_in": 3600
+}</code></pre>
+
+      <p><strong>Passo 2 — Configurar o token:</strong> Aba <strong>Auth</strong> → <strong>Bearer Token</strong> → cole o <code>access_token</code>.</p>
+
+      <p><strong>Passo 3 — Criar uma tarefa:</strong></p>
+<pre><code>Método: POST
+URL:    http://localhost:3005/api/tarefa
+Aba:    Auth → Bearer Token → {access_token}
+Aba:    Body → JSON
+Body:
 {
   "titulo": "Minha primeira tarefa"
 }
-// Resposta: { "tarefa": { "id": "...", "titulo": "Minha primeira tarefa", ... } }</code></pre>
+Resposta: { "tarefa": { "id": "...", "titulo": "Minha primeira tarefa", ... } }</code></pre>
 
       <p><strong>Listar tarefas:</strong></p>
-<pre><code>GET /api/tarefa
-Auth: Bearer {seu_token}
-// Resposta: { "tarefas": [...] }</code></pre>
+<pre><code>Método: GET
+URL:    http://localhost:3005/api/tarefa
+Aba:    Auth → Bearer Token → {access_token}
+Resposta: { "tarefas": [...] }</code></pre>
 
       <p><strong>Marcar como concluída:</strong></p>
-<pre><code>PUT /api/tarefa/{id}
-Auth: Bearer {seu_token}
-Body (JSON):
+<pre><code>Método: PUT
+URL:    http://localhost:3005/api/tarefa/{id}
+Aba:    Auth → Bearer Token → {access_token}
+Aba:    Body → JSON
+Body:
 {
   "titulo": "Minha primeira tarefa",
   "concluida": true
@@ -5760,6 +5783,14 @@ const { task } = await res.json();
         </div>
       </div>
 
+      <div class="callout callout-warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Importante — Autenticação no API Route Tester</strong>
+          <p>O API Route Tester <strong>não envia cookies da sessão automaticamente</strong>. Para testar rotas protegidas com <code>AuthHybridMiddleware</code>, você precisa obter um token JWT via login e configurá-lo na aba <strong>Auth → Bearer Token</strong>. Sem isso, a rota retornará <code>401 Não autenticado</code> — exatamente como esperado.</p>
+        </div>
+      </div>
+
       <h2>Como usar</h2>
       <ol>
         <li>Clique em <strong>"Rotas"</strong> na barra superior ou pressione <code>Ctrl + T</code></li>
@@ -5779,6 +5810,77 @@ const { task } = await res.json();
           <tr><td><strong>Rotas</strong></td><td>Rotas detectadas automaticamente do módulo</td></tr>
         </tbody>
       </table>
+
+      <h2>Testando rotas protegidas — Passo a passo</h2>
+      <p>Rotas com <code>AuthHybridMiddleware</code> exigem um token JWT válido. Siga o fluxo abaixo:</p>
+
+      <h3>Passo 1 — Fazer login e obter o token</h3>
+      <p>No API Route Tester, configure uma requisição de login:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>Método: POST
+URL:    http://localhost:3005/api/auth/login
+Aba:    Body → JSON
+Body:
+{
+  "login": "seu_email_ou_username",
+  "senha": "sua_senha"
+}</code></pre>
+      </div>
+      <p>A resposta retorna o <code>access_token</code>:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}</code></pre>
+      </div>
+      <p>Copie o valor de <code>access_token</code>.</p>
+
+      <h3>Passo 2 — Configurar o token na aba Auth</h3>
+      <ol>
+        <li>Abra o API Route Tester (<code>Ctrl + T</code>)</li>
+        <li>Clique na aba <strong>Auth</strong></li>
+        <li>Selecione <strong>Bearer Token</strong></li>
+        <li>Cole o <code>access_token</code> no campo Token</li>
+      </ol>
+      <p>O token será enviado automaticamente como <code>Authorization: Bearer &lt;token&gt;</code> em todas as requisições enquanto estiver configurado.</p>
+
+      <h3>Passo 3 — Testar a rota protegida</h3>
+      <p>Exemplo com o módulo Tarefa (após publicar e ativar o módulo):</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>Método: GET
+URL:    http://localhost:3005/api/tarefa
+Aba:    Auth → Bearer Token → cole o access_token
+
+Resposta esperada (200 OK):
+{
+  "tarefas": []
+}
+
+Sem token (401):
+{
+  "error": "Não autenticado: token ausente."
+}
+
+Token inválido (401):
+{
+  "error": "Token inválido ou expirado."
+}</code></pre>
+      </div>
+
+      <h3>Salvar a requisição com o token</h3>
+      <p>Clique em <strong>"Salvar"</strong> para guardar a requisição com o token configurado. Na próxima vez que abrir, o token já estará preenchido.</p>
+
+      <div class="callout callout-info">
+        <div class="callout-icon"><i class="fa-solid fa-circle-info"></i></div>
+        <div class="callout-body">
+          <strong>Token expirado?</strong>
+          <p>O <code>access_token</code> expira em <code>JWT_EXPIRATION_TIME</code> segundos (padrão: 3600s = 1h). Quando expirar, faça login novamente para obter um novo token. Você também pode usar o <code>refresh_token</code> retornado no login para renovar sem precisar de senha: <code>POST /api/auth/refresh</code> com <code>{"refresh_token": "..."}</code>.</p>
+        </div>
+      </div>
 
       <h2>Salvar requisições</h2>
       <p>Clique em <strong>"Salvar"</strong> para guardar a requisição atual. Requisições salvas aparecem no painel lateral esquerdo e podem ser reutilizadas a qualquer momento com todos os dados preenchidos (URL, headers, token, body).</p>

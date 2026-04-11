@@ -3,5 +3,7 @@
     "Usuario": true,
     "Aviso": true,
     "Documentacao": true,
-    "IdeModuleBuilder": true
+    "IdeModuleBuilder": true,
+    "Tarefa": true,
+    "LinkEncurtador": true
 }

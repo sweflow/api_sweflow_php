@@ -63,6 +63,9 @@
             <span class="ide-topbar-btn-label">Publicar</span>
         </button>
         <div class="ide-topbar-divider" aria-hidden="true"></div>
+        <button class="ide-topbar-icon" id="btn-settings" title="Configurações da IDE" aria-label="Configurações da IDE">
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+        </button>
         <button class="ide-topbar-icon" id="btn-theme" title="Alternar tema" aria-label="Alternar tema claro/escuro">
             <i class="fa-solid fa-moon" id="theme-icon" aria-hidden="true"></i>
         </button>
@@ -492,6 +495,195 @@
 </div>
 
 <div id="ide-toast" role="status" aria-live="polite"></div>
+
+<!-- MODAL: Pré-validação de Migrations -->
+<div class="ide-modal-overlay" id="modal-migrate-validate" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="mig-val-title">
+    <div class="ide-modal ide-modal-wide">
+        <div class="ide-modal-header">
+            <h2 id="mig-val-title"></h2>
+            <button class="ide-modal-close" id="modal-mig-val-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-modal-body" id="mig-val-body" style="max-height:60vh;overflow-y:auto;"></div>
+        <div class="ide-modal-footer" id="mig-val-footer"></div>
+    </div>
+</div>
+
+<!-- MODAL: Bloqueio de Migration (violação) -->
+<div class="ide-modal-overlay" id="modal-migrate-blocked" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="mig-blocked-title">
+    <div class="ide-modal ide-modal-wide">
+        <div class="ide-modal-header">
+            <h2 id="mig-blocked-title" style="color:#f38ba8">
+                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                Migração bloqueada por segurança
+            </h2>
+            <button class="ide-modal-close" id="modal-mig-blocked-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-modal-body" id="mig-blocked-body" style="max-height:60vh;overflow-y:auto;"></div>
+        <div class="ide-modal-footer">
+            <button class="ide-btn-primary" id="mig-blocked-ok">Entendi</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Configurações da IDE -->
+<div class="ide-modal-overlay ide-settings-overlay" id="modal-settings" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="ide-settings-modal">
+        <div class="ide-settings-header">
+            <div class="ide-settings-title">
+                <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                <h2 id="settings-title">Configurações da IDE</h2>
+            </div>
+            <button class="ide-modal-close" id="modal-settings-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-settings-search-bar">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="text" id="settings-search" placeholder="Buscar configuração..." autocomplete="off" spellcheck="false">
+        </div>
+        <div class="ide-settings-body">
+            <nav class="ide-settings-nav" id="settings-nav">
+                <button class="ide-settings-nav-item active" data-section="editor">
+                    <i class="fa-solid fa-code"></i> Editor
+                </button>
+                <button class="ide-settings-nav-item" data-section="interface">
+                    <i class="fa-solid fa-display"></i> Interface
+                </button>
+                <button class="ide-settings-nav-item" data-section="icons">
+                    <i class="fa-solid fa-icons"></i> Ícones
+                </button>
+            </nav>
+            <div class="ide-settings-content" id="settings-content">
+
+                <!-- SECTION: Editor -->
+                <section class="ide-settings-section active" data-section="editor">
+                    <h3 class="ide-settings-section-title">Editor de Código</h3>
+
+                    <div class="ide-settings-item" data-tags="fonte tamanho editor código">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Tamanho da fonte do editor</span>
+                            <span class="ide-settings-item-desc">Tamanho da fonte nos arquivos de código</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <button class="ide-settings-stepper" data-action="dec" data-target="editor-font-size">−</button>
+                            <span class="ide-settings-value" id="val-editor-font-size">15</span>
+                            <span class="ide-settings-unit">px</span>
+                            <button class="ide-settings-stepper" data-action="inc" data-target="editor-font-size">+</button>
+                        </div>
+                    </div>
+
+                    <div class="ide-settings-item" data-tags="linha altura espaçamento editor">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Altura de linha do editor</span>
+                            <span class="ide-settings-item-desc">Espaçamento entre linhas no editor</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <button class="ide-settings-stepper" data-action="dec" data-target="editor-line-height">−</button>
+                            <span class="ide-settings-value" id="val-editor-line-height">22</span>
+                            <span class="ide-settings-unit">px</span>
+                            <button class="ide-settings-stepper" data-action="inc" data-target="editor-line-height">+</button>
+                        </div>
+                    </div>
+
+                    <div class="ide-settings-item" data-tags="minimap mapa editor">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Minimapa</span>
+                            <span class="ide-settings-item-desc">Exibir miniatura do código no lado direito do editor</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <label class="ide-settings-toggle">
+                                <input type="checkbox" id="toggle-minimap">
+                                <span class="ide-settings-toggle-track"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="ide-settings-item" data-tags="word wrap quebra linha editor">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Quebra de linha automática</span>
+                            <span class="ide-settings-item-desc">Quebrar linhas longas automaticamente</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <label class="ide-settings-toggle">
+                                <input type="checkbox" id="toggle-wordwrap">
+                                <span class="ide-settings-toggle-track"></span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Interface -->
+                <section class="ide-settings-section" data-section="interface">
+                    <h3 class="ide-settings-section-title">Interface</h3>
+
+                    <div class="ide-settings-item" data-tags="fonte tamanho interface ui">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Tamanho da fonte da interface</span>
+                            <span class="ide-settings-item-desc">Afeta menus, painéis, abas e textos da IDE</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <button class="ide-settings-stepper" data-action="dec" data-target="ui-font-size">−</button>
+                            <span class="ide-settings-value" id="val-ui-font-size">14</span>
+                            <span class="ide-settings-unit">px</span>
+                            <button class="ide-settings-stepper" data-action="inc" data-target="ui-font-size">+</button>
+                        </div>
+                    </div>
+
+                    <div class="ide-settings-item" data-tags="painel largura arquivo">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Largura do painel de arquivos</span>
+                            <span class="ide-settings-item-desc">Largura padrão do explorador de arquivos</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <button class="ide-settings-stepper" data-action="dec" data-target="panel-width" data-step="20">−</button>
+                            <span class="ide-settings-value" id="val-panel-width">260</span>
+                            <span class="ide-settings-unit">px</span>
+                            <button class="ide-settings-stepper" data-action="inc" data-target="panel-width" data-step="20">+</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Ícones -->
+                <section class="ide-settings-section" data-section="icons">
+                    <h3 class="ide-settings-section-title">Ícones</h3>
+
+                    <div class="ide-settings-item" data-tags="icone tamanho interface">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Tamanho dos ícones da interface</span>
+                            <span class="ide-settings-item-desc">Afeta ícones da topbar, painéis e botões</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <button class="ide-settings-stepper" data-action="dec" data-target="ui-icon-size">−</button>
+                            <span class="ide-settings-value" id="val-ui-icon-size">14</span>
+                            <span class="ide-settings-unit">px</span>
+                            <button class="ide-settings-stepper" data-action="inc" data-target="ui-icon-size">+</button>
+                        </div>
+                    </div>
+
+                    <div class="ide-settings-item" data-tags="icone arquivo arvore filetree">
+                        <div class="ide-settings-item-info">
+                            <span class="ide-settings-item-label">Tamanho dos ícones de arquivo</span>
+                            <span class="ide-settings-item-desc">Ícones na árvore de arquivos</span>
+                        </div>
+                        <div class="ide-settings-item-control">
+                            <button class="ide-settings-stepper" data-action="dec" data-target="filetree-icon-size">−</button>
+                            <span class="ide-settings-value" id="val-filetree-icon-size">13</span>
+                            <span class="ide-settings-unit">px</span>
+                            <button class="ide-settings-stepper" data-action="inc" data-target="filetree-icon-size">+</button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+        <div class="ide-settings-footer">
+            <button class="ide-btn-secondary" id="settings-reset">
+                <i class="fa-solid fa-rotate-left"></i> Restaurar padrões
+            </button>
+            <button class="ide-btn-primary" id="settings-close-btn">
+                <i class="fa-solid fa-check"></i> Fechar
+            </button>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="/assets/js/trusted-types-policy.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/trusted-types-policy.js') ?: time() ?>"></script>

@@ -75,6 +75,15 @@ final class PhpExecutor
             return $this->error("Apenas arquivos .php podem ser executados.");
         }
 
+        // ── Validação server-side de isolamento de tabelas ──────────────────
+        $fileContent = file_get_contents($fullPath);
+        if ($fileContent !== false) {
+            $violation = $this->assertCodeSafe($fileContent, $moduleName);
+            if ($violation !== null) {
+                return $this->error($violation);
+            }
+        }
+
         $lint = $this->lint($fullPath);
         if ($lint !== null) return $lint;
 
@@ -96,9 +105,15 @@ final class PhpExecutor
             return $this->error("Módulo '{$moduleName}' não encontrado.");
         }
 
-        // Bloqueia apenas backtick execution — não capturado pelo disable_functions
+        // Bloqueia backtick execution
         if (preg_match('/`[^`]*`/', $code)) {
             return $this->error("[Segurança] Execução via backtick não é permitida.");
+        }
+
+        // ── Validação server-side de isolamento de tabelas ──────────────────
+        $violation = $this->assertCodeSafe($code, $moduleName);
+        if ($violation !== null) {
+            return $this->error($violation);
         }
 
         // Adiciona tag PHP se necessário
@@ -145,6 +160,12 @@ final class PhpExecutor
         $source = file_get_contents($fullPath);
         if ($source === false) {
             return $this->error("Não foi possível ler o arquivo.");
+        }
+
+        // ── Validação server-side de isolamento de tabelas ──────────────────
+        $violation = $this->assertCodeSafe($source, $moduleName);
+        if ($violation !== null) {
+            return $this->error($violation);
         }
 
         $lint = $this->lint($fullPath);
@@ -232,6 +253,68 @@ final class PhpExecutor
     // ══════════════════════════════════════════════════════════════════════
     // Segurança
     // ══════════════════════════════════════════════════════════════════════
+
+    /** Tabelas do sistema — nunca acessíveis por módulos externos */
+    private const SYSTEM_TABLES = [
+        'usuarios', 'users', 'user',
+        'access_tokens', 'refresh_tokens', 'token_blacklist',
+        'audit_logs', 'email_history', 'email_throttle',
+        'ide_projects', 'ide_user_limits',
+        'migrations',
+        'links', 'link_limites', 'link_cliques',
+        'capabilities', 'module_capabilities',
+        'threat_scores', 'rate_limits',
+        'sessions', 'password_resets',
+        'tarefas', 'notas', 'avisos',
+    ];
+
+    /**
+     * Validação server-side de isolamento de tabelas — roda ANTES da execução.
+     * Independente do client-side e do RestrictedPDO (que é a terceira camada no runtime).
+     *
+     * Retorna mensagem de erro ou null se o código é seguro.
+     */
+    private function assertCodeSafe(string $code, string $moduleName): ?string
+    {
+        $prefix = $this->moduleNameToPrefix($moduleName);
+
+        // 1. Bloqueia new PDO() — tentativa de criar conexão própria para bypass
+        if (preg_match('/\bnew\s+PDO\s*\(/i', $code)) {
+            return "[Segurança] Criação direta de conexão PDO não é permitida. Use o \$pdo injetado pelo framework.";
+        }
+
+        // 2. Bloqueia SHOW TABLES / SHOW DATABASES / SHOW COLUMNS (enumeração)
+        if (preg_match('/\bSHOW\s+(TABLES|DATABASES|COLUMNS|CREATE\s+TABLE)/i', $code)) {
+            return "[Segurança] Comando SHOW bloqueado. Módulos não podem enumerar tabelas do banco.";
+        }
+
+        // 3. Bloqueia information_schema / pg_catalog (metadados do banco)
+        if (preg_match('/\b(information_schema|pg_catalog|pg_tables|sys\.tables|sysobjects)\b/i', $code)) {
+            return "[Segurança] Acesso a metadados do banco bloqueado. Módulos não podem enumerar tabelas.";
+        }
+
+        // 4. Extrai tabelas referenciadas em SQL e valida cada uma
+        $tablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        preg_match_all($tablePattern, $code, $matches);
+
+        foreach ($matches[1] as $table) {
+            $t = strtolower($table);
+            if ($t === 'migrations' || $t === '') continue;
+
+            // Tabela do sistema
+            if (in_array($t, self::SYSTEM_TABLES, true)) {
+                return "[Segurança] Acesso proibido à tabela do sistema '{$table}'. Módulos só podem acessar suas próprias tabelas (prefixo: '{$prefix}_').";
+            }
+
+            // Tabela de outro módulo (tem underscore mas não começa com o prefixo correto)
+            if (str_contains($t, '_') && !str_starts_with($t, $prefix . '_') && $t !== $prefix) {
+                return "[Segurança] Tabela '{$table}' não pertence ao módulo '{$moduleName}'. Use apenas tabelas com prefixo '{$prefix}_'.";
+            }
+        }
+
+        return null;
+    }
+
     private function resolveModuleDir(string $moduleName): ?string
     {
         if (!preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $moduleName)) return null;
@@ -292,15 +375,25 @@ final class PhpExecutor
     }
 
     /**
-     * Executa PHP em sandbox com disable_functions e open_basedir.
+     * Executa PHP em sandbox com disable_functions, open_basedir e RestrictedPDO.
+     *
+     * O RestrictedPDO intercepta todas as queries SQL e bloqueia acesso a tabelas
+     * que não pertencem ao módulo — terceira camada de isolamento de banco de dados.
      */
     private function executeSandboxed(string $filePath, string $moduleDir): array
     {
-        $phpBin = $this->findPhp();
+        $phpBin   = $this->findPhp();
         $disabled = implode(',', self::DISABLED_FUNCTIONS);
-        $tmpDir = sys_get_temp_dir();
+        $tmpDir   = sys_get_temp_dir();
 
-        // Cria wrapper que configura sandbox e inclui o arquivo do usuário
+        // Extrai o nome do módulo a partir do moduleDir
+        $moduleName   = basename($moduleDir);
+        $modulePrefix = $this->moduleNameToPrefix($moduleName);
+
+        // Gera o código do RestrictedPDO inline no wrapper
+        $restrictedPdoCode = $this->buildRestrictedPdoCode($modulePrefix, $moduleName);
+
+        // Wrapper: configura sandbox + define RestrictedPDO + inclui o arquivo do usuário
         $wrapperCode = "<?php\n"
             . "ini_set('display_errors','1');\n"
             . "ini_set('error_reporting'," . E_ALL . ");\n"
@@ -309,6 +402,7 @@ final class PhpExecutor
             . "ini_set('allow_url_fopen','0');\n"
             . "ini_set('allow_url_include','0');\n"
             . "ini_set('log_errors','0');\n"
+            . $restrictedPdoCode . "\n"
             . "require " . var_export($filePath, true) . ";\n";
 
         $wrapperFile = tempnam($tmpDir, 'ide_wrap_');
@@ -319,21 +413,15 @@ final class PhpExecutor
         @unlink($wrapperFile);
         file_put_contents($wrapperPhp, $wrapperCode);
 
-        // Comando simples — disable_functions via -d (seguro, sem open_basedir problemático)
         $cmd = escapeshellarg($phpBin)
             . ' -d disable_functions=' . escapeshellarg($disabled)
             . ' -d open_basedir=' . escapeshellarg($moduleDir . PATH_SEPARATOR . $tmpDir)
             . ' ' . escapeshellarg($wrapperPhp)
             . ' 2>&1';
 
-        $descriptors = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ];
-
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $start = hrtime(true);
-        $proc = proc_open($cmd, $descriptors, $pipes, $moduleDir);
+        $proc  = proc_open($cmd, $descriptors, $pipes, $moduleDir);
 
         if (!is_resource($proc)) {
             @unlink($wrapperPhp);
@@ -344,22 +432,19 @@ final class PhpExecutor
         stream_set_blocking($pipes[1], false);
         stream_set_blocking($pipes[2], false);
 
-        $stdout = '';
-        $stderr = '';
-        $maxOutput = 512 * 1024; // 512KB max output
-        $deadline = time() + $this->timeout;
+        $stdout    = '';
+        $stderr    = '';
+        $maxOutput = 512 * 1024;
+        $deadline  = time() + $this->timeout;
 
         while (time() < $deadline) {
-            $status = proc_get_status($proc);
+            $status  = proc_get_status($proc);
             $stdout .= stream_get_contents($pipes[1]);
             $stderr .= stream_get_contents($pipes[2]);
             if (!$status['running']) break;
-            // Limite de output para evitar memory exhaustion
             if (strlen($stdout) + strlen($stderr) > $maxOutput) {
                 proc_terminate($proc, 9);
-                fclose($pipes[1]);
-                fclose($pipes[2]);
-                proc_close($proc);
+                fclose($pipes[1]); fclose($pipes[2]); proc_close($proc);
                 return $this->error("Output excedeu 512KB e foi encerrado.");
             }
             usleep(10000);
@@ -368,39 +453,27 @@ final class PhpExecutor
         $status = proc_get_status($proc);
         if ($status['running']) {
             proc_terminate($proc, 9);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-            proc_close($proc);
+            fclose($pipes[1]); fclose($pipes[2]); proc_close($proc);
             @unlink($wrapperPhp);
             $elapsed = (int)((hrtime(true) - $start) / 1e6);
-            return [
-                'output'      => $this->filterPhpNoise($stdout),
-                'errors'      => "Timeout: execução excedeu {$this->timeout}s e foi encerrada.",
-                'exit_code'   => 137,
-                'duration_ms' => $elapsed,
-                'type'        => 'timeout',
-            ];
+            return ['output' => $this->filterPhpNoise($stdout), 'errors' => "Timeout: execução excedeu {$this->timeout}s e foi encerrada.", 'exit_code' => 137, 'duration_ms' => $elapsed, 'type' => 'timeout'];
         }
 
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
+        $stdout  .= stream_get_contents($pipes[1]);
+        $stderr  .= stream_get_contents($pipes[2]);
+        fclose($pipes[1]); fclose($pipes[2]);
         $exitCode = proc_close($proc);
         @unlink($wrapperPhp);
         $elapsed = (int)((hrtime(true) - $start) / 1e6);
 
         $stdout = $this->filterPhpNoise($stdout);
         $stderr = $this->filterPhpNoise($stderr);
-
-        // Limpa caminhos absolutos do output para não vazar estrutura do servidor
         $stdout = $this->sanitizeOutput($stdout, $moduleDir);
         $stderr = $this->sanitizeOutput($stderr, $moduleDir);
-        // Remove referências ao wrapper temporário
         $stdout = str_replace([basename($wrapperPhp), $wrapperPhp], ['terminal.php', 'terminal.php'], $stdout);
         $stderr = str_replace([basename($wrapperPhp), $wrapperPhp], ['terminal.php', 'terminal.php'], $stderr);
 
-        $combined = trim($stdout . "\n" . $stderr);
+        $combined  = trim($stdout . "\n" . $stderr);
         $errorInfo = null;
         if ($exitCode !== 0 || $stderr !== '') {
             $errorInfo = $this->parseRuntimeError($combined, basename($filePath));
@@ -416,6 +489,118 @@ final class PhpExecutor
             'line'        => $errorInfo['line'] ?? null,
             'error_type'  => $errorInfo['type'] ?? null,
         ];
+    }
+
+    /**
+     * Gera o código PHP do RestrictedPDO para injetar no wrapper de execução.
+     *
+     * O RestrictedPDO intercepta query(), exec() e prepare() e lança exceção
+     * se a query tentar acessar tabelas que não pertencem ao módulo.
+     * Isso é a terceira camada de proteção — runtime, inquebrável pelo código do módulo.
+     */
+    private function buildRestrictedPdoCode(string $modulePrefix, string $moduleName): string
+    {
+        // Tabelas do sistema — sempre proibidas
+        $systemTables = [
+            'usuarios', 'users', 'user',
+            'access_tokens', 'refresh_tokens', 'token_blacklist',
+            'audit_logs', 'email_history', 'email_throttle',
+            'ide_projects', 'ide_user_limits',
+            'migrations',
+            'links', 'link_limites', 'link_cliques',
+            'capabilities', 'module_capabilities',
+            'threat_scores', 'rate_limits',
+            'sessions', 'password_resets',
+            'tarefas', 'notas', 'avisos',
+        ];
+        $systemTablesExport = var_export($systemTables, true);
+        $modulePrefixExport = var_export($modulePrefix, true);
+        $moduleNameExport   = var_export($moduleName, true);
+
+        return <<<PHP
+// ── RestrictedPDO — isolamento de tabelas por módulo ──────────────────────────
+// Intercepta TODAS as queries SQL e bloqueia acesso a tabelas não autorizadas.
+// Definida ANTES do require — o módulo não pode redefinir ou contornar.
+if (!class_exists('RestrictedPDO', false)) {
+    class RestrictedPDO extends PDO
+    {
+        private string \$_modulePrefix = {$modulePrefixExport};
+        private string \$_moduleName   = {$moduleNameExport};
+        private array  \$_systemTables = {$systemTablesExport};
+
+        private function _assertTableAccess(string \$sql): void
+        {
+            \$sqlLower = strtolower(\$sql);
+
+            // Bloqueia SHOW TABLES / SHOW DATABASES (enumeração)
+            if (preg_match('/\\bSHOW\\s+(TABLES|DATABASES|COLUMNS|CREATE\\s+TABLE)/i', \$sql)) {
+                throw new \\RuntimeException(
+                    "[Segurança] Comando SHOW bloqueado. Módulos não podem enumerar tabelas do banco."
+                );
+            }
+
+            // Bloqueia information_schema / pg_catalog (enumeração de metadados)
+            if (preg_match('/\\b(information_schema|pg_catalog|pg_tables|sys\\.tables|sysobjects)\\b/i', \$sql)) {
+                throw new \\RuntimeException(
+                    "[Segurança] Acesso a metadados do banco bloqueado. Módulos não podem enumerar tabelas."
+                );
+            }
+
+            // Extrai nomes de tabelas: FROM, JOIN, INTO, UPDATE, TABLE, TRUNCATE, DELETE FROM
+            \$pattern = '/\\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?[`"\'\\[\\s]*([a-zA-Z_][a-zA-Z0-9_]*)[`"\'\\]\\s]*/i';
+            preg_match_all(\$pattern, \$sql, \$matches);
+
+            foreach (\$matches[1] as \$table) {
+                \$t = strtolower(trim(\$table));
+                if (\$t === '' || \$t === 'migrations') continue;
+
+                // Tabela do sistema — BLOQUEADO
+                if (in_array(\$t, \$this->_systemTables, true)) {
+                    throw new \\RuntimeException(
+                        "[Segurança] Acesso bloqueado: tabela '{\$table}' pertence ao sistema."
+                    );
+                }
+
+                // Tabela de outro módulo — BLOQUEADO
+                if (strpos(\$t, '_') !== false
+                    && strpos(\$t, \$this->_modulePrefix . '_') !== 0
+                    && \$t !== \$this->_modulePrefix) {
+                    throw new \\RuntimeException(
+                        "[Segurança] Acesso bloqueado: tabela '{\$table}' não pertence ao módulo '{\$this->_moduleName}'. Use prefixo '{\$this->_modulePrefix}_'."
+                    );
+                }
+            }
+        }
+
+        public function query(string \$query, ?int \$fetchMode = null, mixed ...\$fetchModeArgs): PDOStatement|false
+        {
+            \$this->_assertTableAccess(\$query);
+            return parent::query(\$query, \$fetchMode, ...\$fetchModeArgs);
+        }
+
+        public function exec(string \$statement): int|false
+        {
+            \$this->_assertTableAccess(\$statement);
+            return parent::exec(\$statement);
+        }
+
+        public function prepare(string \$query, array \$options = []): PDOStatement|false
+        {
+            \$this->_assertTableAccess(\$query);
+            return parent::prepare(\$query, \$options);
+        }
+    }
+}
+PHP;
+    }
+
+    /**
+     * Converte PascalCase para snake_case (prefixo de tabela).
+     */
+    private function moduleNameToPrefix(string $name): string
+    {
+        $snake = preg_replace('/([A-Z])/', '_$1', lcfirst($name)) ?? $name;
+        return strtolower($snake);
     }
 
     // ══════════════════════════════════════════════════════════════════════

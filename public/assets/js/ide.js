@@ -229,9 +229,22 @@ async function loadProject() {
         renderFileTree();
         await renderDeployPanel();
 
-        // Open first file automatically
-        const files = Object.keys(S.project.files || {}).sort();
-        if (files.length) openFile(files[0]);
+        // Abre o arquivo mais relevante automaticamente (não o primeiro alfabético)
+        // Prioridade: Controllers > Services > Routes > qualquer .php (exceto config/connection)
+        const files = Object.keys(S.project.files || {}).filter(f => f.endsWith('.php'));
+        const priority = [
+            f => f.startsWith('Controllers/'),
+            f => f.startsWith('Services/'),
+            f => f.startsWith('Routes/'),
+            f => !f.startsWith('Config/') && !f.startsWith('Database/'),
+            f => true,
+        ];
+        let firstFile = null;
+        for (const test of priority) {
+            firstFile = files.find(test) || null;
+            if (firstFile) break;
+        }
+        if (firstFile) openFile(firstFile);
     } catch (e) {
         toast('Erro ao carregar projeto: ' + e.message);
         setTimeout(() => { window.location.href = '/dashboard/ide'; }, 2000);
@@ -287,6 +300,9 @@ require(['vs/editor/editor.main'], function () {
     // ── PHP Language Services ──────────────────────────────────────────────
     initPhpLanguageServices();
 
+    // Aplica configurações salvas do usuário ao Monaco
+    if (window._ideApplySettings) window._ideApplySettings();
+
     S.editor.onDidChangeCursorPosition(e => {
         const p = e.position;
         $('status-cursor').textContent = `Ln ${p.lineNumber}  Col ${p.column}`;
@@ -306,8 +322,6 @@ require(['vs/editor/editor.main'], function () {
     console.error('Monaco Editor falhou ao carregar:', err);
     toast('Editor de código não carregou. Verifique sua conexão.', 5000);
     loadProject();
-});
-
 });
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1665,13 +1679,43 @@ function showDeploySuccess(data) {
 async function doMigrate() {
     if (!S.project) return;
     const btn = event?.target?.closest('button');
+
+    // ── Passo 1: pré-validação antes de qualquer execução ────────────────
+    if (btn) { btn.disabled = true; setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Validando...'); }
+    let validation;
+    try {
+        validation = await api('POST', `/api/ide/projects/${S.project.id}/validate-migrations`);
+    } catch (e) {
+        toast('Erro ao validar migrations: ' + e.message);
+        if (btn) { btn.disabled = false; }
+        return;
+    } finally {
+        if (btn) { btn.disabled = false; }
+    }
+
+    // ── Passo 2: se há violações, exibe modal de bloqueio e para ─────────
+    if (!validation.valid && validation.violations?.length) {
+        showMigrationBlockedModal(validation);
+        return;
+    }
+
+    // ── Passo 3: sem violações — exibe modal de confirmação ───────────────
+    const confirmed = await showMigrationConfirmModal(validation);
+    if (!confirmed) return;
+
+    // ── Passo 4: executa as migrations ────────────────────────────────────
     if (btn) { btn.disabled = true; setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Rodando...'); }
     try {
         const data = await api('POST', `/api/ide/projects/${S.project.id}/migrate`);
         if (data.error) { toast('Erro: ' + data.error); return; }
-        const msg = data.errors?.length
-            ? `⚠ ${data.message} Erros: ${data.errors.join('; ')}`
-            : `✓ ${data.message}`;
+
+        // Se o servidor retornou erros (validação server-side pegou algo)
+        if (data.errors?.length) {
+            showMigrationBlockedModal({ violations: data.errors.map(e => ({ message: e, type: 'SERVER_ERROR', table: '', op: '' })) });
+            return;
+        }
+
+        const msg = `✓ ${data.message}`;
         toast(msg, 4000);
         await renderDeployPanel();
     } catch (e) {
@@ -1679,6 +1723,132 @@ async function doMigrate() {
     } finally {
         if (btn) { btn.disabled = false; }
     }
+}
+
+/**
+ * Exibe modal de bloqueio quando há violações de segurança nas migrations.
+ */
+function showMigrationBlockedModal(validation) {
+    const body   = $('mig-blocked-body');
+    const title  = $('mig-blocked-title');
+    body.textContent = '';
+
+    // Intro
+    const intro = document.createElement('div');
+    intro.style.cssText = 'margin-bottom:16px;padding:12px 16px;background:rgba(243,139,168,.08);border:1px solid rgba(243,139,168,.25);border-radius:10px;font-size:.95rem;line-height:1.6;color:var(--ide-text)';
+    intro.textContent = 'As migrations abaixo foram bloqueadas porque tentam acessar ou modificar tabelas que não pertencem a este módulo. Corrija os problemas antes de executar.';
+    body.appendChild(intro);
+
+    const violations = validation.violations || [];
+    violations.forEach(function(v) {
+        const item = document.createElement('div');
+        item.style.cssText = 'margin-bottom:12px;padding:14px 16px;background:rgba(243,139,168,.06);border-left:4px solid #f38ba8;border-radius:0 8px 8px 0;';
+
+        const typeIcons = {
+            'SYSTEM_TABLE': '🔒',
+            'WRONG_PREFIX': '⚠️',
+            'TABLE_EXISTS': '🚫',
+            'NOT_OWNED':    '🛡️',
+            'SERVER_ERROR': '❌',
+        };
+        const icon = typeIcons[v.type] || '❌';
+
+        const msg = document.createElement('div');
+        msg.style.cssText = 'font-size:.92rem;font-weight:700;color:#f38ba8;margin-bottom:4px;';
+        msg.textContent = icon + ' ' + (v.op && v.table ? `[${v.op} ${v.table}] ` : '') + v.message;
+
+        item.appendChild(msg);
+        body.appendChild(item);
+    });
+
+    // Dica de correção
+    const tip = document.createElement('div');
+    tip.style.cssText = 'margin-top:16px;padding:12px 16px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;font-size:.88rem;color:var(--ide-muted);line-height:1.6;';
+    const prefix = validation.prefix || '';
+    tip.textContent = prefix
+        ? `💡 Dica: todas as tabelas deste módulo devem usar o prefixo "${prefix}_". Exemplo: ${prefix}_itens, ${prefix}_categorias.`
+        : '💡 Dica: use apenas tabelas que pertencem ao seu módulo.';
+    body.appendChild(tip);
+
+    showModal('modal-migrate-blocked');
+}
+
+/**
+ * Exibe modal de confirmação com lista de migrations pendentes.
+ * Retorna Promise<boolean>.
+ */
+function showMigrationConfirmModal(validation) {
+    return new Promise(function(resolve) {
+        const body   = $('mig-val-body');
+        const title  = $('mig-val-title');
+        const footer = $('mig-val-footer');
+        body.textContent = '';
+        footer.textContent = '';
+
+        const pending = validation.pending || [];
+
+        if (!pending.length) {
+            title.textContent = '';
+            title.appendChild(domIcon('fa-solid fa-check-circle', '#a6e3a1'));
+            title.appendChild(document.createTextNode(' Nada a executar'));
+            const p = document.createElement('p');
+            p.style.cssText = 'color:var(--ide-muted);font-size:.95rem;';
+            p.textContent = 'Todas as migrations já foram executadas.';
+            body.appendChild(p);
+            const okBtn = document.createElement('button');
+            okBtn.className = 'ide-btn-primary';
+            okBtn.textContent = 'OK';
+            okBtn.addEventListener('click', function() { hideModal('modal-migrate-validate'); resolve(false); });
+            footer.appendChild(okBtn);
+            showModal('modal-migrate-validate');
+            return;
+        }
+
+        title.textContent = '';
+        title.appendChild(domIcon('fa-solid fa-database', '#818cf8'));
+        title.appendChild(document.createTextNode(' Executar ' + pending.length + ' migration(s)?'));
+
+        // Intro
+        const intro = document.createElement('div');
+        intro.style.cssText = 'margin-bottom:16px;padding:12px 16px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;font-size:.92rem;line-height:1.6;color:var(--ide-text)';
+        intro.textContent = 'As seguintes migrations serão executadas no banco de dados. Esta ação não pode ser desfeita facilmente.';
+        body.appendChild(intro);
+
+        // Lista de migrations
+        pending.forEach(function(mig) {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,.04);border:1px solid var(--ide-border);border-radius:8px;font-size:.9rem;';
+            const ic = domIcon('fa-solid fa-file-code', '#818cf8');
+            const txt = document.createElement('span');
+            txt.textContent = mig;
+            item.appendChild(ic);
+            item.appendChild(txt);
+            body.appendChild(item);
+        });
+
+        // Aviso de segurança
+        const warn = document.createElement('div');
+        warn.style.cssText = 'margin-top:14px;padding:10px 14px;background:rgba(249,226,175,.06);border:1px solid rgba(249,226,175,.2);border-radius:8px;font-size:.85rem;color:var(--ide-warning);line-height:1.5;';
+        warn.textContent = '⚠ Apenas tabelas com o prefixo "' + (validation.prefix || '') + '_" serão criadas. Qualquer tentativa de acessar tabelas de outros módulos será bloqueada automaticamente.';
+        body.appendChild(warn);
+
+        // Botões
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'ide-btn-secondary';
+        cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', function() { hideModal('modal-migrate-validate'); resolve(false); });
+
+        const runBtn = document.createElement('button');
+        runBtn.className = 'ide-btn-primary';
+        runBtn.appendChild(domIcon('fa-solid fa-play'));
+        runBtn.appendChild(document.createTextNode(' Executar migrations'));
+        runBtn.addEventListener('click', function() { hideModal('modal-migrate-validate'); resolve(true); });
+
+        footer.appendChild(cancelBtn);
+        footer.appendChild(runBtn);
+
+        showModal('modal-migrate-validate');
+    });
 }
 
 async function doSeed() {
@@ -1799,6 +1969,11 @@ $('modal-dep-confirm').addEventListener('click', async () => {
 $('modal-dr-ok').addEventListener('click', () => hideModal('modal-deploy-result'));
 $('modal-dr-close').addEventListener('click', () => hideModal('modal-deploy-result'));
 
+// ── Migration modals ──────────────────────────────────────────────────────────
+$('modal-mig-val-close').addEventListener('click', () => hideModal('modal-migrate-validate'));
+$('modal-mig-blocked-close').addEventListener('click', () => hideModal('modal-migrate-blocked'));
+$('mig-blocked-ok').addEventListener('click', () => hideModal('modal-migrate-blocked'));
+
 // Event delegation for deploy result modal buttons
 $('deploy-result-body').addEventListener('click', function (e) {
     var btn = e.target.closest('[data-action]');
@@ -1857,6 +2032,18 @@ function togglePanel(panelId, iconId, isLeft) {
         return;
     }
 
+    const wasCollapsed = panel.classList.contains('collapsed');
+    if (!wasCollapsed) {
+        // Ao colapsar: salva a largura atual e limpa o style inline para o CSS tomar conta
+        panel.dataset.prevWidth = panel.style.width || '';
+        panel.style.width = '';
+    } else {
+        // Ao expandir: restaura a largura anterior se existir
+        if (panel.dataset.prevWidth) {
+            panel.style.width = panel.dataset.prevWidth;
+        }
+    }
+
     panel.classList.toggle('collapsed');
     const collapsed = panel.classList.contains('collapsed');
     if (icon) {
@@ -1865,6 +2052,8 @@ function togglePanel(panelId, iconId, isLeft) {
     }
     const btn = panel.querySelector('.ide-panel-toggle');
     if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
+    if (S.editor) S.editor.layout();
+    saveLayout();
 }
 
 $('toggle-files').addEventListener('click', () => togglePanel('panel-files', 'toggle-files-icon', true));
@@ -2074,8 +2263,70 @@ restoreLayout();
         if (cmd==='ls'||cmd==='dir') { addLine(t.out,'$ ls '+(arg||'.'),'term-cmd'); try{var d=await api('POST','/api/ide/projects/'+S.project.id+'/terminal',{command:'ls',path:arg?(t.cwd?t.cwd+'/'+arg:arg):t.cwd});if(d.error){addLine(t.out,d.error,'term-err');return;}(d.files||[]).forEach(function(f){addLine(t.out,'  '+(f.type==='dir'?'📁':'📄')+' '+f.name,f.type==='dir'?'term-folder':'term-file');});}catch(e){addLine(t.out,'Erro: '+e.message,'term-err');} return; }
         if (cmd==='cat'||cmd==='type') { if(!arg){addLine(t.out,'Uso: cat <arquivo>','term-err');return;} addLine(t.out,'$ cat '+arg,'term-cmd'); try{var c=await api('POST','/api/ide/projects/'+S.project.id+'/terminal',{command:'cat',path:t.cwd?t.cwd+'/'+arg:arg});if(c.error)addLine(t.out,c.error,'term-err');else addLine(t.out,c.content);}catch(e){addLine(t.out,'Erro: '+e.message,'term-err');} return; }
         addLine(t.out,'php> '+tr,'term-cmd');
+
+        // ── Validação client-side: bloqueia SQL em tabelas proibidas ──────────
+        var sqlViolation = checkSqlTableAccess(tr);
+        if (sqlViolation) {
+            addLine(t.out, '[Segurança] ' + sqlViolation, 'term-security');
+            return;
+        }
+
         var rm=tr.match(/^run\s+(.+)$/i);
         try{var data=await api('POST','/api/ide/projects/'+S.project.id+'/run',rm?{file:rm[1]}:{code:tr});showRes(t,data);}catch(e){addLine(t.out,'Erro: '+e.message,'term-err');}
+    }
+
+    /**
+     * Validação client-side de isolamento de tabelas SQL.
+     * Retorna mensagem de erro ou null se OK.
+     * O servidor também valida (RestrictedPDO) — esta é a camada de proteção do cliente.
+     */
+    function checkSqlTableAccess(code) {
+        if (!S.project) return null;
+        var moduleName = S.project.module_name;
+        // Converte PascalCase para snake_case
+        var prefix = moduleName.replace(/([A-Z])/g, function(m, c, i) { return (i > 0 ? '_' : '') + c.toLowerCase(); });
+
+        var systemTables = [
+            'usuarios','users','user','access_tokens','refresh_tokens','token_blacklist',
+            'audit_logs','email_history','email_throttle','ide_projects','ide_user_limits',
+            'migrations','links','link_limites','link_cliques','capabilities','module_capabilities',
+            'threat_scores','rate_limits','sessions','password_resets','tarefas','notas','avisos'
+        ];
+
+        // Bloqueia SHOW TABLES / SHOW DATABASES
+        if (/\bSHOW\s+(TABLES|DATABASES|COLUMNS|CREATE\s+TABLE)/i.test(code)) {
+            return 'Comando SHOW bloqueado. Módulos não podem enumerar tabelas do banco.';
+        }
+
+        // Bloqueia information_schema / pg_catalog
+        if (/\b(information_schema|pg_catalog|pg_tables)\b/i.test(code)) {
+            return 'Acesso a metadados do banco bloqueado.';
+        }
+
+        // Bloqueia new PDO(
+        if (/\bnew\s+PDO\s*\(/i.test(code)) {
+            return 'Criação direta de conexão PDO não é permitida. Use o $pdo injetado pelo framework.';
+        }
+
+        // Extrai tabelas referenciadas
+        var tablePattern = /\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"']?([a-zA-Z_][a-zA-Z0-9_]*)[`"']?/gi;
+        var match;
+        while ((match = tablePattern.exec(code)) !== null) {
+            var table = match[1].toLowerCase();
+            if (table === 'migrations') continue;
+
+            // Tabela do sistema
+            if (systemTables.indexOf(table) !== -1) {
+                return "Acesso proibido à tabela do sistema '" + match[1] + "'.";
+            }
+
+            // Tabela de outro módulo (tem underscore mas não começa com o prefixo)
+            if (table.indexOf('_') !== -1 && table.indexOf(prefix + '_') !== 0 && table !== prefix) {
+                return "Tabela '" + match[1] + "' não pertence ao módulo '" + moduleName + "'. Use prefixo '" + prefix + "_'.";
+            }
+        }
+
+        return null;
     }
 
     async function doDebug(breakLine, t) {
@@ -2472,7 +2723,10 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
 
         var start = performance.now();
         try {
-            var opts = { method: method, credentials: 'same-origin', headers: headers };
+            // credentials: 'omit' — não envia cookies da sessão da IDE automaticamente.
+            // O usuário deve configurar o token explicitamente na aba Auth.
+            // Isso garante que rotas protegidas sejam testadas corretamente.
+            var opts = { method: method, credentials: 'omit', headers: headers };
             if (body !== null) opts.body = body;
             var res = await fetch(url, opts);
             var elapsed = Math.round(performance.now() - start);
@@ -2609,4 +2863,207 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
             document.addEventListener('mouseup', onUp);
         });
     }
+})();
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// IDE Settings Modal
+// ══════════════════════════════════════════════════════════════════════════
+(function initSettings() {
+    var SETTINGS_KEY = 'ide-settings-v1';
+
+    var defaults = {
+        'editor-font-size':    15,
+        'editor-line-height':  22,
+        'ui-font-size':        14,
+        'ui-icon-size':        14,
+        'filetree-icon-size':  13,
+        'panel-width':         260,
+        'minimap':             true,
+        'wordwrap':            false,
+    };
+
+    var limits = {
+        'editor-font-size':   { min: 10, max: 28, step: 1 },
+        'editor-line-height': { min: 16, max: 36, step: 1 },
+        'ui-font-size':       { min: 11, max: 20, step: 1 },
+        'ui-icon-size':       { min: 10, max: 22, step: 1 },
+        'filetree-icon-size': { min: 10, max: 20, step: 1 },
+        'panel-width':        { min: 160, max: 480, step: 20 },
+    };
+
+    // Carrega configurações salvas
+    var settings = Object.assign({}, defaults);
+    try {
+        var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+        Object.assign(settings, saved);
+    } catch (e) {}
+
+    // Aplica todas as configurações ao DOM/Monaco
+    function applyAll() {
+        // CSS variables para interface
+        var root = document.documentElement;
+        root.style.setProperty('--ide-ui-font-size', settings['ui-font-size'] + 'px');
+        root.style.setProperty('--ide-ui-icon-size', settings['ui-icon-size'] + 'px');
+        root.style.setProperty('--ide-filetree-icon-size', settings['filetree-icon-size'] + 'px');
+        root.style.setProperty('--ide-panel-w', settings['panel-width'] + 'px');
+
+        // Monaco editor
+        if (S.editor) {
+            S.editor.updateOptions({
+                fontSize:   settings['editor-font-size'],
+                lineHeight: settings['editor-line-height'],
+                minimap:    { enabled: settings['minimap'] },
+                wordWrap:   settings['wordwrap'] ? 'on' : 'off',
+            });
+        }
+    }
+
+    // Persiste e aplica
+    function save() {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+        applyAll();
+    }
+
+    // Atualiza os valores exibidos na modal
+    function syncUI() {
+        Object.keys(limits).forEach(function (key) {
+            var el = $('val-' + key);
+            if (el) el.textContent = settings[key];
+        });
+        var mm = $('toggle-minimap');
+        if (mm) mm.checked = !!settings['minimap'];
+        var ww = $('toggle-wordwrap');
+        if (ww) ww.checked = !!settings['wordwrap'];
+    }
+
+    // Aplica na inicialização (antes do Monaco estar pronto)
+    applyAll();
+
+    // Quando Monaco carregar, aplica novamente
+    var origLoadProject = window._origLoadProject;
+    var checkMonaco = setInterval(function () {
+        if (S.editor) { clearInterval(checkMonaco); applyAll(); }
+    }, 200);
+
+    // Botão de abrir
+    var btnSettings = $('btn-settings');
+    if (btnSettings) {
+        btnSettings.addEventListener('click', function () {
+            syncUI();
+            showModal('modal-settings');
+            setTimeout(function () { var s = $('settings-search'); if (s) s.focus(); }, 100);
+        });
+    }
+
+    // Fechar
+    [$('modal-settings-close'), $('settings-close-btn')].forEach(function (btn) {
+        if (btn) btn.addEventListener('click', function () { hideModal('modal-settings'); });
+    });
+
+    // Fechar ao clicar no overlay
+    var overlay = $('modal-settings');
+    if (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) hideModal('modal-settings');
+        });
+    }
+
+    // Navegação entre seções
+    var navItems = document.querySelectorAll('.ide-settings-nav-item');
+    navItems.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var section = this.dataset.section;
+            navItems.forEach(function (b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            document.querySelectorAll('.ide-settings-section').forEach(function (s) {
+                s.classList.toggle('active', s.dataset.section === section);
+            });
+        });
+    });
+
+    // Steppers (+ / -)
+    document.querySelectorAll('.ide-settings-stepper').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var target = this.dataset.target;
+            var action = this.dataset.action;
+            var lim = limits[target];
+            if (!lim) return;
+            var step = parseInt(this.dataset.step || lim.step || 1, 10);
+            var val = settings[target];
+            if (action === 'inc') val = Math.min(lim.max, val + step);
+            else val = Math.max(lim.min, val - step);
+            settings[target] = val;
+            var display = $('val-' + target);
+            if (display) display.textContent = val;
+            save();
+        });
+    });
+
+    // Toggles
+    var toggleMinimap = $('toggle-minimap');
+    if (toggleMinimap) {
+        toggleMinimap.addEventListener('change', function () {
+            settings['minimap'] = this.checked;
+            save();
+        });
+    }
+    var toggleWordwrap = $('toggle-wordwrap');
+    if (toggleWordwrap) {
+        toggleWordwrap.addEventListener('change', function () {
+            settings['wordwrap'] = this.checked;
+            save();
+        });
+    }
+
+    // Restaurar padrões
+    var resetBtn = $('settings-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+            Object.assign(settings, defaults);
+            syncUI();
+            save();
+            toast('Configurações restauradas para o padrão.');
+        });
+    }
+
+    // Busca de configurações
+    var searchInput = $('settings-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            var q = this.value.toLowerCase().trim();
+            document.querySelectorAll('.ide-settings-item').forEach(function (item) {
+                if (!q) { item.classList.remove('hidden'); return; }
+                var tags = (item.dataset.tags || '').toLowerCase();
+                var label = (item.querySelector('.ide-settings-item-label') || {}).textContent || '';
+                var desc = (item.querySelector('.ide-settings-item-desc') || {}).textContent || '';
+                var match = tags.includes(q) || label.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+                item.classList.toggle('hidden', !match);
+            });
+            // Mostra a seção que tem resultados
+            if (q) {
+                document.querySelectorAll('.ide-settings-section').forEach(function (sec) {
+                    var visible = sec.querySelectorAll('.ide-settings-item:not(.hidden)').length > 0;
+                    sec.classList.toggle('active', visible);
+                });
+                navItems.forEach(function (btn) {
+                    var sec = document.querySelector('.ide-settings-section[data-section="' + btn.dataset.section + '"]');
+                    btn.classList.toggle('active', sec && sec.classList.contains('active'));
+                });
+            } else {
+                // Restaura a seção ativa
+                document.querySelectorAll('.ide-settings-section').forEach(function (s) {
+                    s.classList.remove('active');
+                });
+                var activeNav = document.querySelector('.ide-settings-nav-item.active');
+                if (activeNav) {
+                    var sec = document.querySelector('.ide-settings-section[data-section="' + activeNav.dataset.section + '"]');
+                    if (sec) sec.classList.add('active');
+                }
+            }
+        });
+    }
+
+    // Expõe para uso externo (Monaco aplica após carregar)
+    window._ideApplySettings = applyAll;
 })();

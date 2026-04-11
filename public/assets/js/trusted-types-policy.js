@@ -45,8 +45,11 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
             }
             return s;
         },
-        createScript: () => {
-            throw new TypeError('eval bloqueado pela política Trusted Types');
+        createScript: (s) => {
+            // Não bloqueia createScript na política default — o Monaco loader precisa disso.
+            // O Monaco configura sua própria política 'monaco-editor' via require.config.
+            // Bloquear aqui quebraria o carregamento do editor.
+            return s;
         },
     });
 }

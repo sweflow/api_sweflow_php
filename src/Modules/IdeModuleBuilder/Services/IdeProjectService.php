@@ -3,6 +3,7 @@
 namespace Src\Modules\IdeModuleBuilder\Services;
 
 use PDO;
+use Src\Kernel\Nucleo\ModuleLoader;
 
 /**
  * Gerencia projetos da IDE com isolamento por usuário.
@@ -13,12 +14,14 @@ class IdeProjectService
 {
     private string $modulesBase;
     private PDO $pdo;
+    private ModuleLoader $moduleLoader;
 
-    public function __construct(PDO $pdo)
+    public function __construct(PDO $pdo, ModuleLoader $moduleLoader)
     {
         $root = dirname(__DIR__, 4);
         $this->modulesBase = $root . '/src/Modules';
         $this->pdo = $pdo;
+        $this->moduleLoader = $moduleLoader;
         $this->ensureTable();
     }
 
@@ -127,7 +130,7 @@ class IdeProjectService
         foreach ($files as $path => $content) {
             $this->syncFileToModule($moduleName, $path, $content);
         }
-        $this->setModuleEnabled($moduleName, false);
+        $this->moduleLoader->setEnabled($moduleName, false);
 
         return [
             'id'          => $id,
@@ -370,8 +373,8 @@ class IdeProjectService
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
         $deployed   = is_dir($moduleDir);
 
-        // Estado ativo/inativo via modules_state.json
-        $enabled = $this->isModuleEnabled($moduleName);
+        // Estado ativo/inativo via ModuleLoader
+        $enabled = $this->moduleLoader->isEnabled($moduleName);
 
         // Tabelas do módulo — lidas da tabela migrations (apenas as do módulo)
         $tables = $deployed ? $this->getModuleTables($moduleName, $pdo) : [];
@@ -436,6 +439,15 @@ class IdeProjectService
                 continue; // já executada
             }
 
+            // ── Validação server-side: tabelas devem ter prefixo do módulo ──────
+            $migContent = (string) file_get_contents($file);
+            $validation = $this->validateMigrationTablesDetailed($moduleName, $migContent, $migName, $activePdo);
+            if (!$validation['valid']) {
+                foreach ($validation['violations'] as $v) {
+                    $errors[] = "[{$v['op']} {$v['table']}] {$v['message']}";
+                }
+                continue; // bloqueia execução desta migration
+            }
             try {
                 $callable = include $file;
                 if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
@@ -462,6 +474,212 @@ class IdeProjectService
                 ? (empty($ran) ? 'Todas as migrations já foram executadas.' : count($ran) . ' migration(s) executada(s).')
                 : 'Algumas migrations falharam.',
         ];
+    }
+
+    /**
+     * Valida que uma migration só cria/altera tabelas com o prefixo do módulo.
+     * Também verifica se tabelas a criar já existem no banco (pertencentes a outro módulo).
+     * Retorna array com 'error' (string|null) e 'violations' (array de detalhes).
+     */
+    public function validateMigrationTablesDetailed(string $moduleName, string $content, string $migName, PDO $pdo): array
+    {
+        $systemTables = [
+            'usuarios', 'users', 'access_tokens', 'refresh_tokens', 'token_blacklist',
+            'audit_logs', 'email_history', 'email_throttle', 'ide_projects', 'ide_user_limits',
+            'migrations', 'link_limites', 'link_cliques', 'capabilities', 'sessions',
+            'password_resets', 'threat_scores', 'rate_limits',
+        ];
+
+        $prefix     = $this->moduleNameToPrefix($moduleName);
+        $violations = [];
+
+        // DDL: CREATE, ALTER, DROP, TRUNCATE
+        $ddlPattern = '/\b(CREATE|ALTER|DROP|TRUNCATE)\s+TABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        preg_match_all($ddlPattern, $content, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            $operation  = strtoupper($match[1]);
+            $table      = $match[2];
+            $tableLower = strtolower($table);
+
+            // 1. Tabela do sistema — sempre bloqueado
+            if (in_array($tableLower, $systemTables, true)) {
+                $violations[] = [
+                    'type'    => 'SYSTEM_TABLE',
+                    'table'   => $table,
+                    'op'      => $operation,
+                    'message' => "A operação {$operation} na tabela do sistema '{$table}' é proibida. Módulos não podem tocar tabelas do sistema.",
+                ];
+                continue;
+            }
+
+            // 2. Tabela sem prefixo do módulo — bloqueado
+            if (!str_starts_with($tableLower, $prefix . '_') && $tableLower !== $prefix) {
+                $violations[] = [
+                    'type'    => 'WRONG_PREFIX',
+                    'table'   => $table,
+                    'op'      => $operation,
+                    'message' => "A tabela '{$table}' não usa o prefixo obrigatório '{$prefix}_'. Renomeie para '{$prefix}_{$table}'.",
+                ];
+                continue;
+            }
+
+            // 3. CREATE TABLE em tabela que já existe no banco (pertence a outro módulo ou já foi criada)
+            if ($operation === 'CREATE') {
+                $existsInBank = $this->tableExistsInDatabase($tableLower, $pdo);
+                if ($existsInBank) {
+                    // Verifica se pertence a este módulo (via tabela migrations)
+                    $ownedByThis = $this->tableOwnedByModule($tableLower, $moduleName, $pdo);
+                    if (!$ownedByThis) {
+                        $violations[] = [
+                            'type'    => 'TABLE_EXISTS',
+                            'table'   => $table,
+                            'op'      => $operation,
+                            'message' => "A tabela '{$table}' já existe no banco de dados e pertence a outro módulo. Não é possível criá-la novamente.",
+                        ];
+                    }
+                    // Se pertence a este módulo, a migration já foi executada — ok, será ignorada
+                }
+            }
+
+            // 4. ALTER/DROP/TRUNCATE em tabela que não pertence a este módulo
+            if (in_array($operation, ['ALTER', 'DROP', 'TRUNCATE'], true)) {
+                $existsInBank = $this->tableExistsInDatabase($tableLower, $pdo);
+                if ($existsInBank) {
+                    $ownedByThis = $this->tableOwnedByModule($tableLower, $moduleName, $pdo);
+                    if (!$ownedByThis) {
+                        $violations[] = [
+                            'type'    => 'NOT_OWNED',
+                            'table'   => $table,
+                            'op'      => $operation,
+                            'message' => "A operação {$operation} na tabela '{$table}' é proibida: esta tabela não pertence ao módulo '{$moduleName}'.",
+                        ];
+                    }
+                }
+            }
+        }
+
+        return [
+            'valid'      => empty($violations),
+            'violations' => $violations,
+            'migration'  => $migName,
+        ];
+    }
+
+    /**
+     * Verifica se uma tabela existe no banco de dados.
+     */
+    private function tableExistsInDatabase(string $table, PDO $pdo): bool
+    {
+        try {
+            $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            if ($driver === 'pgsql') {
+                $stmt = $pdo->prepare(
+                    "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?"
+                );
+            } else {
+                $stmt = $pdo->prepare(
+                    "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
+                );
+            }
+            $stmt->execute([$table]);
+            return (bool) $stmt->fetchColumn();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Verifica se uma tabela foi criada por este módulo (via tabela migrations).
+     */
+    private function tableOwnedByModule(string $table, string $moduleName, PDO $pdo): bool
+    {
+        try {
+            // Busca nas migrations do módulo se alguma cria esta tabela
+            $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+            $migrDir   = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+            if (!is_dir($migrDir)) return false;
+
+            $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
+            foreach ($files as $file) {
+                $content = (string) file_get_contents($file);
+                $pattern = '/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+                preg_match_all($pattern, $content, $matches);
+                foreach ($matches[1] as $t) {
+                    if (strtolower($t) === $table) return true;
+                }
+            }
+            return false;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Pré-valida todas as migrations pendentes antes de executar.
+     * Retorna array com todas as violações encontradas.
+     */
+    public function preValidateMigrations(array $project, PDO $pdo, ?PDO $pdoModules = null): array
+    {
+        $moduleName = $project['module_name'];
+        $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+
+        if (!is_dir($moduleDir)) {
+            return ['valid' => false, 'error' => 'Módulo não publicado.', 'violations' => []];
+        }
+
+        $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        if (!is_dir($migrDir)) {
+            return ['valid' => true, 'pending' => [], 'violations' => []];
+        }
+
+        $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+        $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
+        $activePdo = ($conn === 'modules' && $pdoModules) ? $pdoModules : $pdo;
+
+        $this->ensureMigrationsTable($activePdo);
+
+        $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        sort($files, SORT_NATURAL);
+
+        $pending    = [];
+        $violations = [];
+
+        foreach ($files as $file) {
+            $migName = basename($file, '.php');
+            $key     = $moduleName . '/' . $migName;
+
+            // Só valida migrations pendentes
+            $stmt = $activePdo->prepare("SELECT 1 FROM migrations WHERE migration = :m");
+            $stmt->execute([':m' => $key]);
+            if ($stmt->fetchColumn()) continue;
+
+            $pending[] = $migName;
+            $content   = (string) file_get_contents($file);
+            $result    = $this->validateMigrationTablesDetailed($moduleName, $content, $migName, $activePdo);
+
+            if (!$result['valid']) {
+                $violations = array_merge($violations, $result['violations']);
+            }
+        }
+
+        return [
+            'valid'      => empty($violations),
+            'pending'    => $pending,
+            'violations' => $violations,
+            'module'     => $moduleName,
+            'prefix'     => $this->moduleNameToPrefix($moduleName),
+        ];
+    }
+
+    /**
+     * Converte PascalCase para snake_case (prefixo de tabela).
+     * Ex: MeuModulo → meu_modulo, LinkEncurtador → link_encurtador
+     */
+    private function moduleNameToPrefix(string $name): string
+    {
+        $snake = preg_replace('/([A-Z])/', '_$1', lcfirst($name)) ?? $name;
+        return strtolower($snake);
     }
 
     /**
@@ -499,6 +717,16 @@ class IdeProjectService
             $stmt = $activePdo->prepare("SELECT 1 FROM migrations WHERE migration = :m");
             $stmt->execute([':m' => $key]);
             if ($stmt->fetchColumn()) continue;
+
+            // ── Validação server-side: seeders só podem acessar tabelas do módulo ──
+            $seedContent = (string) file_get_contents($file);
+            $validation  = $this->validateMigrationTablesDetailed($moduleName, $seedContent, $seedName, $activePdo);
+            if (!$validation['valid']) {
+                foreach ($validation['violations'] as $v) {
+                    $errors[] = "[Seeder {$seedName}] {$v['message']}";
+                }
+                continue;
+            }
 
             try {
                 $callable = include $file;
@@ -540,14 +768,16 @@ class IdeProjectService
 
         $this->removeDir($moduleDir);
 
-        // Remove do state
-        $this->setModuleEnabled($moduleName, false);
+        // Remove do state via ModuleLoader
+        $this->moduleLoader->setEnabled($moduleName, false);
 
         return ['removed' => true, 'module_name' => $moduleName];
     }
 
     /**
-     * Ativa ou desativa o módulo no modules_state.json.
+     * Ativa ou desativa o módulo via ModuleLoader.
+     * Atualiza o estado em memória imediatamente E persiste no modules_state.json,
+     * garantindo que o guard do ModuleScopedRouter bloqueie as rotas na mesma request.
      */
     public function toggleModule(string $moduleName, bool $enabled): array
     {
@@ -560,7 +790,9 @@ class IdeProjectService
             return ['error' => 'Módulo não está publicado em src/Modules/.'];
         }
 
-        $this->setModuleEnabled($moduleName, $enabled);
+        // Usa ModuleLoader::setEnabled() — atualiza memória + persiste arquivo atomicamente
+        $this->moduleLoader->setEnabled($moduleName, $enabled);
+
         return ['module_name' => $moduleName, 'enabled' => $enabled];
     }
 
@@ -997,25 +1229,6 @@ class IdeProjectService
             ? "CREATE TABLE IF NOT EXISTS migrations (id SERIAL PRIMARY KEY, module VARCHAR(255) NOT NULL, migration VARCHAR(255) NOT NULL UNIQUE, hash VARCHAR(64), executed_at TIMESTAMP NOT NULL DEFAULT NOW())"
             : "CREATE TABLE IF NOT EXISTS migrations (id INT AUTO_INCREMENT PRIMARY KEY, module VARCHAR(255) NOT NULL, migration VARCHAR(255) NOT NULL UNIQUE, hash VARCHAR(64), executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)";
         try { $pdo->exec($sql); } catch (\Throwable) {}
-    }
-
-    private function isModuleEnabled(string $moduleName): bool
-    {
-        $stateFile = dirname($this->modulesBase) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_state.json';
-        if (!is_file($stateFile)) return true;
-        $state = json_decode((string)file_get_contents($stateFile), true) ?? [];
-        return (bool)($state[$moduleName] ?? true);
-    }
-
-    private function setModuleEnabled(string $moduleName, bool $enabled): void
-    {
-        $stateFile = dirname($this->modulesBase) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'modules_state.json';
-        $state = [];
-        if (is_file($stateFile)) {
-            $state = json_decode((string)file_get_contents($stateFile), true) ?? [];
-        }
-        $state[$moduleName] = $enabled;
-        file_put_contents($stateFile, json_encode($state, JSON_PRETTY_PRINT));
     }
 
     // ── Scaffold ──────────────────────────────────────────────────────────

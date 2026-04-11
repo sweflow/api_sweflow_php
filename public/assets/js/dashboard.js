@@ -3055,3 +3055,85 @@ window.onload = function () {
         atualizarPreview('ep-capa', 'ep-capa-preview', 'ep-capa-img'));
 
 };
+
+// ── Link Limits Admin ─────────────────────────────────────────────────────────
+(function initLinkLimits() {
+    const saveBtn    = document.getElementById('ll-save-btn');
+    const userIdInp  = document.getElementById('ll-user-id');
+    const maxSel     = document.getElementById('ll-max-links');
+    const feedback   = document.getElementById('ll-feedback');
+    const currentDiv = document.getElementById('ll-current');
+
+    if (!saveBtn) return;
+
+    function showFeedback(msg, ok) {
+        feedback.textContent = msg;
+        feedback.style.display = 'block';
+        feedback.style.background = ok ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)';
+        feedback.style.border = ok ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(239,68,68,.25)';
+        feedback.style.color = ok ? '#22c55e' : '#ef4444';
+        clearTimeout(feedback._t);
+        feedback._t = setTimeout(() => { feedback.style.display = 'none'; }, 4000);
+    }
+
+    function showCurrent(data) {
+        currentDiv.style.display = 'block';
+        const limit = data.max_links;
+        const total = data.total ?? 0;
+        let txt = '';
+        if (limit === -1) {
+            txt = 'Limite atual: Ilimitado | Links criados: ' + total;
+        } else if (limit === 0) {
+            txt = 'Limite atual: Bloqueado (0) | Links criados: ' + total;
+        } else {
+            txt = 'Limite atual: ' + limit + ' | Links criados: ' + total + ' | Restante: ' + Math.max(0, limit - total);
+        }
+        currentDiv.textContent = txt;
+    }
+
+    // Ao sair do campo userId, carrega o limite atual
+    userIdInp.addEventListener('blur', async function () {
+        const uid = this.value.trim();
+        if (!uid || !/^[0-9a-f-]{36}$/i.test(uid)) return;
+        try {
+            const res = await fetch('/api/links/user-limit/' + uid, { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            showCurrent(data);
+            // Seleciona o valor atual no select
+            const val = String(data.max_links ?? -1);
+            const opt = maxSel.querySelector('option[value="' + val + '"]');
+            if (opt) maxSel.value = val;
+        } catch (_) {}
+    });
+
+    saveBtn.addEventListener('click', async function () {
+        const uid      = userIdInp.value.trim();
+        const maxLinks = parseInt(maxSel.value, 10);
+
+        if (!uid) { showFeedback('Informe o UUID do usuário.', false); return; }
+        if (!/^[0-9a-f-]{36}$/i.test(uid)) { showFeedback('UUID inválido.', false); return; }
+
+        saveBtn.disabled = true;
+        const orig = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+
+        try {
+            const res = await fetch('/api/links/user-limit/' + uid, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_links: maxLinks }),
+            });
+            const data = await res.json();
+            if (!res.ok) { showFeedback(data.error || 'Erro ao salvar.', false); return; }
+            showFeedback('Limite salvo com sucesso!', true);
+            showCurrent({ max_links: maxLinks, total: data.total ?? 0 });
+        } catch (e) {
+            showFeedback('Erro de rede: ' + e.message, false);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = orig;
+        }
+    });
+})();

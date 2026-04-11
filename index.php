@@ -465,7 +465,7 @@ $container->bind(
         $pdo        = $container->make(\PDO::class);
         $pdoModules = null;
         try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
-        $service = new \Src\Modules\IdeModuleBuilder\Services\IdeProjectService($pdo);
+        $service = new \Src\Modules\IdeModuleBuilder\Services\IdeProjectService($pdo, $container->make(\Src\Kernel\Nucleo\ModuleLoader::class));
         return new \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController($service, $pdo, $pdoModules);
     },
     true

@@ -469,6 +469,159 @@ final class ModuleAnalyzer
                 );
             }
         }
+
+        // Verifica acesso a tabelas que não pertencem ao módulo
+        $this->checkTableIsolation($phpFiles);
+    }
+
+    /**
+     * Detecta queries SQL que referenciam tabelas do sistema ou de outros módulos.
+     * Cobre SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, TRUNCATE, JOIN.
+     * Também bloqueia tentativas de criar conexão PDO própria e acessar information_schema.
+     */
+    private function checkTableIsolation(array $phpFiles): void
+    {
+        $systemTables = [
+            'usuarios', 'users', 'user',
+            'access_tokens', 'refresh_tokens', 'token_blacklist',
+            'audit_logs', 'email_history', 'email_throttle',
+            'ide_projects', 'ide_user_limits',
+            'migrations',
+            'link_limites', 'link_cliques', 'links',
+            'capabilities', 'module_capabilities',
+            'threat_scores', 'rate_limits',
+            'sessions', 'password_resets',
+            'tarefas', 'notas', 'avisos',
+        ];
+
+        $modulePrefix = $this->toSnakeCase($this->moduleName);
+        $ownTables    = $this->collectOwnTables();
+
+        // Padrões SQL que referenciam tabelas
+        $sqlTablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+
+        foreach ($phpFiles as $path => $content) {
+            if (str_contains($path, 'Database/Migrations/')) {
+                // Nas migrations: valida que tabelas usam o prefixo correto
+                $this->checkMigrationTablePrefix($path, $content, $modulePrefix);
+                continue;
+            }
+            if (str_contains($path, 'Database/Seeders/')) {
+                // Seeders: valida tabelas também
+                $this->checkFileTableAccess($path, $content, $sqlTablePattern, $systemTables, $ownTables, $modulePrefix);
+                continue;
+            }
+
+            // Bloqueia tentativa de criar conexão PDO própria (bypass do RestrictedPDO)
+            if (preg_match('/\bnew\s+PDO\s*\(/i', $content, $m, PREG_OFFSET_CAPTURE)) {
+                $line = substr_count(substr($content, 0, (int)$m[0][1]), "\n") + 1;
+                $this->addIssue($path, $line, 'error', 'DIRECT_PDO_CONNECTION',
+                    'Criação direta de conexão PDO não é permitida.',
+                    'Use o $pdo injetado pelo framework via constructor injection. Criar conexão própria é proibido por segurança.'
+                );
+            }
+
+            // Bloqueia acesso a information_schema / pg_catalog (enumeração de tabelas)
+            if (preg_match('/\b(information_schema|pg_catalog|pg_tables|sys\.tables|sysobjects)\b/i', $content, $m, PREG_OFFSET_CAPTURE)) {
+                $line = substr_count(substr($content, 0, (int)$m[0][1]), "\n") + 1;
+                $this->addIssue($path, $line, 'error', 'SCHEMA_ENUMERATION',
+                    "Acesso a '{$m[0][0]}' é proibido. Módulos não podem enumerar tabelas do banco.",
+                    'Use apenas as tabelas do seu módulo. Não tente descobrir tabelas de outros módulos.'
+                );
+            }
+
+            // Verifica tabelas referenciadas em queries
+            $this->checkFileTableAccess($path, $content, $sqlTablePattern, $systemTables, $ownTables, $modulePrefix);
+        }
+    }
+
+    /**
+     * Verifica acesso a tabelas em um arquivo específico.
+     */
+    private function checkFileTableAccess(string $path, string $content, string $pattern, array $systemTables, array $ownTables, string $modulePrefix): void
+    {
+        preg_match_all($pattern, $content, $matches, PREG_OFFSET_CAPTURE);
+
+        foreach ($matches[1] as $match) {
+            $tableName = strtolower($match[0]);
+            $offset    = (int) $match[1];
+            $line      = substr_count(substr($content, 0, $offset), "\n") + 1;
+
+            if ($tableName === 'migrations') continue;
+
+            // Tabela do sistema
+            if (in_array($tableName, $systemTables, true)) {
+                $this->addIssue($path, $line, 'error', 'FORBIDDEN_TABLE_ACCESS',
+                    "Acesso proibido à tabela do sistema '{$tableName}'.",
+                    "Módulos não podem acessar tabelas do sistema. Use apenas tabelas com prefixo '{$modulePrefix}_'."
+                );
+                continue;
+            }
+
+            // Tabela do próprio módulo — OK
+            if (in_array($tableName, $ownTables, true)) continue;
+            if (str_starts_with($tableName, $modulePrefix . '_')) continue;
+            if ($tableName === $modulePrefix) continue;
+
+            // Tabela de outro módulo
+            if (preg_match('/^[a-z][a-z0-9]*_/', $tableName)) {
+                $this->addIssue($path, $line, 'error', 'CROSS_MODULE_TABLE_ACCESS',
+                    "Acesso a tabela '{$tableName}' que não pertence ao módulo '{$this->moduleName}'.",
+                    "Use apenas tabelas com prefixo '{$modulePrefix}_' (ex: {$modulePrefix}_itens)."
+                );
+            }
+        }
+    }
+
+    /**
+     * Valida que migrations só criam/alteram tabelas com o prefixo do módulo.
+     */
+    private function checkMigrationTablePrefix(string $path, string $content, string $modulePrefix): void
+    {
+        $ddlPattern = '/\b(?:CREATE|ALTER|DROP|TRUNCATE)\s+TABLE\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        preg_match_all($ddlPattern, $content, $matches, PREG_OFFSET_CAPTURE);
+
+        foreach ($matches[1] as $match) {
+            $table  = $match[0];
+            $tLower = strtolower($table);
+            $line   = substr_count(substr($content, 0, (int)$match[1]), "\n") + 1;
+
+            if (!str_starts_with($tLower, $modulePrefix . '_') && $tLower !== $modulePrefix) {
+                $this->addIssue($path, $line, 'error', 'MIGRATION_WRONG_PREFIX',
+                    "Tabela '{$table}' na migration não usa o prefixo obrigatório '{$modulePrefix}_'.",
+                    "Renomeie para '{$modulePrefix}_{$table}'. Cada módulo só pode criar tabelas com seu próprio prefixo."
+                );
+            }
+        }
+    }
+
+    /**
+     * Coleta os nomes de tabelas declarados nas migrations do próprio módulo.
+     */
+    private function collectOwnTables(): array
+    {
+        $tables  = [];
+        $pattern = '/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+
+        foreach ($this->files as $path => $content) {
+            if (!str_contains($path, 'Database/Migrations/')) continue;
+            preg_match_all($pattern, $content, $matches);
+            foreach ($matches[1] as $table) {
+                $tables[] = strtolower($table);
+            }
+        }
+
+        return array_unique($tables);
+    }
+
+    /**
+     * Converte PascalCase para snake_case.
+     * Ex: MeuModulo → meu_modulo, LinkEncurtador → link_encurtador
+     */
+    private function toSnakeCase(string $name): string
+    {
+        $snake = preg_replace('/([A-Z])/', '_$1', lcfirst($name)) ?? $name;
+        return strtolower($snake);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

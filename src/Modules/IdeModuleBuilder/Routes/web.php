@@ -24,7 +24,8 @@ $router->put('/api/ide/projects/{id}/folders',       [IdeProjectController::clas
 $router->delete('/api/ide/projects/{id}/files',      [IdeProjectController::class, 'deleteFile'],   $protected);
 $router->post('/api/ide/projects/{id}/deploy',       [IdeProjectController::class, 'deploy'],       $protected);
 $router->get('/api/ide/projects/{id}/status',        [IdeProjectController::class, 'status'],       $protected);
-$router->post('/api/ide/projects/{id}/migrate',      [IdeProjectController::class, 'migrate'],      $protected);
+$router->post('/api/ide/projects/{id}/migrate',      [IdeProjectController::class, 'migrate'],              $protected);
+$router->post('/api/ide/projects/{id}/validate-migrations', [IdeProjectController::class, 'preValidateMigrations'], $protected);
 $router->post('/api/ide/projects/{id}/seed',         [IdeProjectController::class, 'seed'],         $protected);
 $router->delete('/api/ide/projects/{id}/module',     [IdeProjectController::class, 'removeModule'], $protected);
 $router->patch('/api/ide/projects/{id}/module',      [IdeProjectController::class, 'toggleModule'], $protected);

@@ -205,6 +205,7 @@
                     <span class="dash-sidenav-label">Configuração</span>
                     <a href="#capabilities"        class="dash-sidenav-link"><i class="fa-solid fa-plug"></i> Capacidades</a>
                     <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
+                    <a href="#link-limits"         class="dash-sidenav-link"><i class="fa-solid fa-link"></i> Limites de Links</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
                     <a href="/dashboard/ide"        class="dash-sidenav-link" style="color:#818cf8;font-weight:700;"><i class="fa-solid fa-code"></i> Vupi.us IDE</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
@@ -342,6 +343,47 @@
                 </div>
             </div>
             <div id="migrations-list"><span class="dash-loading">Carregando...</span></div>
+        </section>
+
+        <!-- Limites de Links -->
+        <section class="dash-card dash-section" id="link-limits">
+            <div class="dash-section-header">
+                <div>
+                    <h2 class="dash-section-title"><i class="fa-solid fa-link"></i> Limites de Links Encurtados</h2>
+                    <p class="dash-section-sub">Defina quantos links cada usuário pode criar. -1 = ilimitado, 0 = bloqueado.</p>
+                </div>
+            </div>
+            <div class="link-limit-form">
+                <div class="link-limit-row">
+                    <div class="field-group" style="flex:1">
+                        <label for="ll-user-id">UUID do usuário</label>
+                        <input type="text" id="ll-user-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="field-group" style="min-width:200px">
+                        <label for="ll-max-links">Limite de links</label>
+                        <select id="ll-max-links">
+                            <option value="-1">Ilimitado</option>
+                            <option value="0">0 — Bloqueado</option>
+                            <option value="1">1 link</option>
+                            <option value="2">2 links</option>
+                            <option value="3">3 links</option>
+                            <option value="4">4 links</option>
+                            <option value="5">5 links</option>
+                            <option value="10">10 links</option>
+                            <option value="20">20 links</option>
+                            <option value="50">50 links</option>
+                            <option value="100">100 links</option>
+                        </select>
+                    </div>
+                    <div class="field-group" style="align-self:flex-end">
+                        <button class="dash-btn-primary" id="ll-save-btn">
+                            <i class="fa-solid fa-floppy-disk"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+                <div id="ll-feedback" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:.9rem;font-weight:600;"></div>
+                <div id="ll-current" style="display:none;margin-top:12px;padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:10px;font-size:.9rem;"></div>
+            </div>
         </section>
 
     </main>

@@ -151,11 +151,26 @@ final class IdeProjectController
         [$userId, $project, $err] = $this->requireProject($request);
         if ($err) return $err;
 
-        $path = trim((string) ($request->body['path'] ?? ''));
+        $path    = trim((string) ($request->body['path'] ?? ''));
+        $content = (string) ($request->body['content'] ?? '');
+
         if ($path === '') {
             return $this->errorResponse('path e obrigatorio.', 422);
         }
-        $ok = $this->service->saveFile($project['id'], $userId, $path, (string) ($request->body['content'] ?? ''));
+
+        // ── Validação server-side: verifica conteúdo PHP ao salvar ──────────
+        if (str_ends_with($path, '.php') && $content !== '') {
+            $violation = $this->validateCodeTableAccess($content, $project['module_name']);
+            if ($violation !== null) {
+                return Response::json([
+                    'saved' => false,
+                    'error' => $violation,
+                    'security_block' => true,
+                ], 403);
+            }
+        }
+
+        $ok = $this->service->saveFile($project['id'], $userId, $path, $content);
         return $ok ? Response::json(['saved' => true]) : $this->errorResponse('Falha ao salvar.', 500);
     }
 
@@ -273,6 +288,13 @@ final class IdeProjectController
         return Response::json($result, isset($result['error']) ? 400 : 200);
     }
 
+    public function preValidateMigrations(Request $request): Response
+    {
+        [, $project, $err] = $this->requireProject($request);
+        if ($err) return $err;
+        $result = $this->service->preValidateMigrations($project, $this->pdo, $this->pdoModules);
+        return Response::json($result);
+    }
     public function seed(Request $request): Response
     {
         [, $project, $err] = $this->requireProject($request);
@@ -323,9 +345,16 @@ final class IdeProjectController
             return Response::json(['diagnostics' => []]);
         }
 
+        // Passa todos os arquivos do projeto para que o analyzer tenha contexto completo:
+        // - NO_ROUTES_FILE não dispara em arquivos que não são o módulo inteiro
+        // - MISSING_CONTROLLER encontra os controllers nos outros arquivos do projeto
+        $allFiles = $project['files'] ?? [];
+        // Substitui o conteúdo do arquivo atual pelo conteúdo enviado (pode ter edições não salvas)
+        $allFiles[$path] = $content;
+
         $analyzer = new \Src\Modules\IdeModuleBuilder\Services\ModuleAnalyzer(
             $project['module_name'],
-            [$path => $content]
+            $allFiles
         );
         $report = $analyzer->analyze();
 
@@ -336,8 +365,23 @@ final class IdeProjectController
             'MISSING_NAMESPACE', 'WRONG_NAMESPACE', 'INVALID_CONNECTION',
         ];
 
-        $diagnostics = array_map(function (array $issue) use ($fixableCodes) {
-            return [
+        // Filtra apenas os diagnósticos do arquivo atual (ou sem arquivo — estrutura global)
+        // Exclui NO_ROUTES_FILE e MISSING_CONTROLLER do lint single-file: esses são
+        // problemas de estrutura do módulo inteiro, não do arquivo sendo editado.
+        $structureCodes = ['NO_ROUTES_FILE', 'EMPTY_PROJECT'];
+
+        $diagnostics = [];
+        foreach ($report['issues'] ?? [] as $issue) {
+            $issueFile = $issue['file'] ?? '';
+            // Inclui apenas issues do arquivo atual ou issues globais que não sejam de estrutura
+            if ($issueFile !== $path && ($issueFile !== '' || in_array($issue['code'], $structureCodes, true))) {
+                continue;
+            }
+            // Suprime NO_ROUTES_FILE no lint — só faz sentido no analyze() completo
+            if (in_array($issue['code'], $structureCodes, true)) {
+                continue;
+            }
+            $diagnostics[] = [
                 'line'       => max(1, (int) ($issue['line'] ?? 1)),
                 'column'     => 1,
                 'severity'   => $issue['severity'] === 'error' ? 8 : ($issue['severity'] === 'warning' ? 4 : 1),
@@ -346,7 +390,7 @@ final class IdeProjectController
                 'suggestion' => $issue['suggestion'] ?? '',
                 'fixable'    => in_array($issue['code'], $fixableCodes, true),
             ];
-        }, $report['issues'] ?? []);
+        }
 
         return Response::json(['diagnostics' => $diagnostics]);
     }
@@ -419,6 +463,20 @@ final class IdeProjectController
             return $this->errorResponse('Informe "file" ou "code".', 422);
         }
 
+        // ── Validação server-side no controller (independente do PhpExecutor) ──
+        if ($code !== '') {
+            $violation = $this->validateCodeTableAccess($code, $project['module_name']);
+            if ($violation !== null) {
+                return Response::json([
+                    'output'      => '',
+                    'errors'      => $violation,
+                    'exit_code'   => 1,
+                    'duration_ms' => 0,
+                    'type'        => 'security_block',
+                ]);
+            }
+        }
+
         try {
             $exec = new PhpExecutor(self::EXECUTOR_TIMEOUT);
             return Response::json($file !== ''
@@ -429,6 +487,62 @@ final class IdeProjectController
         }
     }
 
+    /**
+     * Validação server-side de isolamento de tabelas no controller.
+     * Roda ANTES do PhpExecutor — camada independente.
+     */
+    private function validateCodeTableAccess(string $code, string $moduleName): ?string
+    {
+        $prefix = strtolower(preg_replace('/([A-Z])/', '_$1', lcfirst($moduleName)) ?? $moduleName);
+
+        $systemTables = [
+            'usuarios', 'users', 'user',
+            'access_tokens', 'refresh_tokens', 'token_blacklist',
+            'audit_logs', 'email_history', 'email_throttle',
+            'ide_projects', 'ide_user_limits',
+            'migrations',
+            'links', 'link_limites', 'link_cliques',
+            'capabilities', 'module_capabilities',
+            'threat_scores', 'rate_limits',
+            'sessions', 'password_resets',
+            'tarefas', 'notas', 'avisos',
+        ];
+
+        // Bloqueia new PDO()
+        if (preg_match('/\bnew\s+PDO\s*\(/i', $code)) {
+            return "[Segurança] Criação direta de conexão PDO não é permitida.";
+        }
+
+        // Bloqueia SHOW TABLES/DATABASES
+        if (preg_match('/\bSHOW\s+(TABLES|DATABASES|COLUMNS|CREATE\s+TABLE)/i', $code)) {
+            return "[Segurança] Comando SHOW bloqueado.";
+        }
+
+        // Bloqueia information_schema / pg_catalog
+        if (preg_match('/\b(information_schema|pg_catalog|pg_tables)\b/i', $code)) {
+            return "[Segurança] Acesso a metadados do banco bloqueado.";
+        }
+
+        // Verifica tabelas referenciadas
+        $pattern = '/\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        preg_match_all($pattern, $code, $matches);
+
+        foreach ($matches[1] as $table) {
+            $t = strtolower($table);
+            if ($t === 'migrations' || $t === '') continue;
+
+            if (in_array($t, $systemTables, true)) {
+                return "[Segurança] Acesso proibido à tabela do sistema '{$table}'.";
+            }
+
+            if (str_contains($t, '_') && !str_starts_with($t, $prefix . '_') && $t !== $prefix) {
+                return "[Segurança] Tabela '{$table}' não pertence ao módulo '{$moduleName}'.";
+            }
+        }
+
+        return null;
+    }
+
     public function debugFile(Request $request): Response
     {
         [, $project, $err] = $this->requireProject($request);
@@ -436,6 +550,23 @@ final class IdeProjectController
 
         $file = trim((string) ($request->body['file'] ?? ''));
         if ($file === '') return $this->errorResponse('Informe o arquivo.', 422);
+
+        // ── Validação server-side: lê o arquivo e valida tabelas antes de executar ──
+        $moduleName = $project['module_name'];
+        $modulesBase = dirname(__DIR__, 3) . '/Modules';
+        $fullPath = realpath($modulesBase . DIRECTORY_SEPARATOR . $moduleName . DIRECTORY_SEPARATOR . str_replace(['..', '\\'], ['', '/'], $file));
+        if ($fullPath !== false && is_file($fullPath)) {
+            $content = file_get_contents($fullPath);
+            if ($content !== false) {
+                $violation = $this->validateCodeTableAccess($content, $moduleName);
+                if ($violation !== null) {
+                    return Response::json([
+                        'output' => '', 'errors' => $violation,
+                        'exit_code' => 1, 'duration_ms' => 0, 'type' => 'security_block',
+                    ]);
+                }
+            }
+        }
 
         try {
             $breakLine = isset($request->body['break_line']) ? (int) $request->body['break_line'] : null;
