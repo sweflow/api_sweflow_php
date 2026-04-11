@@ -168,9 +168,22 @@
             </span>
             <span class="ide-status-item" id="status-lang"></span>
             <span class="ide-status-item" id="status-cursor"></span>
+            <button class="ide-status-diag" id="status-diag" style="display:none;" aria-label="Ver diagnósticos" title="Ver problemas no código">
+                <i class="fa-solid fa-circle-xmark" id="status-diag-icon" aria-hidden="true"></i>
+                <span id="status-diag-count"></span>
+            </button>
             <span class="ide-status-saved" id="status-saved" style="display:none;" aria-live="polite">
                 <i class="fa-solid fa-check" aria-hidden="true"></i> Salvo
             </span>
+        </div>
+
+        <!-- DIAGNOSTICS PANEL -->
+        <div class="ide-diag-panel" id="ide-diag-panel" style="display:none;" aria-label="Problemas no código">
+            <div class="ide-diag-header">
+                <span class="ide-diag-title"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Problemas</span>
+                <button class="ide-diag-close" id="ide-diag-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="ide-diag-list" id="ide-diag-list"></div>
         </div>
     </main>
 

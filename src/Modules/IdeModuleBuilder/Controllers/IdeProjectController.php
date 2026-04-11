@@ -14,7 +14,7 @@ use Src\Modules\IdeModuleBuilder\Services\PhpExecutor;
 
 final class IdeProjectController
 {
-    private const EXECUTOR_TIMEOUT = 15;
+    private const EXECUTOR_TIMEOUT = 30;
 
     public function __construct(
         private readonly IdeProjectService $service,
@@ -310,6 +310,46 @@ final class IdeProjectController
     }
 
     // ── Scaffold & Constraints ────────────────────────────────────────────
+
+    public function lint(Request $request): Response
+    {
+        [, $project, $err] = $this->requireProject($request);
+        if ($err) return $err;
+
+        $path    = trim((string) ($request->body['path'] ?? ''));
+        $content = (string) ($request->body['content'] ?? '');
+
+        if ($path === '' || $content === '' || !str_ends_with($path, '.php')) {
+            return Response::json(['diagnostics' => []]);
+        }
+
+        $analyzer = new \Src\Modules\IdeModuleBuilder\Services\ModuleAnalyzer(
+            $project['module_name'],
+            [$path => $content]
+        );
+        $report = $analyzer->analyze();
+
+        $fixableCodes = [
+            'MISSING_UP', 'MISSING_DOWN', 'NO_DRIVER_CHECK', 'NON_IDEMPOTENT_MIGRATION',
+            'UNPROTECTED_WRITE_ROUTE', 'SHELL_EXECUTION', 'EVAL_USAGE',
+            'DIRECT_HEADER', 'DIE_EXIT', 'DIE_EXIT_IN_CONTROLLER',
+            'MISSING_NAMESPACE', 'WRONG_NAMESPACE', 'INVALID_CONNECTION',
+        ];
+
+        $diagnostics = array_map(function (array $issue) use ($fixableCodes) {
+            return [
+                'line'       => max(1, (int) ($issue['line'] ?? 1)),
+                'column'     => 1,
+                'severity'   => $issue['severity'] === 'error' ? 8 : ($issue['severity'] === 'warning' ? 4 : 1),
+                'message'    => $issue['message'],
+                'code'       => $issue['code'],
+                'suggestion' => $issue['suggestion'] ?? '',
+                'fixable'    => in_array($issue['code'], $fixableCodes, true),
+            ];
+        }, $report['issues'] ?? []);
+
+        return Response::json(['diagnostics' => $diagnostics]);
+    }
 
     public function scaffold(Request $request): Response
     {

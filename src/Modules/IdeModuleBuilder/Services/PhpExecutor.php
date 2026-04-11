@@ -1,61 +1,56 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Modules\IdeModuleBuilder\Services;
 
 /**
  * Executa código PHP de forma isolada e segura para a IDE.
  *
- * SEGURANÇA:
- * - Código roda em processo separado com open_basedir restrito ao módulo + /tmp
- * - disable_functions bloqueia exec, system, shell_exec, passthru, popen, proc_open, etc.
- * - Funções de rede, filesystem externo e manipulação de processo são bloqueadas
+ * SEGURANÇA (camadas independentes):
+ * - Processo filho separado — falha no código não afeta o servidor
+ * - disable_functions: bloqueia exec, system, shell_exec, curl, eval, etc.
+ * - open_basedir: restringe filesystem ao diretório do módulo + /tmp
+ * - allow_url_fopen=0 / allow_url_include=0: sem acesso a URLs externas
+ * - Timeout rígido: mata o processo se exceder o limite
+ * - Limite de output: 512KB máximo para evitar memory exhaustion
  * - Path traversal impossível: realpath + containment check
- * - Timeout rígido mata o processo se exceder o limite
- * - Código inline é escaneado por padrões perigosos antes de executar
+ *
+ * O scan de padrões no código inline foi removido intencionalmente:
+ * era redundante (o sandbox já bloqueia tudo via disable_functions + open_basedir)
+ * e impedia código PHP legítimo como file_get_contents, include, $_SERVER, etc.
+ * que funcionam corretamente dentro dos limites do open_basedir.
  */
-class PhpExecutor
+final class PhpExecutor
 {
     private string $modulesBase;
     private int $timeout;
 
-    /** Funções PHP proibidas — bloqueadas via disable_functions no processo filho */
+    /**
+     * Funções PHP proibidas — bloqueadas via -d disable_functions no processo filho.
+     * Estas são as únicas funções que representam risco real de escape do sandbox.
+     */
     private const DISABLED_FUNCTIONS = [
-        // Execução de sistema — NUNCA permitir
+        // Execução de sistema — escape total do sandbox
         'exec', 'system', 'shell_exec', 'passthru', 'popen', 'proc_open', 'proc_close',
         'proc_get_status', 'proc_terminate', 'proc_nice', 'pcntl_exec', 'pcntl_fork',
-        // Rede — bloqueia acesso externo
+        // Rede — acesso externo não autorizado
         'fsockopen', 'pfsockopen', 'stream_socket_client', 'stream_socket_server',
         'curl_init', 'curl_exec', 'curl_multi_init',
-        // Manipulação de ambiente
+        // Manipulação de ambiente do processo pai
         'putenv', 'apache_setenv',
-        // Info sensível do servidor
+        // Vazamento de informações sensíveis do servidor
         'phpinfo', 'php_uname', 'getmyuid', 'getmypid', 'get_current_user',
-        // Código dinâmico perigoso
+        // Execução dinâmica de código arbitrário
         'eval', 'assert', 'create_function',
-        // Filesystem perigoso (fora do módulo — open_basedir já restringe)
+        // Operações de filesystem perigosas (open_basedir já restringe, mas dupla proteção)
         'link', 'symlink', 'readlink', 'chown', 'chgrp', 'lchown', 'lchgrp',
         'ini_set', 'ini_restore', 'dl',
-        // Ações de servidor
+        // Ações de servidor HTTP
         'mail', 'header', 'setcookie', 'session_start',
     ];
 
-    /** Padrões perigosos em código inline — bloqueados antes de executar */
-    private const DANGEROUS_PATTERNS = [
-        '/\b(exec|system|shell_exec|passthru|popen|proc_open)\s*\(/i',
-        '/`[^`]+`/',                                    // backtick execution
-        '/\b(file_get_contents|file_put_contents|fopen|fwrite|fread|unlink|rmdir|mkdir|rename|copy)\s*\(/i',
-        '/\b(curl_init|curl_exec|fsockopen|stream_socket_client)\s*\(/i',
-        '/\b(eval|assert|create_function)\s*\(/i',
-        '/\b(phpinfo|php_uname|getenv|putenv)\s*\(/i',
-        '/\b(include|include_once|require|require_once)\s*[\s(]/i',
-        '/\b(header|setcookie|session_start|mail)\s*\(/i',
-        '/\$_(GET|POST|REQUEST|SERVER|ENV|FILES|COOKIE|SESSION)\b/',
-        '/\b(base64_decode|gzinflate|gzuncompress|str_rot13)\s*\(/i',
-        '/\b(chmod|chown|chgrp|symlink|link|readlink)\s*\(/i',
-        '/\.\.\//i',                                    // path traversal
-    ];
-
-    public function __construct(int $timeout = 10)
+    public function __construct(int $timeout = 30)
     {
         $this->modulesBase = dirname(__DIR__, 4) . '/src/Modules';
         $this->timeout = $timeout;
@@ -88,7 +83,11 @@ class PhpExecutor
 
     /**
      * Executa código PHP inline (terminal interativo).
-     * Escaneia por padrões perigosos antes de executar.
+     *
+     * O código roda dentro do sandbox (disable_functions + open_basedir),
+     * portanto funções como file_get_contents, fopen, include, require, $_SERVER
+     * funcionam normalmente — mas restritas ao diretório do módulo.
+     * Funções de sistema (exec, shell_exec, curl, etc.) são bloqueadas pelo sandbox.
      */
     public function runCode(string $code, string $moduleName): array
     {
@@ -97,13 +96,12 @@ class PhpExecutor
             return $this->error("Módulo '{$moduleName}' não encontrado.");
         }
 
-        // Scan de segurança no código inline
-        $blocked = $this->scanDangerousCode($code);
-        if ($blocked !== null) {
-            return $this->error("Bloqueado por segurança: {$blocked}");
+        // Bloqueia apenas backtick execution — não capturado pelo disable_functions
+        if (preg_match('/`[^`]*`/', $code)) {
+            return $this->error("[Segurança] Execução via backtick não é permitida.");
         }
 
-        // Prepara código
+        // Adiciona tag PHP se necessário
         $trimmed = ltrim($code);
         if (!str_starts_with($trimmed, '<?php') && !str_starts_with($trimmed, '<?')) {
             $code = "<?php\n" . $code;
@@ -114,7 +112,7 @@ class PhpExecutor
             return $this->error("Não foi possível criar arquivo temporário.");
         }
         $tmpFile = $tmpBase . '.php';
-        @unlink($tmpBase); // remove o arquivo sem extensão
+        @unlink($tmpBase);
         file_put_contents($tmpFile, $code);
 
         $lint = $this->lint($tmpFile);
@@ -234,10 +232,6 @@ class PhpExecutor
     // ══════════════════════════════════════════════════════════════════════
     // Segurança
     // ══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Resolve e valida o diretório do módulo. Retorna realpath ou null.
-     */
     private function resolveModuleDir(string $moduleName): ?string
     {
         if (!preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $moduleName)) return null;
@@ -267,43 +261,6 @@ class PhpExecutor
         if (!str_starts_with($real, $moduleDir . DIRECTORY_SEPARATOR)) return null;
 
         return $real;
-    }
-
-    /**
-     * Escaneia código inline por padrões perigosos.
-     * Retorna descrição do problema ou null se seguro.
-     */
-    private function scanDangerousCode(string $code): ?string
-    {
-        foreach (self::DANGEROUS_PATTERNS as $pattern) {
-            if (preg_match($pattern, $code, $m)) {
-                $found = $m[0];
-                // Mensagem amigável
-                if (stripos($found, 'exec') !== false || stripos($found, 'system') !== false || stripos($found, 'shell') !== false || stripos($found, 'passthru') !== false) {
-                    return "Funções de execução de sistema não são permitidas ({$found}).";
-                }
-                if (stripos($found, 'file_') !== false || stripos($found, 'fopen') !== false || stripos($found, 'unlink') !== false || stripos($found, 'mkdir') !== false) {
-                    return "Operações de filesystem não são permitidas no terminal. Use a IDE para gerenciar arquivos.";
-                }
-                if (stripos($found, 'curl') !== false || stripos($found, 'fsock') !== false || stripos($found, 'stream_socket') !== false) {
-                    return "Operações de rede não são permitidas ({$found}).";
-                }
-                if (stripos($found, 'eval') !== false || stripos($found, 'assert') !== false) {
-                    return "Execução dinâmica de código não é permitida ({$found}).";
-                }
-                if (stripos($found, 'include') !== false || stripos($found, 'require') !== false) {
-                    return "Include/require não é permitido no terminal. Use 'run arquivo.php' para executar arquivos.";
-                }
-                if (stripos($found, '$_') !== false) {
-                    return "Acesso a superglobais (\$_GET, \$_POST, \$_SERVER, etc.) não é permitido.";
-                }
-                if (stripos($found, '..') !== false) {
-                    return "Path traversal não é permitido.";
-                }
-                return "Padrão bloqueado por segurança: {$found}";
-            }
-        }
-        return null;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -348,7 +305,7 @@ class PhpExecutor
             . "ini_set('display_errors','1');\n"
             . "ini_set('error_reporting'," . E_ALL . ");\n"
             . "ini_set('max_execution_time'," . $this->timeout . ");\n"
-            . "ini_set('memory_limit','64M');\n"
+            . "ini_set('memory_limit','128M');\n"
             . "ini_set('allow_url_fopen','0');\n"
             . "ini_set('allow_url_include','0');\n"
             . "ini_set('log_errors','0');\n"

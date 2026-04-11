@@ -270,11 +270,22 @@ require(['vs/editor/editor.main'], function () {
         cursorBlinking: 'smooth',
         bracketPairColorization: { enabled: true },
         lineNumbers: 'on',
-        glyphMargin: false,
+        glyphMargin: true,
         folding: true,
+        quickSuggestions: { other: true, comments: false, strings: true },
+        suggestOnTriggerCharacters: true,
+        acceptSuggestionOnEnter: 'on',
+        snippetSuggestions: 'top',
+        wordBasedSuggestions: 'currentDocument',
+        parameterHints: { enabled: true },
+        hover: { enabled: true },
+        lightbulb: { enabled: true },
     });
 
     S.monacoReady = true;
+
+    // ── PHP Language Services ──────────────────────────────────────────────
+    initPhpLanguageServices();
 
     S.editor.onDidChangeCursorPosition(e => {
         const p = e.position;
@@ -296,6 +307,395 @@ require(['vs/editor/editor.main'], function () {
     toast('Editor de código não carregou. Verifique sua conexão.', 5000);
     loadProject();
 });
+
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// PHP Language Services — Autocomplete + Diagnósticos em tempo real
+// ══════════════════════════════════════════════════════════════════════════
+function initPhpLanguageServices() {
+    if (!monaco || !S.editor) return;
+
+    // ── 1. PHP Autocomplete (snippets + framework classes) ──
+    monaco.languages.registerCompletionItemProvider('php', {
+        triggerCharacters: ['$', '-', '>', ':', '\\', ' '],
+        provideCompletionItems: function (model, position) {
+            var word = model.getWordUntilPosition(position);
+            var range = {
+                startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+                startColumn: word.startColumn, endColumn: word.endColumn
+            };
+            var line = model.getLineContent(position.lineNumber);
+            var suggestions = [];
+
+            // Snippets PHP comuns
+            var snippets = [
+                { label: 'Response::json', kind: monaco.languages.CompletionItemKind.Function,
+                  insertText: 'Response::json([${1:\'key\' => \'value\'}], ${2:200})', insertTextRules: 4,
+                  detail: 'Retorna resposta JSON', documentation: 'Retorna uma resposta JSON com status HTTP.' },
+                { label: 'Response::html', kind: monaco.languages.CompletionItemKind.Function,
+                  insertText: 'Response::html(${1:\'<p>conteudo</p>\'})', insertTextRules: 4,
+                  detail: 'Retorna resposta HTML' },
+                { label: 'AuthHybridMiddleware', kind: monaco.languages.CompletionItemKind.Class,
+                  insertText: 'AuthHybridMiddleware::class', detail: 'Middleware de autenticação (cookie ou Bearer)' },
+                { label: 'AdminOnlyMiddleware', kind: monaco.languages.CompletionItemKind.Class,
+                  insertText: 'AdminOnlyMiddleware::class', detail: 'Apenas admin_system' },
+                { label: 'RateLimitMiddleware', kind: monaco.languages.CompletionItemKind.Class,
+                  insertText: "RateLimitMiddleware::class, ['limit' => ${1:60}, 'window' => ${2:60}, 'key' => '${3:modulo}']",
+                  insertTextRules: 4, detail: 'Rate limiting por janela de tempo' },
+                { label: 'CircuitBreakerMiddleware', kind: monaco.languages.CompletionItemKind.Class,
+                  insertText: "CircuitBreakerMiddleware::class, ['service' => '${1:database}', 'threshold' => ${2:5}, 'cooldown' => ${3:30}]",
+                  insertTextRules: 4, detail: 'Circuit breaker para tolerância a falhas' },
+                { label: 'router->get', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "\\$router->get('${1:/api/rota}', [${2:Controller}::class, '${3:metodo}'], \\$${4:auth});",
+                  insertTextRules: 4, detail: 'Rota GET' },
+                { label: 'router->post', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "\\$router->post('${1:/api/rota}', [${2:Controller}::class, '${3:metodo}'], \\$${4:auth});",
+                  insertTextRules: 4, detail: 'Rota POST' },
+                { label: 'router->put', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "\\$router->put('${1:/api/rota/{id}}', [${2:Controller}::class, '${3:metodo}'], \\$${4:auth});",
+                  insertTextRules: 4, detail: 'Rota PUT' },
+                { label: 'router->delete', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "\\$router->delete('${1:/api/rota/{id}}', [${2:Controller}::class, '${3:metodo}'], \\$${4:auth});",
+                  insertTextRules: 4, detail: 'Rota DELETE' },
+                { label: 'auth_user', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "\\$request->attribute('auth_user')", insertTextRules: 4,
+                  detail: 'Usuário autenticado (injetado pelo AuthHybridMiddleware)' },
+                { label: 'getUuid', kind: monaco.languages.CompletionItemKind.Method,
+                  insertText: "->getUuid()->toString()", detail: 'UUID do usuário como string' },
+                { label: 'PDO::FETCH_ASSOC', kind: monaco.languages.CompletionItemKind.Constant,
+                  insertText: 'PDO::FETCH_ASSOC', detail: 'Retorna array associativo' },
+                { label: 'migration-up', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "return [\n    'up' => function (PDO \\$pdo): void {\n        \\$driver = \\$pdo->getAttribute(PDO::ATTR_DRIVER_NAME);\n        if (\\$driver === 'pgsql') {\n            \\$pdo->exec(\"CREATE TABLE IF NOT EXISTS ${1:tabela} (\n                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n                criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()\n            )\");\n        } else {\n            \\$pdo->exec(\"CREATE TABLE IF NOT EXISTS ${1:tabela} (\n                id CHAR(36) PRIMARY KEY,\n                criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4\");\n        }\n    },\n    'down' => function (PDO \\$pdo): void {\n        \\$pdo->exec(\"DROP TABLE IF EXISTS ${1:tabela}\");\n    },\n];",
+                  insertTextRules: 4, detail: 'Template de migration completo (PostgreSQL + MySQL)' },
+                { label: 'MiddlewareInterface', kind: monaco.languages.CompletionItemKind.Interface,
+                  insertText: 'MiddlewareInterface', detail: 'Interface para middlewares do módulo' },
+                { label: 'handle-middleware', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "public function handle(Request \\$request, callable \\$next): Response\n{\n    ${1:// lógica antes}\n    \\$response = \\$next(\\$request);\n    ${2:// lógica depois}\n    return \\$response;\n}",
+                  insertTextRules: 4, detail: 'Método handle() da MiddlewareInterface' },
+                { label: 'declare-strict', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "declare(strict_types=1);\n\n", insertTextRules: 4,
+                  detail: 'Habilita strict_types' },
+                { label: 'constructor-readonly', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "public function __construct(\n    private readonly ${1:Type} \\$${2:dependency}\n) {}",
+                  insertTextRules: 4, detail: 'Constructor com property promotion (PHP 8.1+)' },
+            ];
+
+            // Adiciona classes do módulo atual como sugestões
+            if (S.project) {
+                var files = Object.keys(S.project.files || {});
+                files.forEach(function (f) {
+                    if (!f.endsWith('.php')) return;
+                    var parts = f.split('/');
+                    var className = parts[parts.length - 1].replace('.php', '');
+                    var ns = 'Src\\Modules\\' + S.project.module_name + '\\' + parts.slice(0, -1).join('\\');
+                    suggestions.push({
+                        label: className, kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: className, detail: ns, range: range
+                    });
+                });
+            }
+
+            snippets.forEach(function (s) { suggestions.push(Object.assign({ range: range }, s)); });
+            return { suggestions: suggestions };
+        }
+    });
+
+    // ── 2. PHP Hover (documentação inline) ──
+    monaco.languages.registerHoverProvider('php', {
+        provideHover: function (model, position) {
+            var word = model.getWordAtPosition(position);
+            if (!word) return null;
+            var docs = {
+                'Response': { value: '**Response** — Classe de resposta HTTP\n\n`Response::json($data, $status)` — Retorna JSON\n\n`Response::html($html, $status)` — Retorna HTML' },
+                'Request': { value: '**Request** — Objeto da requisição HTTP\n\n`$request->body` — Body da requisição (array)\n\n`$request->params` — Parâmetros de rota ({id})\n\n`$request->query` — Query string (?key=value)\n\n`$request->header(\'Nome\')` — Header HTTP\n\n`$request->attribute(\'auth_user\')` — Usuário autenticado' },
+                'AuthHybridMiddleware': { value: '**AuthHybridMiddleware** — Autenticação obrigatória\n\nAceita cookie `auth_token` ou header `Authorization: Bearer {token}`.\n\nPopula `$request->attribute(\'auth_user\')` com o usuário logado.' },
+                'AdminOnlyMiddleware': { value: '**AdminOnlyMiddleware** — Apenas admin_system\n\nBloqueia usuários com nível diferente de `admin_system`.' },
+                'RateLimitMiddleware': { value: '**RateLimitMiddleware** — Limite de requisições\n\nParâmetros: `limit` (máx req), `window` (segundos), `key` (identificador único).' },
+                'PDO': { value: '**PDO** — PHP Data Objects\n\nInjetado automaticamente pelo container.\n\nUse `$pdo->prepare($sql)->execute([$params])` para queries seguras.' },
+            };
+            if (docs[word.word]) {
+                return { contents: [docs[word.word]] };
+            }
+            return null;
+        }
+    });
+
+    // ── 3. Diagnósticos em tempo real ──
+    S.diagnosticTimer = null;
+    S.ignoredDiagnostics = new Set();
+    S.currentDiagnostics = [];
+    var diagDecorations = [];
+
+    S.editor.onDidChangeModelContent(function () {
+        clearTimeout(S.diagnosticTimer);
+        S.diagnosticTimer = setTimeout(runDiagnostics, 1200);
+    });
+
+    async function runDiagnostics() {
+        if (!S.project || !S.activeTab || !S.activeTab.endsWith('.php')) {
+            clearDiagnostics();
+            return;
+        }
+        var content = S.editor.getValue();
+        if (!content.trim()) { clearDiagnostics(); return; }
+
+        try {
+            var data = await api('POST', '/api/ide/projects/' + S.project.id + '/lint', {
+                path: S.activeTab, content: content
+            });
+            applyDiagnostics(data.diagnostics || []);
+        } catch (e) { /* silencioso — lint é best-effort */ }
+    }
+
+    function applyDiagnostics(diagnostics) {
+        S.currentDiagnostics = diagnostics;
+        var model = S.editor.getModel();
+        if (!model) return;
+
+        // Filtra ignorados
+        var active = diagnostics.filter(function (d) {
+            return !S.ignoredDiagnostics.has(d.code + ':' + d.line);
+        });
+
+        // Monaco markers
+        var markers = active.map(function (d) {
+            return {
+                severity: d.severity,
+                startLineNumber: d.line, endLineNumber: d.line,
+                startColumn: 1, endColumn: model.getLineLength(d.line) + 1,
+                message: d.message,
+                code: d.code,
+                source: 'Vupi.us IDE',
+            };
+        });
+        monaco.editor.setModelMarkers(model, 'vupi-php', markers);
+
+        // Decorações (gutter icons)
+        var newDecorations = active.map(function (d) {
+            var cls = d.severity === 8 ? 'ide-gutter-error' : (d.severity === 4 ? 'ide-gutter-warn' : 'ide-gutter-info');
+            return {
+                range: new monaco.Range(d.line, 1, d.line, 1),
+                options: {
+                    isWholeLine: true,
+                    glyphMarginClassName: cls,
+                    glyphMarginHoverMessage: { value: '**' + d.code + '**: ' + d.message },
+                    className: d.severity === 8 ? 'ide-line-error' : (d.severity === 4 ? 'ide-line-warn' : ''),
+                }
+            };
+        });
+        diagDecorations = S.editor.deltaDecorations(diagDecorations, newDecorations);
+
+        // Code actions (lâmpada)
+        updateCodeActions(active);
+
+        // Status bar
+        updateDiagStatusBar(active);
+
+        // Painel de diagnósticos
+        renderDiagPanel(active);
+    }
+
+    function clearDiagnostics() {
+        var model = S.editor.getModel();
+        if (model) monaco.editor.setModelMarkers(model, 'vupi-php', []);
+        diagDecorations = S.editor.deltaDecorations(diagDecorations, []);
+        updateDiagStatusBar([]);
+        renderDiagPanel([]);
+    }
+
+    function updateCodeActions(diagnostics) {
+        monaco.languages.registerCodeActionProvider('php', {
+            provideCodeActions: function (model, range, context) {
+                var actions = [];
+                diagnostics.forEach(function (d) {
+                    if (!d.fixable) return;
+                    if (d.line < range.startLineNumber || d.line > range.endLineNumber) return;
+                    actions.push({
+                        title: '✓ Corrigir: ' + d.code,
+                        kind: 'quickfix',
+                        isPreferred: true,
+                        command: {
+                            id: 'vupi.fix',
+                            title: 'Corrigir ' + d.code,
+                            arguments: [d]
+                        }
+                    });
+                    actions.push({
+                        title: '⊘ Ignorar: ' + d.code,
+                        kind: 'quickfix',
+                        command: {
+                            id: 'vupi.ignore',
+                            title: 'Ignorar ' + d.code,
+                            arguments: [d]
+                        }
+                    });
+                });
+                return { actions: actions, dispose: function () {} };
+            }
+        });
+
+        S.editor.addCommand(monaco.KeyCode.F1, function () {});
+        if (!S._vupiCmdsRegistered) {
+            S._vupiCmdsRegistered = true;
+            S.editor.addAction({
+                id: 'vupi.fix', label: 'Corrigir problema',
+                run: function (ed, d) { fixDiagnostic(d); }
+            });
+            S.editor.addAction({
+                id: 'vupi.ignore', label: 'Ignorar problema',
+                run: function (ed, d) { ignoreDiagnostic(d); }
+            });
+        }
+    }
+
+    function updateDiagStatusBar(diagnostics) {
+        var btn = $('status-diag');
+        var icon = $('status-diag-icon');
+        var count = $('status-diag-count');
+        if (!btn) return;
+
+        var errors = diagnostics.filter(function (d) { return d.severity === 8; }).length;
+        var warnings = diagnostics.filter(function (d) { return d.severity === 4; }).length;
+
+        if (!diagnostics.length) {
+            btn.style.display = 'none';
+            return;
+        }
+        btn.style.display = 'inline-flex';
+        if (errors > 0) {
+            btn.className = 'ide-status-diag has-errors';
+            icon.className = 'fa-solid fa-circle-xmark';
+            count.textContent = errors + (warnings > 0 ? ' erros, ' + warnings + ' avisos' : ' erro' + (errors > 1 ? 's' : ''));
+        } else {
+            btn.className = 'ide-status-diag has-warnings';
+            icon.className = 'fa-solid fa-triangle-exclamation';
+            count.textContent = warnings + ' aviso' + (warnings > 1 ? 's' : '');
+        }
+    }
+
+    function renderDiagPanel(diagnostics) {
+        var list = $('ide-diag-list');
+        if (!list) return;
+        list.textContent = '';
+
+        if (!diagnostics.length) {
+            $('ide-diag-panel').style.display = 'none';
+            return;
+        }
+
+        diagnostics.forEach(function (d) {
+            var ignored = S.ignoredDiagnostics.has(d.code + ':' + d.line);
+            var item = document.createElement('div');
+            item.className = 'ide-diag-item' + (ignored ? ' ide-diag-ignored' : '');
+
+            var ic = document.createElement('i');
+            ic.className = 'ide-diag-icon ' + (d.severity === 8 ? 'err fa-solid fa-circle-xmark' : d.severity === 4 ? 'warn fa-solid fa-triangle-exclamation' : 'info fa-solid fa-circle-info');
+            ic.setAttribute('aria-hidden', 'true');
+
+            var body = document.createElement('div');
+            body.className = 'ide-diag-body';
+            var msg = document.createElement('div');
+            msg.className = 'ide-diag-msg';
+            msg.textContent = d.message;
+            var meta = document.createElement('div');
+            meta.className = 'ide-diag-meta';
+            var codeSpan = document.createElement('span');
+            codeSpan.className = 'ide-diag-code';
+            codeSpan.textContent = d.code;
+            var lineSpan = document.createElement('span');
+            lineSpan.className = 'ide-diag-line';
+            lineSpan.textContent = 'Linha ' + d.line;
+            meta.appendChild(codeSpan);
+            meta.appendChild(lineSpan);
+            if (d.suggestion) {
+                var sug = document.createElement('span');
+                sug.style.cssText = 'color:#6e7681;font-style:italic;';
+                sug.textContent = d.suggestion;
+                meta.appendChild(sug);
+            }
+            body.appendChild(msg);
+            body.appendChild(meta);
+
+            var actions = document.createElement('div');
+            actions.className = 'ide-diag-actions';
+
+            if (d.fixable && !ignored) {
+                var fixBtn = document.createElement('button');
+                fixBtn.className = 'ide-diag-fix-btn';
+                fixBtn.textContent = 'Corrigir';
+                fixBtn.addEventListener('click', function (e) { e.stopPropagation(); fixDiagnostic(d); });
+                actions.appendChild(fixBtn);
+            }
+
+            var ignBtn = document.createElement('button');
+            ignBtn.className = 'ide-diag-ignore-btn';
+            ignBtn.textContent = ignored ? 'Restaurar' : 'Ignorar';
+            ignBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (ignored) S.ignoredDiagnostics.delete(d.code + ':' + d.line);
+                else ignoreDiagnostic(d);
+            });
+            actions.appendChild(ignBtn);
+
+            item.appendChild(ic);
+            item.appendChild(body);
+            item.appendChild(actions);
+
+            // Clicar na linha vai para o erro no editor
+            item.addEventListener('click', function () {
+                S.editor.revealLineInCenter(d.line);
+                S.editor.setPosition({ lineNumber: d.line, column: 1 });
+                S.editor.focus();
+            });
+
+            list.appendChild(item);
+        });
+    }
+
+    async function fixDiagnostic(d) {
+        if (!S.project || !S.activeTab) return;
+        try {
+            var data = await api('POST', '/api/ide/projects/' + S.project.id + '/autofix', {});
+            if (data.files && data.files[S.activeTab]) {
+                var newContent = data.files[S.activeTab];
+                S.editor.setValue(newContent);
+                var tab = S.tabs.find(function (t) { return t.path === S.activeTab; });
+                if (tab) { tab.content = newContent; tab.modified = true; renderTabs(); }
+                S.project.files[S.activeTab] = newContent;
+                toast('✓ Correção aplicada');
+                setTimeout(runDiagnostics, 300);
+            }
+        } catch (e) { toast('Erro ao corrigir: ' + e.message); }
+    }
+
+    function ignoreDiagnostic(d) {
+        S.ignoredDiagnostics.add(d.code + ':' + d.line);
+        applyDiagnostics(S.currentDiagnostics);
+        toast('Problema ignorado: ' + d.code);
+    }
+
+    // Status bar toggle
+    var diagBtn = $('status-diag');
+    if (diagBtn) {
+        diagBtn.addEventListener('click', function () {
+            var panel = $('ide-diag-panel');
+            if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+        });
+    }
+    var diagClose = $('ide-diag-close');
+    if (diagClose) {
+        diagClose.addEventListener('click', function () {
+            var panel = $('ide-diag-panel');
+            if (panel) panel.style.display = 'none';
+        });
+    }
+
+    // Roda diagnósticos ao trocar de arquivo
+    var origOpenFile = openFile;
+    window._diagOpenFilePatched = true;
+    S._runDiagnostics = runDiagnostics;
+}
 
 // ── File Tree ─────────────────────────────────────────────────────────────
 function renderFileTree() {
@@ -480,6 +880,11 @@ function openFile(path) {
     renderFileTree();
     loadEditor(path, content);
     $('status-file-name').textContent = path;
+    // Roda diagnósticos ao abrir arquivo PHP
+    if (path.endsWith('.php') && S._runDiagnostics) {
+        clearTimeout(S.diagnosticTimer);
+        S.diagnosticTimer = setTimeout(S._runDiagnostics, 800);
+    }
 }
 
 function switchTab(path) {
@@ -1562,7 +1967,7 @@ restoreLayout();
                 else if (e.key === 'ArrowDown') { e.preventDefault(); if (t.hIdx > 0) { t.hIdx--; this.value = t.hist[t.hIdx]; } else { t.hIdx = -1; this.value = ''; } }
             });
             addLine(out, 'Vupi.us IDE Terminal — PHP interativo', 'term-help-title');
-            addLine(out, 'Digite codigo PHP, "run arquivo.php" ou "help" para ver todos os comandos.', 'term-info');
+            addLine(out, 'Execute qualquer código PHP, "run arquivo.php" para executar arquivos, ou "help" para ver todos os comandos.', 'term-info');
         } else {
             var ctrl = document.createElement('div'); ctrl.className = 'ide-debug-controls';
             var bRun = document.createElement('button'); bRun.className = 'ide-debug-btn'; bRun.appendChild(domIcon('fa-solid fa-play')); bRun.appendChild(document.createTextNode(' Executar')); bRun.addEventListener('click', function() { doDebug(null, t); });
@@ -1583,7 +1988,17 @@ restoreLayout();
     function addLine(c, text, cls) { var d = document.createElement('div'); d.className = 'term-line ' + (cls||'term-out'); d.textContent = text; c.appendChild(d); c.scrollTop = c.scrollHeight; }
     function addRef(c, file, line, msg) { var d = document.createElement('div'); d.className = 'term-line term-err'; if (file&&line) { var r = document.createElement('span'); r.className='term-file-ref'; r.textContent=file+':'+line; r.addEventListener('click',function(){var fs=Object.keys(S.project.files||{});for(var i=0;i<fs.length;i++){if(fs[i].endsWith(file)||fs[i]===file){openFile(fs[i]);if(S.editor&&line)setTimeout(function(){S.editor.revealLineInCenter(line);S.editor.setPosition({lineNumber:line,column:1});S.editor.focus();},100);break;}}}); d.appendChild(r); d.appendChild(document.createTextNode(' — '+msg)); } else d.textContent=msg; c.appendChild(d); c.scrollTop=c.scrollHeight; }
     function filterN(t) { if(!t)return''; return t.split('\n').filter(function(l){return l.trim()&&!/Module\s+".+"\s+is already loaded/i.test(l.trim());}).join('\n').trim(); }
-    function showRes(tab, data) { var o=filterN(data.output),e=filterN(data.errors); if(o){var d=document.createElement('div');d.className='term-line term-result';d.textContent=o;tab.out.appendChild(d);tab.out.scrollTop=tab.out.scrollHeight;} if(e){if(data.file&&data.line)addRef(tab.out,data.file,data.line,e);else addLine(tab.out,e,'term-err');} if(data.exit_code===0&&!o&&!e)addLine(tab.out,'(sem saída)','term-info'); if(data.duration_ms>0)addLine(tab.out,(data.exit_code===0?'✓':'✗')+' '+data.duration_ms+'ms',data.exit_code===0?'term-duration-ok':'term-duration-err'); }
+    function showRes(tab, data) {
+        var o = filterN(data.output), e = filterN(data.errors);
+        if (o) { var d = document.createElement('div'); d.className = 'term-line term-result'; d.textContent = o; tab.out.appendChild(d); tab.out.scrollTop = tab.out.scrollHeight; }
+        if (e) {
+            var isSec = e.indexOf('[Segurança]') !== -1;
+            if (data.file && data.line) addRef(tab.out, data.file, data.line, e);
+            else addLine(tab.out, e, isSec ? 'term-security' : 'term-err');
+        }
+        if (data.exit_code === 0 && !o && !e) addLine(tab.out, '(sem saída)', 'term-info');
+        if (data.duration_ms > 0) addLine(tab.out, (data.exit_code === 0 ? '✓' : '✗') + ' ' + data.duration_ms + 'ms', data.exit_code === 0 ? 'term-duration-ok' : 'term-duration-err');
+    }
 
     async function execCmd(t, input) {
         var tr = input.trim(); if (!tr) return;
@@ -1603,6 +2018,13 @@ restoreLayout();
             addLine(t.out, '  run <arquivo>          Executa um arquivo .php do modulo.', 'term-help');
             addLine(t.out, '                         O arquivo deve estar dentro do modulo atual.', 'term-help');
             addLine(t.out, '                         Exemplo: run Controllers/TaskController.php', 'term-help');
+            addLine(t.out, '', '');
+            addLine(t.out, '  Exemplos de codigo PHP valido:', 'term-help');
+            addLine(t.out, '    echo strtoupper("hello world");', 'term-help');
+            addLine(t.out, '    $arr = [1,2,3]; echo array_sum($arr);', 'term-help');
+            addLine(t.out, '    $json = json_encode(["ok"=>true]); echo $json;', 'term-help');
+            addLine(t.out, '    $c = file_get_contents("Routes/web.php"); echo strlen($c)." bytes";', 'term-help');
+            addLine(t.out, '    include "Services/MeuService.php"; $s = new MeuService(); $s->run();', 'term-help');
             addLine(t.out, '', '');
             addLine(t.out, '--- Navegacao de Arquivos ---', 'term-help-title');
             addLine(t.out, '  ls [pasta]             Lista arquivos e pastas do diretorio atual ou', 'term-help');
@@ -1634,12 +2056,14 @@ restoreLayout();
             addLine(t.out, '  Enter                  Executa o comando digitado.', 'term-help');
             addLine(t.out, '  Seta Cima/Baixo        Navega pelo historico de comandos.', 'term-help');
             addLine(t.out, '', '');
-            addLine(t.out, '--- Seguranca ---', 'term-help-title');
-            addLine(t.out, '  O terminal executa codigo em sandbox isolado.', 'term-info');
-            addLine(t.out, '  Funcoes de sistema (exec, shell_exec, etc.) sao bloqueadas.', 'term-info');
-            addLine(t.out, '  Acesso a rede (curl, fsockopen) e bloqueado.', 'term-info');
-            addLine(t.out, '  Navegacao restrita ao diretorio do modulo.', 'term-info');
-            addLine(t.out, '  Timeout de 15 segundos por execucao.', 'term-info');
+            addLine(t.out, '--- Sandbox de Seguranca ---', 'term-help-title');
+            addLine(t.out, '  Codigo PHP roda em processo isolado — nao afeta o servidor.', 'term-info');
+            addLine(t.out, '  file_get_contents, fopen, include, require: PERMITIDOS (restrito ao modulo).', 'term-info');
+            addLine(t.out, '  exec, system, shell_exec, passthru: BLOQUEADOS (escape de sandbox).', 'term-info');
+            addLine(t.out, '  curl, fsockopen, stream_socket_client: BLOQUEADOS (acesso externo).', 'term-info');
+            addLine(t.out, '  eval, assert, create_function: BLOQUEADOS (codigo dinamico arbitrario).', 'term-info');
+            addLine(t.out, '  Filesystem restrito ao diretorio do modulo via open_basedir.', 'term-info');
+            addLine(t.out, '  Timeout de 30 segundos por execucao. Output maximo: 512KB.', 'term-info');
             addLine(t.out, '', '');
             return;
         }
