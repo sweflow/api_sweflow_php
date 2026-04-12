@@ -257,20 +257,70 @@
         }
     }
 
-    // ── Campo login: bloqueia espaços em tempo real ───────────────────────
+    // ── Campo login: bloqueia caracteres inválidos em tempo real ─────────
     var loginInp = document.getElementById('ide-login-input');
     if (loginInp) {
+
+        // Bloqueia antes de inserir — mais responsivo que corrigir depois
+        loginInp.addEventListener('beforeinput', function (e) {
+            if (!e.data) return; // backspace, delete, etc.
+
+            var current  = loginInp.value;
+            var cursorAt = loginInp.selectionStart != null ? loginInp.selectionStart : current.length;
+            var emailMode = current.indexOf('@') !== -1 || e.data.indexOf('@') !== -1;
+
+            // Espaço nunca permitido
+            if (/\s/.test(e.data)) { e.preventDefault(); return; }
+
+            if (!emailMode) {
+                var normalized = e.data.toLowerCase();
+                // Username: só letras minúsculas, números, ponto e underline
+                if (!/^[a-z0-9._]+$/.test(normalized)) { e.preventDefault(); return; }
+                // Não pode iniciar com '.' ou '_'
+                if (cursorAt === 0 && /^[._]/.test(normalized)) { e.preventDefault(); return; }
+                // Máximo de um caractere especial (. ou _) no total
+                var specialCount = (current.match(/[._]/g) || []).length;
+                if (/[._]/.test(normalized) && specialCount >= 1) { e.preventDefault(); return; }
+            }
+        });
+
+        // Sanitiza colagem
+        loginInp.addEventListener('paste', function (e) {
+            e.preventDefault();
+            var pasted  = (e.clipboardData || window.clipboardData).getData('text');
+            var current = loginInp.value;
+            var emailMode = current.indexOf('@') !== -1 || pasted.indexOf('@') !== -1;
+            var clean;
+            if (emailMode) {
+                clean = pasted.replace(/\s/g, '').toLowerCase();
+            } else {
+                clean = pasted.toLowerCase().replace(/[^a-z0-9._]/g, '');
+                var specials = 0;
+                clean = clean.split('').filter(function (c) {
+                    if (/[._]/.test(c)) { specials++; return specials <= 1; }
+                    return true;
+                }).join('');
+            }
+            var start  = loginInp.selectionStart != null ? loginInp.selectionStart : current.length;
+            var end    = loginInp.selectionEnd   != null ? loginInp.selectionEnd   : current.length;
+            var newVal = current.slice(0, start) + clean + current.slice(end);
+            loginInp.value = newVal;
+            var newCursor = start + clean.length;
+            try { loginInp.setSelectionRange(newCursor, newCursor); } catch (_) {}
+            loginInp.dispatchEvent(new Event('input'));
+        });
+
         loginInp.addEventListener('input', function () {
-            var pos   = this.selectionStart;
-            var clean = sanitize(this.value);
-            if (clean !== this.value) {
-                var diff = this.value.length - clean.length;
-                this.value = clean;
-                this.setSelectionRange(pos - diff, pos - diff);
+            var pos   = loginInp.selectionStart;
+            var clean = loginInp.value.toLowerCase().replace(/\s/g, '');
+            if (clean !== loginInp.value) {
+                loginInp.value = clean;
+                try { loginInp.setSelectionRange(pos, pos); } catch (_) {}
             }
             clearFieldError('ide-login-input');
             updateHint(clean);
         });
+
         loginInp.addEventListener('blur', function () {
             var val = sanitize(this.value);
             this.value = val;

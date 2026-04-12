@@ -721,28 +721,120 @@ function renderFileTree() {
         tree.appendChild(es); return;
     }
 
-    const files = Object.keys(S.project.files || {}).sort();
-    if (!files.length) {
+    const files    = Object.keys(S.project.files || {}).sort();
+    const xFolders = (S.project.folders || []).filter(Boolean);
+
+    if (!files.length && !xFolders.length) {
         var es2 = document.createElement('div'); es2.className = 'ide-empty-state';
         var ep2 = document.createElement('p'); ep2.textContent = 'Nenhum arquivo'; es2.appendChild(ep2);
         tree.appendChild(es2); return;
     }
 
-    const folders = {};
-    files.forEach(path => {
-        const parts = path.split('/');
-        const folder = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
-        if (!folders[folder]) folders[folder] = [];
-        folders[folder].push(path);
+    // ── Constrói árvore hierárquica ───────────────────────────────────────
+    // Cada nó: { name, fullPath, files: [path,...], children: { name: node } }
+    var root = { name: '', fullPath: '', files: [], children: {} };
+
+    function ensureFolder(path) {
+        var parts = path.split('/');
+        var node  = root;
+        var built = '';
+        for (var i = 0; i < parts.length; i++) {
+            built = built ? built + '/' + parts[i] : parts[i];
+            if (!node.children[parts[i]]) {
+                node.children[parts[i]] = { name: parts[i], fullPath: built, files: [], children: {} };
+            }
+            node = node.children[parts[i]];
+        }
+        return node;
+    }
+
+    // Registra pastas explícitas (podem estar vazias)
+    xFolders.forEach(function (f) { ensureFolder(f); });
+
+    // Registra arquivos nas pastas corretas
+    files.forEach(function (filePath) {
+        var parts  = filePath.split('/');
+        var folder = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+        if (folder) ensureFolder(folder);
+        var node = folder ? ensureFolder(folder) : root;
+        node.files.push(filePath);
     });
 
-    // Root files
-    (folders[''] || []).forEach(f => tree.appendChild(buildFileNode(f)));
+    // ── Renderiza a árvore recursivamente ─────────────────────────────────
+    function renderNode(node, container) {
+        // Arquivos deste nível
+        node.files.forEach(function (f) { container.appendChild(buildFileNode(f)); });
+        // Subpastas ordenadas
+        var childNames = Object.keys(node.children).sort();
+        childNames.forEach(function (name) {
+            var child = node.children[name];
+            // Conta total de arquivos recursivamente
+            var totalFiles = countFilesRecursive(child);
+            container.appendChild(buildFolderNodeTree(child, totalFiles));
+        });
+    }
 
-    // Folders
-    Object.keys(folders).filter(f => f !== '').sort().forEach(folder => {
-        tree.appendChild(buildFolderNode(folder, folders[folder]));
-    });
+    function countFilesRecursive(node) {
+        var count = node.files.length;
+        Object.keys(node.children).forEach(function (k) {
+            count += countFilesRecursive(node.children[k]);
+        });
+        return count;
+    }
+
+    function buildFolderNodeTree(node, totalFiles) {
+        var wrap = document.createElement('div');
+        wrap.className = 'ide-tree-folder';
+
+        var header = document.createElement('div');
+        header.className = 'ide-tree-folder-header';
+        header.setAttribute('role', 'button');
+        header.setAttribute('tabindex', '0');
+
+        var chevron = document.createElement('i');
+        chevron.className = 'fa-solid fa-chevron-down ide-folder-chevron';
+        var folderIcon = document.createElement('i');
+        folderIcon.className = 'fa-solid fa-folder ide-folder-icon';
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'ide-folder-name';
+        nameSpan.textContent = node.name;
+        nameSpan.dataset.fullpath = node.fullPath;
+        var countBadge = document.createElement('span');
+        countBadge.className = 'ide-folder-count';
+        countBadge.textContent = totalFiles;
+
+        header.appendChild(chevron);
+        header.appendChild(folderIcon);
+        header.appendChild(nameSpan);
+        header.appendChild(countBadge);
+
+        var children = document.createElement('div');
+        children.className = 'ide-tree-folder-children';
+
+        // Renderiza conteúdo recursivamente
+        renderNode(node, children);
+
+        header.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var open = children.style.display !== 'none';
+            children.style.display = open ? 'none' : '';
+            chevron.style.transform = open ? 'rotate(-90deg)' : '';
+            folderIcon.className = open ? 'fa-solid fa-folder ide-folder-icon' : 'fa-solid fa-folder-open ide-folder-icon';
+            document.querySelectorAll('.ide-tree-folder-header.selected').forEach(function (el) { el.classList.remove('selected'); });
+            header.classList.add('selected');
+            S.selectedFolder = node.fullPath;
+        });
+
+        header.addEventListener('contextmenu', function (e) {
+            // Não bloqueia propagação — permite o menu de contexto do filetree funcionar
+        });
+
+        wrap.appendChild(header);
+        wrap.appendChild(children);
+        return wrap;
+    }
+
+    renderNode(root, tree);
 
     // Click on empty space deselects folder
     tree.addEventListener('click', function (e) {
@@ -751,61 +843,6 @@ function renderFileTree() {
             S.selectedFolder = '';
         }
     });
-}
-
-function buildFolderNode(folderPath, filePaths) {
-    var wrap = document.createElement('div');
-    wrap.className = 'ide-tree-folder';
-
-    var header = document.createElement('div');
-    header.className = 'ide-tree-folder-header';
-    header.setAttribute('role', 'button');
-    header.setAttribute('tabindex', '0');
-
-    var chevron = document.createElement('i');
-    chevron.className = 'fa-solid fa-chevron-down ide-folder-chevron';
-    chevron.setAttribute('aria-hidden', 'true');
-
-    var folderIcon = document.createElement('i');
-    folderIcon.className = 'fa-solid fa-folder ide-folder-icon';
-    folderIcon.setAttribute('aria-hidden', 'true');
-
-    var nameSpan = document.createElement('span');
-    nameSpan.className = 'ide-folder-name';
-    nameSpan.textContent = folderPath;
-
-    var countBadge = document.createElement('span');
-    countBadge.className = 'ide-folder-count';
-    countBadge.textContent = filePaths.length;
-
-    header.appendChild(chevron);
-    header.appendChild(folderIcon);
-    header.appendChild(nameSpan);
-    header.appendChild(countBadge);
-
-    var children = document.createElement('div');
-    children.className = 'ide-tree-folder-children';
-    filePaths.forEach(f => children.appendChild(buildFileNode(f)));
-
-    header.addEventListener('click', function (e) {
-        e.stopPropagation();
-        // Toggle expand/collapse
-        var open = children.style.display !== 'none';
-        children.style.display = open ? 'none' : '';
-        chevron.style.transform = open ? 'rotate(-90deg)' : '';
-        folderIcon.className = open ? 'fa-solid fa-folder ide-folder-icon' : 'fa-solid fa-folder-open ide-folder-icon';
-        // Select this folder
-        document.querySelectorAll('.ide-tree-folder-header.selected').forEach(function (el) { el.classList.remove('selected'); });
-        header.classList.add('selected');
-        S.selectedFolder = folderPath;
-    });
-    header.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); header.click(); }
-    });
-
-    wrap.appendChild(header);
-    wrap.appendChild(children);
-    return wrap;
 }
 
 function buildFileNode(path) {
@@ -997,10 +1034,28 @@ function openNewFileModal() {
     var prefix = S.selectedFolder ? S.selectedFolder + '/' : '';
     $('input-file-path').value = prefix;
     var hint = $('new-file-hint');
-    if (hint) hint.textContent = prefix ? 'Criando dentro de: ' + S.selectedFolder + '/' : 'Criando na raiz do módulo';
+    if (hint) { hint.textContent = prefix ? 'Criando dentro de: ' + S.selectedFolder + '/' : 'Criando na raiz do módulo'; hint.style.color = ''; }
     showModal('modal-new-file');
     setTimeout(function () { var inp = $('input-file-path'); inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }, 100);
 }
+
+// Validação em tempo real ao digitar nome do arquivo
+$('input-file-path').addEventListener('input', function () {
+    var path = this.value.trim();
+    var hint = $('new-file-hint');
+    var btn  = $('modal-nf-confirm');
+    if (!hint || !S.project) return;
+    if (path && S.project.files && S.project.files[path] !== undefined) {
+        hint.textContent = '⚠ Já existe um arquivo com esse nome.';
+        hint.style.color = '#f38ba8';
+        if (btn) btn.disabled = true;
+    } else {
+        var prefix = S.selectedFolder ? S.selectedFolder + '/' : '';
+        hint.textContent = prefix ? 'Criando dentro de: ' + prefix : 'Criando na raiz do módulo';
+        hint.style.color = '';
+        if (btn) btn.disabled = false;
+    }
+});
 
 $('modal-nf-cancel').addEventListener('click', () => hideModal('modal-new-file'));
 $('modal-nf-close').addEventListener('click', () => hideModal('modal-new-file'));
@@ -1008,6 +1063,17 @@ $('modal-nf-close').addEventListener('click', () => hideModal('modal-new-file'))
 $('modal-nf-confirm').addEventListener('click', async () => {
     const path = $('input-file-path').value.trim();
     if (!path) return;
+
+    // ── Validação: arquivo já existe ──────────────────────────────────────
+    if (S.project.files && S.project.files[path] !== undefined) {
+        const hint = $('new-file-hint');
+        if (hint) {
+            hint.textContent = '⚠ Já existe um arquivo com esse nome.';
+            hint.style.color = '#f38ba8';
+        }
+        return;
+    }
+
     const ext = path.split('.').pop().toLowerCase();
     const ns = S.project.module_name;
     const cls = path.split('/').pop().replace('.' + ext, '');
@@ -1023,6 +1089,9 @@ $('modal-nf-confirm').addEventListener('click', async () => {
         await api('PUT', `/api/ide/projects/${S.project.id}/files`, { path, content });
         S.project.files[path] = content;
         hideModal('modal-new-file');
+        // Reseta hint
+        const hint = $('new-file-hint');
+        if (hint) { hint.textContent = ''; hint.style.color = ''; }
         renderFileTree();
         openFile(path);
     } catch (e) { toast('Erro: ' + e.message); }
@@ -1030,8 +1099,24 @@ $('modal-nf-confirm').addEventListener('click', async () => {
 
 // ── Delete File ───────────────────────────────────────────────────────────
 function confirmDeleteFile(path) {
+    // Detecta se é pasta:
+    // 1. Está na lista explícita de pastas do projeto
+    // 2. Tem arquivos dentro (prefixo path/)
+    // 3. NÃO está na lista de arquivos (se está em files, é arquivo mesmo que tenha ponto)
+    var inFolders = S.project && (S.project.folders || []).includes(path);
+    var inFiles   = S.project && S.project.files && S.project.files[path] !== undefined;
+    var hasChildren = S.project && Object.keys(S.project.files || {}).some(function (f) {
+        return f.startsWith(path + '/');
+    });
+
+    // É pasta se: está em folders, OU tem filhos, OU (não está em files E não tem extensão)
+    var isFolder = inFolders || hasChildren || (!inFiles && !path.includes('.'));
+    // Se está em files, é arquivo — mesmo que tenha nome sem extensão
+    if (inFiles && !inFolders && !hasChildren) isFolder = false;
+
     $('delete-file-name').textContent = path.split('/').pop();
     $('modal-df-confirm').dataset.path = path;
+    $('modal-df-confirm').dataset.isFolder = isFolder ? '1' : '0';
     showModal('modal-delete-file');
 }
 
@@ -1039,21 +1124,56 @@ $('modal-df-cancel').addEventListener('click', () => hideModal('modal-delete-fil
 $('modal-df-close').addEventListener('click', () => hideModal('modal-delete-file'));
 
 $('modal-df-confirm').addEventListener('click', async function () {
-    const path = this.dataset.path;
+    const path     = this.dataset.path;
+    const isFolder = this.dataset.isFolder === '1';
+
     try {
-        await api('DELETE', `/api/ide/projects/${S.project.id}/files`, { path });
-        delete S.project.files[path];
-        const idx = S.tabs.findIndex(t => t.path === path);
-        if (idx !== -1) {
-            S.tabs.splice(idx, 1);
-            if (S.activeTab === path) {
-                const next = S.tabs[0];
-                if (next) switchTab(next.path);
-                else { S.activeTab = null; showWelcome(); }
+        if (isFolder) {
+            // ── Excluir pasta ─────────────────────────────────────────────
+            // 1. Deleta todos os arquivos dentro da pasta
+            const filesInFolder = Object.keys(S.project.files || {}).filter(function (f) {
+                return f === path || f.startsWith(path + '/');
+            });
+            for (const f of filesInFolder) {
+                await api('DELETE', `/api/ide/projects/${S.project.id}/files`, { path: f });
+                delete S.project.files[f];
+                // Fecha tabs abertas
+                const idx = S.tabs.findIndex(t => t.path === f);
+                if (idx !== -1) {
+                    S.tabs.splice(idx, 1);
+                    if (S.activeTab === f) { S.activeTab = null; }
+                }
+            }
+
+            // 2. Remove a pasta e subpastas de S.project.folders
+            S.project.folders = (S.project.folders || []).filter(function (folder) {
+                return folder !== path && !folder.startsWith(path + '/');
+            });
+
+            // 3. Persiste a lista de pastas atualizada no servidor
+            await api('PUT', `/api/ide/projects/${S.project.id}/folders`, {
+                folders: S.project.folders
+            });
+
+            if (S.activeTab === null) showWelcome();
+        } else {
+            // ── Excluir arquivo ───────────────────────────────────────────
+            await api('DELETE', `/api/ide/projects/${S.project.id}/files`, { path });
+            delete S.project.files[path];
+            const idx = S.tabs.findIndex(t => t.path === path);
+            if (idx !== -1) {
+                S.tabs.splice(idx, 1);
+                if (S.activeTab === path) {
+                    const next = S.tabs[0];
+                    if (next) switchTab(next.path);
+                    else { S.activeTab = null; showWelcome(); }
+                }
             }
         }
+
         hideModal('modal-delete-file');
-        renderFileTree(); renderTabs();
+        renderFileTree();
+        renderTabs();
     } catch (e) { toast('Erro: ' + e.message); }
 });
 
@@ -1063,9 +1183,37 @@ $('btn-new-folder').addEventListener('click', function () {
     var prefix = S.selectedFolder ? S.selectedFolder + '/' : '';
     $('input-folder-path').value = '';
     var hint = $('new-folder-hint');
-    if (hint) hint.textContent = prefix ? 'Criando dentro de: ' + S.selectedFolder + '/' : 'Criando na raiz do módulo';
+    if (hint) { hint.textContent = prefix ? 'Criando dentro de: ' + S.selectedFolder + '/' : 'Criando na raiz do módulo'; hint.style.color = ''; }
+    var btn = $('modal-nfld-confirm');
+    if (btn) btn.disabled = false;
     showModal('modal-new-folder');
     setTimeout(function () { $('input-folder-path').focus(); }, 100);
+});
+
+// Validação em tempo real ao digitar nome da pasta
+$('input-folder-path').addEventListener('input', function () {
+    var name = this.value.trim().replace(/\.\./g, '').replace(/\\/g, '/');
+    var hint = $('new-folder-hint');
+    var btn  = $('modal-nfld-confirm');
+    if (!hint || !S.project) return;
+    var prefix = S._ctxFolderPrefix || (S.selectedFolder ? S.selectedFolder + '/' : '');
+    var folderPath = prefix + name;
+
+    var existingFolders = (S.project.folders || []).filter(Boolean);
+    var foldersFromFiles = Object.keys(S.project.files || {}).map(function (p) {
+        var parts = p.split('/'); return parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+    }).filter(Boolean);
+    var allExisting = [...new Set([...existingFolders, ...foldersFromFiles])];
+
+    if (name && allExisting.includes(folderPath)) {
+        hint.textContent = '⚠ Já existe uma pasta com esse nome.';
+        hint.style.color = '#f38ba8';
+        if (btn) btn.disabled = true;
+    } else {
+        hint.textContent = prefix ? 'Criando dentro de: ' + prefix : 'Criando na raiz do módulo';
+        hint.style.color = '';
+        if (btn) btn.disabled = false;
+    }
 });
 
 $('modal-nfld-cancel').addEventListener('click', function () { hideModal('modal-new-folder'); });
@@ -1075,15 +1223,40 @@ $('modal-nfld-confirm').addEventListener('click', async function () {
     var name = $('input-folder-path').value.trim();
     if (!name) return;
     name = name.replace(/\.\./g, '').replace(/\\/g, '/');
-    // Use context prefix if set, otherwise use selectedFolder
     var prefix = S._ctxFolderPrefix || (S.selectedFolder ? S.selectedFolder + '/' : '');
     S._ctxFolderPrefix = null;
     var folderPath = prefix + name;
+
+    // ── Validação: pasta já existe ────────────────────────────────────────
+    var existingFolders = (S.project.folders || []).filter(Boolean);
+    var foldersFromFiles = Object.keys(S.project.files || {}).map(function (p) {
+        var parts = p.split('/');
+        return parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+    }).filter(Boolean);
+    var allExisting = [...new Set([...existingFolders, ...foldersFromFiles])];
+
+    if (allExisting.includes(folderPath)) {
+        var hint = $('new-folder-hint');
+        if (hint) {
+            hint.textContent = '⚠ Já existe uma pasta com esse nome.';
+            hint.style.color = '#f38ba8';
+        }
+        return;
+    }
+
     try {
-        var folders = Object.keys(S.project.files || {}).map(function (p) { var parts = p.split('/'); return parts.length > 1 ? parts.slice(0, -1).join('/') : ''; }).filter(Boolean);
-        folders.push(folderPath);
-        await api('PUT', '/api/ide/projects/' + S.project.id + '/folders', { folders: [...new Set(folders)] });
+        var allFolders = [...new Set([...allExisting, folderPath])];
+        await api('PUT', '/api/ide/projects/' + S.project.id + '/folders', { folders: allFolders });
+
+        if (!S.project.folders) S.project.folders = [];
+        if (!S.project.folders.includes(folderPath)) {
+            S.project.folders.push(folderPath);
+        }
+
         hideModal('modal-new-folder');
+        // Reseta hint
+        var hint2 = $('new-folder-hint');
+        if (hint2) { hint2.textContent = ''; hint2.style.color = ''; }
         toast('Pasta criada: ' + folderPath);
         renderFileTree();
     } catch (e) { toast('Erro: ' + e.message); }
@@ -1112,7 +1285,7 @@ $('modal-nfld-confirm').addEventListener('click', async function () {
             ctxTarget = nameEl ? findPathByName(nameEl.textContent) : null;
         } else if (folderHeader) {
             var folderName = folderHeader.querySelector('.ide-folder-name');
-            ctxTarget = folderName ? folderName.textContent : null;
+            ctxTarget = folderName ? (folderName.dataset.fullpath || folderName.textContent) : null;
         } else {
             ctxTarget = null; // root
         }

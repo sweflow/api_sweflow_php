@@ -353,13 +353,15 @@ window.onload = function () {
             const modDesc    = esc(mod.description || 'Sem descrição disponível para este módulo.');
             const modVersion = esc(mod.version || '1.0.0');
 
-            // Badge de conexão de banco
+            // Badge/select de conexão de banco — clicável para alterar
             const conn = mod.connection || 'auto';
-            const connLabel = conn === 'core' ? 'DB (core)' : conn === 'modules' ? 'DB2 (modules)' : 'auto';
-            const connIcon  = conn === 'modules' ? 'fa-database' : 'fa-database';
             const connColor = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
-            const connBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;color:${connColor};font-weight:600;">
-                <i class="fa-solid ${connIcon}" style="font-size:0.72rem;"></i>${connLabel}</span>`;
+            const connBadge = `<select class="module-conn-select" data-module-conn="${modName}"
+                style="font-size:0.78rem;font-weight:700;color:${connColor};background:transparent;border:1px solid ${connColor}33;border-radius:6px;padding:2px 6px;cursor:pointer;outline:none;font-family:inherit;">
+                <option value="core"    ${conn === 'core'    ? 'selected' : ''}>DB (core)</option>
+                <option value="modules" ${conn === 'modules' ? 'selected' : ''}>DB2 (modules)</option>
+                <option value="auto"    ${conn === 'auto'    ? 'selected' : ''}>auto</option>
+            </select>`;
 
             return `
             <div class="module-card ${cardStatusClass}">
@@ -386,9 +388,43 @@ window.onload = function () {
         // Event listeners nos botões de toggle — usa dataset para evitar HTML entity corruption
         modulesList.querySelectorAll('[data-toggle-module]').forEach(btn => {
             btn.addEventListener('click', () => {
-                // dataset.moduleName decodifica automaticamente as HTML entities do atributo
                 window.toggleModule(btn.dataset.moduleName);
             });
+        });
+
+        // Event listeners nos selects de conexão de banco
+        modulesList.querySelectorAll('.module-conn-select').forEach(sel => {
+            sel.addEventListener('change', async (e) => {
+                e.stopPropagation();
+                const name = sel.dataset.moduleConn;
+                const conn = sel.value;
+                const prev = sel.dataset.prev || sel.querySelector('[selected]')?.value || 'core';
+                sel.dataset.prev = conn;
+
+                try {
+                    const res  = await fetch('/api/modules/connection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ name, connection: conn }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        showErrorModal(data.error || 'Erro ao alterar conexão.', 'Erro');
+                        sel.value = prev; // reverte
+                        return;
+                    }
+                    // Atualiza cor do select
+                    const color = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
+                    sel.style.color       = color;
+                    sel.style.borderColor = color + '33';
+                } catch {
+                    showErrorModal('Erro de conexão.', 'Erro');
+                    sel.value = prev;
+                }
+            });
+            // Guarda valor inicial para rollback
+            sel.dataset.prev = sel.value;
         });
     }
 
@@ -3056,84 +3092,50 @@ window.onload = function () {
 
 };
 
-// ── Link Limits Admin ─────────────────────────────────────────────────────────
-(function initLinkLimits() {
-    const saveBtn    = document.getElementById('ll-save-btn');
-    const userIdInp  = document.getElementById('ll-user-id');
-    const maxSel     = document.getElementById('ll-max-links');
-    const feedback   = document.getElementById('ll-feedback');
-    const currentDiv = document.getElementById('ll-current');
+// ── Run Migrations / Seeders from Dashboard ───────────────────────────────────
+(function initMigrationActions() {
+    const btnMigrate = document.getElementById('btn-run-migrations');
+    const btnSeed    = document.getElementById('btn-run-seeders');
+    if (!btnMigrate || !btnSeed) return;
 
-    if (!saveBtn) return;
+    async function confirmAndRun(type) {
+        const isMigrate = type === 'migrate';
+        const title     = isMigrate ? 'Rodar Migrations' : 'Rodar Seeders';
+        const icon      = isMigrate ? 'fa-solid fa-database' : 'fa-solid fa-seedling';
+        const endpoint  = isMigrate ? '/api/system/migrations/run' : '/api/system/seeders/run';
+        const btn       = isMigrate ? btnMigrate : btnSeed;
 
-    function showFeedback(msg, ok) {
-        feedback.textContent = msg;
-        feedback.style.display = 'block';
-        feedback.style.background = ok ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)';
-        feedback.style.border = ok ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(239,68,68,.25)';
-        feedback.style.color = ok ? '#22c55e' : '#ef4444';
-        clearTimeout(feedback._t);
-        feedback._t = setTimeout(() => { feedback.style.display = 'none'; }, 4000);
-    }
+        // Usa o modal genérico do dashboard se existir, senão confirm nativo
+        const confirmed = window.confirm(
+            title + '\n\nTem certeza que deseja executar ' +
+            (isMigrate ? 'todas as migrations pendentes' : 'todos os seeders pendentes') +
+            '?\n\nEsta ação não pode ser desfeita facilmente.'
+        );
+        if (!confirmed) return;
 
-    function showCurrent(data) {
-        currentDiv.style.display = 'block';
-        const limit = data.max_links;
-        const total = data.total ?? 0;
-        let txt = '';
-        if (limit === -1) {
-            txt = 'Limite atual: Ilimitado | Links criados: ' + total;
-        } else if (limit === 0) {
-            txt = 'Limite atual: Bloqueado (0) | Links criados: ' + total;
-        } else {
-            txt = 'Limite atual: ' + limit + ' | Links criados: ' + total + ' | Restante: ' + Math.max(0, limit - total);
-        }
-        currentDiv.textContent = txt;
-    }
-
-    // Ao sair do campo userId, carrega o limite atual
-    userIdInp.addEventListener('blur', async function () {
-        const uid = this.value.trim();
-        if (!uid || !/^[0-9a-f-]{36}$/i.test(uid)) return;
-        try {
-            const res = await fetch('/api/links/user-limit/' + uid, { credentials: 'same-origin' });
-            if (!res.ok) return;
-            const data = await res.json();
-            showCurrent(data);
-            // Seleciona o valor atual no select
-            const val = String(data.max_links ?? -1);
-            const opt = maxSel.querySelector('option[value="' + val + '"]');
-            if (opt) maxSel.value = val;
-        } catch (_) {}
-    });
-
-    saveBtn.addEventListener('click', async function () {
-        const uid      = userIdInp.value.trim();
-        const maxLinks = parseInt(maxSel.value, 10);
-
-        if (!uid) { showFeedback('Informe o UUID do usuário.', false); return; }
-        if (!/^[0-9a-f-]{36}$/i.test(uid)) { showFeedback('UUID inválido.', false); return; }
-
-        saveBtn.disabled = true;
-        const orig = saveBtn.innerHTML;
-        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+        const origHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Executando...';
 
         try {
-            const res = await fetch('/api/links/user-limit/' + uid, {
-                method: 'PUT',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ max_links: maxLinks }),
-            });
+            const res  = await fetch(endpoint, { method: 'POST', credentials: 'same-origin' });
             const data = await res.json();
-            if (!res.ok) { showFeedback(data.error || 'Erro ao salvar.', false); return; }
-            showFeedback('Limite salvo com sucesso!', true);
-            showCurrent({ max_links: maxLinks, total: data.total ?? 0 });
+            if (!res.ok) {
+                alert('Erro: ' + (data.message || data.error || 'Falha ao executar.'));
+                return;
+            }
+            alert('✓ ' + (data.output || (isMigrate ? 'Migrations executadas.' : 'Seeders executados.')));
+            // Recarrega a lista de migrations
+            if (typeof loadMigrations === 'function') loadMigrations();
+            else document.getElementById('migrations-refresh-btn')?.click();
         } catch (e) {
-            showFeedback('Erro de rede: ' + e.message, false);
+            alert('Erro de rede: ' + e.message);
         } finally {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = orig;
+            btn.disabled = false;
+            btn.innerHTML = origHTML;
         }
-    });
+    }
+
+    btnMigrate.addEventListener('click', () => confirmAndRun('migrate'));
+    btnSeed.addEventListener('click', () => confirmAndRun('seed'));
 })();

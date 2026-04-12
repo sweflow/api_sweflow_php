@@ -571,6 +571,52 @@ $router->get('/api/system/migrations/status', function () use ($container) {
     AdminOnlyMiddleware::class,
 ]);
 
+// Run pending migrations (admin only)
+$router->post('/api/system/migrations/run', function () use ($container) {
+    try {
+        $pdo  = $container->make(\PDO::class);
+        $root = __DIR__;
+        $pdoModules = null;
+        try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
+
+        ob_start();
+        $migrator = new \Src\Kernel\Support\DB\Migrator($pdo, $root, $pdoModules);
+        $migrator->migrate();
+        $output = ob_get_clean();
+
+        return Response::json(['status' => 'ok', 'output' => trim($output ?: 'Migrations executadas.')]);
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        return Response::json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
+// Run pending seeders (admin only)
+$router->post('/api/system/seeders/run', function () use ($container) {
+    try {
+        $pdo  = $container->make(\PDO::class);
+        $root = __DIR__;
+        $pdoModules = null;
+        try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
+
+        ob_start();
+        $migrator = new \Src\Kernel\Support\DB\Migrator($pdo, $root, $pdoModules);
+        $migrator->seed();
+        $output = ob_get_clean();
+
+        return Response::json(['status' => 'ok', 'output' => trim($output ?: 'Seeders executados.')]);
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        return Response::json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
 // Capabilities API
 $router->get('/api/capabilities', [\Src\Kernel\Controllers\CapabilitiesController::class, 'index'], [
     AuthHybridMiddleware::class,
@@ -825,6 +871,77 @@ $router->put('/api/env', [\Src\Kernel\Controllers\EnvController::class, 'update'
     AdminOnlyMiddleware::class,
 ]);
 
+// Testa conexão DB2 — usado pelo dashboard antes de salvar DEFAULT_MODULE_CONNECTION=modules
+$router->post('/api/env/test-db2', function ($request) {
+    try {
+        // Lê credenciais do body (valores que o usuário acabou de digitar, ainda não salvos)
+        // ou do $_ENV se não foram enviados
+        $b    = $request->body ?? [];
+        $host = trim((string) ($b['DB2_HOST']    ?? $_ENV['DB2_HOST']    ?? ''));
+        $port = trim((string) ($b['DB2_PORT']    ?? $_ENV['DB2_PORT']    ?? '5432'));
+        $nome = trim((string) ($b['DB2_NOME']    ?? $_ENV['DB2_NOME']    ?? ''));
+        $user = trim((string) ($b['DB2_USUARIO'] ?? $_ENV['DB2_USUARIO'] ?? ''));
+        // Senha: usa o valor do body se preenchido, senão usa o $_ENV atual
+        $passFromBody = trim((string) ($b['DB2_SENHA'] ?? ''));
+        $pass = $passFromBody !== '' ? $passFromBody : trim((string) ($_ENV['DB2_SENHA'] ?? ''));
+        $drv  = strtolower(trim((string) ($b['DB2_CONEXAO'] ?? $_ENV['DB2_CONEXAO'] ?? 'postgresql')));
+
+        if ($host === '' || $nome === '' || $user === '') {
+            return Response::json([
+                'ok'      => false,
+                'message' => 'As configurações do banco DB2 (Host, Banco, Usuário) precisam estar preenchidas antes de selecionar esta conexão.',
+            ], 422);
+        }
+
+        $driver = ($drv === 'mysql') ? 'mysql' : 'pgsql';
+        $dsn    = $driver === 'pgsql'
+            ? "pgsql:host={$host};port={$port};dbname={$nome}"
+            : "mysql:host={$host};port={$port};dbname={$nome};charset=utf8mb4";
+
+        $testPdo = new \PDO($dsn, $user, $pass, [
+            \PDO::ATTR_TIMEOUT            => 5,
+            \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+        ]);
+        $testPdo->query('SELECT 1');
+
+        return Response::json(['ok' => true, 'message' => 'Conexão com DB2 bem-sucedida.']);
+    } catch (\Throwable $e) {
+        return Response::json([
+            'ok'      => false,
+            'message' => 'Falha ao conectar no DB2: ' . $e->getMessage(),
+        ], 422);
+    }
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+// ── Audit Logs API ────────────────────────────────────────────────────────
+$router->get('/api/audit/logs', function ($request) use ($container) {
+    try {
+        $pdo = $container->make(\PDO::class);
+        return (new \Src\Kernel\Controllers\AuditLogController($pdo))->listar($request);
+    } catch (\Throwable $e) {
+        return Response::json(['error' => $e->getMessage()], 500);
+    }
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+$router->get('/api/audit/stats', function ($request) use ($container) {
+    try {
+        $pdo = $container->make(\PDO::class);
+        return (new \Src\Kernel\Controllers\AuditLogController($pdo))->stats($request);
+    } catch (\Throwable $e) {
+        return Response::json(['error' => $e->getMessage()], 500);
+    }
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
+$router->delete('/api/audit/logs', function ($request) use ($container) {
+    try {
+        $pdo = $container->make(\PDO::class);
+        return (new \Src\Kernel\Controllers\AuditLogController($pdo))->limpar($request);
+    } catch (\Throwable $e) {
+        return Response::json(['error' => $e->getMessage()], 500);
+    }
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
+
 $router->get('/api/dashboard/metrics', function () use ($container, $modules) {
     $status = [
         'host' => $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'),
@@ -885,6 +1002,53 @@ $router->get('/api/modules/state', function () use ($modules) {
     AuthHybridMiddleware::class,
     AdminOnlyMiddleware::class,
 ]);
+
+// Altera a conexão de banco de um módulo (escreve no connection.php)
+$router->post('/api/modules/connection', function ($request) use ($modules) {
+    $body = $request->body ?? [];
+    $name = trim((string) ($body['name'] ?? ''));
+    $conn = trim((string) ($body['connection'] ?? ''));
+
+    if ($name === '' || !in_array($conn, ['core', 'modules', 'auto'], true)) {
+        return Response::json(['error' => 'Parâmetros inválidos.'], 422);
+    }
+
+    // Valida nome do módulo — só letras e números
+    if (!preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $name)) {
+        return Response::json(['error' => 'Nome de módulo inválido.'], 422);
+    }
+
+    // Se vai usar modules, verifica se DB2 está configurado
+    if ($conn === 'modules' && !\Src\Kernel\Database\PdoFactory::hasSecondaryConnection()) {
+        return Response::json([
+            'error' => 'DB2 não está configurado. Preencha as configurações em Banco de dados (modules) antes de usar esta conexão.',
+        ], 422);
+    }
+
+    $connFile = __DIR__ . '/src/Modules/' . $name . '/Database/connection.php';
+
+    // Cria o diretório Database se não existir
+    $dir = dirname($connFile);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+
+    $content = implode("\n", [
+        '<?php',
+        "// Define qual banco de dados este módulo usa.",
+        "// 'core'    → usa DB_* do .env (banco principal)",
+        "// 'modules' → usa DB2_* do .env (banco secundário)",
+        "// 'auto'    → o Kernel decide baseado na origem do módulo",
+        "return '{$conn}';",
+        '',
+    ]);
+
+    if (file_put_contents($connFile, $content) === false) {
+        return Response::json(['error' => 'Não foi possível escrever o arquivo connection.php.'], 500);
+    }
+
+    return Response::json(['ok' => true, 'name' => $name, 'connection' => $conn]);
+}, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
 
 $router->post('/api/modules/toggle', function ($request) use ($modules) {
     $body = $request->body ?? [];

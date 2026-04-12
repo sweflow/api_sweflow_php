@@ -85,4 +85,30 @@ final class LinkLimiteRepository
             'reached'    => $totalLinks >= $maxLinks,
         ];
     }
+
+    /**
+     * Define o limite para TODOS os usuários que possuem links.
+     * Busca user_ids distintos na tabela links e aplica o limite para cada um.
+     * Retorna o número de usuários atualizados.
+     */
+    public function setLimitForAll(int $maxLinks): int
+    {
+        // Busca todos os user_ids distintos que possuem links
+        $stmt = $this->pdo->query("SELECT DISTINCT user_id FROM links");
+        $userIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Também busca user_ids que já têm limite configurado
+        $stmt2 = $this->pdo->query("SELECT DISTINCT user_id FROM " . self::TABLE);
+        $existingIds = $stmt2->fetchAll(PDO::FETCH_COLUMN);
+
+        $allIds = array_unique(array_merge($userIds, $existingIds));
+        $count  = 0;
+
+        foreach ($allIds as $uid) {
+            $this->setLimit((string) $uid, $maxLinks);
+            $count++;
+        }
+
+        return $count;
+    }
 }

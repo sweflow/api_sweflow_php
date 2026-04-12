@@ -51,10 +51,18 @@ final class LinkController
         $uid      = $request->params['userId'] ?? '';
         $maxLinks = (int) ($request->body['max_links'] ?? -1);
         if ($uid === '') return Response::json(['error' => 'userId obrigatorio.'], 422);
-        // Valida: -1 (ilimitado), 0 (bloqueado), ou N >= 1
         if ($maxLinks < -1) return Response::json(['error' => 'max_links invalido. Use -1 (ilimitado), 0 (bloqueado) ou N >= 1.'], 422);
         $this->service->setLimit($uid, $maxLinks);
         return Response::json(['saved' => true, 'user_id' => $uid, 'max_links' => $maxLinks]);
+    }
+
+    // ── PUT /api/links/user-limit/all (admin) ─────────────────────────────
+    public function setAllUsersLimit(Request $request): Response
+    {
+        $maxLinks = (int) ($request->body['max_links'] ?? -1);
+        if ($maxLinks < -1) return Response::json(['error' => 'max_links invalido.'], 422);
+        $updated = $this->service->setLimitForAll($maxLinks);
+        return Response::json(['saved' => true, 'max_links' => $maxLinks, 'updated' => $updated]);
     }
 
     // ── GET /api/links/{id} ───────────────────────────────────────────────
@@ -134,6 +142,16 @@ final class LinkController
     // ── Helper ────────────────────────────────────────────────────────────
     private function userId(Request $request): string
     {
-        return $request->attribute('auth_user')->getUuid()->toString();
+        // Usa link_user (auth própria do encurtador) — isolado do auth_user do kernel
+        $linkUser = $request->attribute('link_user');
+        if ($linkUser !== null && isset($linkUser['id'])) {
+            return (string) $linkUser['id'];
+        }
+        // Fallback para auth_user do kernel (compatibilidade)
+        $authUser = $request->attribute('auth_user');
+        if ($authUser !== null) {
+            return $authUser->getUuid()->toString();
+        }
+        throw new \RuntimeException('Usuário não autenticado.', 401);
     }
 }

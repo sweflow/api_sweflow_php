@@ -283,7 +283,7 @@ async function openNewProjectModal() {
     $('inp-module-name').value = '';
     $('inp-project-desc').value = '';
     $('idep-module-preview').style.display = 'none';
-    $('inp-scaffold').checked = true;
+    $('inp-scaffold').checked = false;
     $('modal-np-error').style.display = 'none';
     $('module-name-check').style.display = 'none';
     moduleNameValid = false;

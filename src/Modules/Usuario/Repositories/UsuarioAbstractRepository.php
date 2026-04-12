@@ -235,7 +235,10 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
             isset($dados['atualizado_em'])
                 ? new DateTimeImmutable((string) $dados['atualizado_em'])
                 : null,
-            $dados['status_verificacao'] ?? 'Não verificado'
+            $dados['status_verificacao'] ?? 'Não verificado',
+            isset($dados['senha_alterada_em'])
+                ? new DateTimeImmutable((string) $dados['senha_alterada_em'])
+                : null,
         );
     }
 

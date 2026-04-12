@@ -143,20 +143,23 @@ final class ModuleAnalyzer
         if (!preg_match('/^\s*namespace\s+([A-Za-z\\\\]+)\s*;/m', $content, $m)) {
             $this->addIssue($path, 1, 'warning', 'MISSING_NAMESPACE',
                 'Arquivo PHP sem declaração de namespace.',
-                "Adicione: namespace Src\\Modules\\{$this->moduleName}\\..."
+                "Adicione: namespace {$this->moduleName}\\... (o prefixo Src\\Modules\\ é adicionado automaticamente ao salvar)"
             );
             return;
         }
 
         $declared = $m[1];
-        $expected = "Src\\Modules\\{$this->moduleName}";
+        $fullPrefix     = "Src\\Modules\\{$this->moduleName}";
+        $relativePrefix = $this->moduleName;
 
-        // Namespace deve começar com o namespace correto do módulo
-        if (!str_starts_with($declared, $expected)) {
+        // Aceita tanto o namespace completo quanto o relativo (sem Src\Modules\)
+        $isFullCorrect     = str_starts_with($declared, $fullPrefix);
+        $isRelativeCorrect = str_starts_with($declared, $relativePrefix);
+
+        if (!$isFullCorrect && !$isRelativeCorrect) {
             $this->addIssue($path, 1, 'error', 'WRONG_NAMESPACE',
-                "Namespace incorreto: '{$declared}'. Esperado: '{$expected}\\...'",
-                "O namespace deve começar com 'Src\\Modules\\{$this->moduleName}'. " .
-                "Namespaces do kernel (Src\\Kernel\\*) são proibidos para módulos externos."
+                "Namespace incorreto: '{$declared}'. Esperado: '{$relativePrefix}\\...' ou '{$fullPrefix}\\...'",
+                "Use '{$relativePrefix}\\Controllers' (o prefixo Src\\Modules\\ é adicionado automaticamente ao salvar)."
             );
         }
 
@@ -164,7 +167,7 @@ final class ModuleAnalyzer
         if (str_starts_with($declared, 'Src\\Kernel\\')) {
             $this->addIssue($path, 1, 'error', 'FORBIDDEN_NAMESPACE',
                 "Namespace proibido: '{$declared}'. Módulos não podem usar o namespace do kernel.",
-                "Use apenas 'Src\\Modules\\{$this->moduleName}\\...' como namespace."
+                "Use apenas '{$relativePrefix}\\...' como namespace."
             );
         }
     }
@@ -497,8 +500,8 @@ final class ModuleAnalyzer
         $modulePrefix = $this->toSnakeCase($this->moduleName);
         $ownTables    = $this->collectOwnTables();
 
-        // Padrões SQL que referenciam tabelas
-        $sqlTablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        // Padrões SQL que referenciam tabelas — cobre SELECT, INSERT, UPDATE, DELETE, DDL
+        $sqlTablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
 
         foreach ($phpFiles as $path => $content) {
             if (str_contains($path, 'Database/Migrations/')) {

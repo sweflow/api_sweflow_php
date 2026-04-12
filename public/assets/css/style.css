@@ -3882,34 +3882,34 @@ input.input-error { border-color: #e74c3c !important; }
 }
 
 /* ── Migrations card ─────────────────────────────────────────────────── */
-.mig-group { margin-bottom: 20px; }
+.mig-group { margin-bottom: 24px; }
 .mig-group:last-child { margin-bottom: 0; }
 
 .mig-group-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.88rem;
-    padding: 8px 0 10px;
+    gap: 10px;
+    font-size: 1rem;
+    padding: 10px 0 12px;
     border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.07));
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 .mig-count {
     margin-left: auto;
-    font-size: 0.78rem;
+    font-size: 0.9rem;
     color: var(--text-muted, #475569);
     font-weight: 600;
 }
 
-.mig-rows { display: flex; flex-direction: column; gap: 4px; }
+.mig-rows { display: flex; flex-direction: column; gap: 6px; }
 
 .mig-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    gap: 12px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-size: 1rem;
     background: var(--bg-input, rgba(255,255,255,0.03));
     border: 1px solid transparent;
     flex-wrap: wrap;
@@ -3921,14 +3921,14 @@ input.input-error { border-color: #e74c3c !important; }
 .mig-row.mig-pending {
     background: rgba(148,163,184,0.05);
 }
-.mig-name { flex: 1; min-width: 0; color: var(--text-secondary, #94a3b8); font-size: 0.88rem; }
+.mig-name { flex: 1; min-width: 0; color: var(--text-secondary, #94a3b8); font-size: 1rem; }
 .mig-name strong { color: var(--text-primary, #f1f5f9); }
-.mig-status { font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.mig-status { font-size: 0.88rem; font-weight: 700; white-space: nowrap; }
 .mig-warn {
     width: 100%;
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     color: #f59e0b;
-    padding-left: 20px;
+    padding-left: 24px;
 }
 
 /* ── Link Limits Admin Section ── */
@@ -3966,4 +3966,67 @@ input.input-error { border-color: #e74c3c !important; }
 .link-limit-row select:focus {
     border-color: #818cf8;
     box-shadow: 0 0 0 3px rgba(129,140,248,.12);
+}
+
+/* ── Audit Logs / Monitoramento ── */
+.audit-stat-card {
+    background: var(--bg-card, rgba(255,255,255,0.03));
+    border: 1px solid var(--border-card, rgba(255,255,255,0.07));
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.audit-stat-card:hover,
+.audit-stat-card.active {
+    border-color: rgba(99,102,241,0.4);
+    background: rgba(99,102,241,0.06);
+}
+.audit-stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+}
+.audit-stat-val {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--text-primary, #f1f5f9);
+    line-height: 1;
+}
+.audit-stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted, #64748b);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+.audit-log-row {
+    border-bottom: 1px solid var(--border-card, rgba(255,255,255,0.05));
+    transition: background .1s;
+}
+.audit-log-row:last-child { border-bottom: none; }
+.audit-log-row:hover { background: var(--bg-hover, rgba(255,255,255,0.04)); }
+.audit-log-row td { padding: 12px 16px; vertical-align: middle; }
+.audit-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+    white-space: nowrap;
+}
+.audit-badge-auth     { background: rgba(74,222,128,0.12);  color: #4ade80; }
+.audit-badge-user     { background: rgba(96,165,250,0.12);  color: #60a5fa; }
+.audit-badge-security { background: rgba(248,113,113,0.12); color: #f87171; }
+.audit-badge-admin    { background: rgba(245,158,11,0.12);  color: #f59e0b; }
+.audit-badge-default  { background: rgba(148,163,184,0.12); color: #94a3b8; }
+.audit-new-row {
+    animation: auditFadeIn .4s ease;
+}
+@keyframes auditFadeIn {
+    from { background: rgba(99,102,241,0.15); }
+    to   { background: transparent; }
 }

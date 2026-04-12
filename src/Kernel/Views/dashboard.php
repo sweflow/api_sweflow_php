@@ -205,7 +205,7 @@
                     <span class="dash-sidenav-label">Configuração</span>
                     <a href="#capabilities"        class="dash-sidenav-link"><i class="fa-solid fa-plug"></i> Capacidades</a>
                     <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
-                    <a href="#link-limits"         class="dash-sidenav-link"><i class="fa-solid fa-link"></i> Limites de Links</a>
+                    <a href="#audit-logs"           class="dash-sidenav-link"><i class="fa-solid fa-shield-halved"></i> Logs & Monitoramento</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
                     <a href="/dashboard/ide"        class="dash-sidenav-link" style="color:#818cf8;font-weight:700;"><i class="fa-solid fa-code"></i> Vupi.us IDE</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
@@ -337,6 +337,12 @@
                     <p class="dash-section-sub">Status das migrations por banco de dados.</p>
                 </div>
                 <div class="dash-section-actions">
+                    <button class="dash-btn-primary" id="btn-run-migrations" style="margin-right:6px;">
+                        <i class="fa-solid fa-play"></i> Rodar Migrations
+                    </button>
+                    <button class="dash-btn-primary" id="btn-run-seeders" style="margin-right:6px;background:linear-gradient(135deg,#22c55e,#16a34a);">
+                        <i class="fa-solid fa-seedling"></i> Rodar Seeders
+                    </button>
                     <button class="dash-btn-ghost" id="migrations-refresh-btn">
                         <i class="fa-solid fa-rotate-right"></i> Atualizar
                     </button>
@@ -345,44 +351,109 @@
             <div id="migrations-list"><span class="dash-loading">Carregando...</span></div>
         </section>
 
-        <!-- Limites de Links -->
-        <section class="dash-card dash-section" id="link-limits">
+        <!-- Logs & Monitoramento -->
+        <section class="dash-card dash-section" id="audit-logs">
             <div class="dash-section-header">
                 <div>
-                    <h2 class="dash-section-title"><i class="fa-solid fa-link"></i> Limites de Links Encurtados</h2>
-                    <p class="dash-section-sub">Defina quantos links cada usuário pode criar. -1 = ilimitado, 0 = bloqueado.</p>
+                    <h2 class="dash-section-title"><i class="fa-solid fa-shield-halved"></i> Logs &amp; Monitoramento</h2>
+                    <p class="dash-section-sub">Auditoria em tempo real — autenticações, segurança, alterações e erros.</p>
+                </div>
+                <div class="dash-section-actions">
+                    <button class="dash-btn-ghost" id="audit-refresh-btn" title="Atualizar agora" style="font-size:1rem;padding:10px 18px;">
+                        <i class="fa-solid fa-rotate-right"></i> Atualizar
+                    </button>
+                    <button class="dash-btn-ghost" id="audit-clear-btn" title="Limpar logs antigos" style="color:#f87171;font-size:1rem;padding:10px 18px;">
+                        <i class="fa-solid fa-trash"></i> Limpar antigos
+                    </button>
                 </div>
             </div>
-            <div class="link-limit-form">
-                <div class="link-limit-row">
-                    <div class="field-group" style="flex:1">
-                        <label for="ll-user-id">UUID do usuário</label>
-                        <input type="text" id="ll-user-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
-                    </div>
-                    <div class="field-group" style="min-width:200px">
-                        <label for="ll-max-links">Limite de links</label>
-                        <select id="ll-max-links">
-                            <option value="-1">Ilimitado</option>
-                            <option value="0">0 — Bloqueado</option>
-                            <option value="1">1 link</option>
-                            <option value="2">2 links</option>
-                            <option value="3">3 links</option>
-                            <option value="4">4 links</option>
-                            <option value="5">5 links</option>
-                            <option value="10">10 links</option>
-                            <option value="20">20 links</option>
-                            <option value="50">50 links</option>
-                            <option value="100">100 links</option>
-                        </select>
-                    </div>
-                    <div class="field-group" style="align-self:flex-end">
-                        <button class="dash-btn-primary" id="ll-save-btn">
-                            <i class="fa-solid fa-floppy-disk"></i> Salvar
-                        </button>
-                    </div>
+
+            <!-- Stats cards -->
+            <div id="audit-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;">
+                <div class="audit-stat-card" data-cat="total">
+                    <div class="audit-stat-icon" style="background:rgba(99,102,241,0.12);color:#818cf8;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-list"></i></div>
+                    <div class="audit-stat-val" id="stat-total" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Total 24h</div>
                 </div>
-                <div id="ll-feedback" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:.9rem;font-weight:600;"></div>
-                <div id="ll-current" style="display:none;margin-top:12px;padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:10px;font-size:.9rem;"></div>
+                <div class="audit-stat-card" data-cat="auth">
+                    <div class="audit-stat-icon" style="background:rgba(74,222,128,0.12);color:#4ade80;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-key"></i></div>
+                    <div class="audit-stat-val" id="stat-auth" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Autenticações</div>
+                </div>
+                <div class="audit-stat-card" data-cat="usuarios">
+                    <div class="audit-stat-icon" style="background:rgba(96,165,250,0.12);color:#60a5fa;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-users"></i></div>
+                    <div class="audit-stat-val" id="stat-usuarios" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Usuários</div>
+                </div>
+                <div class="audit-stat-card" data-cat="seguranca">
+                    <div class="audit-stat-icon" style="background:rgba(248,113,113,0.12);color:#f87171;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="audit-stat-val" id="stat-seguranca" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Segurança</div>
+                </div>
+                <div class="audit-stat-card" data-cat="admin">
+                    <div class="audit-stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-gear"></i></div>
+                    <div class="audit-stat-val" id="stat-admin" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Ações Admin</div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+                <div style="position:relative;flex:1;min-width:200px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#64748b;font-size:1rem;pointer-events:none;"></i>
+                    <input type="search" id="audit-search" placeholder="Buscar evento, IP, endpoint..."
+                           style="width:100%;padding:12px 14px 12px 40px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:10px;font-size:1rem;box-sizing:border-box;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;">
+                </div>
+                <select id="audit-categoria" style="padding:12px 16px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:10px;font-size:1rem;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;cursor:pointer;min-width:180px;">
+                    <option value="">Todas as categorias</option>
+                    <option value="auth">Autenticação</option>
+                    <option value="usuarios">Usuários</option>
+                    <option value="seguranca">Segurança</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <select id="audit-periodo" style="padding:12px 16px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:10px;font-size:1rem;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;cursor:pointer;min-width:160px;">
+                    <option value="1">Última hora</option>
+                    <option value="24" selected>Últimas 24h</option>
+                    <option value="168">Últimos 7 dias</option>
+                    <option value="720">Últimos 30 dias</option>
+                    <option value="">Todos</option>
+                </select>
+                <label style="display:flex;align-items:center;gap:8px;font-size:1rem;color:#94a3b8;cursor:pointer;white-space:nowrap;">
+                    <input type="checkbox" id="audit-realtime" checked style="accent-color:#4f46e5;width:18px;height:18px;cursor:pointer;">
+                    Tempo real
+                </label>
+            </div>
+
+            <!-- Tabela de logs -->
+            <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border-card,rgba(255,255,255,0.07));">
+                <table style="width:100%;border-collapse:collapse;font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:var(--bg-card,rgba(255,255,255,0.03));border-bottom:1px solid var(--border-card,rgba(255,255,255,0.07));">
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;white-space:nowrap;font-size:0.9rem;">Data/Hora</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Evento</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">IP</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Endpoint</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-log-tbody">
+                        <tr><td colspan="5" style="padding:40px;text-align:center;color:#64748b;font-size:1rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            <div id="audit-pagination" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:12px;">
+                <span id="audit-total-label" style="font-size:0.95rem;color:#94a3b8;font-weight:600;"></span>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button id="audit-prev" class="btn ghost" style="font-size:0.95rem;padding:10px 20px;" disabled>
+                        <i class="fa-solid fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="audit-page-label" style="font-size:0.95rem;color:#94a3b8;font-weight:600;"></span>
+                    <button id="audit-next" class="btn ghost" style="font-size:0.95rem;padding:10px 20px;" disabled>
+                        Próxima <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -778,7 +849,27 @@
             </button>
         </div>
     </div>
-</div><!-- Meu Perfil -->
+</div>
+
+<!-- Confirmar limpeza de logs antigos -->
+<div class="modal-overlay" id="audit-clear-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-trash" style="color:#f87171;"></i> Limpar logs antigos</h2>
+            <button class="modal-close" id="audit-clear-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;font-size:1rem;">Tem certeza que deseja remover os logs com mais de <strong>90 dias</strong>?</p>
+        <p style="color:#94a3b8;font-size:0.93rem;line-height:1.6;margin-bottom:20px;">
+            Esta ação não pode ser desfeita. Logs mais recentes serão preservados.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="audit-clear-cancel" style="font-size:1rem;padding:10px 20px;">Cancelar</button>
+            <button class="btn" id="audit-clear-confirm" style="background:#e74c3c;color:#fff;font-size:1rem;padding:10px 20px;">
+                <i class="fa-solid fa-trash"></i> Remover logs antigos
+            </button>
+        </div>
+    </div>
+</div>
 <div class="modal-overlay" id="meu-perfil-modal">
     <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
         <div class="modal-header perfil-modal-header">
@@ -938,5 +1029,6 @@
 <script src="/assets/js/dashboard-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard-init.js') ?>"></script>
 <script src="/assets/js/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/nav-init.js') ?>"></script>
 <script src="/assets/js/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard.js') ?>"></script>
+<script src="/assets/js/audit-logs.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/audit-logs.js') ?: time() ?>"></script>
 </body>
 </html>

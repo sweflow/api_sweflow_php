@@ -97,6 +97,9 @@
       <a class="docs-nav-link" data-page="middlewares" href="#middlewares">
         <i class="fa-solid fa-shield-halved"></i> Middlewares
       </a>
+      <a class="docs-nav-link" data-page="auth-modulo" href="#auth-modulo">
+        <i class="fa-solid fa-key"></i> Módulo Auth
+      </a>
       <a class="docs-nav-link" data-page="banco" href="#banco">
         <i class="fa-solid fa-database"></i> Banco de Dados
       </a>
@@ -3045,27 +3048,87 @@ $router->post('/api/login', [AuthController::class, 'login'], [$loginLimit]);</c
       </div>
 
       <h2 id="mw-como-usar">Como usar middlewares nas rotas</h2>
-      <p>Passe os middlewares como terceiro argumento no registro da rota:</p>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div class="callout-body">
+          <strong>Forma recomendada — fachada <code>Auth</code></strong>
+          <p>Use <code>Src\Kernel\Auth</code> para proteger rotas com uma linha. Sem imports longos, sem arrays complexos.</p>
+        </div>
+      </div>
+
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
         <pre><code>&lt;?php
-// Sem middleware — rota pública
-$router-&gt;get('/api/recurso', [Controller::class, 'listar']);
+use Src\Kernel\Auth;
 
-// Um middleware
-$router-&gt;get('/api/recurso', [Controller::class, 'listar'], [AuthHybridMiddleware::class]);
+// Rota pública — sem proteção
+$router-&gt;get('/api/produtos', [Controller::class, 'listar']);
 
-// Múltiplos middlewares — executam em ordem (esquerda para direita)
-$router-&gt;post('/api/admin/recurso', [Controller::class, 'criar'], [
-    AuthHybridMiddleware::class,   // 1º: valida o JWT
-    AdminOnlyMiddleware::class,    // 2º: verifica se é admin_system
-]);
+// Rota privada — qualquer usuário logado
+$router-&gt;get('/api/perfil', [Controller::class, 'perfil'], Auth::user());
 
-// Middleware com opções (ex: RateLimitMiddleware)
-$rateLimit = [RateLimitMiddleware::class, ['limit' =&gt; 10, 'window' =&gt; 60, 'key' =&gt; 'meu.recurso']];
-$router-&gt;post('/api/recurso', [Controller::class, 'criar'], [$rateLimit]);
+// Rota admin — só admin_system
+$router-&gt;post('/api/admin/produtos', [Controller::class, 'criar'], Auth::admin());
 
-// Combinando rate limit + auth + admin
+// Rota com rate limit (10 req/min) + auth
+$router-&gt;post('/api/produtos', [Controller::class, 'criar'], Auth::user(limit: 10));
+
+// Rota admin com rate limit + proteção de banco
+$router-&gt;delete('/api/admin/produtos/{id}', [Controller::class, 'deletar'], Auth::admin(limit: 5, db: true));
+
+// Rota de API (token machine-to-machine)
+$router-&gt;post('/api/webhook', [Controller::class, 'receber'], Auth::api());
+
+// Rota pública com conteúdo diferente para logados
+$router-&gt;get('/api/feed', [Controller::class, 'feed'], Auth::optional());
+
+// Só rate limit — sem autenticação
+$router-&gt;post('/api/contato', [Controller::class, 'enviar'], Auth::limit(5));</code></pre>
+      </div>
+
+      <h3 id="mw-auth-controller">Acessando o usuário no Controller</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+use Src\Kernel\Auth;
+
+class ProdutoController
+{
+    public function criar(Request $request): Response
+    {
+        // Obtém o usuário logado (ou null se não autenticado)
+        $user = Auth::current($request);
+
+        // Obtém só o ID
+        $userId = Auth::id($request);
+
+        // Obtém o nível de acesso
+        $role = Auth::role($request);
+
+        // Lança 401 se não autenticado, retorna o usuário se sim
+        $user = Auth::check($request);
+
+        // Lança 403 se não for admin_system
+        $user = Auth::checkAdmin($request);
+
+        // Lança 403 se não tiver um dos papéis informados
+        $user = Auth::checkRole($request, 'admin', 'moderador');
+
+        return Response::json(['criado_por' =&gt; $userId]);
+    }
+}</code></pre>
+      </div>
+
+      <h3 id="mw-como-usar-manual">Forma manual (avançado)</h3>
+      <p>Se precisar de controle total, ainda é possível usar os middlewares diretamente:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+use Src\Kernel\Middlewares\AuthHybridMiddleware;
+use Src\Kernel\Middlewares\AdminOnlyMiddleware;
+use Src\Kernel\Middlewares\RateLimitMiddleware;
+
 $rateLimit = [RateLimitMiddleware::class, ['limit' =&gt; 5, 'window' =&gt; 60, 'key' =&gt; 'recurso.criar']];
 $router-&gt;post('/api/admin/recurso', [Controller::class, 'criar'], [
     $rateLimit,
@@ -3491,6 +3554,269 @@ $router-&gt;get('/api/meus-produtos', [ProdutoController::class, 'meus'], $user)
 $router-&gt;post('/api/admin/produtos',        [ProdutoController::class, 'criar'],    [$crtLimit, $dbCircuit, ...$admin]);
 $router-&gt;put('/api/admin/produtos/{id}',    [ProdutoController::class, 'atualizar'], [...$admin, $dbCircuit]);
 $router-&gt;delete('/api/admin/produtos/{id}', [ProdutoController::class, 'deletar'],   $admin);</code></pre></div>
+        </div>
+      </div>
+
+    </section>
+
+
+﻿
+    <!-- PAGE: AUTH MODULO -->
+    <section class="docs-page" id="page-auth-modulo">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-key"></i></div>
+        <div>
+          <h1>Módulo Auth</h1>
+          <p>Como usar autenticação em qualquer módulo — de forma simples, com uma linha de código.</p>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div class="callout-body">
+          <strong>Filosofia</strong>
+          <p>O módulo Auth é desacoplado — funciona com qualquer entidade que implemente <code>AuthenticatableInterface</code>. A fachada <code>Auth</code> encapsula toda a complexidade em métodos curtos e claros.</p>
+        </div>
+      </div>
+
+      <h2 id="auth-visao">O que o módulo Auth oferece</h2>
+      <table class="docs-table">
+        <thead><tr><th>O que você precisa</th><th>Como fazer</th></tr></thead>
+        <tbody>
+          <tr><td>Proteger uma rota (qualquer usuário logado)</td><td><code>Auth::user()</code></td></tr>
+          <tr><td>Proteger uma rota (só admin)</td><td><code>Auth::admin()</code></td></tr>
+          <tr><td>Obter o usuário logado no Controller</td><td><code>Auth::current($request)</code></td></tr>
+          <tr><td>Obter o ID do usuário logado</td><td><code>Auth::id($request)</code></td></tr>
+          <tr><td>Verificar se está logado (lança 401)</td><td><code>Auth::check($request)</code></td></tr>
+          <tr><td>Verificar se é admin (lança 403)</td><td><code>Auth::checkAdmin($request)</code></td></tr>
+          <tr><td>Autenticação opcional (conteúdo diferente)</td><td><code>Auth::optional()</code></td></tr>
+          <tr><td>Rate limit sem autenticação</td><td><code>Auth::limit(10)</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="auth-rotas">Protegendo rotas</h2>
+      <p>Importe <code>Auth</code> no <code>Routes/web.php</code> do seu módulo e use como terceiro argumento:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+use Src\Kernel\Auth;
+use Src\Modules\Produto\Controllers\ProdutoController;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+// Pública — sem autenticação
+$router-&gt;get('/api/produtos',      [ProdutoController::class, 'listar']);
+$router-&gt;get('/api/produtos/{id}', [ProdutoController::class, 'buscar']);
+
+// Privada — qualquer usuário logado
+$router-&gt;get('/api/meus-produtos', [ProdutoController::class, 'meus'], Auth::user());
+
+// Admin — só admin_system
+$router-&gt;post('/api/admin/produtos',        [ProdutoController::class, 'criar'],    Auth::admin());
+$router-&gt;put('/api/admin/produtos/{id}',    [ProdutoController::class, 'atualizar'], Auth::admin());
+$router-&gt;delete('/api/admin/produtos/{id}', [ProdutoController::class, 'deletar'],  Auth::admin());
+
+// Com rate limit — 10 req/min por IP
+$router-&gt;post('/api/produtos/buscar', [ProdutoController::class, 'buscarAvancado'], Auth::user(limit: 10));
+
+// Admin com rate limit + proteção de banco
+$router-&gt;post('/api/admin/importar', [ProdutoController::class, 'importar'], Auth::admin(limit: 5, db: true));</code></pre>
+      </div>
+
+      <h2 id="auth-controller">Acessando o usuário no Controller</h2>
+      <p>Use a fachada <code>Auth</code> para obter o usuário autenticado dentro do Controller:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+namespace Src\Modules\Produto\Controllers;
+
+use Src\Kernel\Auth;
+use Src\Kernel\Http\Request\Request;
+use Src\Kernel\Http\Response\Response;
+use Src\Modules\Produto\Services\ProdutoService;
+
+class ProdutoController
+{
+    public function __construct(private ProdutoService $service) {}
+
+    // Rota pública — usuário pode ou não estar logado
+    public function listar(Request $request): Response
+    {
+        $userId = Auth::id($request); // null se não logado
+        $produtos = $this->service-&gt;listar($userId);
+        return Response::json(['produtos' =&gt; $produtos]);
+    }
+
+    // Rota privada — Auth::user() já garante que está logado
+    public function meus(Request $request): Response
+    {
+        $user = Auth::current($request); // nunca null aqui
+        $produtos = $this->service-&gt;listarPorUsuario($user-&gt;getAuthId());
+        return Response::json(['produtos' =&gt; $produtos]);
+    }
+
+    // Rota admin — Auth::admin() já garante que é admin_system
+    public function criar(Request $request): Response
+    {
+        $user = Auth::current($request);
+        $produto = $this->service-&gt;criar($request-&gt;body ?? [], $user-&gt;getAuthId());
+        return Response::json(['produto' =&gt; $produto], 201);
+    }
+
+    // Verificação manual dentro do Controller (sem middleware na rota)
+    public function deletar(Request $request, string $id): Response
+    {
+        try {
+            Auth::checkAdmin($request); // lança 403 se não for admin_system
+            $this->service-&gt;deletar($id);
+            return Response::json(['message' =&gt; 'Removido.']);
+        } catch (\DomainException $e) {
+            return Response::json(['error' =&gt; $e-&gt;getMessage()], $e-&gt;getCode() ?: 403);
+        }
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="auth-entidade">Usando Auth com sua própria entidade</h2>
+      <p>O módulo Auth funciona com <strong>qualquer entidade</strong> — não só com <code>Usuario</code>. Para usar com uma entidade própria (ex: <code>Cliente</code>, <code>Funcionario</code>), siga 3 passos:</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Implemente <code>AuthenticatableInterface</code> na entidade</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>&lt;?php
+namespace Src\Modules\Cliente\Entities;
+
+use Src\Kernel\Contracts\AuthenticatableInterface;
+
+class Cliente implements AuthenticatableInterface
+{
+    public function __construct(
+        private string $id,
+        private string $email,
+        private string $senhaHash,
+        private bool   $ativo
+    ) {}
+
+    // Métodos obrigatórios da interface
+    public function getAuthId(): string       { return $this->id; }
+    public function getAuthEmail(): string    { return $this->email; }
+    public function getAuthUsername(): ?string { return null; } // sem username
+    public function getAuthRole(): string     { return 'cliente'; }
+    public function isAtivo(): bool           { return $this->ativo; }
+    public function isEmailVerificado(): bool { return true; }
+
+    public function verificarSenha(string $senha): bool
+    {
+        return password_verify($senha, $this->senhaHash);
+    }
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Implemente <code>UserRepositoryInterface</code> no Repository</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>&lt;?php
+namespace Src\Modules\Cliente\Repositories;
+
+use PDO;
+use Src\Kernel\Contracts\UserRepositoryInterface;
+use Src\Modules\Cliente\Entities\Cliente;
+
+class ClienteRepository implements UserRepositoryInterface
+{
+    public function __construct(private PDO $pdo) {}
+
+    public function buscarPorEmail(string $email): ?object
+    {
+        $stmt = $this->pdo-&gt;prepare('SELECT * FROM clientes WHERE email = :e LIMIT 1');
+        $stmt-&gt;execute([':e' =&gt; $email]);
+        $row = $stmt-&gt;fetch(PDO::FETCH_ASSOC);
+        return $row ? new Cliente($row['id'], $row['email'], $row['senha_hash'], (bool)$row['ativo']) : null;
+    }
+
+    public function buscarPorUsername(string $username): ?object { return null; }
+    public function buscarPorUuid(string $uuid): ?object
+    {
+        $stmt = $this->pdo-&gt;prepare('SELECT * FROM clientes WHERE id = :id LIMIT 1');
+        $stmt-&gt;execute([':id' =&gt; $uuid]);
+        $row = $stmt-&gt;fetch(PDO::FETCH_ASSOC);
+        return $row ? new Cliente($row['id'], $row['email'], $row['senha_hash'], (bool)$row['ativo']) : null;
+    }
+
+    // Stubs obrigatórios pela interface — implemente se precisar
+    public function marcarEmailComoVerificado(string $uuid, bool $v = true): void {}
+    public function salvarTokenRecuperacaoSenha(string $uuid, string $token): void {}
+    public function buscarPorTokenRecuperacaoSenha(string $token): ?object { return null; }
+    public function limparTokenRecuperacaoSenha(string $uuid): void {}
+    public function salvarTokenVerificacaoEmail(string $uuid, string $token): void {}
+    public function buscarPorTokenVerificacaoEmail(string $token): ?object { return null; }
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Registre no container em <code>index.php</code></h3>
+            <p>Este é o único lugar fora do módulo que precisa ser alterado — e só uma vez:</p>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>// index.php — substitua o binding de UserRepositoryInterface
+$container-&gt;bind(
+    \Src\Kernel\Contracts\UserRepositoryInterface::class,
+    static fn() =&gt; new \Src\Modules\Cliente\Repositories\ClienteRepository(
+        \Src\Kernel\Database\ModuleConnectionResolver::forModule('Cliente')
+    ),
+    true
+);</code></pre>
+            </div>
+            <p>A partir daí, <code>Auth::user()</code>, <code>Auth::admin()</code>, <code>Auth::current()</code> e todos os outros métodos funcionam automaticamente com a entidade <code>Cliente</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="auth-referencia">Referência completa da fachada Auth</h2>
+      <table class="docs-table">
+        <thead><tr><th>Método</th><th>Uso</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>Auth::user()</code></td><td>Middleware de rota</td><td>Exige qualquer usuário logado</td></tr>
+          <tr><td><code>Auth::user(limit: 10)</code></td><td>Middleware de rota</td><td>Usuário logado + rate limit 10/min</td></tr>
+          <tr><td><code>Auth::user(db: true)</code></td><td>Middleware de rota</td><td>Usuário logado + circuit breaker</td></tr>
+          <tr><td><code>Auth::admin()</code></td><td>Middleware de rota</td><td>Exige admin_system</td></tr>
+          <tr><td><code>Auth::api()</code></td><td>Middleware de rota</td><td>Token de API (machine-to-machine)</td></tr>
+          <tr><td><code>Auth::optional()</code></td><td>Middleware de rota</td><td>Autenticação opcional</td></tr>
+          <tr><td><code>Auth::limit(5)</code></td><td>Middleware de rota</td><td>Só rate limit, sem auth</td></tr>
+          <tr><td><code>Auth::db()</code></td><td>Middleware de rota</td><td>Só circuit breaker</td></tr>
+          <tr><td><code>Auth::current($req)</code></td><td>Controller</td><td>Usuário logado ou <code>null</code></td></tr>
+          <tr><td><code>Auth::id($req)</code></td><td>Controller</td><td>UUID do usuário ou <code>null</code></td></tr>
+          <tr><td><code>Auth::role($req)</code></td><td>Controller</td><td>Nível de acesso ou <code>null</code></td></tr>
+          <tr><td><code>Auth::check($req)</code></td><td>Controller</td><td>Retorna usuário ou lança 401</td></tr>
+          <tr><td><code>Auth::checkAdmin($req)</code></td><td>Controller</td><td>Retorna usuário ou lança 403</td></tr>
+          <tr><td><code>Auth::checkRole($req, 'admin')</code></td><td>Controller</td><td>Verifica papel ou lança 403</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>O que <code>Auth::current()</code> retorna</strong>
+          <p>Retorna um objeto que implementa <code>AuthenticatableInterface</code> com os métodos:<br>
+          <code>getAuthId()</code> — ID único (UUID)<br>
+          <code>getAuthEmail()</code> — e-mail<br>
+          <code>getAuthUsername()</code> — username (pode ser null)<br>
+          <code>getAuthRole()</code> — nível de acesso (ex: 'usuario', 'admin_system')<br>
+          <code>isAtivo()</code> — se a conta está ativa<br>
+          <code>isEmailVerificado()</code> — se o e-mail foi verificado</p>
         </div>
       </div>
 

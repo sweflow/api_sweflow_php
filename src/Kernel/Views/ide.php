@@ -696,5 +696,33 @@
 })();
 </script>
 <script src="/assets/js/ide.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/ide.js') ?: time() ?>"></script>
+<script nonce="<?= htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8') ?>">
+// ── Bloqueia menu nativo do browser na IDE ────────────────────────────────────
+// O menu de contexto da IDE é gerenciado pelo ide.js — o menu nativo do browser
+// (inspecionar, ver código-fonte, etc.) é bloqueado para proteger o ambiente.
+(function() {
+    // Bloqueia F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F12') { e.preventDefault(); return false; }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) {
+            e.preventDefault(); return false;
+        }
+        if ((e.ctrlKey || e.metaKey) && ['U','u'].includes(e.key)) {
+            e.preventDefault(); return false;
+        }
+    }, true);
+
+    // Bloqueia o menu nativo do browser em toda a página da IDE
+    // O menu de contexto da IDE (ide-ctx-menu) é gerenciado pelo ide.js
+    document.addEventListener('contextmenu', function(e) {
+        // Permite apenas dentro da área do file tree e do editor (gerenciados pelo ide.js)
+        var inFileTree = e.target.closest('#ide-filetree');
+        var inEditor   = e.target.closest('#ide-editor-container');
+        if (!inFileTree && !inEditor) {
+            e.preventDefault();
+        }
+    }, true);
+})();
+</script>
 </body>
 </html>

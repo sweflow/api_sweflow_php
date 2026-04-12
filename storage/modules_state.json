@@ -4,6 +4,7 @@
     "Aviso": true,
     "Documentacao": true,
     "IdeModuleBuilder": true,
-    "Tarefa": true,
-    "LinkEncurtador": true
+    "LinkEncurtador": true,
+    "Task": false,
+    "Tarefa": false
 }

@@ -54,9 +54,14 @@ final class LinkService
 
     public function setLimit(string $userId, int $maxLinks): void
     {
-        // -1 = ilimitado, 0 = bloqueado, N >= 1 = limite
         $maxLinks = max(-1, $maxLinks);
         $this->limiteRepository->setLimit($userId, $maxLinks);
+    }
+
+    public function setLimitForAll(int $maxLinks): int
+    {
+        $maxLinks = max(-1, $maxLinks);
+        return $this->limiteRepository->setLimitForAll($maxLinks);
     }
 
     // ── Criação ───────────────────────────────────────────────────────────
@@ -66,7 +71,6 @@ final class LinkService
      */
     public function create(string $userId, array $data): array
     {
-        // Verifica limite ANTES de qualquer outra validação (segurança server-side)
         $this->assertWithinLimit($userId);
 
         $url    = $this->validateUrl($data['url'] ?? '');
@@ -142,10 +146,6 @@ final class LinkService
 
     // ── Helpers privados ──────────────────────────────────────────────────
 
-    /**
-     * Verifica se o usuário pode criar mais links.
-     * @throws \InvalidArgumentException 403 se bloqueado ou limite atingido
-     */
     private function assertWithinLimit(string $userId): void
     {
         $total = $this->repository->statsForUser($userId)['total'];
@@ -205,183 +205,6 @@ final class LinkService
                 '1h'  => 3600,    '6h'  => 21600,   '24h' => 86400,
                 '3d'  => 259200,  '7d'  => 604800,   '30d' => 2592000,
                 '90d' => 7776000, '1y'  => 31536000,
-            ];
-            if (isset($map[$preset])) {
-                return date('Y-m-d H:i:s', time() + $map[$preset]);
-            }
-        }
-
-        if ($expiresAt === null || $expiresAt === '' || $expiresAt === 'null') {
-            return null;
-        }
-
-        $ts = strtotime($expiresAt);
-        if ($ts === false || $ts <= time()) {
-            throw new \InvalidArgumentException('Data de expiração inválida ou no passado.', 422);
-        }
-
-        return date('Y-m-d H:i:s', $ts);
-    }
-}
-
-    // ── Listagem ──────────────────────────────────────────────────────────
-
-    public function list(string $userId, int $page, int $perPage, string $search): array
-    {
-        return $this->repository->findByUser($userId, $page, $perPage, $search);
-    }
-
-    public function get(string $id, string $userId): ?array
-    {
-        return $this->repository->findById($id, $userId);
-    }
-
-    public function stats(string $userId): array
-    {
-        return $this->repository->statsForUser($userId);
-    }
-
-    public function analytics(string $id, string $userId, int $days): array
-    {
-        $link = $this->repository->findById($id, $userId);
-        if ($link === null) return [];
-        return [
-            'link'          => $link,
-            'clicks_per_day' => $this->repository->clicksPerDay($id, $days),
-        ];
-    }
-
-    // ── Criação ───────────────────────────────────────────────────────────
-
-    /**
-     * @throws \InvalidArgumentException
-     */
-    public function create(string $userId, array $data): array
-    {
-        $url    = $this->validateUrl($data['url'] ?? '');
-        $alias  = $this->resolveAlias($data['alias'] ?? '');
-        $expiry = $this->resolveExpiry($data['expires_at'] ?? null, $data['expiry_preset'] ?? null);
-        $titulo = mb_substr(trim($data['titulo'] ?? ''), 0, 255);
-
-        return $this->repository->create([
-            'user_id'    => $userId,
-            'alias'      => $alias,
-            'url'        => $url,
-            'titulo'     => $titulo,
-            'expires_at' => $expiry,
-        ]);
-    }
-
-    // ── Atualização ───────────────────────────────────────────────────────
-
-    /**
-     * @throws \InvalidArgumentException
-     */
-    public function update(string $id, string $userId, array $data): array
-    {
-        $link = $this->repository->findById($id, $userId);
-        if ($link === null) {
-            throw new \InvalidArgumentException('Link não encontrado.', 404);
-        }
-
-        $url    = $this->validateUrl($data['url'] ?? $link['url']);
-        $titulo = mb_substr(trim($data['titulo'] ?? $link['titulo']), 0, 255);
-        $expiry = $this->resolveExpiry($data['expires_at'] ?? $link['expires_at'], $data['expiry_preset'] ?? null);
-        $ativo  = isset($data['ativo']) ? (bool) $data['ativo'] : $link['ativo'];
-
-        // Alias: mantém o atual se não informado
-        $newAlias = trim($data['alias'] ?? '');
-        if ($newAlias === '' || $newAlias === $link['alias']) {
-            $alias = $link['alias'];
-        } else {
-            $err = $this->aliasGenerator->validate($newAlias, $id);
-            if ($err !== null) throw new \InvalidArgumentException($err, 422);
-            $alias = $newAlias;
-        }
-
-        $this->repository->update($id, $userId, [
-            'alias'      => $alias,
-            'url'        => $url,
-            'titulo'     => $titulo,
-            'expires_at' => $expiry,
-            'ativo'      => $ativo,
-        ]);
-
-        return $this->repository->findById($id, $userId) ?? [];
-    }
-
-    // ── Exclusão ──────────────────────────────────────────────────────────
-
-    public function delete(string $id, string $userId): bool
-    {
-        return $this->repository->delete($id, $userId);
-    }
-
-    // ── Redirect ──────────────────────────────────────────────────────────
-
-    /**
-     * Resolve o redirect para um alias. Retorna a URL de destino ou null.
-     */
-    public function resolveRedirect(string $alias, string $ip, string $referrer, string $userAgent): ?string
-    {
-        $link = $this->repository->findByAlias($alias);
-        if ($link === null) return null;
-        if (!$link['ativo']) return null;
-        if ($link['expires_at'] !== null && strtotime($link['expires_at']) < time()) return null;
-
-        $this->repository->incrementClicks($alias, $ip, $referrer, $userAgent);
-        return $link['url'];
-    }
-
-    // ── Helpers privados ──────────────────────────────────────────────────
-
-    private function validateUrl(string $url): string
-    {
-        $url = trim($url);
-        if ($url === '') throw new \InvalidArgumentException('URL é obrigatória.', 422);
-
-        // Adiciona https:// se não tiver protocolo
-        if (!preg_match('#^https?://#i', $url)) {
-            $url = 'https://' . $url;
-        }
-
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            throw new \InvalidArgumentException('URL inválida.', 422);
-        }
-
-        // Bloqueia redirecionamento para o próprio domínio (loop)
-        $host = strtolower(parse_url($url, PHP_URL_HOST) ?? '');
-        if (str_contains($host, 'vupi.us')) {
-            throw new \InvalidArgumentException('Não é possível encurtar links do próprio vupi.us.', 422);
-        }
-
-        return $url;
-    }
-
-    private function resolveAlias(string $alias): string
-    {
-        $alias = trim($alias);
-        if ($alias === '') {
-            return $this->aliasGenerator->generate();
-        }
-        $err = $this->aliasGenerator->validate($alias);
-        if ($err !== null) throw new \InvalidArgumentException($err, 422);
-        return $alias;
-    }
-
-    private function resolveExpiry(?string $expiresAt, ?string $preset): ?string
-    {
-        // Preset tem prioridade sobre data explícita
-        if ($preset !== null && $preset !== '') {
-            $map = [
-                '1h'  => 3600,
-                '6h'  => 21600,
-                '24h' => 86400,
-                '3d'  => 259200,
-                '7d'  => 604800,
-                '30d' => 2592000,
-                '90d' => 7776000,
-                '1y'  => 31536000,
             ];
             if (isset($map[$preset])) {
                 return date('Y-m-d H:i:s', time() + $map[$preset]);

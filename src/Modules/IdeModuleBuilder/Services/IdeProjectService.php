@@ -173,24 +173,54 @@ class IdeProjectService
         $project = $this->getProject($projectId, $userId);
         if (!$project) return false;
 
+        $moduleName = $project['module_name'];
+        $this->ensureModuleDir($moduleName);
+        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        $realModule = realpath($moduleDir);
+        if ($realModule === false) return false;
+
+        // Pastas que existiam antes (já é array via getProject json_decode)
+        $previousFolders = is_array($project['folders']) ? $project['folders'] : [];
+
+        // Normaliza a nova lista
+        $newFolders = array_values(array_unique(array_filter($folders)));
+
+        // ── Remove do disco as pastas que saíram da lista ─────────────────
+        $removed = array_diff($previousFolders, $newFolders);
+        // Ordena do mais profundo para o mais raso (evita rmdir em pasta pai antes da filha)
+        usort($removed, fn($a, $b) => substr_count($b, '/') - substr_count($a, '/'));
+
+        foreach ($removed as $folder) {
+            $safe = $this->sanitizePath($folder);
+            if ($safe === '') continue;
+            $target = $realModule . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $safe);
+            $realTarget = realpath($target);
+            if ($realTarget === false || !is_dir($realTarget)) continue;
+            // Containment: garante que está dentro do módulo
+            if (!str_starts_with($realTarget, $realModule . DIRECTORY_SEPARATOR)) continue;
+            try {
+                $this->removeDir($realTarget);
+            } catch (\Throwable) {
+                // Ignora erros de remoção — pasta pode já ter sido removida
+            }
+        }
+
+        // ── Persiste a nova lista no banco ────────────────────────────────
         $stmt = $this->pdo->prepare("UPDATE ide_projects SET folders = :f, updated_at = :ua WHERE id = :id AND user_id = :uid");
         $stmt->execute([
-            ':f'   => json_encode(array_values(array_unique($folders)), JSON_UNESCAPED_UNICODE),
+            ':f'   => json_encode($newFolders, JSON_UNESCAPED_UNICODE),
             ':ua'  => date('c'),
             ':id'  => $projectId,
             ':uid' => $userId,
         ]);
 
-        // Cria as pastas em src/Modules/
-        $moduleName = $project['module_name'];
-        $this->ensureModuleDir($moduleName);
-        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
-        foreach ($folders as $folder) {
+        // ── Cria no disco as pastas novas ─────────────────────────────────
+        foreach ($newFolders as $folder) {
             $safe = $this->sanitizePath($folder);
             if ($safe === '') continue;
-            $fullPath = $moduleDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $safe);
+            $fullPath = $realModule . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $safe);
             if (!is_dir($fullPath)) {
-                mkdir($fullPath, 0755, true);
+                @mkdir($fullPath, 0755, true);
             }
         }
 
@@ -202,7 +232,9 @@ class IdeProjectService
         $project = $this->getProject($projectId, $userId);
         if (!$project) return false;
 
-        $path = $this->sanitizePath($path);
+        $path    = $this->sanitizePath($path);
+        $content = $this->normalizeNamespace($project['module_name'], $path, $content);
+
         $files = $project['files'];
         $files[$path] = $content;
 
@@ -216,6 +248,61 @@ class IdeProjectService
 
         $this->syncFileToModule($project['module_name'], $path, $content);
         return true;
+    }
+
+    /**
+     * Normaliza o namespace de um arquivo PHP do módulo.
+     *
+     * Permite que o desenvolvedor escreva apenas o namespace relativo ao módulo:
+     *   namespace Task\Controllers;
+     *
+     * E converte automaticamente para o namespace completo:
+     *   namespace Src\Modules\Task\Controllers;
+     *
+     * Regras:
+     *  - Só atua em arquivos .php
+     *  - Só atua se o namespace declarado começa com o nome do módulo (sem Src\Modules\)
+     *  - Não altera se o namespace já está correto (começa com Src\Modules\)
+     *  - Não altera arquivos sem declaração de namespace (routes, connection.php, etc.)
+     */
+    private function normalizeNamespace(string $moduleName, string $path, string $content): string
+    {
+        if (!str_ends_with($path, '.php') || trim($content) === '') {
+            return $content;
+        }
+
+        $fullPrefix = "Src\\Modules\\{$moduleName}";
+
+        // Já está correto — não faz nada
+        if (preg_match('/^\s*namespace\s+Src\\\\Modules\\\\/m', $content)) {
+            return $content;
+        }
+
+        // Detecta namespace relativo que começa com o nome do módulo
+        // Ex: "namespace Task\Controllers;" ou "namespace Task;"
+        if (preg_match('/^\s*namespace\s+(' . preg_quote($moduleName, '/') . '(?:\\\\[A-Za-z0-9_\\\\]*)?)\s*;/m', $content, $m)) {
+            $relative = $m[1]; // ex: "Task\Controllers"
+            // Remove o nome do módulo do início para obter o sub-namespace
+            $sub = substr($relative, strlen($moduleName));
+            $correct = $fullPrefix . $sub; // ex: "Src\Modules\Task\Controllers"
+            return preg_replace(
+                '/^\s*namespace\s+' . preg_quote($relative, '/') . '\s*;/m',
+                "namespace {$correct};",
+                $content
+            ) ?? $content;
+        }
+
+        // Namespace relativo sem o nome do módulo (ex: "namespace Controllers;")
+        // Infere o sub-namespace a partir do caminho do arquivo
+        if (preg_match('/^\s*namespace\s+([A-Za-z][A-Za-z0-9_\\\\]*)\s*;/m', $content, $m)) {
+            $declared = $m[1];
+            // Só normaliza se não for um namespace de outro vendor (ex: Src\Kernel)
+            if (!str_contains($declared, '\\') || str_starts_with($declared, $moduleName . '\\')) {
+                return $content; // já tratado acima ou ambíguo — não altera
+            }
+        }
+
+        return $content;
     }
 
     public function deleteFile(string $projectId, string $userId, string $path): bool
@@ -367,7 +454,7 @@ class IdeProjectService
      * Retorna status do módulo publicado: se existe em src/Modules/, se está ativo.
      * Inclui apenas as tabelas pertencentes ao módulo (via tabela migrations).
      */
-    public function getModuleStatus(array $project, PDO $pdo): array
+    public function getModuleStatus(array $project, PDO $pdo, ?PDO $pdoModules = null): array
     {
         $moduleName = $project['module_name'];
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
@@ -376,12 +463,20 @@ class IdeProjectService
         // Estado ativo/inativo via ModuleLoader
         $enabled = $this->moduleLoader->isEnabled($moduleName);
 
-        // Tabelas do módulo — lidas da tabela migrations (apenas as do módulo)
-        $tables = $deployed ? $this->getModuleTables($moduleName, $pdo) : [];
+        // Resolve o PDO correto para este módulo (core ou DB2)
+        $activePdo = $pdo;
+        if ($deployed) {
+            $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+            $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
+            $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+        }
 
-        // Migrations pendentes
-        $pendingMigrations = $deployed ? $this->getPendingMigrations($moduleName, $moduleDir, $pdo) : [];
-        $pendingSeeders    = $deployed ? $this->getPendingSeeders($moduleName, $moduleDir, $pdo) : [];
+        // Tabelas do módulo — lidas da tabela migrations (apenas as do módulo)
+        $tables = $deployed ? $this->getModuleTables($moduleName, $activePdo) : [];
+
+        // Migrations e seeders pendentes — verificados no banco correto
+        $pendingMigrations = $deployed ? $this->getPendingMigrations($moduleName, $moduleDir, $activePdo) : [];
+        $pendingSeeders    = $deployed ? $this->getPendingSeeders($moduleName, $moduleDir, $activePdo) : [];
 
         return [
             'module_name'        => $moduleName,
@@ -421,10 +516,16 @@ class IdeProjectService
         $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
         sort($files, SORT_NATURAL);
 
-        // Determina conexão
-        $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = ($conn === 'modules' && $pdoModules) ? $pdoModules : $pdo;
+        // Determina conexão — tenta criar DB2 dinamicamente se necessário
+        $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+        $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
+        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+
+        // Sincroniza connection.php com DEFAULT_MODULE_CONNECTION se estiver desatualizado
+        $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? 'core'));
+        if (in_array($defaultConn, ['core', 'modules'], true) && $conn !== $defaultConn) {
+            $this->syncConnectionFile($moduleDir, $defaultConn);
+        }
 
         $this->ensureMigrationsTable($activePdo);
 
@@ -635,7 +736,7 @@ class IdeProjectService
 
         $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
         $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = ($conn === 'modules' && $pdoModules) ? $pdoModules : $pdo;
+        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
 
         $this->ensureMigrationsTable($activePdo);
 
@@ -701,7 +802,13 @@ class IdeProjectService
 
         $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
         $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = ($conn === 'modules' && $pdoModules) ? $pdoModules : $pdo;
+        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+
+        // Sincroniza connection.php com DEFAULT_MODULE_CONNECTION se estiver desatualizado
+        $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? 'core'));
+        if (in_array($defaultConn, ['core', 'modules'], true) && $conn !== $defaultConn) {
+            $this->syncConnectionFile($moduleDir, $defaultConn);
+        }
 
         $this->ensureMigrationsTable($activePdo);
 
@@ -811,7 +918,7 @@ class IdeProjectService
 
         $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
         $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = ($conn === 'modules' && $pdoModules) ? $pdoModules : $pdo;
+        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
 
         $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
         if (!is_dir($migrDir)) {
@@ -1222,6 +1329,66 @@ class IdeProjectService
         return $pending;
     }
 
+    /**
+     * Resolve qual PDO usar para um módulo da IDE.
+     *
+     * Lógica de prioridade:
+     * 1. Se connection.php diz 'modules' → usa DB2
+     * 2. Se connection.php diz 'core' MAS DEFAULT_MODULE_CONNECTION=modules → usa DB2
+     *    (o connection.php pode estar desatualizado — foi criado antes da configuração mudar)
+     * 3. Caso contrário → usa core
+     *
+     * Se DB2 não estiver disponível, tenta criar a conexão dinamicamente.
+     */
+    private function resolveActivePdo(string $conn, PDO $pdo, ?PDO $pdoModules): PDO
+    {
+        // Verifica se DEFAULT_MODULE_CONNECTION aponta para modules
+        $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+        $useModules  = ($conn === 'modules') || ($defaultConn === 'modules');
+
+        if (!$useModules) {
+            return $pdo;
+        }
+
+        // Já tem conexão modules disponível no container
+        if ($pdoModules !== null) {
+            return $pdoModules;
+        }
+
+        // Tenta criar conexão DB2 dinamicamente com os valores atuais do .env
+        try {
+            if (\Src\Kernel\Database\PdoFactory::hasSecondaryConnection()) {
+                return \Src\Kernel\Database\PdoFactory::fromEnv('DB2');
+            }
+        } catch (\Throwable) {
+            // Falha silenciosa — cai para core
+        }
+
+        return $pdo;
+    }
+
+    /**
+     * Atualiza o connection.php do módulo para refletir DEFAULT_MODULE_CONNECTION.
+     * Chamado automaticamente ao rodar migrations quando o arquivo está desatualizado.
+     */
+    private function syncConnectionFile(string $moduleDir, string $conn): void
+    {
+        $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+        if (!is_dir(dirname($connFile))) {
+            return;
+        }
+        $content = implode("\n", [
+            '<?php',
+            "// Define qual banco de dados este módulo usa.",
+            "// 'core'    → usa DB_* do .env (banco principal)",
+            "// 'modules' → usa DB2_* do .env (banco secundário)",
+            "// 'auto'    → o Kernel decide baseado na origem do módulo",
+            "return '{$conn}';",
+            '',
+        ]);
+        file_put_contents($connFile, $content);
+    }
+
     private function ensureMigrationsTable(PDO $pdo): void
     {
         $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
@@ -1235,7 +1402,8 @@ class IdeProjectService
 
     public function generateScaffold(string $moduleName): array
     {
-        $ns = "Src\\Modules\\{$moduleName}";
+        // Namespace relativo ao módulo — o prefixo Src\Modules\ é adicionado automaticamente ao salvar
+        $ns = $moduleName;
 
         return [
             // Controllers
@@ -1260,7 +1428,7 @@ class IdeProjectService
             // Config
             "Config/config.php"                       => $this->tplConfig($moduleName),
             // Database
-            "Database/connection.php"                 => "<?php\n// Define qual banco de dados este módulo usa.\n// Opções: 'core' (DB_*) | 'modules' (DB2_*) | 'auto'\nreturn 'core';\n",
+            "Database/connection.php"                 => $this->tplConnection(),
             "Database/Migrations/2026_01_01_000001_create_{$this->snake($moduleName)}_table.php" => $this->tplMigration($moduleName),
             "Database/Seeders/{$moduleName}Seeder.php" => $this->tplSeeder($moduleName),
             // Routes
@@ -1384,7 +1552,9 @@ class IdeProjectService
 
     private function tplRepository(string $ns, string $name): string
     {
-        $t = $this->snake($name) . 's';
+        // Usa o prefixo obrigatório: snake(moduleName)_ + snake(moduleName)s
+        $prefix = $this->snake($name) . '_';
+        $t      = $prefix . $this->snake($name) . 's'; // ex: task_tasks
         return implode("\n", [
             '<?php', '', 'namespace ' . $ns . '\\Repositories;', '', 'use PDO;', '',
             'final class ' . $name . 'Repository', '{',
@@ -1460,9 +1630,30 @@ class IdeProjectService
         ]);
     }
 
+    private function tplConnection(): string
+    {
+        // Lê DEFAULT_MODULE_CONNECTION do .env — padrão 'core' se não definido
+        $conn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+        if (!in_array($conn, ['core', 'modules', 'auto'], true)) {
+            $conn = 'core';
+        }
+        return implode("\n", [
+            '<?php',
+            "// Define qual banco de dados este módulo usa.",
+            "// 'core'    → usa DB_* do .env (banco principal)",
+            "// 'modules' → usa DB2_* do .env (banco secundário)",
+            "// 'auto'    → o Kernel decide baseado na origem do módulo",
+            "return '{$conn}';",
+            '',
+        ]);
+    }
+
     private function tplMigration(string $name): string
     {
-        $t = $this->snake($name) . 's';
+        // Prefixo obrigatório: snake(moduleName)_ + nome da tabela
+        // Ex: módulo "Task" → prefixo "task_" → tabela "task_tasks"
+        $prefix = $this->snake($name) . '_';
+        $t      = $prefix . $this->snake($name) . 's'; // ex: task_tasks
         return implode("\n", [
             '<?php', '', 'use PDO;', '',
             'return [',
@@ -1620,7 +1811,8 @@ class IdeProjectService
 
     private function tplSeeder(string $name): string
     {
-        $t = $this->snake($name) . 's';
+        $prefix = $this->snake($name) . '_';
+        $t      = $prefix . $this->snake($name) . 's'; // ex: task_tasks
         return implode("\n", [
             '<?php', '', 'use PDO;', '',
             'return function (PDO $pdo): void {',

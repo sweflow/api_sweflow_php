@@ -3,6 +3,7 @@
 namespace Src\Modules\Auth\Controllers;
 
 use DomainException;
+use Src\Kernel\Contracts\AuthenticatableInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\AuditLogger;
@@ -109,7 +110,7 @@ class AuthController
                 ? $this->authService->autenticar($login, $senha)
                 : $this->buscarEValidarCredenciais($login, $senha, $startTime);
 
-            if ($apenasAdmin && $usuario->getNivelAcesso() !== 'admin_system') {
+            if ($apenasAdmin && $usuario->getAuthRole() !== 'admin_system') {
                 $this->enforceMinResponseTime($startTime);
                 return Response::json(['status' => 'error', 'message' => 'Acesso restrito.'], 403);
             }
@@ -120,33 +121,32 @@ class AuthController
                     'status'             => 'error',
                     'message'            => 'Você precisa confirmar seu e-mail antes de fazer login.',
                     'email_not_verified' => true,
-                    'email'              => $usuario->getEmail(),
+                    'email'              => $usuario->getAuthEmail(),
                 ], 403);
             }
 
-            $tokens = $usuario->getNivelAcesso() === 'admin_system'
+            $tokens = $usuario->getAuthRole() === 'admin_system'
                 ? $this->authService->emitirTokensAdmin($usuario)
                 : $this->authService->emitirTokens($usuario);
 
             $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
-            $this->auditLogger->registrar('auth.login.success', $usuario->getUuid()->toString(), [
-                'username'     => $usuario->getUsername(),
-                'nivel_acesso' => $usuario->getNivelAcesso(),
+            $this->auditLogger->registrar('auth.login.success', $usuario->getAuthId(), [
+                'username'     => $usuario->getAuthUsername(),
+                'nivel_acesso' => $usuario->getAuthRole(),
             ]);
 
             $this->enforceMinResponseTime($startTime);
+            // Refresh token vai APENAS no cookie HttpOnly — nunca no body
             return Response::json([
-                'status'             => 'success',
-                'access_token'       => $tokens['access_token'],
-                'expires_in'         => $tokens['access_expira_em'],
-                'refresh_token'      => $tokens['refresh_token'],
-                'refresh_expires_in' => $tokens['refresh_expira_em'],
+                'status'      => 'success',
+                'access_token'=> $tokens['access_token'],
+                'expires_in'  => $tokens['access_expira_em'],
                 'usuario' => [
-                    'uuid'          => $usuario->getUuid()->toString(),
-                    'nome_completo' => $usuario->getNomeCompleto(),
-                    'username'      => $usuario->getUsername(),
-                    'email'         => $usuario->getEmail(),
-                    'nivel_acesso'  => $usuario->getNivelAcesso(),
+                    'uuid'          => $usuario->getAuthId(),
+                    'nome_completo' => method_exists($usuario, 'getNomeCompleto') ? $usuario->getNomeCompleto() : $usuario->getAuthUsername(),
+                    'username'      => $usuario->getAuthUsername(),
+                    'email'         => $usuario->getAuthEmail(),
+                    'nivel_acesso'  => $usuario->getAuthRole(),
                 ],
             ]);
 
@@ -174,7 +174,7 @@ class AuthController
         }
     }
 
-    private function buscarEValidarCredenciais(string $login, string $senha, float $startTime): \Src\Modules\Usuario\Entities\Usuario
+    private function buscarEValidarCredenciais(string $login, string $senha, float $startTime): AuthenticatableInterface
     {
         $usuario = $this->authService->buscarUsuarioPorLogin($login);
         if (!$usuario || !$usuario->verificarSenha($senha)) {
@@ -198,7 +198,7 @@ class AuthController
         try {
             $email = trim((string) ($request->body['email'] ?? ''));
 
-            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            if ($email === '' || mb_strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->enforceMinResponseTime($startTime);
                 return Response::json(['status' => 'error', 'message' => 'E-mail inválido ou não informado.'], 400);
             }
@@ -207,14 +207,14 @@ class AuthController
 
             if ($usuario && $this->emailModuleEnabled() && $this->emailService !== null) {
                 $token = bin2hex(random_bytes(32));
-                $this->authService->salvarTokenRecuperacaoSenha($usuario->getUuid()->toString(), $token);
+                $this->authService->salvarTokenRecuperacaoSenha($usuario->getAuthId(), $token);
 
-                // tryRecord é atômico — verifica cooldown e registra em uma única operação
                 if ($this->authService->tentarRegistrarEmailRecuperacao($email)) {
                     try {
+                        $nome = method_exists($usuario, 'getNomeCompleto') ? $usuario->getNomeCompleto() : $usuario->getAuthUsername();
                         $this->emailService->sendPasswordReset(
-                            $usuario->getEmail(),
-                            $usuario->getNomeCompleto(),
+                            $usuario->getAuthEmail(),
+                            $nome,
                             $this->montarLinkRecuperacaoSenha($token),
                             $_ENV['APP_LOGO_URL'] ?? null
                         );
@@ -226,7 +226,7 @@ class AuthController
                 }
             } elseif ($usuario && !$this->emailModuleEnabled()) {
                 $token = bin2hex(random_bytes(32));
-                $this->authService->salvarTokenRecuperacaoSenha($usuario->getUuid()->toString(), $token);
+                $this->authService->salvarTokenRecuperacaoSenha($usuario->getAuthId(), $token);
             }
 
             $this->enforceMinResponseTime($startTime);
@@ -263,9 +263,13 @@ class AuthController
                 return Response::json(['status' => 'error', 'message' => 'Token inválido ou expirado.'], 400);
             }
 
+            // alterarSenha é um método da entidade — se não existir, lança erro claro
+            if (!method_exists($usuario, 'alterarSenha')) {
+                return Response::json(['status' => 'error', 'message' => 'Esta entidade não suporta redefinição de senha.'], 501);
+            }
             $usuario->alterarSenha($novaSenha);
             $this->authService->salvar($usuario);
-            $this->authService->limparTokenRecuperacaoSenha($usuario->getUuid()->toString());
+            $this->authService->limparTokenRecuperacaoSenha($usuario->getAuthId());
 
             return Response::json(['status' => 'success', 'message' => 'Senha redefinida com sucesso.']);
         } catch (\Src\Modules\Usuario\Exceptions\InvalidPasswordException $e) {
@@ -308,11 +312,11 @@ class AuthController
         return Response::json([
             'status'  => 'success',
             'usuario' => [
-                'uuid'          => $authUser->getUuid()->toString(),
-                'nome_completo' => $authUser->getNomeCompleto(),
-                'username'      => $authUser->getUsername(),
-                'email'         => $authUser->getEmail(),
-                'nivel_acesso'  => $authUser->getNivelAcesso(),
+                'uuid'          => $authUser->getAuthId(),
+                'nome_completo' => method_exists($authUser, 'getNomeCompleto') ? $authUser->getNomeCompleto() : $authUser->getAuthUsername(),
+                'username'      => $authUser->getAuthUsername(),
+                'email'         => $authUser->getAuthEmail(),
+                'nivel_acesso'  => $authUser->getAuthRole(),
             ],
         ]);
     }
@@ -336,17 +340,43 @@ class AuthController
                 return Response::json(['error' => 'Usuário não encontrado.'], 404);
             }
 
+            // Verifica se o usuário ainda está ativo — pode ter sido desativado após emissão do token
+            if (!$usuario->isAtivo()) {
+                $this->authService->revogarRefreshPorUsuario($payload->sub ?? '');
+                return Response::json(['error' => 'Usuário desativado.'], 403);
+            }
+
+            // Verifica política de verificação de e-mail
+            if ($this->carregarPoliticaVerificacaoEmail() && !$usuario->isEmailVerificado()) {
+                return Response::json([
+                    'error'              => 'E-mail não verificado.',
+                    'email_not_verified' => true,
+                ], 403);
+            }
+
+            // Invalida token emitido antes de uma troca de senha (proteção contra roubo de token antigo)
+            $senhaAlteradaEm = $usuario->getSenhaAlteradaEm();
+            $tokenEmitidoEm  = $payload->iat ?? 0;
+            if ($senhaAlteradaEm !== null && $tokenEmitidoEm < $senhaAlteradaEm) {
+                $this->authService->revogarRefreshPorUsuario($payload->sub ?? '');
+                return Response::json(['error' => 'Sessão expirada. Faça login novamente.'], 401);
+            }
+
+            // Revoga ANTES de emitir — evita replay se a resposta for perdida
             $this->authService->revogarRefreshPorJti($payload->jti ?? '');
-            $tokens = $usuario->getNivelAcesso() === 'admin_system'
+
+            $tokens = $usuario->getAuthRole() === 'admin_system'
                 ? $this->authService->emitirTokensAdmin($usuario)
                 : $this->authService->emitirTokens($usuario);
 
+            // Define cookie HttpOnly com o novo refresh token
+            $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
+
+            // Retorna apenas o access_token no body — refresh_token vai APENAS no cookie HttpOnly
             return Response::json([
-                'access_token'       => $tokens['access_token'],
-                'token_type'         => 'Bearer',
-                'expires_in'         => $tokens['access_expira_em'],
-                'refresh_token'      => $tokens['refresh_token'],
-                'refresh_expires_in' => $tokens['refresh_expira_em'],
+                'access_token'  => $tokens['access_token'],
+                'token_type'    => 'Bearer',
+                'expires_in'    => $tokens['access_expira_em'],
             ]);
         } catch (DomainException $e) {
             return Response::json(['error' => $e->getMessage()], $e->getCode() ?: 401);
@@ -409,7 +439,7 @@ class AuthController
                 return Response::json(['status' => 'success', 'message' => 'E-mail já verificado.']);
             }
 
-            $this->authService->marcarEmailComoVerificado($usuario->getUuid()->toString());
+            $this->authService->marcarEmailComoVerificado($usuario->getAuthId());
             return Response::json(['status' => 'success', 'message' => 'E-mail verificado com sucesso.']);
         } catch (DomainException $e) {
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
@@ -567,12 +597,15 @@ class AuthController
     }
 
     /**
-     * Garante tempo mínimo de resposta para mitigar timing attacks.
+     * Garante tempo mínimo de resposta com jitter leve para mitigar timing attacks.
+     * O jitter impede fingerprint de tempo por atacantes.
+     * Login usa base de 500ms ± 150ms; demais endpoints usam 200ms ± 50ms.
      */
-    private function enforceMinResponseTime(float $startTime, int $minMs = 200): void
+    private function enforceMinResponseTime(float $startTime, int $minMs = 500, int $jitterMs = 150): void
     {
         $elapsed   = (microtime(true) - $startTime) * 1000;
-        $remaining = $minMs - $elapsed;
+        $target    = $minMs + random_int(0, $jitterMs);
+        $remaining = $target - $elapsed;
         if ($remaining > 0) {
             usleep((int) ($remaining * 1000));
         }

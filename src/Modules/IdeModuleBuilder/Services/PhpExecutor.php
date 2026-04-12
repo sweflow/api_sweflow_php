@@ -294,7 +294,8 @@ final class PhpExecutor
         }
 
         // 4. Extrai tabelas referenciadas em SQL e valida cada uma
-        $tablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        // Cobre: SELECT FROM, INSERT INTO, UPDATE, DELETE FROM, CREATE/DROP/ALTER/TRUNCATE TABLE, JOIN
+        $tablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
         preg_match_all($tablePattern, $code, $matches);
 
         foreach ($matches[1] as $table) {
@@ -546,8 +547,8 @@ if (!class_exists('RestrictedPDO', false)) {
                 );
             }
 
-            // Extrai nomes de tabelas: FROM, JOIN, INTO, UPDATE, TABLE, TRUNCATE, DELETE FROM
-            \$pattern = '/\\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?[`"\'\\[\\s]*([a-zA-Z_][a-zA-Z0-9_]*)[`"\'\\]\\s]*/i';
+            // Extrai nomes de tabelas: FROM, JOIN, INTO, UPDATE, DELETE FROM, TABLE, TRUNCATE
+            \$pattern = '/\\b(?:FROM|JOIN|INTO|UPDATE|DELETE\\s+FROM|TABLE|TRUNCATE)\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?[`"\'\\[\\s]*([a-zA-Z_][a-zA-Z0-9_]*)[`"\'\\]\\s]*/i';
             preg_match_all(\$pattern, \$sql, \$matches);
 
             foreach (\$matches[1] as \$table) {

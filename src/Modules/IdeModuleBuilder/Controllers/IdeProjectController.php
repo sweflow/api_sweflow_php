@@ -143,7 +143,11 @@ final class IdeProjectController
             return trim($f, '/');
         }, $folders)));
 
-        return Response::json(['saved' => $this->service->saveFolders($project['id'], $userId, $clean)]);
+        try {
+            return Response::json(['saved' => $this->service->saveFolders($project['id'], $userId, $clean)]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse('Erro ao salvar pastas: ' . $e->getMessage(), 500);
+        }
     }
 
     public function saveFile(Request $request): Response
@@ -277,7 +281,7 @@ final class IdeProjectController
     {
         [, $project, $err] = $this->requireProject($request);
         if ($err) return $err;
-        return Response::json(['status' => $this->service->getModuleStatus($project, $this->pdo)]);
+        return Response::json(['status' => $this->service->getModuleStatus($project, $this->pdo, $this->pdoModules)]);
     }
 
     public function migrate(Request $request): Response
@@ -523,8 +527,8 @@ final class IdeProjectController
             return "[Segurança] Acesso a metadados do banco bloqueado.";
         }
 
-        // Verifica tabelas referenciadas
-        $pattern = '/\b(?:FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
+        // Verifica tabelas referenciadas — cobre SELECT, INSERT, UPDATE, DELETE, DDL
+        $pattern = '/\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
         preg_match_all($pattern, $code, $matches);
 
         foreach ($matches[1] as $table) {

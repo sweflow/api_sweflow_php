@@ -5,15 +5,25 @@ namespace Src\Modules\Auth\Services;
 use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Src\Modules\Usuario\Entities\Usuario;
+use Src\Kernel\Contracts\AuthenticatableInterface;
 use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
 use Ramsey\Uuid\Uuid;
 use DateTimeImmutable;
 
+/**
+ * Serviço de autenticação desacoplado.
+ *
+ * Trabalha com qualquer entidade que implemente AuthenticatableInterface —
+ * não depende da entidade Usuario nem de nenhum módulo específico.
+ *
+ * Para usar com uma entidade diferente de Usuario:
+ *   1. Implemente AuthenticatableInterface na sua entidade
+ *   2. Implemente UserRepositoryInterface no seu repository
+ *   3. Registre no container: bind(UserRepositoryInterface::class, SeuRepository::class)
+ */
 class AuthService
 {
-    // Configurações cacheadas no construtor — evita leitura de $_ENV a cada chamada
     private string $jwtSecret;
     private string $jwtApiSecret;
     private string $emissor;
@@ -34,6 +44,14 @@ class AuthService
         $ttlRefresh = (int) $this->lerEnv('REFRESH_TOKEN_EXPIRATION_SECONDS', '2592000');
         $this->accessTtl  = $ttlAccess  > 0 ? $ttlAccess  : 900;
         $this->refreshTtl = $ttlRefresh > 0 ? $ttlRefresh : 2592000;
+
+        // Valida comprimento mínimo do JWT_SECRET (32 bytes = 64 hex chars ou 32 chars raw)
+        if ($this->jwtSecret !== '' && strlen($this->jwtSecret) < 32) {
+            throw new \RuntimeException('JWT_SECRET deve ter pelo menos 32 caracteres.', 500);
+        }
+        if ($this->jwtApiSecret !== '' && strlen($this->jwtApiSecret) < 32) {
+            throw new \RuntimeException('JWT_API_SECRET deve ter pelo menos 32 caracteres.', 500);
+        }
     }
 
     private function lerEnv(string $key, string $default): string
@@ -41,7 +59,13 @@ class AuthService
         return trim((string) ($_ENV[$key] ?? getenv($key) ?: $default));
     }
 
-    public function autenticar(string $login, string $senha): Usuario
+    // ── Autenticação ──────────────────────────────────────────────────────
+
+    /**
+     * Autentica um usuário por login (e-mail ou username) e senha.
+     * Retorna qualquer objeto que implemente AuthenticatableInterface.
+     */
+    public function autenticar(string $login, string $senha): AuthenticatableInterface
     {
         if (trim($login) === '' || trim($senha) === '') {
             throw new DomainException('Login e senha são obrigatórios.', 400);
@@ -59,31 +83,38 @@ class AuthService
         return $usuario;
     }
 
-    public function emitirTokens(Usuario $usuario): array
+    // ── Emissão de tokens ─────────────────────────────────────────────────
+
+    /** Emite tokens assinados com JWT_SECRET (usuários comuns). */
+    public function emitirTokens(AuthenticatableInterface $usuario): array
     {
         return $this->emitirTokensComSecret($usuario, $this->segredoJwt());
     }
 
-    /**
-     * Emite tokens para admin_system assinados com JWT_API_SECRET.
-     * Esses tokens são aceitos pelas rotas protegidas com AdminOnlyMiddleware.
-     */
-    public function emitirTokensAdmin(Usuario $usuario): array
+    /** Emite tokens assinados com JWT_API_SECRET (admin_system). */
+    public function emitirTokensAdmin(AuthenticatableInterface $usuario): array
     {
         return $this->emitirTokensComSecret($usuario, $this->segredoJwtAdmin());
     }
 
-    private function emitirTokensComSecret(Usuario $usuario, string $secret): array
+    private function emitirTokensComSecret(AuthenticatableInterface $usuario, string $secret): array
     {
         $agora = time();
+
+        // Valida role contra whitelist antes de incluir no payload
+        $role = $usuario->getAuthRole();
+        $rolesPermitidas = ['usuario', 'admin', 'moderador', 'admin_system'];
+        if (!in_array($role, $rolesPermitidas, true)) {
+            throw new DomainException("Role '{$role}' não é permitida.", 403);
+        }
 
         $accessJti = Uuid::uuid4()->toString();
         $accessExp = $agora + $this->accessTtl;
         $accessPayload = [
-            'sub'          => $usuario->getUuid()->toString(),
-            'email'        => $usuario->getEmail(),
-            'username'     => $usuario->getUsername(),
-            'nivel_acesso' => $usuario->getNivelAcesso(),
+            'sub'          => $usuario->getAuthId(),
+            'email'        => $usuario->getAuthEmail(),
+            'username'     => $usuario->getAuthUsername() ?? $usuario->getAuthEmail(),
+            'nivel_acesso' => $usuario->getAuthRole(),
             'iat'          => $agora,
             'exp'          => $accessExp,
             'iss'          => $this->emissor,
@@ -96,7 +127,7 @@ class AuthService
         $refreshJti = Uuid::uuid4()->toString();
         $refreshExp = $agora + $this->refreshTtl;
         $refreshPayload = [
-            'sub'  => $usuario->getUuid()->toString(),
+            'sub'  => $usuario->getAuthId(),
             'iat'  => $agora,
             'exp'  => $refreshExp,
             'iss'  => $this->emissor,
@@ -110,7 +141,7 @@ class AuthService
             $hash = hash_hmac('sha256', $refresh, $secret);
             $this->refreshTokens->store(
                 $refreshJti,
-                $usuario->getUuid()->toString(),
+                $usuario->getAuthId(),
                 $hash,
                 (new DateTimeImmutable())->setTimestamp($refreshExp)
             );
@@ -124,10 +155,10 @@ class AuthService
         ];
     }
 
+    // ── Decodificação de tokens ───────────────────────────────────────────
+
     public function decodificarToken(string $token): object
     {
-        // Tenta JWT_API_SECRET primeiro (admin_system), depois JWT_SECRET.
-        // Rejeita explicitamente tokens do tipo 'refresh' — não são access tokens.
         $apiSecret = $this->segredoJwtAdmin();
         try {
             $payload = JWT::decode($token, new Key($apiSecret, 'HS256'));
@@ -146,25 +177,15 @@ class AuthService
         return $payload;
     }
 
-    /**
-     * Decodifica um refresh token sem rejeitar o tipo 'refresh'.
-     * Uso exclusivo para o fluxo de renovação de tokens.
-     */
     public function decodificarRefresh(string $token): object
     {
         [$payload] = $this->decodificarRefreshComSecret($token);
         return $payload;
     }
 
-    /**
-     * Decodifica um refresh token e retorna [payload, assinadoComApiSecret].
-     * Permite que o caller saiba qual secret usar para validar o HMAC.
-     *
-     * @return array{0: object, 1: bool}
-     */
+    /** @return array{0: object, 1: bool} [payload, assinadoComApiSecret] */
     public function decodificarRefreshComSecret(string $token): array
     {
-        // Tenta JWT_API_SECRET primeiro, depois JWT_SECRET
         $apiSecret = $this->segredoJwtAdmin();
         try {
             $payload = JWT::decode($token, new Key($apiSecret, 'HS256'));
@@ -189,20 +210,15 @@ class AuthService
         throw new DomainException('Token de refresh inválido ou expirado.', 401);
     }
 
+    // ── Refresh tokens ────────────────────────────────────────────────────
+
     public function validarRefreshNaoRevogado(object $payload, string $rawToken, bool $assinadoComApiSecret = false): void
     {
-        if (!$this->refreshTokens) {
-            return;
-        }
+        if (!$this->refreshTokens) return;
         $jti = $payload->jti ?? '';
-        if ($jti === '') {
-            throw new DomainException('Refresh sem jti.', 401);
-        }
+        if ($jti === '') throw new DomainException('Refresh sem jti.', 401);
         $row = $this->refreshTokens->findValidByJti($jti);
-        if (!$row) {
-            throw new DomainException('Refresh revogado ou expirado.', 401);
-        }
-        // Usa o secret correto diretamente — sem re-decodificar o token
+        if (!$row) throw new DomainException('Refresh revogado ou expirado.', 401);
         $secret = $assinadoComApiSecret ? $this->segredoJwtAdmin() : $this->segredoJwt();
         $hash   = hash_hmac('sha256', $rawToken, $secret);
         if (!hash_equals($row['token_hash'], $hash)) {
@@ -212,93 +228,79 @@ class AuthService
 
     public function revogarRefreshPorUsuario(string $userUuid): void
     {
-        if ($this->refreshTokens) {
-            $this->refreshTokens->revokeByUser($userUuid);
-        }
+        $this->refreshTokens?->revokeByUser($userUuid);
     }
 
     public function revogarRefreshPorJti(string $jti): void
     {
-        if ($this->refreshTokens) {
-            $this->refreshTokens->revokeByJti($jti);
-        }
+        $this->refreshTokens?->revokeByJti($jti);
     }
 
-    // ── Delegações ao repositório (evita Service Locator nos controllers) ─
+    // ── Delegações ao repositório ─────────────────────────────────────────
 
-    public function buscarUsuarioPorLogin(string $login): ?Usuario
+    /** Busca por login (e-mail ou username). Retorna AuthenticatableInterface ou null. */
+    public function buscarUsuarioPorLogin(string $login): ?AuthenticatableInterface
     {
         return $this->buscarUsuario($login);
     }
 
-    public function buscarPorUuid(string $uuid): ?Usuario
+    public function buscarPorUuid(string $uuid): ?AuthenticatableInterface
     {
         return $this->usuarios->buscarPorUuid($uuid);
     }
 
-    public function buscarPorEmail(string $email): ?Usuario
+    public function buscarPorEmail(string $email): ?AuthenticatableInterface
     {
         return $this->usuarios->buscarPorEmail($email);
     }
 
-    public function buscarPorTokenRecuperacaoSenha(string $token): ?Usuario
+    /**
+     * Busca por token de recuperação de senha.
+     * Só funciona se o repositório implementar UserRepositoryInterface completo.
+     */
+    public function buscarPorTokenRecuperacaoSenha(string $token): ?AuthenticatableInterface
     {
-        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
-            return null;
-        }
         return $this->usuarios->buscarPorTokenRecuperacaoSenha($token);
     }
 
-    public function buscarPorTokenVerificacaoEmail(string $token): ?Usuario
+    public function buscarPorTokenVerificacaoEmail(string $token): ?AuthenticatableInterface
     {
-        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
-            return null;
-        }
         return $this->usuarios->buscarPorTokenVerificacaoEmail($token);
-    }
-
-    public function salvar(Usuario $usuario): void
-    {
-        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
-            return;
-        }
-        $this->usuarios->salvar($usuario);
     }
 
     public function salvarTokenRecuperacaoSenha(string $uuid, string $token): void
     {
-        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
-            return;
-        }
         $this->usuarios->salvarTokenRecuperacaoSenha($uuid, $token);
+    }
+
+    /**
+     * Persiste alterações na entidade (ex: nova senha após reset).
+     * Delega ao repositório se ele implementar um método salvar().
+     */
+    public function salvar(AuthenticatableInterface $usuario): void
+    {
+        if (method_exists($this->usuarios, 'salvar')) {
+            $this->usuarios->salvar($usuario);
+        }
     }
 
     public function limparTokenRecuperacaoSenha(string $uuid): void
     {
-        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
-            return;
-        }
         $this->usuarios->limparTokenRecuperacaoSenha($uuid);
     }
 
     public function marcarEmailComoVerificado(string $uuid, bool $verificado = true): void
     {
-        if (!$this->usuarios instanceof \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface) {
-            return;
-        }
         $this->usuarios->marcarEmailComoVerificado($uuid, $verificado);
     }
 
     /**
      * Tenta registrar o disparo de e-mail de recuperação de forma atômica.
-     * Retorna true se o envio foi autorizado e registrado, false se ainda no cooldown.
-     * Substitui o par podeDispararEmailRecuperacao() + registrarDisparoEmailRecuperacao().
+     * Retorna true se autorizado, false se ainda no cooldown.
      */
     public function tentarRegistrarEmailRecuperacao(string $email): bool
     {
-        if (!$this->refreshTokens) {
-            return true;
-        }
+        if (!$this->refreshTokens) return true;
         try {
             $pdo = $this->refreshTokens->getPdo();
             return (new \Src\Kernel\Support\EmailThrottle($pdo))->tryRecord('password_reset', $email);
@@ -307,38 +309,37 @@ class AuthService
         }
     }
 
-    public function tempoExpiracao(): int
-    {
-        return $this->accessTtl;
-    }
+    public function tempoExpiracao(): int  { return $this->accessTtl; }
+    public function tempoRefresh(): int    { return $this->refreshTtl; }
 
-    public function tempoRefresh(): int
-    {
-        return $this->refreshTtl;
-    }
+    // ── Helpers privados ──────────────────────────────────────────────────
 
-    private function buscarUsuario(string $login): ?Usuario
+    private function buscarUsuario(string $login): ?AuthenticatableInterface
     {
-        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-            return $this->usuarios->buscarPorEmail($login);
+        $result = filter_var($login, FILTER_VALIDATE_EMAIL)
+            ? $this->usuarios->buscarPorEmail($login)
+            : $this->usuarios->buscarPorUsername($login);
+
+        // Garante que o resultado implementa AuthenticatableInterface
+        if ($result !== null && !($result instanceof AuthenticatableInterface)) {
+            throw new \RuntimeException(
+                'O repositório retornou um objeto que não implementa AuthenticatableInterface. ' .
+                'Implemente Src\Kernel\Contracts\AuthenticatableInterface na sua entidade.'
+            );
         }
 
-        return $this->usuarios->buscarPorUsername($login);
+        return $result;
     }
 
     private function segredoJwt(): string
     {
-        if ($this->jwtSecret === '') {
-            throw new DomainException('JWT_SECRET não configurado.', 500);
-        }
+        if ($this->jwtSecret === '') throw new DomainException('JWT_SECRET não configurado.', 500);
         return $this->jwtSecret;
     }
 
     private function segredoJwtAdmin(): string
     {
-        if ($this->jwtApiSecret === '') {
-            throw new DomainException('JWT_API_SECRET não configurado.', 500);
-        }
+        if ($this->jwtApiSecret === '') throw new DomainException('JWT_API_SECRET não configurado.', 500);
         return $this->jwtApiSecret;
     }
 }
