@@ -36,10 +36,29 @@ class IdeController
     /** GET /dashboard/ide — página de listagem de projetos */
     public function index(): Response
     {
+        // Extrai dados do usuário do JWT para renderização server-side (evita flash no carregamento)
+        $nomeUsuario  = '';
+        $avatarUsuario = '';
+        $token = \Src\Kernel\Support\TokenExtractor::fromRequest();
+        if ($token !== '') {
+            try {
+                [$payload] = \Src\Kernel\Support\JwtDecoder::decodeUser($token);
+                \Src\Kernel\Support\JwtDecoder::validateUserClaims($payload);
+                $nomeCompleto = $payload->nome_completo ?? $payload->username ?? '';
+                // Pega só o primeiro nome
+                $nomeUsuario  = trim(explode(' ', trim($nomeCompleto))[0]);
+                $avatarUsuario = $payload->url_avatar ?? '';
+            } catch (\Throwable) {
+                // Silencioso — JS fará o fetch normalmente
+            }
+        }
+
         return $this->renderView('ide-projects', [
-            'titulo'    => 'Projetos — Vupi.us IDE',
-            'logo_url'  => $this->resolveLogoUrl(),
-            'csp_nonce' => \Src\Kernel\Nonce::get(),
+            'titulo'        => 'Projetos — Vupi.us IDE',
+            'logo_url'      => $this->resolveLogoUrl(),
+            'csp_nonce'     => \Src\Kernel\Nonce::get(),
+            'nome_usuario'  => $nomeUsuario,
+            'avatar_usuario'=> $avatarUsuario,
         ]);
     }
 

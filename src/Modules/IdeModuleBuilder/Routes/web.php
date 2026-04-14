@@ -16,6 +16,7 @@ $createProtected = [AuthHybridMiddleware::class, [RateLimitMiddleware::class, ['
 $runProtected = [AuthHybridMiddleware::class, [RateLimitMiddleware::class, ['limit' => 30, 'window' => 60, 'key' => 'ide.run']]];
 
 $router->get('/api/ide/projects',                    [IdeProjectController::class, 'list'],         $protected);
+$router->get('/api/ide/dashboard',                   [IdeProjectController::class, 'dashboard'],    $protected);
 $router->post('/api/ide/projects',                   [IdeProjectController::class, 'create'],       $createProtected);
 $router->get('/api/ide/projects/{id}',               [IdeProjectController::class, 'get'],          $protected);
 $router->delete('/api/ide/projects/{id}',            [IdeProjectController::class, 'delete'],       $protected);

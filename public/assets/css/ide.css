@@ -2160,3 +2160,145 @@ body.ide-resizing-v .ide-resize-v { pointer-events: auto !important; }
     flex-shrink: 0;
     background: rgba(0,0,0,.1);
 }
+
+/* ── Topbar Avatar ─────────────────────────────────────────────────────── */
+.ide-topbar-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--ide-border, #334155);
+    background: var(--ide-surface, #1e293b);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0;
+    transition: border-color .15s, box-shadow .15s;
+    flex-shrink: 0;
+}
+.ide-topbar-avatar:hover {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.2);
+}
+.ide-topbar-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.ide-topbar-avatar i {
+    font-size: 22px;
+    color: var(--ide-muted, #64748b);
+}
+
+/* ── Profile Modal ─────────────────────────────────────────────────────── */
+.ide-modal-profile { max-width: 420px; width: 94vw; }
+
+.ide-profile-body { padding-top: 4px; }
+
+.ide-profile-avatar-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+.ide-profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--ide-border, #334155);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ide-surface, #1e293b);
+}
+
+.ide-profile-info-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--ide-border, #1e293b);
+}
+.ide-profile-info-row:last-child { border-bottom: none; }
+.ide-profile-label {
+    font-size: .8rem;
+    color: var(--ide-muted, #64748b);
+    min-width: 72px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.ide-profile-value {
+    font-size: .95rem;
+    color: var(--ide-text, #e2e8f0);
+    word-break: break-all;
+}
+
+/* ── Input group inside modal ──────────────────────────────────────────── */
+.ide-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.ide-input-group label {
+    font-size: .85rem;
+    color: var(--ide-muted, #94a3b8);
+}
+.ide-input-group input {
+    background: var(--ide-bg, #0f172a);
+    border: 1px solid var(--ide-border, #334155);
+    border-radius: 6px;
+    color: var(--ide-text, #e2e8f0);
+    padding: 8px 12px;
+    font-size: .95rem;
+    outline: none;
+    transition: border-color .15s;
+    width: 100%;
+    box-sizing: border-box;
+}
+.ide-input-group input:focus { border-color: #6366f1; }
+
+/* ── Password field with toggle ────────────────────────────────────────── */
+.ide-pwd-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.ide-pwd-wrap input { padding-right: 40px; }
+.ide-pwd-toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--ide-muted, #64748b);
+    cursor: pointer;
+    padding: 4px;
+    font-size: .9rem;
+    line-height: 1;
+}
+.ide-pwd-toggle:hover { color: var(--ide-text, #e2e8f0); }
+
+/* ── Password checklist ────────────────────────────────────────────────── */
+.ide-pwd-checklist {
+    list-style: none;
+    padding: 10px 0 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+}
+.chk-item {
+    font-size: .85rem;
+    color: var(--ide-muted, #64748b);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color .15s;
+}
+.chk-item i { font-size: .65rem; transition: color .15s; }
+.chk-item.valid { color: #4ade80; }
+.chk-item.valid i { color: #4ade80; }
+.chk-item.invalid { color: #f87171; }
+.chk-item.invalid i { color: #f87171; }

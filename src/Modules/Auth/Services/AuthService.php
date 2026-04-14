@@ -114,6 +114,7 @@ class AuthService
             'sub'          => $usuario->getAuthId(),
             'email'        => $usuario->getAuthEmail(),
             'username'     => $usuario->getAuthUsername() ?? $usuario->getAuthEmail(),
+            'nome_completo'=> method_exists($usuario, 'getNomeCompleto') ? $usuario->getNomeCompleto() : ($usuario->getAuthUsername() ?? ''),
             'nivel_acesso' => $usuario->getAuthRole(),
             'iat'          => $agora,
             'exp'          => $accessExp,

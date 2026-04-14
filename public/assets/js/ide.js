@@ -3240,3 +3240,294 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
     // Expõe para uso externo (Monaco aplica após carregar)
     window._ideApplySettings = applyAll;
 })();
+
+// ── User Profile & Change Password ───────────────────────────────────────
+(function initUserProfile() {
+    var currentUser = null;
+
+    // ── Load user and populate topbar avatar ──────────────────────────────
+    function loadCurrentUser() {
+        fetch('/api/perfil', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (!data || !data.usuario) return;
+                currentUser = data.usuario;
+                updateTopbarAvatar(currentUser.url_avatar);
+            })
+            .catch(function () {});
+    }
+
+    function updateTopbarAvatar(url) {
+        var img  = $('topbar-avatar-img');
+        var icon = $('topbar-avatar-icon');
+        if (!img || !icon) return;
+        if (url) {
+            img.src = url;
+            img.style.display = 'block';
+            icon.style.display = 'none';
+        } else {
+            img.style.display = 'none';
+            icon.style.display = '';
+        }
+    }
+
+    // ── Open profile modal ────────────────────────────────────────────────
+    function openProfileModal() {
+        if (!currentUser) return;
+        var nome     = currentUser.nome_completo || '—';
+        var username = currentUser.username      || '—';
+        var email    = currentUser.email         || '—';
+        var nivel    = currentUser.nivel_acesso  || '—';
+        var avatar   = currentUser.url_avatar    || '';
+
+        var pNome  = $('profile-nome');
+        var pUser  = $('profile-username');
+        var pEmail = $('profile-email');
+        var pNivel = $('profile-nivel');
+        var pImg   = $('profile-avatar-img');
+        var pIcon  = $('profile-avatar-icon');
+
+        if (pNome)  pNome.textContent  = nome;
+        if (pUser)  pUser.textContent  = username;
+        if (pEmail) pEmail.textContent = email;
+        if (pNivel) pNivel.textContent = nivel;
+
+        if (pImg && pIcon) {
+            if (avatar) {
+                pImg.src = avatar;
+                pImg.style.display = 'block';
+                pIcon.style.display = 'none';
+            } else {
+                pImg.style.display = 'none';
+                pIcon.style.display = '';
+            }
+        }
+
+        setEditMode(false);
+        showModal('modal-user-profile');
+    }
+
+    function setEditMode(on) {
+        var viewMode   = $('profile-view-mode');
+        var editMode   = $('profile-edit-mode');
+        var footerView = $('profile-footer-view');
+        var footerEdit = $('profile-footer-edit');
+        var feedback   = $('profile-edit-feedback');
+
+        if (viewMode)   viewMode.style.display   = on ? 'none' : '';
+        if (editMode)   editMode.style.display   = on ? '' : 'none';
+        if (footerView) footerView.style.display  = on ? 'none' : '';
+        if (footerEdit) footerEdit.style.display  = on ? '' : 'none';
+        if (feedback)   feedback.style.display    = 'none';
+
+        if (on && currentUser) {
+            var editNome   = $('profile-edit-nome');
+            var editAvatar = $('profile-edit-avatar');
+            if (editNome)   editNome.value   = currentUser.nome_completo || '';
+            if (editAvatar) editAvatar.value = currentUser.url_avatar    || '';
+            setTimeout(function () { if (editNome) editNome.focus(); }, 80);
+        }
+    }
+
+    function showProfileFeedback(msg, ok) {
+        var el = $('profile-edit-feedback');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+        el.style.color = ok ? '#4ade80' : '#f87171';
+    }
+
+    // ── Save profile ──────────────────────────────────────────────────────
+    async function saveProfile() {
+        var nome   = ($('profile-edit-nome')?.value || '').trim();
+        var avatar = ($('profile-edit-avatar')?.value || '').trim();
+        var saveBtn = $('btn-profile-edit-save');
+
+        if (!nome) { showProfileFeedback('Nome completo é obrigatório.', false); return; }
+
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...'; }
+
+        try {
+            var res  = await fetch('/api/perfil', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome_completo: nome, url_avatar: avatar || null }),
+            });
+            var data = await res.json();
+            if (!res.ok) throw new Error(data.message || data.error || 'Erro ao salvar.');
+
+            // Update local state
+            if (currentUser) {
+                currentUser.nome_completo = nome;
+                currentUser.url_avatar    = avatar || null;
+            }
+            updateTopbarAvatar(avatar || null);
+            showProfileFeedback('Perfil atualizado com sucesso!', true);
+            setTimeout(function () {
+                setEditMode(false);
+                // Refresh view
+                if ($('profile-nome'))  $('profile-nome').textContent  = nome;
+                if ($('profile-avatar-img') && avatar) {
+                    $('profile-avatar-img').src = avatar;
+                    $('profile-avatar-img').style.display = 'block';
+                    if ($('profile-avatar-icon')) $('profile-avatar-icon').style.display = 'none';
+                } else if ($('profile-avatar-img') && !avatar) {
+                    $('profile-avatar-img').style.display = 'none';
+                    if ($('profile-avatar-icon')) $('profile-avatar-icon').style.display = '';
+                }
+            }, 1200);
+        } catch (e) {
+            showProfileFeedback(e.message, false);
+        } finally {
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar'; }
+        }
+    }
+
+    // ── Change password modal ─────────────────────────────────────────────
+    function openChangePassword() {
+        hideModal('modal-user-profile');
+        // Reset fields
+        ['pwd-current','pwd-new','pwd-confirm'].forEach(function (id) {
+            var el = $(id); if (el) el.value = '';
+        });
+        resetChecklist();
+        var feedback = $('pwd-feedback');
+        if (feedback) feedback.style.display = 'none';
+        var saveBtn = $('btn-pwd-save');
+        if (saveBtn) saveBtn.disabled = true;
+        showModal('modal-change-password');
+        setTimeout(function () { var el = $('pwd-current'); if (el) el.focus(); }, 80);
+    }
+
+    // ── Password checklist ────────────────────────────────────────────────
+    var checks = {
+        'chk-len':   function (v) { return v.length >= 8; },
+        'chk-upper': function (v) { return /[A-Z]/.test(v); },
+        'chk-lower': function (v) { return /[a-z]/.test(v); },
+        'chk-num':   function (v) { return /[0-9]/.test(v); },
+        'chk-spec':  function (v) { return /[^A-Za-z0-9]/.test(v); },
+    };
+
+    function resetChecklist() {
+        Object.keys(checks).concat(['chk-match']).forEach(function (id) {
+            var el = $(id);
+            if (el) { el.classList.remove('valid','invalid'); }
+        });
+    }
+
+    function validatePassword() {
+        var newVal     = $('pwd-new')?.value     || '';
+        var confirmVal = $('pwd-confirm')?.value || '';
+        var allOk = true;
+
+        Object.keys(checks).forEach(function (id) {
+            var el = $(id);
+            if (!el) return;
+            var ok = checks[id](newVal);
+            el.classList.toggle('valid',   ok);
+            el.classList.toggle('invalid', newVal.length > 0 && !ok);
+            if (!ok) allOk = false;
+        });
+
+        // Match check
+        var matchEl = $('chk-match');
+        if (matchEl) {
+            var matchOk = newVal.length > 0 && newVal === confirmVal;
+            var mismatch = confirmVal.length > 0 && newVal !== confirmVal;
+            matchEl.classList.toggle('valid',   matchOk);
+            matchEl.classList.toggle('invalid', mismatch);
+            if (!matchOk) allOk = false;
+        }
+
+        var saveBtn = $('btn-pwd-save');
+        if (saveBtn) saveBtn.disabled = !(allOk && $('pwd-current')?.value.trim());
+        return allOk;
+    }
+
+    // ── Save password ─────────────────────────────────────────────────────
+    async function savePassword() {
+        var current = $('pwd-current')?.value || '';
+        var newPwd  = $('pwd-new')?.value     || '';
+        var saveBtn = $('btn-pwd-save');
+        var feedback = $('pwd-feedback');
+
+        if (!validatePassword() || !current.trim()) return;
+
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Alterando...'; }
+        if (feedback) feedback.style.display = 'none';
+
+        try {
+            var res  = await fetch('/api/perfil/senha', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senha_atual: current, nova_senha: newPwd }),
+            });
+            var data = await res.json();
+            if (!res.ok) throw new Error(data.message || data.error || 'Erro ao alterar senha.');
+
+            if (feedback) {
+                feedback.textContent = 'Senha alterada com sucesso!';
+                feedback.style.color = '#4ade80';
+                feedback.style.display = 'block';
+            }
+            setTimeout(function () { hideModal('modal-change-password'); }, 1500);
+        } catch (e) {
+            if (feedback) {
+                feedback.textContent = e.message;
+                feedback.style.color = '#f87171';
+                feedback.style.display = 'block';
+            }
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-key"></i> Alterar senha'; }
+        }
+    }
+
+    // ── Password toggle visibility ────────────────────────────────────────
+    document.querySelectorAll('.ide-pwd-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var targetId = btn.getAttribute('data-target');
+            var input = $(targetId);
+            if (!input) return;
+            var isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            var icon = btn.querySelector('i');
+            if (icon) icon.className = isText ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+        });
+    });
+
+    // ── Event listeners ───────────────────────────────────────────────────
+    var avatarBtn = $('btn-user-profile');
+    if (avatarBtn) avatarBtn.addEventListener('click', openProfileModal);
+
+    var profileClose = $('modal-profile-close');
+    if (profileClose) profileClose.addEventListener('click', function () { hideModal('modal-user-profile'); });
+
+    var editBtn = $('btn-profile-edit');
+    if (editBtn) editBtn.addEventListener('click', function () { setEditMode(true); });
+
+    var editCancel = $('btn-profile-edit-cancel');
+    if (editCancel) editCancel.addEventListener('click', function () { setEditMode(false); });
+
+    var editSave = $('btn-profile-edit-save');
+    if (editSave) editSave.addEventListener('click', saveProfile);
+
+    var changePwdBtn = $('btn-profile-change-password');
+    if (changePwdBtn) changePwdBtn.addEventListener('click', openChangePassword);
+
+    var pwdClose  = $('modal-pwd-close');
+    var pwdCancel = $('modal-pwd-cancel');
+    var pwdSave   = $('btn-pwd-save');
+    if (pwdClose)  pwdClose.addEventListener('click',  function () { hideModal('modal-change-password'); });
+    if (pwdCancel) pwdCancel.addEventListener('click', function () { hideModal('modal-change-password'); });
+    if (pwdSave)   pwdSave.addEventListener('click',   savePassword);
+
+    // Real-time validation
+    ['pwd-new','pwd-confirm','pwd-current'].forEach(function (id) {
+        var el = $(id);
+        if (el) el.addEventListener('input', validatePassword);
+    });
+
+    // Init
+    loadCurrentUser();
+})();

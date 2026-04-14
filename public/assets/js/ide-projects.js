@@ -74,18 +74,13 @@ async function loadProjects() {
     $('idep-grid').style.display = 'none';
 
     try {
-        var data = await api('GET', '/api/ide/projects');
-        var projects = data.projects || [];
+        // Endpoint agregador: projetos + limites em 1 request, 1 conexão ao banco
+        var data     = await api('GET', '/api/ide/dashboard');
+        var payload  = data.data || data; // suporte ao envelope { data: {...} }
+        var projects = payload.projects || [];
+        var limits   = payload.limits   || { unlimited: true, blocked: false, count: projects.length, limit: -1, remaining: null };
 
-        // Carrega limites do usuário
-        try {
-            var limits = await api('GET', '/api/ide/my-limits');
-            updateLimitInfo(limits, projects.length);
-        } catch (e) {
-            // Se falhou ao carregar limites, assume ilimitado para não bloquear
-            updateLimitInfo({ unlimited: true, blocked: false, count: projects.length, limit: -1, remaining: null }, projects.length);
-        }
-
+        updateLimitInfo(limits, projects.length);
         renderGrid(projects);
     } catch (e) {
         var container = $('idep-loading');

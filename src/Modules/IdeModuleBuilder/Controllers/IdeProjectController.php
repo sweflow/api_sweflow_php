@@ -62,6 +62,43 @@ final class IdeProjectController
 
     // ── CRUD ──────────────────────────────────────────────────────────────
 
+    /**
+     * GET /api/ide/dashboard — agrega projetos + limites em uma única requisição.
+     * Reduz 2 round-trips para 1 na página de projetos.
+     *
+     * Envelope padrão { data: { ... } } — permite adicionar campos futuros
+     * (notificações, stats, billing) sem breaking changes.
+     *
+     * Regra: máximo 2–4 queries leves. Nunca adicionar lógica pesada aqui.
+     *
+     * Cache em memória de 10s por userId — elimina carga duplicada em
+     * refreshes rápidos sem precisar de Redis.
+     */
+    public function dashboard(Request $request): Response
+    {
+        [$userId, $err] = $this->requireUser($request);
+        if ($err) return $err;
+
+        // Cache estático por processo PHP-FPM worker (10s TTL por userId)
+        static $cache = [];
+        $now = time();
+
+        if (isset($cache[$userId]) && ($now - $cache[$userId]['ts']) < 10) {
+            return Response::json(['data' => $cache[$userId]['payload']])
+                ->withHeaders(['X-Cache' => 'HIT', 'Cache-Control' => 'private, max-age=10']);
+        }
+
+        $payload = [
+            'projects' => $this->service->listProjects($userId),
+            'limits'   => $this->service->getUserProjectStats($userId),
+        ];
+
+        $cache[$userId] = ['ts' => $now, 'payload' => $payload];
+
+        return Response::json(['data' => $payload])
+            ->withHeaders(['X-Cache' => 'MISS', 'Cache-Control' => 'private, max-age=10']);
+    }
+
     public function list(Request $request): Response
     {
         [$userId, $err] = $this->requireUser($request);

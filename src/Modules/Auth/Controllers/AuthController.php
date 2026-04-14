@@ -323,6 +323,7 @@ class AuthController
                 'username'      => $authUser->getAuthUsername(),
                 'email'         => $authUser->getAuthEmail(),
                 'nivel_acesso'  => $authUser->getAuthRole(),
+                'url_avatar'    => method_exists($authUser, 'getUrlAvatar') ? $authUser->getUrlAvatar() : null,
             ],
         ]);
     }

@@ -335,36 +335,42 @@ $container->bind(
 );
 
 // Registra AuditLogger como singleton
+// A tabela audit_logs é verificada uma única vez por processo (flag estático),
+// evitando DDL desnecessário a cada request em produção.
 $container->bind(AuditLogger::class, static function () use ($container) {
     try {
         $pdo = $container->make(\PDO::class);
-        // Auto-cria a tabela audit_logs se não existir (evita erro em produção sem migration)
-        try {
-            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-            if ($driver === 'pgsql') {
-                $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
-                    id BIGSERIAL PRIMARY KEY,
-                    evento VARCHAR(100) NOT NULL,
-                    usuario_uuid UUID NULL,
-                    contexto JSONB NOT NULL DEFAULT '{}',
-                    ip VARCHAR(45) NOT NULL DEFAULT '',
-                    user_agent VARCHAR(512) NOT NULL DEFAULT '',
-                    endpoint VARCHAR(255) NOT NULL DEFAULT '',
-                    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )");
-            } else {
-                $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
-                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    evento VARCHAR(100) NOT NULL,
-                    usuario_uuid CHAR(36) NULL,
-                    contexto JSON NOT NULL,
-                    ip VARCHAR(45) NOT NULL DEFAULT '',
-                    user_agent VARCHAR(512) NOT NULL DEFAULT '',
-                    endpoint VARCHAR(255) NOT NULL DEFAULT '',
-                    criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            }
-        } catch (\Throwable) {}
+        // Garante que a tabela existe — executado apenas uma vez por processo PHP-FPM worker
+        static $tableEnsured = false;
+        if (!$tableEnsured) {
+            $tableEnsured = true;
+            try {
+                $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+                if ($driver === 'pgsql') {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+                        id BIGSERIAL PRIMARY KEY,
+                        evento VARCHAR(100) NOT NULL,
+                        usuario_uuid UUID NULL,
+                        contexto JSONB NOT NULL DEFAULT '{}',
+                        ip VARCHAR(45) NOT NULL DEFAULT '',
+                        user_agent VARCHAR(512) NOT NULL DEFAULT '',
+                        endpoint VARCHAR(255) NOT NULL DEFAULT '',
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )");
+                } else {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        evento VARCHAR(100) NOT NULL,
+                        usuario_uuid CHAR(36) NULL,
+                        contexto JSON NOT NULL,
+                        ip VARCHAR(45) NOT NULL DEFAULT '',
+                        user_agent VARCHAR(512) NOT NULL DEFAULT '',
+                        endpoint VARCHAR(255) NOT NULL DEFAULT '',
+                        criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                }
+            } catch (\Throwable) {}
+        }
         $ctx = $container->make(\Src\Kernel\Support\RequestContext::class);
         return new AuditLogger($pdo, $ctx);
     } catch (\Throwable) {
@@ -508,6 +514,24 @@ $router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'i
             $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class),
             false // qualquer usuário autenticado — não exige admin_system
         );
+        return $mw->handle($request, $next);
+    },
+    // Rate limit por usuário (extraído do JWT) — evita que IPs compartilhados
+    // (NAT, proxies corporativos) bloqueiem usuários diferentes entre si.
+    static function ($request, $next) {
+        $userId = null;
+        $token  = \Src\Kernel\Support\TokenExtractor::fromRequest();
+        if ($token !== '') {
+            try {
+                $parts   = explode('.', $token);
+                $payload = $parts[1] ?? '';
+                $decoded = json_decode(base64_decode(strtr($payload, '-_', '+/')), true);
+                $userId  = $decoded['sub'] ?? null;
+            } catch (\Throwable) {}
+        }
+        // Chave por usuário se autenticado, por IP como fallback
+        $key = $userId ? 'page.ide:user:' . $userId : 'page.ide:ip';
+        $mw  = new \Src\Kernel\Middlewares\RateLimitMiddleware(60, 60, $key);
         return $mw->handle($request, $next);
     },
 ]);

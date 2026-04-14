@@ -75,6 +75,10 @@
         <button class="ide-topbar-icon ide-topbar-logout" id="btn-logout" title="Sair" aria-label="Sair da IDE">
             <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
         </button>
+        <button class="ide-topbar-avatar" id="btn-user-profile" title="Meu perfil" aria-label="Meu perfil">
+            <img id="topbar-avatar-img" src="" alt="" style="display:none;">
+            <i class="fa-solid fa-circle-user" id="topbar-avatar-icon" aria-hidden="true"></i>
+        </button>
     </div>
 </header>
 
@@ -495,6 +499,100 @@
 </div>
 
 <div id="ide-toast" role="status" aria-live="polite"></div>
+
+<!-- MODAL: Perfil do usuário -->
+<div class="ide-modal-overlay" id="modal-user-profile" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-profile-title">
+    <div class="ide-modal ide-modal-profile">
+        <div class="ide-modal-header">
+            <h2 id="modal-profile-title"><i class="fa-solid fa-circle-user" aria-hidden="true"></i> Meu Perfil</h2>
+            <button class="ide-modal-close" id="modal-profile-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-modal-body ide-profile-body">
+            <!-- Avatar -->
+            <div class="ide-profile-avatar-wrap">
+                <div class="ide-profile-avatar" id="profile-avatar-display">
+                    <img id="profile-avatar-img" src="" alt="" style="display:none;width:80px;height:80px;border-radius:50%;object-fit:cover;">
+                    <i class="fa-solid fa-circle-user" id="profile-avatar-icon" style="font-size:80px;color:var(--ide-muted,#64748b);" aria-hidden="true"></i>
+                </div>
+            </div>
+            <!-- Info (view mode) -->
+            <div id="profile-view-mode">
+                <div class="ide-profile-info-row"><span class="ide-profile-label">Nome</span><span id="profile-nome" class="ide-profile-value">—</span></div>
+                <div class="ide-profile-info-row"><span class="ide-profile-label">Username</span><span id="profile-username" class="ide-profile-value">—</span></div>
+                <div class="ide-profile-info-row"><span class="ide-profile-label">E-mail</span><span id="profile-email" class="ide-profile-value">—</span></div>
+                <div class="ide-profile-info-row"><span class="ide-profile-label">Nível</span><span id="profile-nivel" class="ide-profile-value">—</span></div>
+            </div>
+            <!-- Edit mode -->
+            <div id="profile-edit-mode" style="display:none;">
+                <div class="ide-input-group">
+                    <label for="profile-edit-nome">Nome completo</label>
+                    <input type="text" id="profile-edit-nome" autocomplete="name" maxlength="120" placeholder="Seu nome completo">
+                </div>
+                <div class="ide-input-group">
+                    <label for="profile-edit-avatar">URL do avatar</label>
+                    <input type="url" id="profile-edit-avatar" autocomplete="off" maxlength="500" placeholder="https://exemplo.com/foto.jpg">
+                    <small style="color:var(--ide-muted,#64748b);margin-top:4px;display:block;">Cole a URL de uma imagem pública</small>
+                </div>
+                <div id="profile-edit-feedback" style="display:none;margin-top:8px;font-size:.9rem;"></div>
+            </div>
+        </div>
+        <div class="ide-modal-footer" id="profile-footer-view">
+            <button class="ide-btn-secondary" id="btn-profile-change-password"><i class="fa-solid fa-key"></i> Alterar senha</button>
+            <button class="ide-btn-primary" id="btn-profile-edit"><i class="fa-solid fa-pen"></i> Editar dados</button>
+        </div>
+        <div class="ide-modal-footer" id="profile-footer-edit" style="display:none;">
+            <button class="ide-btn-secondary" id="btn-profile-edit-cancel">Cancelar</button>
+            <button class="ide-btn-primary" id="btn-profile-edit-save"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Alterar senha -->
+<div class="ide-modal-overlay" id="modal-change-password" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-pwd-title">
+    <div class="ide-modal">
+        <div class="ide-modal-header">
+            <h2 id="modal-pwd-title"><i class="fa-solid fa-key" aria-hidden="true"></i> Alterar senha</h2>
+            <button class="ide-modal-close" id="modal-pwd-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-modal-body">
+            <div class="ide-input-group">
+                <label for="pwd-current">Senha atual</label>
+                <div class="ide-pwd-wrap">
+                    <input type="password" id="pwd-current" autocomplete="current-password" placeholder="••••••••">
+                    <button type="button" class="ide-pwd-toggle" data-target="pwd-current" aria-label="Mostrar/ocultar senha"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+            <div class="ide-input-group">
+                <label for="pwd-new">Nova senha</label>
+                <div class="ide-pwd-wrap">
+                    <input type="password" id="pwd-new" autocomplete="new-password" placeholder="••••••••">
+                    <button type="button" class="ide-pwd-toggle" data-target="pwd-new" aria-label="Mostrar/ocultar senha"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+            <div class="ide-input-group">
+                <label for="pwd-confirm">Confirmar nova senha</label>
+                <div class="ide-pwd-wrap">
+                    <input type="password" id="pwd-confirm" autocomplete="new-password" placeholder="••••••••">
+                    <button type="button" class="ide-pwd-toggle" data-target="pwd-confirm" aria-label="Mostrar/ocultar senha"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+            <!-- Checklist em tempo real -->
+            <ul class="ide-pwd-checklist" id="pwd-checklist" aria-live="polite">
+                <li id="chk-len"    class="chk-item"><i class="fa-solid fa-circle" aria-hidden="true"></i> Mínimo 8 caracteres</li>
+                <li id="chk-upper"  class="chk-item"><i class="fa-solid fa-circle" aria-hidden="true"></i> Uma letra maiúscula</li>
+                <li id="chk-lower"  class="chk-item"><i class="fa-solid fa-circle" aria-hidden="true"></i> Uma letra minúscula</li>
+                <li id="chk-num"    class="chk-item"><i class="fa-solid fa-circle" aria-hidden="true"></i> Um número</li>
+                <li id="chk-spec"   class="chk-item"><i class="fa-solid fa-circle" aria-hidden="true"></i> Um caractere especial</li>
+                <li id="chk-match"  class="chk-item"><i class="fa-solid fa-circle" aria-hidden="true"></i> Senhas coincidem</li>
+            </ul>
+            <div id="pwd-feedback" style="display:none;margin-top:8px;font-size:.9rem;"></div>
+        </div>
+        <div class="ide-modal-footer">
+            <button class="ide-btn-secondary" id="modal-pwd-cancel">Cancelar</button>
+            <button class="ide-btn-primary" id="btn-pwd-save" disabled><i class="fa-solid fa-key"></i> Alterar senha</button>
+        </div>
+    </div>
+</div>
 
 <!-- MODAL: Pré-validação de Migrations -->
 <div class="ide-modal-overlay" id="modal-migrate-validate" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="mig-val-title">
