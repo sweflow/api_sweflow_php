@@ -950,28 +950,46 @@ function initLinkLimitsEvents() {
     // Salvar limite global
     const globalBtn = document.getElementById('ll-global-save');
     if (globalBtn) {
-        globalBtn.addEventListener('click', async function () {
-            const maxLinks = parseInt(document.getElementById('ll-global-max').value, 10);
-            const confirmed = window.confirm(
-                'Aplicar limite de ' + (maxLinks === -1 ? 'Ilimitado' : maxLinks) +
-                ' para TODOS os usuários?\n\nIsso sobrescreve limites individuais.'
-            );
-            if (!confirmed) return;
+        const confirmModal  = document.getElementById('ll-global-confirm-modal');
+        const confirmText   = document.getElementById('ll-global-confirm-text');
+        const confirmOk     = document.getElementById('ll-global-confirm-ok');
+        const confirmCancel = document.getElementById('ll-global-confirm-cancel');
+        const confirmClose  = document.getElementById('ll-global-confirm-close');
 
-            globalBtn.disabled = true;
-            const orig = globalBtn.innerHTML;
-            globalBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aplicando...';
-            try {
-                const res = await fetch('/api/links/user-limit/all', {
-                    method: 'PUT', credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ max_links: maxLinks }),
-                });
-                const data = await res.json();
-                if (!res.ok) { showLLFeedback('ll-global-feedback', data.error || 'Erro.', false); return; }
-                showLLFeedback('ll-global-feedback', 'Limite aplicado para ' + (data.updated ?? 'todos') + ' usuário(s)!', true);
-            } catch (e) { showLLFeedback('ll-global-feedback', 'Erro: ' + e.message, false); }
-            finally { globalBtn.disabled = false; globalBtn.innerHTML = orig; }
+        const closeConfirm = () => confirmModal?.classList.remove('show');
+        confirmCancel?.addEventListener('click', closeConfirm);
+        confirmClose?.addEventListener('click',  closeConfirm);
+
+        globalBtn.addEventListener('click', function () {
+            const maxLinks = parseInt(document.getElementById('ll-global-max').value, 10);
+            if (confirmText) {
+                confirmText.textContent = 'Aplicar limite de ' +
+                    (maxLinks === -1 ? 'Ilimitado' : maxLinks) +
+                    ' para TODOS os usuários?';
+            }
+            confirmModal?.classList.add('show');
+
+            // Remove listener anterior para evitar duplicação
+            const newOk = confirmOk?.cloneNode(true);
+            confirmOk?.parentNode?.replaceChild(newOk, confirmOk);
+
+            newOk?.addEventListener('click', async function () {
+                closeConfirm();
+                globalBtn.disabled = true;
+                const orig = globalBtn.innerHTML;
+                globalBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aplicando...';
+                try {
+                    const res = await fetch('/api/links/user-limit/all', {
+                        method: 'PUT', credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ max_links: maxLinks }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { showLLFeedback('ll-global-feedback', data.error || 'Erro.', false); return; }
+                    showLLFeedback('ll-global-feedback', 'Limite aplicado para ' + (data.updated ?? 'todos') + ' usuário(s)!', true);
+                } catch (e) { showLLFeedback('ll-global-feedback', 'Erro: ' + e.message, false); }
+                finally { globalBtn.disabled = false; globalBtn.innerHTML = orig; }
+            });
         });
     }
 }

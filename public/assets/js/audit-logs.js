@@ -165,15 +165,28 @@
         tr.className = 'audit-log-row' + (isNew ? ' audit-new-row' : '');
 
         const ctx = log.contexto || {};
-        const details = Object.entries(ctx)
-            .filter(([k]) => !['status','uri'].includes(k))
-            .slice(0, 3)
-            .map(([k, v]) => `<span style="color:#94a3b8;">${esc(k)}:</span> ${esc(String(v))}`)
+
+        // Monta detalhes legíveis priorizando campos mais informativos
+        const priorityKeys = ['reason', 'identifier', 'username', 'nivel_acesso', 'email', 'user_id'];
+        const otherKeys    = Object.keys(ctx).filter(k => !['status','uri'].includes(k) && !priorityKeys.includes(k));
+        const orderedKeys  = [...priorityKeys.filter(k => k in ctx), ...otherKeys].slice(0, 4);
+
+        const details = orderedKeys
+            .map(k => {
+                const v = ctx[k];
+                const label = { reason: 'motivo', identifier: 'login', username: 'usuário', nivel_acesso: 'nível', email: 'e-mail', user_id: 'uuid' }[k] || k;
+                return `<span style="color:#94a3b8;">${esc(label)}:</span> <strong style="color:#e2e8f0;">${esc(String(v))}</strong>`;
+            })
             .join(' &nbsp;·&nbsp; ');
 
         const badge = badgeClass(log.evento);
         const icon  = badgeIcon(log.evento);
         const ep    = (log.endpoint || '').replace(/^(GET|POST|PUT|PATCH|DELETE)\s+/, '');
+
+        // Tooltip completo com todos os campos do contexto
+        const tooltipCtx = Object.entries(ctx)
+            .map(([k, v]) => `${k}: ${String(v)}`)
+            .join('\n');
 
         tr.innerHTML = `
             <td style="white-space:nowrap;color:#94a3b8;font-size:0.9rem;">${fmtDate(log.criado_em)}</td>
@@ -185,7 +198,7 @@
             </td>
             <td style="font-family:monospace;font-size:0.92rem;color:#94a3b8;white-space:nowrap;">${esc(log.ip || '—')}</td>
             <td style="font-size:0.9rem;color:#64748b;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(log.endpoint || '')}">${esc(ep || '—')}</td>
-            <td style="font-size:0.88rem;color:#64748b;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(JSON.stringify(ctx))}">${details || '—'}</td>`;
+            <td style="font-size:0.88rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(tooltipCtx)}">${details || '<span style="color:#475569;">—</span>'}</td>`;
         return tr;
     }
 

@@ -90,7 +90,21 @@ class Application
                 try {
                     $audit = $this->container->make(\Src\Kernel\Support\AuditLogger::class);
                     $uri   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-                    $audit->registrarResposta($statusCode, $uri);
+
+                    // Enriquece o contexto com o identifier da tentativa de login (sem expor senha)
+                    $contextoExtra = [];
+                    $rawBody = file_get_contents('php://input');
+                    if ($rawBody !== false && $rawBody !== '') {
+                        $body = json_decode($rawBody, true) ?: [];
+                        $identifier = $body['login'] ?? $body['identifier'] ?? $body['email'] ?? $body['username'] ?? '';
+                        if ($identifier !== '') {
+                            // Trunca e mascara parcialmente para não expor dados completos
+                            $identifier = mb_substr((string) $identifier, 0, 64);
+                            $contextoExtra['identifier'] = $identifier;
+                        }
+                    }
+
+                    $audit->registrarResposta($statusCode, $uri, null, $contextoExtra);
                 } catch (\Throwable) {
                     // Falha silenciosa — observabilidade não deve quebrar a resposta
                 }

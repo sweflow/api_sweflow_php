@@ -124,7 +124,9 @@ window.onload = function () {
     function askDisable(moduleName) {
         return new Promise((resolve) => {
             if (!disableModal) {
-                return resolve(window.confirm(`Deseja desabilitar o módulo "${moduleName}"?`));
+                // fallback seguro sem confirm() nativo
+                resolve(true);
+                return;
             }
 
             disableModalName.textContent = moduleName;
@@ -160,7 +162,9 @@ window.onload = function () {
     function askEnable(moduleName) {
         return new Promise((resolve) => {
             if (!enableModal) {
-                return resolve(window.confirm(`Deseja ativar o módulo "${moduleName}"?`));
+                // fallback seguro sem confirm() nativo
+                resolve(true);
+                return;
             }
 
             enableModalName.textContent = moduleName;
@@ -190,7 +194,7 @@ window.onload = function () {
             const confirm = document.getElementById('auth-verify-enable-confirm');
             const cancel  = document.getElementById('auth-verify-enable-cancel');
             const close   = document.getElementById('auth-verify-enable-close');
-            if (!modal) return resolve(window.confirm('Ativar verificação de e-mail obrigatória?'));
+            if (!modal) { resolve(false); return; }
 
             const cleanup = () => {
                 modal.classList.remove('show');
@@ -211,7 +215,7 @@ window.onload = function () {
             const confirm = document.getElementById('auth-verify-disable-confirm');
             const cancel  = document.getElementById('auth-verify-disable-cancel');
             const close   = document.getElementById('auth-verify-disable-close');
-            if (!modal) return resolve(window.confirm('Desativar verificação de e-mail obrigatória?'));
+            if (!modal) { resolve(false); return; }
 
             const cleanup = () => {
                 modal.classList.remove('show');
@@ -3096,46 +3100,73 @@ window.onload = function () {
 (function initMigrationActions() {
     const btnMigrate = document.getElementById('btn-run-migrations');
     const btnSeed    = document.getElementById('btn-run-seeders');
-    if (!btnMigrate || !btnSeed) return;
+    if (!btnMigrate && !btnSeed) return;
 
-    async function confirmAndRun(type) {
+    // Modal helpers
+    function openModal(id)  { document.getElementById(id)?.classList.add('show'); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove('show'); }
+
+    function showResult(success, output, type) {
+        const titleEl  = document.getElementById('run-result-title');
+        const outputEl = document.getElementById('run-result-output');
+        const label    = type === 'migrate' ? 'Migrations' : 'Seeders';
+        if (titleEl) {
+            titleEl.innerHTML = success
+                ? `<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> ${label} concluídas`
+                : `<i class="fa-solid fa-circle-xmark" style="color:#f87171;"></i> Erro ao executar ${label}`;
+        }
+        if (outputEl) outputEl.textContent = output || (success ? 'Executado com sucesso.' : 'Falha ao executar.');
+        openModal('run-result-modal');
+    }
+
+    async function runAction(type) {
         const isMigrate = type === 'migrate';
-        const title     = isMigrate ? 'Rodar Migrations' : 'Rodar Seeders';
-        const icon      = isMigrate ? 'fa-solid fa-database' : 'fa-solid fa-seedling';
         const endpoint  = isMigrate ? '/api/system/migrations/run' : '/api/system/seeders/run';
         const btn       = isMigrate ? btnMigrate : btnSeed;
+        const origHTML  = btn.innerHTML;
 
-        // Usa o modal genérico do dashboard se existir, senão confirm nativo
-        const confirmed = window.confirm(
-            title + '\n\nTem certeza que deseja executar ' +
-            (isMigrate ? 'todas as migrations pendentes' : 'todos os seeders pendentes') +
-            '?\n\nEsta ação não pode ser desfeita facilmente.'
-        );
-        if (!confirmed) return;
-
-        const origHTML = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Executando...';
 
         try {
             const res  = await fetch(endpoint, { method: 'POST', credentials: 'same-origin' });
             const data = await res.json();
-            if (!res.ok) {
-                alert('Erro: ' + (data.message || data.error || 'Falha ao executar.'));
-                return;
+            showResult(res.ok, data.output || data.message || data.error, type);
+            if (res.ok) {
+                if (typeof loadMigrations === 'function') loadMigrations();
+                else document.getElementById('migrations-refresh-btn')?.click();
             }
-            alert('✓ ' + (data.output || (isMigrate ? 'Migrations executadas.' : 'Seeders executados.')));
-            // Recarrega a lista de migrations
-            if (typeof loadMigrations === 'function') loadMigrations();
-            else document.getElementById('migrations-refresh-btn')?.click();
         } catch (e) {
-            alert('Erro de rede: ' + e.message);
+            showResult(false, 'Erro de rede: ' + e.message, type);
         } finally {
             btn.disabled = false;
             btn.innerHTML = origHTML;
         }
     }
 
-    btnMigrate.addEventListener('click', () => confirmAndRun('migrate'));
-    btnSeed.addEventListener('click', () => confirmAndRun('seed'));
+    // Migrate confirm modal
+    if (btnMigrate) {
+        btnMigrate.addEventListener('click', () => openModal('migrate-confirm-modal'));
+        document.getElementById('migrate-confirm-close')?.addEventListener('click',  () => closeModal('migrate-confirm-modal'));
+        document.getElementById('migrate-confirm-cancel')?.addEventListener('click', () => closeModal('migrate-confirm-modal'));
+        document.getElementById('migrate-confirm-ok')?.addEventListener('click', () => {
+            closeModal('migrate-confirm-modal');
+            runAction('migrate');
+        });
+    }
+
+    // Seed confirm modal
+    if (btnSeed) {
+        btnSeed.addEventListener('click', () => openModal('seed-confirm-modal'));
+        document.getElementById('seed-confirm-close')?.addEventListener('click',  () => closeModal('seed-confirm-modal'));
+        document.getElementById('seed-confirm-cancel')?.addEventListener('click', () => closeModal('seed-confirm-modal'));
+        document.getElementById('seed-confirm-ok')?.addEventListener('click', () => {
+            closeModal('seed-confirm-modal');
+            runAction('seed');
+        });
+    }
+
+    // Result modal close
+    document.getElementById('run-result-close')?.addEventListener('click', () => closeModal('run-result-modal'));
+    document.getElementById('run-result-ok')?.addEventListener('click',    () => closeModal('run-result-modal'));
 })();

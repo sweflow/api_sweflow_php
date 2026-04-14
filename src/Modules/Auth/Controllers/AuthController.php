@@ -151,7 +151,10 @@ class AuthController
             ]);
 
         } catch (DomainException $e) {
-            $this->auditLogger->registrar('auth.login.failed', null, ['reason' => $e->getMessage()]);
+            $this->auditLogger->registrar('auth.login.failed', null, [
+                'reason'     => $e->getMessage(),
+                'identifier' => mb_substr($login ?? '', 0, 64),
+            ]);
             $this->threatScorer->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
             $this->enforceMinResponseTime($startTime);
             $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
@@ -178,7 +181,10 @@ class AuthController
     {
         $usuario = $this->authService->buscarUsuarioPorLogin($login);
         if (!$usuario || !$usuario->verificarSenha($senha)) {
-            $this->auditLogger->registrar('auth.login.failed', null, ['identifier' => substr($login, 0, 64)]);
+            $this->auditLogger->registrar('auth.login.failed', null, [
+                'reason'     => 'Credenciais inválidas.',
+                'identifier' => mb_substr($login, 0, 64),
+            ]);
             $this->threatScorer->add(IpResolver::resolve(), ThreatScorer::SCORE_LOGIN_FAIL);
             $this->enforceMinResponseTime($startTime);
             throw new DomainException('Credenciais inválidas.', 401);

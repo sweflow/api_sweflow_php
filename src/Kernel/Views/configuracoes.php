@@ -96,6 +96,22 @@
     </div>
 </div>
 
+<!-- Modal: Confirmar limite global de links -->
+<div class="modal-overlay" id="ll-global-confirm-modal">
+    <div class="modal dash-modal" style="max-width:460px;width:94vw;">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-link" style="color:#4f46e5;"></i> Aplicar limite global</h2>
+            <button id="ll-global-confirm-close" class="modal-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p id="ll-global-confirm-text" style="line-height:1.7;margin:8px 0 6px;font-size:1rem;"></p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">Isso sobrescreve os limites individuais de todos os usuários.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="ll-global-confirm-cancel">Cancelar</button>
+            <button class="btn primary" id="ll-global-confirm-ok"><i class="fa-solid fa-check"></i> Aplicar</button>
+        </div>
+    </div>
+</div>
+
 <script src="/assets/js/configuracoes.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/configuracoes.js') ?>"></script>
 </body>
 </html>

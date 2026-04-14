@@ -1026,6 +1026,52 @@
     </div>
 </div>
 
+<!-- Confirmar Rodar Migrations -->
+<div class="modal-overlay" id="migrate-confirm-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-database" style="color:#4f46e5;"></i> Rodar Migrations</h2>
+            <button class="modal-close" id="migrate-confirm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja executar <strong>todas as migrations pendentes</strong>?</p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">Esta ação criará ou alterará tabelas no banco de dados e não pode ser desfeita facilmente.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="migrate-confirm-cancel">Cancelar</button>
+            <button class="btn primary" id="migrate-confirm-ok"><i class="fa-solid fa-database"></i> Executar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmar Rodar Seeders -->
+<div class="modal-overlay" id="seed-confirm-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-seedling" style="color:#10b981;"></i> Rodar Seeders</h2>
+            <button class="modal-close" id="seed-confirm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja executar <strong>todos os seeders pendentes</strong>?</p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">Esta ação inserirá dados iniciais no banco de dados.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="seed-confirm-cancel">Cancelar</button>
+            <button class="btn primary" id="seed-confirm-ok" style="background:#10b981;"><i class="fa-solid fa-seedling"></i> Executar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Resultado de Migration/Seeder -->
+<div class="modal-overlay" id="run-result-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2 id="run-result-title"><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Concluído</h2>
+            <button class="modal-close" id="run-result-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <pre id="run-result-output" style="background:#0f172a;color:#e2e8f0;padding:16px;border-radius:8px;font-size:0.88rem;line-height:1.6;max-height:320px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;margin:8px 0 20px;"></pre>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn primary" id="run-result-ok">OK</button>
+        </div>
+    </div>
+</div>
+
 <script src="/assets/js/dashboard-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard-init.js') ?>"></script>
 <script src="/assets/js/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/nav-init.js') ?>"></script>
 <script src="/assets/js/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard.js') ?>"></script>
