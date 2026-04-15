@@ -86,7 +86,7 @@
     respond @sensitive 404
 
     # Raiz do projeto — OBRIGATÓRIO estar no nível do site, não dentro do php_fastcgi
-    root * {$APP_ROOT:/var/www/vupi.us}
+    root * {$APP_ROOT:/home/ubuntu/api_sweflow_php}
 
     # Arquivos estáticos servidos diretamente pelo Caddy (sem passar pelo PHP)
     @static {
@@ -98,17 +98,16 @@
         file_server
     }
 
-    # PHP-FPM via FastCGI — front controller único (index.php)
-    # @php not file: arquivos físicos existentes são servidos diretamente,
-    # todo o resto vai para o index.php (rotas da aplicação)
-    @php not file
-    php_fastcgi @php unix//run/php/vupi.us.sock {
+    # PHP-FPM via FastCGI — tudo vai para index.php (front controller único)
+    # Não usar "not file" aqui: index.php existe fisicamente e seria excluído
+    php_fastcgi unix//run/php/vupi.us.sock {
+        root {$APP_ROOT:/home/ubuntu/api_sweflow_php}
         index index.php
 
         # Informa ao PHP que o Caddy terminou o TLS — evita bloqueio HTTPS
         env HTTPS        on
         env APP_ENV      {$APP_ENV:production}
-        env APP_ROOT     {$APP_ROOT:/var/www/vupi.us}
+        env APP_ROOT     {$APP_ROOT:/home/ubuntu/api_sweflow_php}
 
         dial_timeout  5s
         read_timeout  30s
