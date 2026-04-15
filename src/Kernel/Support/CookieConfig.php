@@ -11,37 +11,30 @@ class CookieConfig
 {
     /**
      * Retorna true se a requisição atual chegou via HTTPS.
-     *
-     * Estratégia de detecção (em ordem de confiança):
-     * 1. $_SERVER['HTTPS'] = 'on'  — conexão TLS direta ao PHP
-     * 2. SERVER_PORT = 443         — porta TLS direta
-     * 3. X-Forwarded-Proto = https — proxy reverso confiável:
-     *    - TRUST_PROXY=true: aceita de qualquer origem (configuração explícita do admin)
-     *    - TRUST_PROXY=false: aceita APENAS de loopback (127.0.0.1, ::1)
-     *      pois o Nginx local sempre usa loopback para fazer proxy ao PHP.
-     *      Isso impede spoofing externo sem exigir TRUST_PROXY=true.
+     * Mesma lógica do RequestContext::detectSecure() — mantida aqui
+     * para uso estático em contextos sem DI (CLI, testes, código legado).
+     * Em código novo, prefira injetar RequestContext e usar isSecure().
      */
     public static function isHttps(): bool
     {
-        // Conexão TLS direta
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
             return true;
         }
-        // Porta 443 explícita
-        if (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443) {
+        if ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443) {
             return true;
         }
+        $proto      = strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '');
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+        $trusted    = self::bool('TRUST_PROXY', 'false');
+        $isLoopback = in_array($remoteAddr, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)
+                      || strncmp($remoteAddr, '127.', 4) === 0;
 
-        // X-Forwarded-Proto — verifica origem antes de confiar
-        if (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
-            $proto       = strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']);
-            $trustProxy  = self::bool('TRUST_PROXY', 'false');
-            $remoteAddr  = $_SERVER['REMOTE_ADDR'] ?? '';
-            $isLoopback  = in_array($remoteAddr, ['127.0.0.1', '::1', '::ffff:127.0.0.1'], true)
-                           || strncmp($remoteAddr, '127.', 4) === 0;
-
-            // Aceita se: TRUST_PROXY=true OU requisição vem do loopback (Nginx local)
-            if ($proto === 'https' && ($trustProxy || $isLoopback)) {
+        if ($proto === 'https' && ($trusted || $isLoopback)) {
+            return true;
+        }
+        if ($trusted) {
+            $appUrl = strtolower(trim((string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: '')));
+            if (str_starts_with($appUrl, 'https://')) {
                 return true;
             }
         }

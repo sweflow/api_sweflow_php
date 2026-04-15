@@ -60,8 +60,28 @@ class Application
         try {
             $request = RequestFactory::fromGlobals();
 
+            // ── Divergence guard (dev only) ───────────────────────────────
+            // Detecta se RequestContext e CookieConfig divergem em isSecure/isHttps.
+            // Em produção é silencioso; em dev loga no stderr para diagnóstico imediato.
+            if (($_ENV['APP_ENV'] ?? 'production') !== 'production') {
+                $ctxSecure    = $this->context->isSecure();
+                $cookieSecure = \Src\Kernel\Support\CookieConfig::isHttps();
+                if ($ctxSecure !== $cookieSecure) {
+                    error_log(sprintf(
+                        '[DIVERGENCE] RequestContext::isSecure()=%s vs CookieConfig::isHttps()=%s | HTTPS=%s XFP=%s REMOTE=%s TRUST=%s APP_URL=%s',
+                        $ctxSecure    ? 'true' : 'false',
+                        $cookieSecure ? 'true' : 'false',
+                        $_SERVER['HTTPS']                    ?? '-',
+                        $_SERVER['HTTP_X_FORWARDED_PROTO']   ?? '-',
+                        $_SERVER['REMOTE_ADDR']              ?? '-',
+                        $_ENV['TRUST_PROXY']                 ?? '-',
+                        $_ENV['APP_URL']                     ?? '-',
+                    ));
+                }
+            }
+
             // Bloqueia HTTP quando COOKIE_SECURE=true e COOKIE_HTTPONLY=true
-            if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !\Src\Kernel\Support\CookieConfig::isHttps()) {
+            if (\Src\Kernel\Support\CookieConfig::requiresHttps() && !$this->context->isSecure()) {
                 $enforcer = new \Src\Kernel\Middlewares\HttpsEnforcerMiddleware();
                 $enforcer->handle($request, fn($r) => null)->send();
                 return;

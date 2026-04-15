@@ -98,26 +98,20 @@
         file_server
     }
 
-    # Tudo o mais vai para o PHP-FPM
-    # try_files garante que o front controller (index.php) receba todas as rotas
-    @php not path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
-    handle @php {
-        php_fastcgi unix//run/php/vupi.us.sock {
-            # index.php é o front controller — todas as rotas passam por ele
-            index index.php
+    # PHP-FPM via FastCGI — front controller único (index.php)
+    # @php not file: arquivos físicos existentes são servidos diretamente,
+    # todo o resto vai para o index.php (rotas da aplicação)
+    @php not file
+    php_fastcgi @php unix//run/php/vupi.us.sock {
+        index index.php
 
-            # Informa ao PHP que a conexão é HTTPS (Caddy termina o TLS)
-            # Necessário porque REMOTE_ADDR via socket Unix não é 127.0.0.1
-            env HTTPS on
+        # Informa ao PHP que o Caddy terminou o TLS — evita bloqueio HTTPS
+        env HTTPS        on
+        env APP_ENV      {$APP_ENV:production}
+        env APP_ROOT     {$APP_ROOT:/var/www/vupi.us}
 
-            # Passa variáveis de ambiente para o PHP
-            env APP_ENV  {$APP_ENV:production}
-            env APP_ROOT {$APP_ROOT:/var/www/vupi.us}
-
-            # Timeouts
-            dial_timeout  5s
-            read_timeout  30s
-            write_timeout 30s
-        }
+        dial_timeout  5s
+        read_timeout  30s
+        write_timeout 30s
     }
 }
