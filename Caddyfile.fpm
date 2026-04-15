@@ -16,6 +16,22 @@
 #
 # Ou via setup:
 #   php vupi setup --auto --server=fpm+caddy
+#
+# ── Troubleshooting ──────────────────────────────────────
+# "File not found" → APP_ROOT errado. Verifique:
+#   echo $APP_ROOT                          # deve ser o diretório do projeto
+#   ls /var/www/vupi.us/index.php           # deve existir
+#   sudo cat /etc/caddy/vupi.us.env         # confirma APP_ROOT
+#
+# Socket não encontrado → FPM não está rodando:
+#   sudo systemctl status php8.2-fpm
+#   ls -la /run/php/vupi.us.sock
+#
+# Validar Caddyfile:
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#
+# Recarregar após mudanças:
+#   sudo systemctl reload caddy
 # ============================================================
 
 {
@@ -69,8 +85,10 @@
     }
     respond @sensitive 404
 
-    # Arquivos estáticos servidos diretamente pelo Caddy (sem passar pelo PHP)
+    # Raiz do projeto — OBRIGATÓRIO estar no nível do site, não dentro do php_fastcgi
     root * {$APP_ROOT:/var/www/vupi.us}
+
+    # Arquivos estáticos servidos diretamente pelo Caddy (sem passar pelo PHP)
     @static {
         file
         path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
@@ -80,18 +98,22 @@
         file_server
     }
 
-    # PHP-FPM via FastCGI — múltiplos workers em paralelo
-    php_fastcgi unix//run/php/vupi.us.sock {
-        root {$APP_ROOT:/var/www/vupi.us}
-        index index.php
+    # Tudo o mais vai para o PHP-FPM
+    # try_files garante que o front controller (index.php) receba todas as rotas
+    @php not path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
+    handle @php {
+        php_fastcgi unix//run/php/vupi.us.sock {
+            # index.php é o front controller — todas as rotas passam por ele
+            index index.php
 
-        # Passa variáveis de ambiente para o PHP
-        env APP_ENV    {$APP_ENV:production}
-        env APP_ROOT   {$APP_ROOT:/var/www/vupi.us}
+            # Passa variáveis de ambiente para o PHP
+            env APP_ENV  {$APP_ENV:production}
+            env APP_ROOT {$APP_ROOT:/var/www/vupi.us}
 
-        # Timeouts
-        dial_timeout            5s
-        read_timeout            30s
-        write_timeout           30s
+            # Timeouts
+            dial_timeout  5s
+            read_timeout  30s
+            write_timeout 30s
+        }
     }
 }
