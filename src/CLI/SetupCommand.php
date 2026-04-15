@@ -312,9 +312,16 @@ class SetupCommand
     {
         echo "▶ Recarregando Caddy...\n";
         if ($this->commandExists('caddy')) {
-            $proc = new Process(['sudo', 'systemctl', 'reload', 'caddy']);
+            // caddy reload é mais rápido que systemctl reload — não espera notify do systemd
+            $proc = new Process(['sudo', 'caddy', 'reload', '--config', '/etc/caddy/Caddyfile']);
             $proc->passthru();
-            echo "✔ Caddy recarregado.\n";
+            if ($proc->isSuccessful()) {
+                echo "✔ Caddy recarregado.\n";
+            } else {
+                // fallback para systemctl
+                (new Process(['sudo', 'systemctl', 'reload', 'caddy']))->passthru();
+                echo "✔ Caddy recarregado via systemctl.\n";
+            }
         } else {
             echo "✖ Caddy não encontrado.\n";
         }
