@@ -71,6 +71,10 @@ class SetupCommand
         echo "22) Rodar migrations apenas conexão core (DB)\n";
         echo "23) Rodar migrations apenas conexão modules (DB2)\n";
         echo "24) \033[1;32m[RECOMENDADO PRODUÇÃO]\033[0m PHP-FPM + Caddy (substitui php -S / PM2)\n";
+        echo "25) Recarregar PHP-FPM (aplica mudanças de código sem derrubar)\n";
+        echo "26) Recarregar Caddy (aplica mudanças no Caddyfile)\n";
+        echo "27) Recarregar tudo (PHP-FPM + Caddy)\n";
+        echo "28) Verificar e corrigir permissões do projeto\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -103,6 +107,10 @@ class SetupCommand
             '22' => fn() => $this->migrateCore(),
             '23' => fn() => $this->migrateModules(),
             '24' => fn() => $this->startFpmWithCaddy(),
+            '25' => fn() => $this->reloadFpm(),
+            '26' => fn() => $this->reloadCaddy(),
+            '27' => fn() => $this->reloadAll(),
+            '28' => fn() => $this->fixPermissions(),
         ];
 
         if ($choice === '0') {
@@ -171,6 +179,152 @@ class SetupCommand
         } elseif ($caddy === 'dev') {
             $this->startCaddyDev();
         }
+    }
+
+    private function fixPermissions(): void
+    {
+        $root    = dirname(__DIR__, 2);
+        $phpVer  = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+        $appUser = trim((string) (getenv('SUDO_USER') ?: posix_getpwuid(posix_getuid())['name'] ?? 'ubuntu'));
+
+        echo "\n\033[1;36m▶ Verificando e corrigindo permissões do projeto\033[0m\n\n";
+
+        $checks = [
+            // [descrição, verificação, correção]
+            [
+                'Dono do projeto → www-data',
+                fn() => $this->checkOwner($root, 'www-data'),
+                fn() => $this->runProcess(['sudo', 'chown', '-R', 'www-data:www-data', $root]),
+            ],
+            [
+                "Usuário {$appUser} no grupo www-data",
+                fn() => in_array('www-data', $this->getUserGroups($appUser), true),
+                fn() => $this->runProcess(['sudo', 'usermod', '-aG', 'www-data', $appUser]),
+            ],
+            [
+                'Usuário caddy no grupo www-data',
+                fn() => in_array('www-data', $this->getUserGroups('caddy'), true),
+                fn() => $this->runProcess(['sudo', 'usermod', '-aG', 'www-data', 'caddy']),
+            ],
+            [
+                'Diretório /home acessível (755)',
+                fn() => decoct(fileperms(dirname($root)) & 0777) >= '755',
+                fn() => $this->runProcess(['sudo', 'chmod', '755', dirname($root)]),
+            ],
+            [
+                'Projeto acessível (775)',
+                fn() => is_readable($root . '/index.php'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root]),
+            ],
+            [
+                '.env protegido (640)',
+                fn() => (fileperms($root . '/.env') & 0777) <= 0640,
+                fn() => $this->runProcess(['sudo', 'chmod', '640', $root . '/.env']),
+            ],
+            [
+                'storage/ gravável pelo www-data',
+                fn() => is_writable($root . '/storage'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root . '/storage']),
+            ],
+            [
+                'vendor/ legível',
+                fn() => is_readable($root . '/vendor/autoload.php'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '755', $root . '/vendor']),
+            ],
+            [
+                'public/ legível pelo Caddy',
+                fn() => is_readable($root . '/public/index.php') || is_readable($root . '/public/favicon.ico'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '755', $root . '/public']),
+            ],
+            [
+                "Socket PHP-FPM /run/php/php{$phpVer}-fpm.sock acessível",
+                fn() => file_exists("/run/php/php{$phpVer}-fpm.sock"),
+                fn() => $this->runProcess(['sudo', 'systemctl', 'restart', "php{$phpVer}-fpm"]),
+            ],
+        ];
+
+        $fixed = 0;
+        foreach ($checks as [$desc, $check, $fix]) {
+            try {
+                $ok = $check();
+            } catch (\Throwable) {
+                $ok = false;
+            }
+
+            if ($ok) {
+                echo "  \033[1;32m✔\033[0m {$desc}\n";
+            } else {
+                echo "  \033[1;33m⚠\033[0m {$desc} — corrigindo...\n";
+                try {
+                    $fix();
+                    $fixed++;
+                    echo "    \033[1;32m✔ corrigido\033[0m\n";
+                } catch (\Throwable $e) {
+                    echo "    \033[1;31m✖ falhou: {$e->getMessage()}\033[0m\n";
+                }
+            }
+        }
+
+        echo "\n";
+        if ($fixed > 0) {
+            echo "\033[1;33m{$fixed} permissão(ões) corrigida(s).\033[0m\n";
+            echo "Recarregue o servidor com a opção 27 para aplicar as mudanças.\n";
+        } else {
+            echo "\033[1;32mTodas as permissões estão corretas.\033[0m\n";
+        }
+    }
+
+    private function checkOwner(string $path, string $expectedUser): bool
+    {
+        if (!file_exists($path)) return false;
+        $stat = stat($path);
+        if ($stat === false) return false;
+        $info = posix_getpwuid($stat['uid']);
+        return ($info['name'] ?? '') === $expectedUser;
+    }
+
+    private function getUserGroups(string $username): array
+    {
+        $proc = new Process(['id', '-Gn', $username]);
+        $proc->run();
+        if (!$proc->isSuccessful()) return [];
+        return explode(' ', trim($proc->getOutput()));
+    }
+
+    private function reloadFpm(): void
+    {
+        $phpVer = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+        $svc    = "php{$phpVer}-fpm";
+        echo "▶ Recarregando {$svc}...\n";
+        $proc = new Process(['sudo', 'systemctl', 'reload', $svc]);
+        $proc->passthru();
+        if ($proc->isSuccessful()) {
+            echo "✔ {$svc} recarregado — OPcache limpo, código novo ativo.\n";
+        } else {
+            // reload pode falhar se FPM não suportar — tenta restart
+            echo "⚠ reload falhou, tentando restart...\n";
+            (new Process(['sudo', 'systemctl', 'restart', $svc]))->passthru();
+            echo "✔ {$svc} reiniciado.\n";
+        }
+    }
+
+    private function reloadCaddy(): void
+    {
+        echo "▶ Recarregando Caddy...\n";
+        if ($this->commandExists('caddy')) {
+            $proc = new Process(['sudo', 'systemctl', 'reload', 'caddy']);
+            $proc->passthru();
+            echo "✔ Caddy recarregado.\n";
+        } else {
+            echo "✖ Caddy não encontrado.\n";
+        }
+    }
+
+    private function reloadAll(): void
+    {
+        $this->reloadFpm();
+        $this->reloadCaddy();
+        echo "\n✔ Tudo recarregado.\n";
     }
 
     private function startFpmWithCaddy(): void
