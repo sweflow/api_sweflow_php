@@ -72,7 +72,7 @@ class MailerService implements EmailSenderInterface
     {
         $safeName = htmlspecialchars($toName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $safeLink = htmlspecialchars($confirmLink, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $logo     = $logoUrl ? "<img src='" . htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8') . "' alt='Logo' style='max-height:48px;margin-bottom:16px;display:block;'><br>" : '';
+        $logo     = $logoUrl ? "<img src='" . htmlspecialchars($this->absoluteUrl($logoUrl), ENT_QUOTES, 'UTF-8') . "' alt='Logo' style='max-height:48px;margin-bottom:16px;display:block;'><br>" : '';
         $html     = "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'></head><body style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;'>"
                   . "{$logo}<h2 style='color:#1e293b;'>Confirme seu e-mail</h2>"
                   . "<p>Olá, {$safeName}! Clique no botão abaixo para confirmar seu e-mail:</p>"
@@ -88,7 +88,7 @@ class MailerService implements EmailSenderInterface
     {
         $safeName = htmlspecialchars($toName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $safeLink = htmlspecialchars($resetLink, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        $logo     = $logoUrl ? "<img src='" . htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8') . "' alt='Logo' style='max-height:48px;margin-bottom:16px;display:block;'><br>" : '';
+        $logo     = $logoUrl ? "<img src='" . htmlspecialchars($this->absoluteUrl($logoUrl), ENT_QUOTES, 'UTF-8') . "' alt='Logo' style='max-height:48px;margin-bottom:16px;display:block;'><br>" : '';
         $html     = "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'></head><body style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;'>"
                   . "{$logo}<h2 style='color:#1e293b;'>Redefinição de senha</h2>"
                   . "<p>Olá, {$safeName}! Clique no botão abaixo para redefinir sua senha:</p>"
@@ -98,5 +98,18 @@ class MailerService implements EmailSenderInterface
                   . "</body></html>";
 
         $this->sendCustom($toEmail, 'Redefinição de senha', $html, $logoUrl);
+    }
+
+    /**
+     * Converte URL relativa em absoluta usando APP_URL.
+     * E-mails precisam de URLs absolutas — clientes de e-mail não têm domínio base.
+     */
+    private function absoluteUrl(string $url): string
+    {
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+        $base = rtrim((string) ($_ENV['APP_URL'] ?? getenv('APP_URL') ?: ''), '/');
+        return $base . '/' . ltrim($url, '/');
     }
 }
