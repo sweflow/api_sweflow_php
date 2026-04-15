@@ -82,4 +82,18 @@ api.vupi.us {
             env HTTPS on
         }
     }
+
+    # Suprime tokens sensíveis dos logs — ?token=... nunca deve aparecer em logs
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+        format filter {
+            wrap json
+            fields {
+                request>uri replace "token=[^& #]*" "token=[REDACTED]"
+            }
+        }
+    }
 }
