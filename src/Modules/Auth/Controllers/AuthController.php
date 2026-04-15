@@ -484,7 +484,10 @@ class AuthController
             . '</body>'
             . '</html>';
 
-        return Response::html($html, $status);
+        return Response::html($html, $status)
+            ->withHeader('Content-Security-Policy',
+                "default-src 'self'; style-src 'unsafe-inline'; img-src 'self' data: https:; frame-ancestors 'none'"
+            );
     }
 
     public function emailVerificationPolicy(Request $request): Response
