@@ -486,7 +486,7 @@ class AuthController
 
         return Response::html($html, $status)
             ->withHeader('Content-Security-Policy',
-                "default-src 'self'; style-src 'unsafe-inline'; img-src 'self' data: https:; frame-ancestors 'none'"
+                "default-src 'self'; style-src 'unsafe-inline' 'unsafe-hashes'; img-src 'self' data: https:; script-src 'none'; frame-ancestors 'none'"
             );
     }
 
