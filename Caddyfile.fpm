@@ -63,22 +63,20 @@ api.vupi.us {
     }
     respond @sensitive 404
 
-    root * /home/ubuntu/api_sweflow_php
+    # root para estáticos aponta para /public — onde ficam favicon, css, js, imgs
+    # root para PHP aponta para a raiz do projeto — onde fica o index.php
+    root * /home/ubuntu/api_sweflow_php/public
 
-    # Arquivos estáticos com cache agressivo — servidos diretamente pelo Caddy
-    # A pasta public/ contém os assets (css, js, imgs, favicon)
-    @static {
-        file
-        path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
-    }
+    # Arquivos estáticos com cache agressivo
+    @static path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
     handle @static {
-        root * /home/ubuntu/api_sweflow_php/public
         header Cache-Control "public, max-age=31536000, immutable"
         file_server
     }
 
     # Tudo que não é estático vai para o front controller index.php
     handle {
+        root * /home/ubuntu/api_sweflow_php
         rewrite * /index.php
         php_fastcgi unix//run/php/vupi.us.sock {
             env HTTPS on
