@@ -37,20 +37,31 @@ class DocumentacaoController
         // Extrai o caminho após /doc/
         $relative = preg_replace('#^/doc/#', '', $requestUri);
 
-        // Proteção contra path traversal
-        $realDoc  = realpath($this->docRoot);
-        $realFile = $realDoc !== false ? realpath($this->docRoot . '/' . $relative) : false;
+        // Proteção contra path traversal — normaliza sem depender de realpath
+        // (realpath falha silenciosamente se www-data não tiver permissão de traversal)
+        $relative = str_replace(['../', '..\\', "\0"], '', $relative);
+        $relative = ltrim($relative, '/');
 
-        if (
-            $realDoc === false
-            || $realFile === false
-            || !str_starts_with($realFile, $realDoc . DIRECTORY_SEPARATOR)
-            || !is_file($realFile)
-        ) {
+        $targetPath = $this->docRoot . '/' . $relative;
+
+        // Verifica containment sem realpath: normaliza manualmente
+        $normalizedDoc    = rtrim(str_replace('\\', '/', $this->docRoot), '/');
+        $normalizedTarget = str_replace('\\', '/', $targetPath);
+
+        // Remove segmentos .. após normalização
+        $parts  = explode('/', $normalizedTarget);
+        $stack  = [];
+        foreach ($parts as $part) {
+            if ($part === '..') { array_pop($stack); }
+            elseif ($part !== '.' && $part !== '') { $stack[] = $part; }
+        }
+        $normalizedTarget = '/' . implode('/', $stack);
+
+        if (!str_starts_with($normalizedTarget, $normalizedDoc . '/') || !is_file($normalizedTarget)) {
             return Response::html('', 404);
         }
 
-        $ext = strtolower(pathinfo($realFile, PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($normalizedTarget, PATHINFO_EXTENSION));
         $mimeMap = [
             'css'   => 'text/css',
             'js'    => 'application/javascript',
@@ -69,7 +80,7 @@ class DocumentacaoController
             return Response::html('', 403);
         }
 
-        $content = @file_get_contents($realFile);
+        $content = @file_get_contents($normalizedTarget);
         if ($content === false) {
             return Response::html('', 500);
         }
