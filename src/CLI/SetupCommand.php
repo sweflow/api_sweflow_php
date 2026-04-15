@@ -62,7 +62,7 @@ class SetupCommand
         echo "13) Reiniciar servidor\n";
         echo "14) Instalar Caddy + subir HTTPS em produção\n";
         echo "15) Subir Caddy em desenvolvimento (HTTPS local via mkcert)\n";
-        echo "16) Subir PM2 + Caddy em produção (recomendado para produção)\n";
+        echo "16) Subir PM2 + Caddy em produção\n";
         echo "17) Reiniciar PM2 + Caddy\n";
         echo "18) Parar PM2 + Caddy\n";
         echo "19) Fazer backup do banco de dados\n";
@@ -70,6 +70,7 @@ class SetupCommand
         echo "21) Status das migrations\n";
         echo "22) Rodar migrations apenas conexão core (DB)\n";
         echo "23) Rodar migrations apenas conexão modules (DB2)\n";
+        echo "24) \033[1;32m[RECOMENDADO PRODUÇÃO]\033[0m PHP-FPM + Caddy (substitui php -S / PM2)\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -101,6 +102,7 @@ class SetupCommand
             '21' => fn() => $this->migrateStatus(),
             '22' => fn() => $this->migrateCore(),
             '23' => fn() => $this->migrateModules(),
+            '24' => fn() => $this->startFpmWithCaddy(),
         ];
 
         if ($choice === '0') {
@@ -145,6 +147,10 @@ class SetupCommand
 
         // Inicia o servidor PHP em background primeiro
         $server = strtolower((string)($flags['server'] ?? 'background'));
+        if ($server === 'fpm+caddy') {
+            $this->startFpmWithCaddy();
+            return;
+        }
         if ($server === 'pm2+caddy') {
             $this->startPm2WithCaddy();
             return;
@@ -165,6 +171,104 @@ class SetupCommand
         } elseif ($caddy === 'dev') {
             $this->startCaddyDev();
         }
+    }
+
+    private function startFpmWithCaddy(): void
+    {
+        $this->reloadEnv();
+        $root      = dirname(__DIR__, 2);
+        $phpVer    = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+        $fpmBin    = "php{$phpVer}-fpm";
+        $poolSrc   = $root . '/ci/php-fpm/vupi.us.conf';
+        $poolDst   = "/etc/php/{$phpVer}/fpm/pool.d/vupi.us.conf";
+        $caddySrc  = $root . '/Caddyfile.fpm';
+        $caddyDst  = '/etc/caddy/Caddyfile';
+        $domain    = preg_replace('#^https?://#', '', rtrim((string)($_ENV['APP_URL'] ?? 'api.vupi.us'), '/'));
+        $appRoot   = $root;
+        $email     = $_ENV['CADDY_EMAIL'] ?? ('admin@' . $domain);
+
+        echo "\n\033[1;32m▶ PHP-FPM + Caddy — configuração de produção\033[0m\n\n";
+
+        // ── 1. Verifica PHP-FPM ───────────────────────────────────────
+        if (!$this->commandExists($fpmBin) && !$this->commandExists('php-fpm')) {
+            echo "✖ PHP-FPM não encontrado. Instale com:\n";
+            echo "  sudo apt-get install php{$phpVer}-fpm php{$phpVer}-opcache\n";
+            return;
+        }
+
+        // ── 2. Instala pool config ────────────────────────────────────
+        if (!is_file($poolSrc)) {
+            echo "✖ Pool config não encontrado: {$poolSrc}\n";
+            return;
+        }
+
+        // Substitui APP_ROOT no pool config antes de copiar
+        $poolContent = (string) file_get_contents($poolSrc);
+        $tmpPool = tempnam(sys_get_temp_dir(), 'vupi_pool_');
+        file_put_contents($tmpPool, $poolContent);
+        $this->runProcess(['sudo', 'cp', $tmpPool, $poolDst]);
+        $this->runProcess(['sudo', 'chmod', '644', $poolDst]);
+        unlink($tmpPool);
+        echo "✔ Pool config instalado em {$poolDst}\n";
+
+        // Garante diretório de logs
+        $this->runProcess(['sudo', 'mkdir', '-p', '/var/log/php-fpm']);
+        $this->runProcess(['sudo', 'chown', 'www-data:www-data', '/var/log/php-fpm']);
+
+        // ── 3. Reinicia PHP-FPM ───────────────────────────────────────
+        echo "▶ Reiniciando PHP-FPM...\n";
+        $this->runProcess(['sudo', 'systemctl', 'restart', "php{$phpVer}-fpm"]);
+        $this->runProcess(['sudo', 'systemctl', 'enable',  "php{$phpVer}-fpm"]);
+        echo "✔ PHP-FPM {$phpVer} rodando com pool vupi.us\n";
+
+        // ── 4. Instala Caddy se necessário ────────────────────────────
+        if (!$this->commandExists('caddy')) {
+            echo "Caddy não encontrado. Instalando...\n";
+            $this->installCaddy();
+        }
+
+        // ── 5. Instala Caddyfile.fpm ──────────────────────────────────
+        if (!is_file($caddySrc)) {
+            echo "✖ Caddyfile.fpm não encontrado: {$caddySrc}\n";
+            return;
+        }
+        $this->runProcess(['sudo', 'cp', $caddySrc, $caddyDst]);
+        echo "✔ Caddyfile.fpm instalado em {$caddyDst}\n";
+
+        // ── 6. Grava variáveis de ambiente para o Caddy ───────────────
+        $envContent = "# Gerado pelo vupi.us setup em " . date('Y-m-d H:i:s') . "\n"
+            . "APP_DOMAIN={$domain}\n"
+            . "APP_ROOT={$appRoot}\n"
+            . "CADDY_EMAIL={$email}\n"
+            . "APP_ENV=" . ($_ENV['APP_ENV'] ?? 'production') . "\n";
+        $tmpEnv = tempnam(sys_get_temp_dir(), 'vupi_env_');
+        file_put_contents($tmpEnv, $envContent);
+        $this->runProcess(['sudo', 'cp', $tmpEnv, '/etc/caddy/vupi.us.env']);
+        $this->runProcess(['sudo', 'chmod', '640', '/etc/caddy/vupi.us.env']);
+        unlink($tmpEnv);
+        echo "✔ /etc/caddy/vupi.us.env atualizado\n";
+
+        // ── 7. Inicia/recarrega Caddy ─────────────────────────────────
+        $check = new Process(['sudo', 'systemctl', 'is-active', 'caddy']);
+        $check->run();
+        if (trim($check->getOutput()) === 'active') {
+            $this->runProcess(['sudo', 'systemctl', 'daemon-reload']);
+            $this->runProcess(['sudo', 'systemctl', 'reload', 'caddy']);
+            echo "✔ Caddy recarregado\n";
+        } else {
+            $this->runProcess(['sudo', 'systemctl', 'enable', '--now', 'caddy']);
+            echo "✔ Caddy iniciado\n";
+        }
+
+        $appUrl = (string)($_ENV['APP_URL'] ?? "https://{$domain}");
+        echo "\n\033[1;32m✔ Produção ativa!\033[0m\n";
+        echo "  API:         {$appUrl}\n";
+        echo "  PHP-FPM:     systemctl status php{$phpVer}-fpm\n";
+        echo "  Caddy:       systemctl status caddy\n";
+        echo "  Workers FPM: sudo php-fpm{$phpVer} -t && sudo systemctl reload php{$phpVer}-fpm\n";
+        echo "  Logs FPM:    tail -f /var/log/php-fpm/vupi.us-error.log\n";
+        echo "  Logs Caddy:  journalctl -u caddy -f\n\n";
+        echo "  \033[1;33mPara voltar ao php -S:\033[0m opção 16 (PM2 + Caddy)\n";
     }
 
     private function startPm2WithCaddy(): void
@@ -429,13 +533,16 @@ class SetupCommand
         echo "\n";
         echo "Flags (modo --auto):\n";
         echo "  --db-mode=compose|docker|skip   # padrão: compose\n";
-        echo "  --server=background|php|pm2|pm2+caddy  # padrão: background\n";
+        echo "  --server=background|php|pm2|pm2+caddy|fpm+caddy  # padrão: background\n";
         echo "  --jwt=if-empty|skip             # padrão: if-empty\n";
         echo "  --api-token=generate|skip       # padrão: skip\n";
         echo "  --caddy=production|dev|skip     # padrão: skip\n";
         echo "\n";
         echo "Exemplos:\n";
-        echo "  # Produção: PM2 + Caddy HTTPS automático (recomendado):\n";
+        echo "  # Produção REAL (PHP-FPM + Caddy — recomendado):\n";
+        echo "  php vupi setup --auto --server=fpm+caddy\n";
+        echo "\n";
+        echo "  # Produção: PM2 + Caddy HTTPS automático:\n";
         echo "  php vupi setup --auto --server=pm2+caddy\n";
         echo "\n";
         echo "  # Produção: php -S + Caddy HTTPS automático:\n";

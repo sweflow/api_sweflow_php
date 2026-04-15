@@ -1,0 +1,97 @@
+# ============================================================
+# Caddyfile.fpm — Vupi.us API com PHP-FPM (PRODUÇÃO)
+#
+# Diferença do Caddyfile padrão:
+#   - Usa FastCGI (php_fastcgi) em vez de reverse_proxy para php -S
+#   - PHP-FPM processa múltiplas requests em paralelo (workers)
+#   - OPcache ativo entre requests — muito mais rápido
+#
+# Pré-requisito:
+#   sudo cp ci/php-fpm/vupi.us.conf /etc/php/8.2/fpm/pool.d/vupi.us.conf
+#   sudo systemctl restart php8.2-fpm
+#
+# Uso:
+#   sudo cp Caddyfile.fpm /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Ou via setup:
+#   php vupi setup --auto --server=fpm+caddy
+# ============================================================
+
+{
+    email {$CADDY_EMAIL:admin@vupi.us}
+}
+
+{$APP_DOMAIN:api.vupi.us} {
+    tls {
+        protocols tls1.2 tls1.3
+        ciphers TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    }
+
+    encode zstd gzip
+
+    request_body {
+        max_size 10MB
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options    "nosniff"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=(), payment=()"
+        -Server
+        -X-Powered-By
+    }
+
+    @malicious_ua {
+        header User-Agent *sqlmap*
+        header User-Agent *nikto*
+        header User-Agent *nmap*
+        header User-Agent *masscan*
+        header User-Agent *nuclei*
+        header User-Agent *dirbuster*
+        header User-Agent *gobuster*
+        header User-Agent *wfuzz*
+        header User-Agent *ffuf*
+        header User-Agent *feroxbuster*
+        header User-Agent *hydra*
+        header User-Agent *acunetix*
+        header User-Agent *nessus*
+        header User-Agent *openvas*
+        header User-Agent *zgrab*
+        header User-Agent *libwww-perl*
+        header User-Agent *scrapy*
+    }
+    respond @malicious_ua 403
+
+    @sensitive {
+        path /.env* /.git* /*.json /*.lock /*.md /*.sh /*.sql /*.yml /*.yaml
+    }
+    respond @sensitive 404
+
+    # Arquivos estáticos servidos diretamente pelo Caddy (sem passar pelo PHP)
+    root * {$APP_ROOT:/var/www/vupi.us}
+    @static {
+        file
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
+    }
+    handle @static {
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+
+    # PHP-FPM via FastCGI — múltiplos workers em paralelo
+    php_fastcgi unix//run/php/vupi.us.sock {
+        root {$APP_ROOT:/var/www/vupi.us}
+        index index.php
+
+        # Passa variáveis de ambiente para o PHP
+        env APP_ENV    {$APP_ENV:production}
+        env APP_ROOT   {$APP_ROOT:/var/www/vupi.us}
+
+        # Timeouts
+        dial_timeout            5s
+        read_timeout            30s
+        write_timeout           30s
+    }
+}

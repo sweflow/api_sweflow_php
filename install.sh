@@ -148,13 +148,19 @@ step "7/8 - Instalando dependencias do projeto"
 cd "$PROJECT_DIR"
 if [[ ! -d "$PROJECT_DIR/vendor" ]]; then
     if [[ -n "$APP_USER" && "$APP_USER" != "root" ]]; then
-        sudo -u "$APP_USER" composer install --no-interaction --prefer-dist --optimize-autoloader
+        sudo -u "$APP_USER" composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
     else
-        composer install --no-interaction --prefer-dist --optimize-autoloader
+        composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
     fi
-    success "Dependencias instaladas"
+    success "Dependencias instaladas (sem pacotes de desenvolvimento)"
 else
-    warn "vendor/ ja existe — pulando composer install"
+    # vendor/ existe — garante que está otimizado para produção
+    if [[ -n "$APP_USER" && "$APP_USER" != "root" ]]; then
+        sudo -u "$APP_USER" composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    else
+        composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    fi
+    success "Dependencias atualizadas (sem pacotes de desenvolvimento)"
 fi
 
 # ── 8. Vupi.us Setup ─────────────────────────────────────
