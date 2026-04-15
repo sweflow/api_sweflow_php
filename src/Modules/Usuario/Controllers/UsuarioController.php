@@ -118,7 +118,11 @@ class UsuarioController
      */
     private function enviarEmailConfirmacaoRegistro(\Src\Modules\Usuario\Entities\Usuario $usuario): void
     {
-        if ($this->emailSender === null || $usuario->isEmailVerificado()) {
+        // Só envia se o módulo de e-mail estiver instalado E habilitado
+        if ($this->emailSender === null || !$this->emailModuleEnabled()) {
+            return;
+        }
+        if ($usuario->isEmailVerificado()) {
             return;
         }
 
@@ -128,6 +132,34 @@ class UsuarioController
         }
 
         $this->dispararEmailVerificacao($usuario);
+    }
+
+    /**
+     * Verifica se o módulo de e-mail está instalado e habilitado no marketplace.
+     * Mesmo que MAILER_HOST esteja configurado, o envio só ocorre se o módulo estiver ativo.
+     */
+    private function emailModuleEnabled(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+
+        $storage = dirname(__DIR__, 4) . '/storage';
+
+        $capFile = $storage . '/capabilities_registry.json';
+        if (is_file($capFile) && is_readable($capFile)) {
+            $raw  = file_get_contents($capFile);
+            $caps = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
+            return $cached = !empty($caps['email-sender']);
+        }
+
+        $stateFile = $storage . '/modules_state.json';
+        if (is_file($stateFile) && is_readable($stateFile)) {
+            $raw   = file_get_contents($stateFile);
+            $state = ($raw !== false) ? (json_decode($raw, true) ?: []) : [];
+            return $cached = !empty($state['Email']) || !empty($state['vupi.us-module-email']) || !empty($state['module-email']);
+        }
+
+        return $cached = false;
     }
 
     /**
@@ -152,7 +184,8 @@ class UsuarioController
             $token = bin2hex(random_bytes(32));
             $this->service->salvarTokenVerificacaoEmail($usuario->getUuid()->toString(), $token);
 
-            $link = \Src\Kernel\Support\UrlHelper::to('verificar-email?token=' . urlencode($token));
+            // Rota correta: GET /api/auth/verify-email?token=...
+            $link = \Src\Kernel\Support\UrlHelper::to('api/auth/verify-email?token=' . urlencode($token));
 
             $this->emailSender->sendConfirmation(
                 $usuario->getEmail(),

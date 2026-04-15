@@ -431,29 +431,70 @@ class AuthController
         $token = trim((string) ($request->query['token'] ?? $request->body['token'] ?? ''));
 
         if ($token === '') {
-            return Response::json([
-                'status'  => 'error',
-                'message' => 'Token de verificação não informado. Informe via URL (?token=...) ou no corpo da requisição.',
-            ], 400);
+            return $this->verifyEmailHtml('error', 'Token de verificação não informado.');
         }
 
         try {
             $usuario = $this->authService->buscarPorTokenVerificacaoEmail($token);
             if (!$usuario) {
-                return Response::json(['status' => 'error', 'message' => 'Token inválido ou expirado.'], 400);
+                return $this->verifyEmailHtml('error', 'Token inválido ou expirado. Solicite um novo e-mail de verificação.');
             }
             if ($usuario->isEmailVerificado()) {
-                return Response::json(['status' => 'success', 'message' => 'E-mail já verificado.']);
+                return $this->verifyEmailHtml('already', 'E-mail já verificado. Você já pode fazer login.');
             }
 
             $this->authService->marcarEmailComoVerificado($usuario->getAuthId());
-            return Response::json(['status' => 'success', 'message' => 'E-mail verificado com sucesso.']);
+            return $this->verifyEmailHtml('success', 'E-mail verificado com sucesso! Você já pode fazer login.');
         } catch (DomainException $e) {
-            $status = $e->getCode() >= 400 && $e->getCode() <= 599 ? $e->getCode() : 400;
-            return Response::json(['status' => 'error', 'message' => $e->getMessage()], $status);
+            return $this->verifyEmailHtml('error', $e->getMessage());
         } catch (\Throwable) {
-            return Response::json(['status' => 'error', 'message' => 'Falha ao verificar e-mail.'], 500);
+            return $this->verifyEmailHtml('error', 'Falha ao verificar e-mail. Tente novamente.');
         }
+    }
+
+    private function verifyEmailHtml(string $type, string $message): Response
+    {
+        $appUrl  = rtrim((string) ($_ENV['APP_URL'] ?? ''), '/');
+        $appName = htmlspecialchars((string) ($_ENV['APP_NAME'] ?? 'Vupi.us API'), ENT_QUOTES, 'UTF-8');
+        $msg     = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+        $logoUrl = htmlspecialchars((string) ($_ENV['APP_LOGO_URL'] ?? '/favicon.ico'), ENT_QUOTES, 'UTF-8');
+
+        $icon  = $type === 'success' ? '✅' : ($type === 'already' ? 'ℹ️' : '❌');
+        $color = $type === 'success' ? '#4f46e5' : ($type === 'already' ? '#0ea5e9' : '#ef4444');
+        $status = $type === 'error' ? 400 : 200;
+
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verificação de e-mail — {$appName}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:16px;padding:48px 40px;max-width:480px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+  .icon{font-size:3rem;margin-bottom:20px}
+  h1{font-size:1.5rem;font-weight:700;color:#1e293b;margin-bottom:12px}
+  p{color:#64748b;line-height:1.6;margin-bottom:28px}
+  a.btn{display:inline-block;background:{$color};color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:1rem}
+  a.btn:hover{opacity:.9}
+  .logo{max-height:40px;margin-bottom:24px}
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="{$logoUrl}" alt="{$appName}" class="logo">
+  <div class="icon">{$icon}</div>
+  <h1>{$msg}</h1>
+  <p>Clique no botão abaixo para acessar a plataforma.</p>
+  <a href="{$appUrl}" class="btn">Ir para o início</a>
+</div>
+</body>
+</html>
+HTML;
+
+        return Response::html($html, $status);
     }
 
     public function emailVerificationPolicy(Request $request): Response
