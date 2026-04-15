@@ -178,7 +178,33 @@ class SetupCommand
         $this->reloadEnv();
         $root      = dirname(__DIR__, 2);
         $phpVer    = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
-        $fpmBin    = "php{$phpVer}-fpm";
+
+        // Ubuntu/Debian podem usar php8.2-fpm ou php-fpm8.2 dependendo da versão
+        $fpmBin = null;
+        foreach (["php{$phpVer}-fpm", "php-fpm{$phpVer}", 'php-fpm'] as $candidate) {
+            if ($this->commandExists($candidate)) {
+                $fpmBin = $candidate;
+                break;
+            }
+        }
+
+        // Verifica também se o serviço systemd existe mesmo sem o binário no PATH
+        if ($fpmBin === null) {
+            $svcCheck = new Process(['sudo', 'systemctl', 'status', "php{$phpVer}-fpm"]);
+            $svcCheck->run();
+            if ($svcCheck->getExitCode() !== 4) { // exit 4 = unit not found
+                $fpmBin = "php{$phpVer}-fpm"; // serviço existe, usa o nome padrão
+            }
+        }
+
+        if ($fpmBin === null) {
+            echo "✖ PHP-FPM não encontrado. Instale com:\n";
+            echo "  sudo apt-get install php{$phpVer}-fpm php{$phpVer}-opcache\n";
+            return;
+        }
+
+        // Nome do serviço systemd (sempre php{ver}-fpm independente do binário)
+        $fpmService = "php{$phpVer}-fpm";
         $poolSrc   = $root . '/ci/php-fpm/vupi.us.conf';
         $poolDst   = "/etc/php/{$phpVer}/fpm/pool.d/vupi.us.conf";
         $caddySrc  = $root . '/Caddyfile.fpm';
@@ -188,13 +214,8 @@ class SetupCommand
         $email     = $_ENV['CADDY_EMAIL'] ?? ('admin@' . $domain);
 
         echo "\n\033[1;32m▶ PHP-FPM + Caddy — configuração de produção\033[0m\n\n";
-
-        // ── 1. Verifica PHP-FPM ───────────────────────────────────────
-        if (!$this->commandExists($fpmBin) && !$this->commandExists('php-fpm')) {
-            echo "✖ PHP-FPM não encontrado. Instale com:\n";
-            echo "  sudo apt-get install php{$phpVer}-fpm php{$phpVer}-opcache\n";
-            return;
-        }
+        echo "  FPM binário: {$fpmBin}\n";
+        echo "  FPM serviço: {$fpmService}\n\n";
 
         // ── 2. Instala pool config ────────────────────────────────────
         if (!is_file($poolSrc)) {
@@ -217,8 +238,8 @@ class SetupCommand
 
         // ── 3. Reinicia PHP-FPM ───────────────────────────────────────
         echo "▶ Reiniciando PHP-FPM...\n";
-        $this->runProcess(['sudo', 'systemctl', 'restart', "php{$phpVer}-fpm"]);
-        $this->runProcess(['sudo', 'systemctl', 'enable',  "php{$phpVer}-fpm"]);
+        $this->runProcess(['sudo', 'systemctl', 'restart', $fpmService]);
+        $this->runProcess(['sudo', 'systemctl', 'enable',  $fpmService]);
         echo "✔ PHP-FPM {$phpVer} rodando com pool vupi.us\n";
 
         // ── 4. Instala Caddy se necessário ────────────────────────────
@@ -263,9 +284,9 @@ class SetupCommand
         $appUrl = (string)($_ENV['APP_URL'] ?? "https://{$domain}");
         echo "\n\033[1;32m✔ Produção ativa!\033[0m\n";
         echo "  API:         {$appUrl}\n";
-        echo "  PHP-FPM:     systemctl status php{$phpVer}-fpm\n";
+        echo "  PHP-FPM:     systemctl status {$fpmService}\n";
         echo "  Caddy:       systemctl status caddy\n";
-        echo "  Workers FPM: sudo php-fpm{$phpVer} -t && sudo systemctl reload php{$phpVer}-fpm\n";
+        echo "  Workers FPM: sudo systemctl reload {$fpmService}\n";
         echo "  Logs FPM:    tail -f /var/log/php-fpm/vupi.us-error.log\n";
         echo "  Logs Caddy:  journalctl -u caddy -f\n\n";
         echo "  \033[1;33mPara voltar ao php -S:\033[0m opção 16 (PM2 + Caddy)\n";
