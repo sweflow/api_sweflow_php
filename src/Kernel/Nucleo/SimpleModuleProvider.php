@@ -201,11 +201,10 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'OptionalAuthHybridMiddleware',
         ];
 
-        return $this->describeCache = [
+        $this->describeCache = [
             'name'        => $this->name,
             'description' => $this->metadata['description'] ?? '',
             'version'     => $this->metadata['version'] ?? '1.0.0',
-            'connection'  => $this->preferredConnection(),
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
@@ -240,6 +239,9 @@ class SimpleModuleProvider implements ModuleProviderInterface
                 ];
             }, $this->routes),
         ];
+
+        // connection é lido fora do cache — pode mudar em runtime via /api/modules/connection
+        return array_merge($this->describeCache, ['connection' => $this->preferredConnection()]);
     }
 
     public function onInstall(): void
@@ -281,9 +283,10 @@ class SimpleModuleProvider implements ModuleProviderInterface
         ];
         foreach ($candidates as $file) {
             if (is_file($file)) {
-                $value = include $file;
-                if (is_string($value) && in_array($value, ['core', 'modules', 'auto'], true)) {
-                    return $value;
+                // Usa file_get_contents + regex em vez de include para evitar cache do OPcache
+                $raw = @file_get_contents($file);
+                if ($raw !== false && preg_match("/return\s+'(core|modules|auto)'\s*;/", $raw, $m)) {
+                    return $m[1];
                 }
             }
         }
