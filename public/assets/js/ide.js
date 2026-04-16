@@ -372,6 +372,9 @@ function initPhpLanguageServices() {
                 { label: 'router->delete', kind: monaco.languages.CompletionItemKind.Snippet,
                   insertText: "\\$router->delete('${1:/api/rota/{id}}', [${2:Controller}::class, '${3:metodo}'], \\$${4:auth});",
                   insertTextRules: 4, detail: 'Rota DELETE' },
+                { label: 'routes-file', kind: monaco.languages.CompletionItemKind.Snippet,
+                  insertText: "<?php\n\n/** @var \\\\Src\\\\Kernel\\\\Contracts\\\\RouterInterface \\$router */\n\n\\$auth  = [AuthHybridMiddleware::class];\n\\$admin = [AuthHybridMiddleware::class, AdminOnlyMiddleware::class];\n\n\\$router->get('/api/${1:recurso}',       [${2:Controller}::class, 'listar'],    \\$auth);\n\\$router->get('/api/${1:recurso}/{id}',  [${2:Controller}::class, 'buscar'],    \\$auth);\n\\$router->post('/api/${1:recurso}',      [${2:Controller}::class, 'criar'],     \\$auth);\n\\$router->put('/api/${1:recurso}/{id}',  [${2:Controller}::class, 'atualizar'], \\$auth);\n\\$router->delete('/api/${1:recurso}/{id}',[${2:Controller}::class, 'deletar'],  \\$admin);",
+                  insertTextRules: 4, detail: 'Template completo de Routes/web.php com @var e middlewares' },
                 { label: 'auth_user', kind: monaco.languages.CompletionItemKind.Snippet,
                   insertText: "\\$request->attribute('auth_user')", insertTextRules: 4,
                   detail: 'Usuário autenticado (injetado pelo AuthHybridMiddleware)' },
@@ -423,6 +426,7 @@ function initPhpLanguageServices() {
             var docs = {
                 'Response': { value: '**Response** — Classe de resposta HTTP\n\n`Response::json($data, $status)` — Retorna JSON\n\n`Response::html($html, $status)` — Retorna HTML' },
                 'Request': { value: '**Request** — Objeto da requisição HTTP\n\n`$request->body` — Body da requisição (array)\n\n`$request->params` — Parâmetros de rota ({id})\n\n`$request->query` — Query string (?key=value)\n\n`$request->header(\'Nome\')` — Header HTTP\n\n`$request->attribute(\'auth_user\')` — Usuário autenticado' },
+                'router': { value: '**$router** — Roteador do módulo (injetado pelo kernel)\n\nDisponível automaticamente em `Routes/web.php`.\n\nDeclare no topo do arquivo para autocomplete:\n```php\n/** @var \\Src\\Kernel\\Contracts\\RouterInterface $router */\n```\n\n`$router->get($uri, $handler, $middlewares)` — Rota GET\n\n`$router->post($uri, $handler, $middlewares)` — Rota POST\n\n`$router->put($uri, $handler, $middlewares)` — Rota PUT\n\n`$router->delete($uri, $handler, $middlewares)` — Rota DELETE' },
                 'AuthHybridMiddleware': { value: '**AuthHybridMiddleware** — Autenticação obrigatória\n\nAceita cookie `auth_token` ou header `Authorization: Bearer {token}`.\n\nPopula `$request->attribute(\'auth_user\')` com o usuário logado.' },
                 'AdminOnlyMiddleware': { value: '**AdminOnlyMiddleware** — Apenas admin_system\n\nBloqueia usuários com nível diferente de `admin_system`.' },
                 'RateLimitMiddleware': { value: '**RateLimitMiddleware** — Limite de requisições\n\nParâmetros: `limit` (máx req), `window` (segundos), `key` (identificador único).' },
