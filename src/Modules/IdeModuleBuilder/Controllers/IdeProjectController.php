@@ -546,7 +546,7 @@ final class IdeProjectController
             'capabilities', 'module_capabilities',
             'threat_scores', 'rate_limits',
             'sessions', 'password_resets',
-            'tarefas', 'notas', 'avisos',
+            'tarefas', 'notas',
         ];
 
         // Bloqueia new PDO()

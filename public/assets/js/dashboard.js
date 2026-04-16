@@ -1357,7 +1357,7 @@ window.onload = function () {
         try {
             const res = await fetch('/api/modules/state', { credentials: 'same-origin' });
             if (res.status === 401 || res.status === 403) {
-                window.location.href = '/';
+                redirectToLogin();
                 return;
             }
             const data = await res.json();
@@ -1453,10 +1453,18 @@ window.onload = function () {
 
     function handleUnauthorized(status) {
         if (status === 401 || status === 403) {
-            window.location.href = '/';
+            redirectToLogin();
             return true;
         }
         return false;
+    }
+
+    // Redireciona para login de forma segura — evita loops e múltiplos redirects
+    let _redirecting = false;
+    function redirectToLogin() {
+        if (_redirecting) return;
+        _redirecting = true;
+        window.location.replace('/');
     }
 
     function updateAuthVerifyUI(state, loading = false) {
@@ -1631,6 +1639,7 @@ window.onload = function () {
     (async function init() {
         // Função de fetch autenticado — usa cookie (dashboard nativo) ou Bearer token (localStorage)
         // NÃO sobrescreve window.fetch globalmente para evitar vazamento de token
+        // Intercepta 401 automaticamente — qualquer resposta 401 redireciona para login
         function apiFetch(url, opts = {}) {
             const token = localStorage.getItem('dash_token') || localStorage.getItem('access_token');
             const headers = Object.assign(
@@ -1641,11 +1650,24 @@ window.onload = function () {
             return fetch(url, Object.assign({}, opts, {
                 headers,
                 credentials: opts.credentials ?? 'same-origin',
-            }));
+            })).then(res => {
+                if (res.status === 401) { redirectToLogin(); }
+                return res;
+            });
         }
 
         // Expõe para uso nos outros métodos do dashboard
         window._apiFetch = apiFetch;
+
+        // Verificação periódica de sessão — detecta token expirado ou revogado
+        // mesmo quando o usuário está inativo (sem fazer requests)
+        setInterval(function () {
+            fetch('/api/auth/me', { credentials: 'same-origin' })
+                .then(function (res) {
+                    if (res.status === 401) redirectToLogin();
+                })
+                .catch(function () {});
+        }, 60000); // verifica a cada 60s
 
         let data = null;
         try {

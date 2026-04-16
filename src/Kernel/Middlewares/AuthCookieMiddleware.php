@@ -46,6 +46,10 @@ class AuthCookieMiddleware implements MiddlewareInterface
             return $this->responder(401, 'Usuário não encontrado.');
         }
 
+        if (method_exists($usuario, 'isAtivo') && !$usuario->isAtivo()) {
+            return $this->responder(403, 'Usuário desativado.');
+        }
+
         return $next(
             $request
                 ->withAttribute('auth_user', $usuario)

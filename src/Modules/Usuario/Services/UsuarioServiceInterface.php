@@ -62,7 +62,7 @@ interface UsuarioServiceInterface
     /**
      * Altera a senha do usuário.
      */
-    public function alterarSenha(string $uuid, string $novaSenha, bool $logoutAll = false): void;
+    public function alterarSenha(string $uuid, string $novaSenha): void;
 
     /**
      * @return Usuario[]

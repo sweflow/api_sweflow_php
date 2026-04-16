@@ -94,6 +94,7 @@
         }
         try {
             const res  = await fetch('/api/audit/logs?' + buildParams(page), { credentials: 'same-origin' });
+            if (res.status === 401) { window.location.replace('/'); return; }
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
 
@@ -258,15 +259,26 @@
     if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < lastPage) loadLogs(currentPage + 1); });
 
     if (searchInput) {
+        // Restaura busca salva
+        const savedSearch = localStorage.getItem('audit_search');
+        if (savedSearch) searchInput.value = savedSearch;
+
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimer);
+            localStorage.setItem('audit_search', searchInput.value);
             searchTimer = setTimeout(() => { currentPage = 1; loadLogs(1); }, 400);
         });
     }
 
-    if (catSelect)   catSelect.addEventListener('change',   () => { currentPage = 1; activeCategory = ''; loadLogs(1); });
-    if (periodoSel)  periodoSel.addEventListener('change',  () => { currentPage = 1; loadLogs(1); });
+    if (catSelect)   catSelect.addEventListener('change',   () => { currentPage = 1; activeCategory = ''; localStorage.setItem('audit_categoria', catSelect.value); loadLogs(1); });
+    if (periodoSel)  periodoSel.addEventListener('change',  () => { currentPage = 1; localStorage.setItem('audit_periodo', periodoSel.value); loadLogs(1); });
     if (refreshBtn)  refreshBtn.addEventListener('click',   () => { loadLogs(currentPage); loadStats(); });
+
+    // ── Restaura preferências salvas ──────────────────────────────────────
+    const savedCategoria = localStorage.getItem('audit_categoria');
+    const savedPeriodo   = localStorage.getItem('audit_periodo');
+    if (catSelect  && savedCategoria !== null) catSelect.value  = savedCategoria;
+    if (periodoSel && savedPeriodo   !== null) periodoSel.value = savedPeriodo;
 
     if (realtimeChk) {
         realtimeChk.addEventListener('change', () => {

@@ -1,6 +1,16 @@
 'use strict';
 // ── Página de Configurações — env-editor completo ────────────────────────────
 
+// Redireciona para login quando token expira ou é revogado
+(function () {
+    let _redirecting = false;
+    window._cfgRedirectToLogin = function () {
+        if (_redirecting) return;
+        _redirecting = true;
+        window.location.replace('/');
+    };
+})();
+
 function esc(s) {
     if (s == null) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
@@ -130,6 +140,7 @@ let corsUrls = [];
 async function loadEnv() {
     try {
         const res = await fetch('/api/env', { credentials: 'same-origin' });
+        if (res.status === 401) { window._cfgRedirectToLogin?.(); return; }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         envVars = data.vars || {};

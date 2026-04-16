@@ -46,6 +46,11 @@ async function apiFetch(method, url, body) {
     var opts = { method: method, headers: apiHeaders(), credentials: 'same-origin' };
     if (body) opts.body = JSON.stringify(body);
     var res  = await fetch(url, opts);
+    // Token expirado ou revogado — redireciona para login
+    if (res.status === 401) {
+        window.location.replace('/');
+        throw new Error('Sessão expirada');
+    }
     var data = await res.json().catch(function () { return {}; });
     return { ok: res.ok, status: res.status, data: data };
 }

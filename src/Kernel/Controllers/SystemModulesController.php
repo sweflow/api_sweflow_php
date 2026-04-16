@@ -888,7 +888,7 @@ class SystemModulesController
         if (!is_dir($root)) return [];
 
         // Módulos nativos do projeto — nunca devem aparecer no marketplace
-        $nativeModules = ['auth', 'usuario', 'documentacao', 'aviso'];
+        $nativeModules = ['auth', 'usuario', 'documentacao'];
 
         $results = [];
         foreach (scandir($root) as $dir) {

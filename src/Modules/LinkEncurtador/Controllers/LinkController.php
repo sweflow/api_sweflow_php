@@ -116,9 +116,9 @@ final class LinkController
     public function redirect(Request $request): Response
     {
         $alias     = $request->params['alias'];
-        $ip        = $_SERVER['REMOTE_ADDR'] ?? '';
-        $referrer  = $_SERVER['HTTP_REFERER'] ?? '';
-        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        $ip        = \Src\Kernel\Support\IpResolver::resolve(); // respeita TRUST_PROXY / Cloudflare
+        $referrer  = substr($_SERVER['HTTP_REFERER']    ?? '', 0, 500);
+        $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 300);
 
         $url = $this->service->resolveRedirect($alias, $ip, $referrer, $userAgent);
 

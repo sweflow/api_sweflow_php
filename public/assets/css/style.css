@@ -4030,3 +4030,21 @@ input.input-error { border-color: #e74c3c !important; }
     from { background: rgba(99,102,241,0.15); }
     to   { background: transparent; }
 }
+
+/* ── Audit selects — dark mode ───────────────────────────────────────── */
+#audit-categoria,
+#audit-periodo {
+    color-scheme: light dark;
+}
+.dark #audit-categoria,
+.dark #audit-periodo {
+    background: var(--bg-input, #1e2235);
+    color: var(--text-primary, #f1f5f9);
+    border-color: var(--border-input, rgba(255,255,255,0.09));
+    color-scheme: dark;
+}
+.dark #audit-categoria option,
+.dark #audit-periodo option {
+    background: #1e2235;
+    color: #f1f5f9;
+}

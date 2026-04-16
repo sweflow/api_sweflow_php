@@ -55,6 +55,11 @@ class AuthHybridMiddleware implements MiddlewareInterface
             return $this->responder(401, 'Usuário não encontrado.');
         }
 
+        // Verifica se o usuário está ativo — pode ter sido desativado após emissão do token
+        if (method_exists($usuario, 'isAtivo') && !$usuario->isAtivo()) {
+            return $this->responder(403, 'Usuário desativado.');
+        }
+
         return $next(
             $request
                 ->withAttribute('auth_user', $usuario)

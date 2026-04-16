@@ -295,6 +295,7 @@
             const res  = await fetch('/api/system/marketplace?q=' + encodeURIComponent(query ?? ''), {
                 credentials: 'same-origin',
             });
+            if (res.status === 401) { window.location.replace('/'); return []; }
             const data = await res.json();
             return data.results || [];
         } catch {

@@ -19,8 +19,9 @@ final class UrlHelper
         if ($base !== '') {
             return $base;
         }
-        $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
-        $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $scheme = \Src\Kernel\Support\CookieConfig::isHttps() ? 'https' : 'http';
+        // Sanitiza HTTP_HOST para prevenir host header injection
+        $host   = preg_replace('/[^a-zA-Z0-9.\-:\[\]]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
         return $scheme . '://' . $host;
     }
 

@@ -1,11 +1,7 @@
 {
     "Auth": true,
     "Usuario": true,
-    "Aviso": true,
     "Documentacao": true,
     "IdeModuleBuilder": true,
-    "LinkEncurtador": true,
-    "Email": false,
-    "Task": false,
-    "Tarefa": false
+    "LinkEncurtador": true
 }

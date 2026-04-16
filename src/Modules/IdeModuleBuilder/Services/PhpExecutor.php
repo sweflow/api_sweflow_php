@@ -265,7 +265,7 @@ final class PhpExecutor
         'capabilities', 'module_capabilities',
         'threat_scores', 'rate_limits',
         'sessions', 'password_resets',
-        'tarefas', 'notas', 'avisos',
+        'tarefas', 'notas',
     ];
 
     /**
@@ -512,7 +512,7 @@ final class PhpExecutor
             'capabilities', 'module_capabilities',
             'threat_scores', 'rate_limits',
             'sessions', 'password_resets',
-            'tarefas', 'notas', 'avisos',
+            'tarefas', 'notas',
         ];
         $systemTablesExport = var_export($systemTables, true);
         $modulePrefixExport = var_export($modulePrefix, true);
