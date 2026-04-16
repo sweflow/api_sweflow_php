@@ -17,13 +17,13 @@ class CapabilitiesController
     {
         $resolver = $this->resolver();
 
-        // 1. Auto-correção: Valida se os providers ativos ainda existem
+        // Auto-correção: Valida se os providers ativos ainda existem
+        // (só remove se há providers registrados via plugin.json — não remove providers manuais)
         $resolver->validate();
 
-        // 2. Descobrir todas as capabilities disponíveis no sistema
-        $capabilities = $resolver->getAllCapabilities();
+        // Descobre capabilities via plugin.json + capabilities já salvas no registry
+        $capabilities = $resolver->getAllCapabilitiesIncludingSaved();
 
-        // 3. Montar resposta
         $items = [];
         foreach ($capabilities as $cap) {
             $items[] = [

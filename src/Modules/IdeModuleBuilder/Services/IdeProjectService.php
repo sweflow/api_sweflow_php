@@ -521,12 +521,6 @@ class IdeProjectService
         $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
         $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
 
-        // Sincroniza connection.php com DEFAULT_MODULE_CONNECTION se estiver desatualizado
-        $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? 'core'));
-        if (in_array($defaultConn, ['core', 'modules'], true) && $conn !== $defaultConn) {
-            $this->syncConnectionFile($moduleDir, $defaultConn);
-        }
-
         $this->ensureMigrationsTable($activePdo);
 
         foreach ($files as $file) {
@@ -803,12 +797,6 @@ class IdeProjectService
         $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
         $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
         $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
-
-        // Sincroniza connection.php com DEFAULT_MODULE_CONNECTION se estiver desatualizado
-        $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? 'core'));
-        if (in_array($defaultConn, ['core', 'modules'], true) && $conn !== $defaultConn) {
-            $this->syncConnectionFile($moduleDir, $defaultConn);
-        }
 
         $this->ensureMigrationsTable($activePdo);
 

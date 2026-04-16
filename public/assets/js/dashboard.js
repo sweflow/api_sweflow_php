@@ -770,8 +770,10 @@ window.onload = function () {
                 return;
             }
             const rows = items.map(it => {
-                const options = (it.providers || []).map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
-                const noneOption = `<option value="">-- Selecione --</option>`;
+                // Inclui o provider ativo nas opções mesmo que não venha via plugin.json
+                const allProviders = [...new Set([...(it.providers || []), ...(it.active ? [it.active] : [])])];
+                const options = allProviders.map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
+                const noneOption = `<option value="" ${!it.active ? 'selected' : ''}>-- Selecione --</option>`;
 
                 // Verifica se o provedor ativo pertence a um módulo desativado
                 const activeProvider = it.active || '';
