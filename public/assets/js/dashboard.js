@@ -3053,6 +3053,8 @@ window.onload = function () {
                 fb.textContent = 'Usuário criado com sucesso.';
                 fb.className = 'login-feedback success';
                 fetchMetrics();
+                // Recarrega a tabela de usuários se estiver na página de gerenciamento
+                if (typeof window.reloadUsuarios === 'function') window.reloadUsuarios(1);
                 setTimeout(() => {
                     closeModal('criar-usuario-modal');
                     criarUsuarioForm.reset();

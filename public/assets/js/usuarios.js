@@ -795,4 +795,7 @@ async function openProjectLimitModal(uuid, username) {
     await loadUsers(1);
 })();
 
+// Expõe loadUsers globalmente para que outros scripts (dashboard.js) possam recarregar a tabela
+window.reloadUsuarios = function (page) { loadUsers(page || 1); };
+
 })();
