@@ -222,6 +222,11 @@ class SetupCommand
                 fn() => $this->runProcess(['sudo', 'chmod', '640', $root . '/.env']),
             ],
             [
+                'src/Modules/ gravável pelo www-data (conexão de banco)',
+                fn() => is_writable($root . '/src/Modules'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root . '/src/Modules']),
+            ],
+            [
                 'storage/ gravável pelo www-data',
                 fn() => is_writable($root . '/storage'),
                 fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root . '/storage']),

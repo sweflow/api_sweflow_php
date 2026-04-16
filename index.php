@@ -1054,7 +1054,17 @@ $router->post('/api/modules/connection', function ($request) use ($modules) {
     // Cria o diretório Database se não existir
     $dir = dirname($connFile);
     if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+        if (!mkdir($dir, 0775, true)) {
+            return Response::json(['error' => "Não foi possível criar o diretório Database/ para o módulo '{$name}'. Verifique as permissões de src/Modules/."], 500);
+        }
+    }
+
+    // Verifica permissão de escrita antes de tentar
+    if (is_file($connFile) && !is_writable($connFile)) {
+        return Response::json(['error' => "Sem permissão para escrever em connection.php do módulo '{$name}'. Execute a opção 28 do menu setup para corrigir permissões."], 500);
+    }
+    if (!is_file($connFile) && !is_writable($dir)) {
+        return Response::json(['error' => "Sem permissão para criar connection.php em '{$name}/Database/'. Execute a opção 28 do menu setup para corrigir permissões."], 500);
     }
 
     $content = implode("\n", [
@@ -1068,7 +1078,13 @@ $router->post('/api/modules/connection', function ($request) use ($modules) {
     ]);
 
     if (file_put_contents($connFile, $content) === false) {
-        return Response::json(['error' => 'Não foi possível escrever o arquivo connection.php.'], 500);
+        return Response::json(['error' => 'Não foi possível escrever o arquivo connection.php. Verifique as permissões da pasta src/Modules/' . $name . '/Database/.'], 500);
+    }
+
+    // Verifica que o arquivo foi escrito corretamente
+    $written = @file_get_contents($connFile);
+    if ($written === false || !str_contains($written, "return '{$conn}'")) {
+        return Response::json(['error' => 'Arquivo escrito mas conteúdo não confere. Verifique permissões.'], 500);
     }
 
     return Response::json(['ok' => true, 'name' => $name, 'connection' => $conn]);

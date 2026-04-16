@@ -360,7 +360,7 @@ window.onload = function () {
             // Badge/select de conexão de banco — clicável para alterar
             const conn = mod.connection || 'auto';
             const connColor = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
-            const connBadge = `<select class="module-conn-select" data-module-conn="${modName}"
+            const connBadge = `<select class="module-conn-select" data-module-conn="${esc(modNameRaw)}"
                 style="font-size:0.78rem;font-weight:700;color:${connColor};background:transparent;border:1px solid ${connColor}33;border-radius:6px;padding:2px 6px;cursor:pointer;outline:none;font-family:inherit;">
                 <option value="core"    ${conn === 'core'    ? 'selected' : ''}>DB (core)</option>
                 <option value="modules" ${conn === 'modules' ? 'selected' : ''}>DB2 (modules)</option>
@@ -416,7 +416,13 @@ window.onload = function () {
                     if (!res.ok) {
                         showErrorModal(data.error || 'Erro ao alterar conexão.', 'Erro');
                         sel.value = prev; // reverte
+                        sel.dataset.prev = prev;
                         return;
+                    }
+                    // Confirma que o backend retornou o valor correto
+                    if (data.connection && data.connection !== conn) {
+                        sel.value = data.connection;
+                        sel.dataset.prev = data.connection;
                     }
                     // Atualiza cor do select
                     const color = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
@@ -425,6 +431,7 @@ window.onload = function () {
                 } catch {
                     showErrorModal('Erro de conexão.', 'Erro');
                     sel.value = prev;
+                    sel.dataset.prev = prev;
                 }
             });
             // Guarda valor inicial para rollback
