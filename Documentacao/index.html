@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
@@ -84,12 +84,6 @@
       </a>
       <a class="docs-nav-link" data-page="teste-usuario" href="#teste-usuario">
         <i class="fa-solid fa-flask"></i> Testando o Módulo Usuario
-      </a>
-      <a class="docs-nav-link" data-page="modulo-aviso" href="#modulo-aviso">
-        <i class="fa-solid fa-bell"></i> Módulo Aviso
-      </a>
-      <a class="docs-nav-link" data-page="teste-aviso" href="#teste-aviso">
-        <i class="fa-solid fa-vial"></i> Testando o Módulo Aviso
       </a>
       <a class="docs-nav-link" data-page="rotas" href="#rotas">
         <i class="fa-solid fa-route"></i> Rotas e Middlewares
@@ -389,7 +383,8 @@ cd api_vupi.us_php</code></pre>
       <h2 id="dependencias">Instalar dependências</h2>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>composer install</code></pre>
+        <pre><code>composer install --no-dev --optimize-autoloader   # produção
+composer install                                   # desenvolvimento</code></pre>
       </div>
 
       <h2 id="setup">Setup automático (recomendado)</h2>
@@ -576,6 +571,24 @@ sudo bash install.sh</code></pre>
           <tr><td><code>MAILER_PASSWORD</code></td><td><code>app_password</code></td><td>Senha SMTP. Para Gmail, use uma App Password.</td></tr>
           <tr><td><code>MAILER_FROM_EMAIL</code></td><td><code>no-reply@seudominio.com</code></td><td>E-mail remetente.</td></tr>
           <tr><td><code>MAILER_FROM_NAME</code></td><td><code>"Vupi.us API"</code></td><td>Nome do remetente.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-admin">Admin padrão (seeder)</h2>
+      <div class="callout warn">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Obrigatório em produção</strong>
+          <p>Em <code>APP_ENV=production</code>, o seeder aborta se <code>ADMIN_PASSWORD</code> estiver vazio. Em desenvolvimento usa <code>Admin@123456</code> como padrão.</p>
+        </div>
+      </div>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>ADMIN_EMAIL</code></td><td><code>admin@seudominio.com</code></td><td>E-mail do administrador criado pelo seeder.</td></tr>
+          <tr><td><code>ADMIN_PASSWORD</code></td><td><code>MinhaS3nh@Forte!</code></td><td>Senha do admin. <strong>Obrigatório em produção.</strong></td></tr>
+          <tr><td><code>ADMIN_NAME</code></td><td><code>Administrador</code></td><td>Nome completo do admin.</td></tr>
+          <tr><td><code>ADMIN_USERNAME</code></td><td><code>admin</code></td><td>Username do admin.</td></tr>
         </tbody>
       </table>
 
@@ -2143,7 +2156,7 @@ curl -X DELETE http://localhost:3005/api/usuario/deletar/550e8400-e29b-41d4-a716
 
 
     <!-- PAGE: MODULO AVISO -->
-    <section class="docs-page" id="page-modulo-aviso">
+    <section class="docs-page" id="page-modulo-aviso" style="display:none">
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-bell"></i></div>
         <div>
@@ -2666,7 +2679,7 @@ $router-&gt;delete('/api/admin/avisos/{id}', [AvisoController::class, 'deletar']
 
 ﻿
     <!-- PAGE: TESTE AVISO -->
-    <section class="docs-page" id="page-teste-aviso">
+    <section class="docs-page" id="page-teste-aviso" style="display:none">
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-vial"></i></div>
         <div>
@@ -2939,15 +2952,26 @@ http DELETE http://localhost:3005/api/admin/avisos/3 \
         <div><h1>Rotas e Middlewares</h1><p>Como definir endpoints e protegê-los.</p></div>
       </div>
       <h2 id="definir-rotas">Definindo rotas</h2>
-      <p>O arquivo <code>Routes/web.php</code> do módulo é carregado automaticamente. A variável <code>$router</code> já está disponível.</p>
+      <p>O arquivo <code>Routes/web.php</code> do módulo é carregado automaticamente. A variável <code>$router</code> é injetada pelo kernel via <code>include</code> — declare o <code>@var</code> no topo para ter autocomplete na IDE e deixar o contrato explícito:</p>
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
-        <pre><code>// Métodos disponíveis
-$router->get('/api/recurso',          [Controller::class, 'listar']);
-$router->post('/api/recurso',         [Controller::class, 'criar']);
-$router->put('/api/recurso/{uuid}',   [Controller::class, 'atualizar']);
-$router->patch('/api/recurso/{uuid}', [Controller::class, 'parcial']);
-$router->delete('/api/recurso/{uuid}',[Controller::class, 'deletar']);</code></pre>
+        <pre><code>&lt;?php
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+// Métodos disponíveis
+$router-&gt;get('/api/recurso',          [Controller::class, 'listar']);
+$router-&gt;post('/api/recurso',         [Controller::class, 'criar']);
+$router-&gt;put('/api/recurso/{uuid}',   [Controller::class, 'atualizar']);
+$router-&gt;patch('/api/recurso/{uuid}', [Controller::class, 'parcial']);
+$router-&gt;delete('/api/recurso/{uuid}',[Controller::class, 'deletar']);</code></pre>
+      </div>
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Por que o <code>$router</code> aparece "do nada"?</strong>
+          <p>O kernel carrega o arquivo de rotas com <code>include</code>, injetando <code>$router</code> no escopo. É o mesmo padrão do Laravel (<code>Route::</code>), Express (<code>app.get</code>) e Slim. O <code>@var</code> documenta o contrato e ativa o autocomplete — sem ele o código funciona, mas fica implícito.</p>
+        </div>
       </div>
       <h2 id="parametros-rota">Parâmetros de rota</h2>
       <div class="code-block">
@@ -4297,7 +4321,7 @@ php vupi setup --auto             # modo automático sem interação</code></pre
         <thead><tr><th>Flag</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
         <tbody>
           <tr><td><code>--db-mode</code></td><td>compose, docker, skip</td><td>compose</td><td>Como subir o banco: docker-compose, container avulso ou pular.</td></tr>
-          <tr><td><code>--server</code></td><td>background, php, pm2, pm2+caddy</td><td>background</td><td>Como subir o servidor PHP.</td></tr>
+          <tr><td><code>--server</code></td><td>background, php, pm2, pm2+caddy, <strong>fpm+caddy</strong></td><td>background</td><td>Como subir o servidor PHP. <strong>fpm+caddy</strong> é o recomendado para produção real.</td></tr>
           <tr><td><code>--jwt</code></td><td>if-empty, skip</td><td>if-empty</td><td>Gera JWT_SECRET e JWT_API_SECRET se estiverem vazios.</td></tr>
           <tr><td><code>--api-token</code></td><td>generate, skip</td><td>skip</td><td>Gera token JWT de API após o setup.</td></tr>
           <tr><td><code>--caddy</code></td><td>production, dev, skip</td><td>skip</td><td>Inicia Caddy: produção (Let's Encrypt), dev (mkcert) ou pula.</td></tr>
@@ -4307,6 +4331,7 @@ php vupi setup --auto             # modo automático sem interação</code></pre
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
         <pre><code># Exemplos de uso
 php vupi setup --auto --db-mode=docker --server=php --jwt=if-empty
+php vupi setup --auto --server=fpm+caddy               # produção real (PHP-FPM + Caddy)
 php vupi setup --auto --server=pm2+caddy --caddy=production
 php vupi setup --auto --db-mode=skip --caddy=dev
 php vupi setup --auto --jwt=if-empty --api-token=generate</code></pre>
@@ -4374,7 +4399,7 @@ make shell-pg       # abre psql no PostgreSQL
 make shell-mysql    # abre mysql no MySQL
 
 # Projeto
-make install        # composer install
+make install        # composer install --no-dev --optimize-autoloader (produção)
 make migrate        # php vupi migrate
 make seed           # php vupi migrate --seed
 make test           # testes de segurança
@@ -4397,8 +4422,31 @@ make reset          # para containers e apaga volumes (CUIDADO: apaga dados!)</c
       <div class="code-block">
         <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
         <pre><code>php -S localhost:3005 index.php                       # desenvolvimento
+php vupi setup --auto --server=fpm+caddy           # produção: PHP-FPM + Caddy (recomendado)
 php vupi setup --auto --server=pm2+caddy           # produção: PM2 + Caddy
 php vupi setup --auto --server=pm2                 # produção: apenas PM2</code></pre>
+      </div>
+
+      <h2 id="cmd-setup-menu">Menu interativo (opções)</h2>
+      <p>O menu <code>php vupi setup</code> possui opções numeradas. As mais importantes para produção:</p>
+      <table class="docs-table">
+        <thead><tr><th>Opção</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>24</code></td><td><strong>[Recomendado produção]</strong> PHP-FPM + Caddy — substitui php -S e PM2</td></tr>
+          <tr><td><code>25</code></td><td>Recarregar PHP-FPM — aplica mudanças de código sem derrubar conexões</td></tr>
+          <tr><td><code>26</code></td><td>Recarregar Caddy — aplica mudanças no Caddyfile</td></tr>
+          <tr><td><code>27</code></td><td>Recarregar tudo (PHP-FPM + Caddy) — use após <code>git pull</code></td></tr>
+          <tr><td><code>28</code></td><td>Verificar e corrigir permissões do projeto automaticamente</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Fluxo de deploy recomendado</strong>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div><pre><code>git pull
+composer install --no-dev --optimize-autoloader
+php vupi setup  # opção 27 (recarrega PHP-FPM + Caddy)</code></pre></div>
+        </div>
       </div>
 
       <h2 id="cmd-testes">Testes</h2>
