@@ -1279,13 +1279,12 @@ class IdeProjectService
      */
     private function getModuleTables(string $moduleName, PDO $pdo): array
     {
-        // Busca tabelas diretamente do banco via tabela migrations
-        // O $pdo já vem resolvido com a conexão correta do módulo (getModuleStatus faz isso)
+        // Busca migrations executadas deste módulo — tenta por module= e por prefixo do migration
         try {
             $stmt = $pdo->prepare(
-                "SELECT migration FROM migrations WHERE module = :mod ORDER BY executed_at ASC"
+                "SELECT migration FROM migrations WHERE module = :mod OR migration LIKE :prefix ORDER BY executed_at ASC"
             );
-            $stmt->execute([':mod' => $moduleName]);
+            $stmt->execute([':mod' => $moduleName, ':prefix' => $moduleName . '/%']);
             $executedMigrations = $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
         } catch (\Throwable) {
             $executedMigrations = [];
@@ -1295,29 +1294,55 @@ class IdeProjectService
             return [];
         }
 
-        // Extrai nomes de tabelas dos arquivos de migration executados
+        // Filtra apenas migrations (não seeders)
+        $executedMigrations = array_filter($executedMigrations, fn($m) => !str_contains($m, '/seeders/'));
+
+        // Tenta extrair tabelas dos arquivos de migration no disco
         $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
         $migrDir   = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
-        if (!is_dir($migrDir)) return [];
 
         $tables = [];
-        $files  = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
 
-        foreach ($files as $file) {
-            $migName = basename($file, '.php');
-            $key     = $moduleName . '/' . $migName;
-
-            if (!in_array($key, $executedMigrations, true)) {
-                continue;
-            }
-
-            $content = (string) file_get_contents($file);
-            preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"\']?(\w+)[`"\']?/i', $content, $matches);
-            foreach ($matches[1] as $table) {
-                if (!in_array($table, $tables, true)) {
-                    $tables[] = $table;
+        if (is_dir($migrDir)) {
+            $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
+            foreach ($files as $file) {
+                $migName = basename($file, '.php');
+                $key     = $moduleName . '/' . $migName;
+                if (!in_array($key, $executedMigrations, true)) {
+                    continue;
+                }
+                $content = (string) file_get_contents($file);
+                preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"\']?(\w+)[`"\']?/i', $content, $matches);
+                foreach ($matches[1] as $table) {
+                    if (!in_array($table, $tables, true)) {
+                        $tables[] = $table;
+                    }
                 }
             }
+        }
+
+        // Fallback: se não achou tabelas nos arquivos, busca diretamente no banco
+        // pelo prefixo do módulo (tabelas que começam com o snake_case do módulo)
+        if (empty($tables)) {
+            $prefix = $this->moduleNameToPrefix($moduleName);
+            try {
+                $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+                if ($driver === 'pgsql') {
+                    $stmt = $pdo->prepare(
+                        "SELECT table_name FROM information_schema.tables
+                         WHERE table_schema = 'public' AND table_name LIKE :prefix
+                         ORDER BY table_name"
+                    );
+                } else {
+                    $stmt = $pdo->prepare(
+                        "SELECT table_name FROM information_schema.tables
+                         WHERE table_schema = DATABASE() AND table_name LIKE :prefix
+                         ORDER BY table_name"
+                    );
+                }
+                $stmt->execute([':prefix' => $prefix . '%']);
+                $tables = $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+            } catch (\Throwable) {}
         }
 
         return $tables;
@@ -1327,6 +1352,9 @@ class IdeProjectService
     {
         $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
         if (!is_dir($migrDir)) return [];
+
+        // Garante que a tabela existe — pode ser chamado antes do ensureMigrationsTable do getModuleStatus
+        $this->ensureMigrationsTable($pdo);
 
         $pending = [];
         $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
