@@ -638,11 +638,11 @@ class AuthController
     }
 
     /**
-     * Garante tempo mínimo de resposta com jitter leve para mitigar timing attacks.
-     * O jitter impede fingerprint de tempo por atacantes.
-     * Login usa base de 500ms ± 150ms; demais endpoints usam 200ms ± 50ms.
+     * Garante tempo mínimo de resposta com jitter para mitigar timing attacks.
+     * Base baixa + jitter alto = dificulta análise de tempo sem segurar worker.
+     * Login usa base de 250ms ± 150ms (range: 250–400ms).
      */
-    private function enforceMinResponseTime(float $startTime, int $minMs = 500, int $jitterMs = 150): void
+    private function enforceMinResponseTime(float $startTime, int $minMs = 250, int $jitterMs = 150): void
     {
         $elapsed   = (microtime(true) - $startTime) * 1000;
         $target    = $minMs + random_int(0, $jitterMs);

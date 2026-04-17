@@ -54,7 +54,7 @@ return function (PDO $pdo): void {
     // Usa PASSWORD_BCRYPT para compatibilidade máxima
     // O seeder cria o hash diretamente — sem passar pela validação de complexidade
     // da entidade Usuario, pois é um usuário de bootstrap do sistema
-    $hash = password_hash($senha, PASSWORD_BCRYPT, ['cost' => 12]);
+    $hash = password_hash($senha, PASSWORD_BCRYPT, ['cost' => 11]);
 
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
