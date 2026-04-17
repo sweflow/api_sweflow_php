@@ -1133,8 +1133,11 @@ class IdeProjectService
     {
         $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver === 'pgsql') {
+            // Preserva updated_at original — só atualiza max_projects.
+            // updated_at é usado como "limit_set_at" para contar projetos desde então.
+            // Resetar updated_at zeraria a contagem de projetos do usuário.
             $sql = "INSERT INTO ide_user_limits (user_id, max_projects, updated_at) VALUES (:uid, :lim, NOW())
-                    ON CONFLICT (user_id) DO UPDATE SET max_projects = :lim2, updated_at = NOW()";
+                    ON CONFLICT (user_id) DO UPDATE SET max_projects = :lim2";
             $this->pdo->prepare($sql)->execute([':uid' => $userId, ':lim' => $limit, ':lim2' => $limit]);
         } else {
             $sql = "INSERT INTO ide_user_limits (user_id, max_projects) VALUES (:uid, :lim)
