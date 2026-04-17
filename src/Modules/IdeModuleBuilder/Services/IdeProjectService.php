@@ -1003,7 +1003,19 @@ class IdeProjectService
             if (!$stmt->fetchColumn()) continue;
 
             try {
-                $callable = include $file;
+                $content = (string) file_get_contents($file);
+                $contentClean = preg_replace('/^\s*namespace\s+[^;]+;\s*/m', '', $content) ?? $content;
+                $needsRewrite = $contentClean !== $content;
+
+                if ($needsRewrite) {
+                    $tmpFile = sys_get_temp_dir() . '/vupi_down_' . md5($file) . '.php';
+                    file_put_contents($tmpFile, $contentClean);
+                    $callable = include $tmpFile;
+                    @unlink($tmpFile);
+                } else {
+                    $callable = include $file;
+                }
+
                 if (is_array($callable) && isset($callable['down']) && is_callable($callable['down'])) {
                     ($callable['down'])($activePdo);
                 }
