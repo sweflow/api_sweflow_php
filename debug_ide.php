@@ -1,8 +1,21 @@
 <?php
 require 'vendor/autoload.php';
 
-$env = parse_ini_file('.env');
-foreach ($env as $k => $v) $_ENV[$k] = $v;
+$env = parse_ini_file('.env', false, INI_SCANNER_RAW);
+if ($env === false) {
+    // fallback manual
+    foreach (file('.env') as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        $pos = strpos($line, '=');
+        if ($pos === false) continue;
+        $k = trim(substr($line, 0, $pos));
+        $v = trim(substr($line, $pos + 1), " \t\"'");
+        $_ENV[$k] = $v;
+    }
+} else {
+    foreach ($env as $k => $v) $_ENV[$k] = $v;
+}
 
 $pdo = \Src\Kernel\Database\PdoFactory::fromEnv();
 
