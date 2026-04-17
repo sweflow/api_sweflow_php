@@ -617,3 +617,86 @@
     .u-toolbar { flex-direction: column; align-items: stretch; }
     .u-search-box { flex: 1 1 100%; }
 }
+
+/* ── Limit IDE Modal — reutiliza padrão idep-modal ── */
+.idep-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; opacity: 0; pointer-events: none;
+    transition: opacity .25s; padding: 20px;
+}
+.idep-modal-overlay.show { opacity: 1; pointer-events: all; }
+
+.idep-modal {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 20px; width: 520px; max-width: 100%;
+    box-shadow: 0 32px 80px rgba(0,0,0,.2), 0 0 0 1px rgba(99,102,241,.08);
+    transform: translateY(-20px) scale(.96);
+    transition: transform .25s cubic-bezier(.22,1,.36,1);
+    overflow: hidden;
+}
+.idep-modal-overlay.show .idep-modal { transform: translateY(0) scale(1); }
+.idep-modal-sm { width: 440px; }
+
+.idep-modal-header {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 28px 28px 20px; border-bottom: 1px solid rgba(0,0,0,.06);
+    position: relative;
+}
+.idep-modal-header-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; color: #fff; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(99,102,241,.3);
+}
+.idep-modal-header-text { flex: 1; min-width: 0; }
+.idep-modal-header-text h2 {
+    margin: 0; font-size: 1.35rem; font-weight: 800; color: #1e293b;
+}
+.idep-modal-close {
+    position: absolute; top: 20px; right: 20px;
+    background: none; border: none; font-size: 1.3rem; cursor: pointer;
+    color: #94a3b8; padding: 8px 10px; border-radius: 10px;
+    transition: background .12s, color .12s; line-height: 1;
+}
+.idep-modal-close:hover { background: rgba(0,0,0,.06); color: #1e293b; }
+
+.idep-modal-body {
+    padding: 24px 28px; display: flex; flex-direction: column; gap: 20px;
+}
+.idep-modal-body p { font-size: 1.05rem; color: #1e293b; margin: 0; }
+.idep-text-muted { color: #64748b !important; font-size: .95rem !important; }
+
+.idep-form-group { display: flex; flex-direction: column; gap: 6px; }
+.idep-form-group label {
+    font-size: 1.05rem; font-weight: 700; color: #334155;
+    display: flex; align-items: center; gap: 8px;
+}
+.idep-form-group label i { font-size: 1rem; color: #6366f1; }
+
+.idep-modal-footer {
+    display: flex; justify-content: flex-end; gap: 12px;
+    padding: 20px 28px; border-top: 1px solid rgba(0,0,0,.06);
+    background: rgba(0,0,0,.02);
+}
+
+.idep-btn-primary, .idep-btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px; border-radius: 12px; font-size: 1rem;
+    font-weight: 700; cursor: pointer; border: none; transition: all .15s;
+}
+.idep-btn-primary {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    color: #fff; box-shadow: 0 4px 12px rgba(99,102,241,.3);
+}
+.idep-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,.4); }
+.idep-btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.idep-btn-secondary {
+    background: rgba(0,0,0,.05); color: #475569;
+    border: 1.5px solid rgba(0,0,0,.1);
+}
+.idep-btn-secondary:hover { background: rgba(0,0,0,.09); color: #1e293b; }

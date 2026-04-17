@@ -668,42 +668,67 @@ document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
 var limitModal = null;
 function ensureLimitModal() {
     if (limitModal) return limitModal;
+
+    // Usa classes idep-modal-overlay/idep-modal que já têm estilização completa
     var overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
+    overlay.className = 'idep-modal-overlay';
     overlay.id = 'modal-project-limit';
     overlay.setAttribute('aria-hidden', 'true');
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); } });
+    // NÃO fecha ao clicar fora — só pelos botões X e Cancelar
 
     var modal = document.createElement('div');
-    modal.className = 'u-modal';
-    modal.style.maxWidth = '420px';
+    modal.className = 'idep-modal idep-modal-sm';
 
+    // Header
     var header = document.createElement('div');
-    header.className = 'u-modal-header';
-    var title = document.createElement('h3');
+    header.className = 'idep-modal-header';
+
+    var headerIcon = document.createElement('div');
+    headerIcon.className = 'idep-modal-header-icon';
+    var headerIconI = document.createElement('i');
+    headerIconI.className = 'fa-solid fa-gauge';
+    headerIcon.appendChild(headerIconI);
+
+    var headerText = document.createElement('div');
+    headerText.className = 'idep-modal-header-text';
+    var title = document.createElement('h2');
     title.id = 'limit-modal-title';
-    title.textContent = 'Limite de Projetos IDE';
+    title.textContent = 'Limite IDE';
+    headerText.appendChild(title);
+
     var closeBtn = document.createElement('button');
-    closeBtn.className = 'u-modal-close';
+    closeBtn.className = 'idep-modal-close';
     closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Fechar');
     var closeIcon = document.createElement('i');
     closeIcon.className = 'fa-solid fa-xmark';
     closeBtn.appendChild(closeIcon);
-    closeBtn.addEventListener('click', function () { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); });
-    header.appendChild(title);
+    closeBtn.addEventListener('click', function () {
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+    });
+
+    header.appendChild(headerIcon);
+    header.appendChild(headerText);
     header.appendChild(closeBtn);
 
+    // Body
     var body = document.createElement('div');
-    body.className = 'u-modal-body';
+    body.className = 'idep-modal-body';
     body.id = 'limit-modal-body';
 
     var infoP = document.createElement('p');
     infoP.id = 'limit-modal-info';
-    infoP.style.cssText = 'font-size:.92rem;color:#64748b;margin:0 0 16px;';
+    infoP.className = 'idep-text-muted';
+
+    var formGroup = document.createElement('div');
+    formGroup.className = 'idep-form-group';
 
     var label = document.createElement('label');
-    label.style.cssText = 'display:block;font-weight:600;margin-bottom:8px;font-size:.95rem;';
-    label.textContent = 'Máximo de projetos:';
+    var labelIcon = document.createElement('i');
+    labelIcon.className = 'fa-solid fa-layer-group';
+    label.appendChild(labelIcon);
+    label.appendChild(document.createTextNode(' Máximo de projetos'));
 
     var select = document.createElement('select');
     select.id = 'limit-modal-select';
@@ -718,25 +743,35 @@ function ensureLimitModal() {
         select.appendChild(opt);
     });
 
+    formGroup.appendChild(label);
+    formGroup.appendChild(select);
     body.appendChild(infoP);
-    body.appendChild(label);
-    body.appendChild(select);
+    body.appendChild(formGroup);
 
+    // Footer
     var footer = document.createElement('div');
-    footer.className = 'u-modal-footer';
-    footer.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid rgba(0,0,0,.06);';
+    footer.className = 'idep-modal-footer';
 
     var cancelBtn = document.createElement('button');
-    cancelBtn.className = 'u-btn u-btn-secondary';
+    cancelBtn.className = 'idep-btn-secondary';
     cancelBtn.type = 'button';
-    cancelBtn.textContent = 'Cancelar';
-    cancelBtn.addEventListener('click', function () { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); });
+    var cancelIcon = document.createElement('i');
+    cancelIcon.className = 'fa-solid fa-xmark';
+    cancelBtn.appendChild(cancelIcon);
+    cancelBtn.appendChild(document.createTextNode(' Cancelar'));
+    cancelBtn.addEventListener('click', function () {
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+    });
 
     var saveBtn = document.createElement('button');
-    saveBtn.className = 'u-btn u-btn-primary';
+    saveBtn.className = 'idep-btn-primary';
     saveBtn.type = 'button';
     saveBtn.id = 'limit-modal-save';
-    saveBtn.textContent = 'Salvar';
+    var saveIcon = document.createElement('i');
+    saveIcon.className = 'fa-solid fa-check';
+    saveBtn.appendChild(saveIcon);
+    saveBtn.appendChild(document.createTextNode(' Salvar'));
 
     footer.appendChild(cancelBtn);
     footer.appendChild(saveBtn);
@@ -788,8 +823,8 @@ async function openProjectLimitModal(uuid, username) {
             });
             modal.classList.remove('show');
             modal.setAttribute('aria-hidden', 'true');
-            showLoading('Limite atualizado para @' + username);
-            setTimeout(hideLoading, 1500);
+            toast('Limite atualizado para @' + username);
+            loadUsers(currentPage);
         } catch (e) {
             infoEl.textContent = 'Erro ao salvar: ' + e.message;
         } finally {

@@ -1063,9 +1063,10 @@ class IdeProjectService
             throw new \RuntimeException("Sua conta está impedida de criar novos projetos. Entre em contato com o suporte.");
         }
 
-        // N > 0 = conta apenas projetos criados APÓS a definição do limite
-        $limitSetAt = $this->getLimitSetAt($userId);
-        $count = $this->countProjectsSince($userId, $limitSetAt);
+        // N > 0 = conta todos os projetos do usuário contra o limite
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
+        $stmt->execute([':uid' => $userId]);
+        $count = (int)$stmt->fetchColumn();
 
         if ($count >= $limit) {
             throw new \RuntimeException("Limite de projetos atingido ({$count}/{$limit}). Exclua um projeto ou solicite aumento do limite.");
@@ -1133,8 +1134,11 @@ class IdeProjectService
     {
         $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver === 'pgsql') {
+            // Preserva updated_at original — só atualiza max_projects.
+            // updated_at é usado como "limit_set_at" para contar projetos desde então.
+            // Resetar updated_at zeraria a contagem de projetos do usuário.
             $sql = "INSERT INTO ide_user_limits (user_id, max_projects, updated_at) VALUES (:uid, :lim, NOW())
-                    ON CONFLICT (user_id) DO UPDATE SET max_projects = :lim2, updated_at = NOW()";
+                    ON CONFLICT (user_id) DO UPDATE SET max_projects = :lim2";
             $this->pdo->prepare($sql)->execute([':uid' => $userId, ':lim' => $limit, ':lim2' => $limit]);
         } else {
             $sql = "INSERT INTO ide_user_limits (user_id, max_projects) VALUES (:uid, :lim)
@@ -1156,21 +1160,19 @@ class IdeProjectService
      */
     public function getUserProjectStats(string $userId): array
     {
-        $stmtAll = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
-        $stmtAll->execute([':uid' => $userId]);
-        $totalCount = (int)$stmtAll->fetchColumn();
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
+        $stmt->execute([':uid' => $userId]);
+        $totalCount = (int)$stmt->fetchColumn();
 
         $limit = $this->getEffectiveLimit($userId);
-        $limitSetAt = $this->getLimitSetAt($userId);
-        $countSince = $this->countProjectsSince($userId, $limitSetAt);
 
         return [
-            'count'      => $totalCount,
-            'count_since' => $countSince,
-            'limit'      => $limit,
-            'unlimited'  => $limit < 0,
-            'blocked'    => $limit === 0,
-            'remaining'  => $limit <= 0 ? null : max(0, $limit - $countSince),
+            'count'       => $totalCount,
+            'count_since' => $totalCount,
+            'limit'       => $limit,
+            'unlimited'   => $limit < 0,
+            'blocked'     => $limit === 0,
+            'remaining'   => $limit <= 0 ? null : max(0, $limit - $totalCount),
         ];
     }
 
