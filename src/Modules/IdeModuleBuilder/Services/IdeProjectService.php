@@ -403,6 +403,9 @@ class IdeProjectService
             $copied[] = $safe;
         }
 
+        // Recarrega PHP-FPM para que todos os workers reconheçam os arquivos atualizados
+        $this->reloadPhpFpm();
+
         return [
             'deployed'     => true,
             'target'       => 'local',

@@ -247,9 +247,33 @@ final class ModuleAnalyzer
                 );
             }
         }
-    }
+        // Verifica classes referenciadas nas rotas sem namespace completo
+        // Ex: [AccountAuthMiddleware::class] sem 'use' → NotFoundException em runtime
+        preg_match_all('/use\s+([\w\\\\]+)\s*;/', $content, $useMatches);
+        $importedClasses = [];
+        foreach ($useMatches[1] as $fqcn) {
+            $short = basename(str_replace('\\', '/', $fqcn));
+            $importedClasses[$short] = $fqcn;
+        }
 
-    // ── Verificação de migration ──────────────────────────────────────────
+        // Extrai todas as classes usadas como ::class nas rotas
+        preg_match_all('/\b([A-Z][A-Za-z0-9]+)::class\b/', $content, $classMatches);
+        foreach ($classMatches[1] as $className) {
+            // Ignora classes do kernel que são sempre disponíveis
+            $kernelClasses = ['AuthHybridMiddleware', 'AdminOnlyMiddleware', 'RateLimitMiddleware',
+                              'CircuitBreakerMiddleware', 'ApiTokenMiddleware', 'AuthCookieMiddleware'];
+            if (in_array($className, $kernelClasses, true)) continue;
+
+            // Verifica se tem import (use) correspondente
+            if (!isset($importedClasses[$className])) {
+                $line = $this->findLineOf($content, $className . '::class');
+                $this->addIssue($path, $line, 'error', 'MISSING_USE_STATEMENT',
+                    "Classe '{$className}' usada sem declaração 'use' — causará erro em runtime.",
+                    "Adicione no topo do arquivo: use Src\\Modules\\{$this->moduleName}\\...\\{$className};"
+                );
+            }
+        }
+    }
 
     private function checkMigrationFile(string $path, string $content): void
     {
