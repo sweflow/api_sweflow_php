@@ -44,14 +44,25 @@ class SystemModulesController
 
         // Marca status de instalação
         $installed = $this->pluginManager->read();
+        $modulesRoot = dirname(__DIR__, 3) . '/src/Modules';
         foreach ($merged as &$pkg) {
             // Remove qualquer prefixo vendor/module- para obter o nome curto
             $shortName = preg_replace('/^[^\/]+\/(?:module-)?/', '', $pkg['name']);
-            $pkg['installed'] = isset($installed[$shortName])
+
+            // 1. Verifica no registry (instalado via marketplace)
+            $inRegistry = isset($installed[$shortName])
                 || isset($installed[strtolower($shortName)])
                 || isset($installed[ucfirst($shortName)]);
+
+            // 2. Verifica se o diretório existe em src/Modules/ (instalado manualmente ou via CLI)
+            $inModulesDir = is_dir($modulesRoot . '/' . ucfirst($shortName))
+                || is_dir($modulesRoot . '/' . $shortName)
+                || is_dir($modulesRoot . '/' . strtolower($shortName));
+
+            $pkg['installed'] = $inRegistry || $inModulesDir;
+
             $key = $installed[$shortName] ?? $installed[strtolower($shortName)] ?? $installed[ucfirst($shortName)] ?? null;
-            $pkg['enabled'] = $pkg['installed'] ? ($key['enabled'] ?? false) : false;
+            $pkg['enabled'] = $pkg['installed'] ? ($key['enabled'] ?? true) : false;
         }
         unset($pkg);
 
