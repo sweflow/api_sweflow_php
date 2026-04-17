@@ -434,8 +434,34 @@ class ModuleLoader
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
 
-            $container = $this->resolveContainerForProvider($provider);
+            // Determina a conexão do provider
+            $pref = $this->getProviderConnection($provider);
+            if ($pref === 'auto') {
+                $default = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+                $pref = in_array($default, ['core', 'modules'], true) ? $default : 'core';
+            }
 
+            // Para módulos com connection=modules, usa proxy que:
+            // - redireciona PDO::class para pdo.modules
+            // - propaga bind() para o container principal (bindings ficam globais)
+            if ($pref === 'modules') {
+                try {
+                    $modulesPdo = $this->container->make('pdo.modules');
+                    $corePdo    = $this->container->make(\PDO::class);
+                    if ($modulesPdo !== $corePdo) {
+                        $container = new ModuleContainerProxy($this->container, $modulesPdo);
+                        if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
+                            $provider->boot($container);
+                        } else {
+                            ModuleGuard::safeBoot(fn() => $provider->boot($container), $name);
+                        }
+                        continue;
+                    }
+                } catch (\Throwable) {}
+            }
+
+            // Módulos core — usa container normal
+            $container = $this->container;
             if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
                 $provider->boot($container);
             } else {
