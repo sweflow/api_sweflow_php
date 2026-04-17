@@ -23,14 +23,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: List JS/TS files (debug)
-        run: find . -type f \( -name "*.js" -o -name "*.ts" \) | grep -v node_modules | head -n 30
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           build-mode: none
+          # Exclui scripts Python utilitários — não fazem parte da aplicação
+          config: |
+            paths-ignore:
+              - scripts/**/*.py
+              - tests/**/*.py
+              - website/**
+              - frontend_test/**
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
