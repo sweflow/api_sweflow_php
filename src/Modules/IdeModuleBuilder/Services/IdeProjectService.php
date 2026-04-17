@@ -520,7 +520,7 @@ class IdeProjectService
         $ran = [];
         $errors = [];
 
-        $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        $migrDir = $this->resolveMigrDir($moduleDir);
         if (!is_dir($migrDir)) {
             return ['ran' => [], 'message' => 'Nenhuma migration encontrada no módulo.'];
         }
@@ -704,7 +704,7 @@ class IdeProjectService
         try {
             // Busca nas migrations do módulo se alguma cria esta tabela
             $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
-            $migrDir   = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+            $migrDir   = $this->resolveMigrDir($moduleDir);
             if (!is_dir($migrDir)) return false;
 
             $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
@@ -735,7 +735,7 @@ class IdeProjectService
             return ['valid' => false, 'error' => 'Módulo não publicado.', 'violations' => []];
         }
 
-        $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        $migrDir = $this->resolveMigrDir($moduleDir);
         if (!is_dir($migrDir)) {
             return ['valid' => true, 'pending' => [], 'violations' => []];
         }
@@ -801,7 +801,7 @@ class IdeProjectService
             return ['error' => 'Módulo não publicado. Faça o deploy local primeiro.'];
         }
 
-        $seedDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+        $seedDir = $this->resolveSeedDir($moduleDir);
         if (!is_dir($seedDir)) {
             return ['ran' => [], 'message' => 'Nenhum seeder encontrado no módulo.'];
         }
@@ -957,7 +957,7 @@ class IdeProjectService
         $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
         $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
 
-        $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        $migrDir = $this->resolveMigrDir($moduleDir);
         if (!is_dir($migrDir)) {
             return ['dropped' => [], 'message' => 'Nenhuma migration encontrada.'];
         }
@@ -1299,7 +1299,7 @@ class IdeProjectService
 
         // Tenta extrair tabelas dos arquivos de migration no disco
         $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
-        $migrDir   = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        $migrDir   = $this->resolveMigrDir($moduleDir);
 
         $tables = [];
 
@@ -1350,7 +1350,7 @@ class IdeProjectService
 
     private function getPendingMigrations(string $moduleName, string $moduleDir, PDO $pdo): array
     {
-        $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        $migrDir = $this->resolveMigrDir($moduleDir);
         if (!is_dir($migrDir)) return [];
 
         // Garante que a tabela existe — pode ser chamado antes do ensureMigrationsTable do getModuleStatus
@@ -1379,7 +1379,7 @@ class IdeProjectService
 
     private function getPendingSeeders(string $moduleName, string $moduleDir, PDO $pdo): array
     {
-        $seedDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+        $seedDir = $this->resolveSeedDir($moduleDir);
         if (!is_dir($seedDir)) return [];
 
         $pending = [];
@@ -1405,7 +1405,7 @@ class IdeProjectService
 
     private function getRanSeeders(string $moduleName, string $moduleDir, PDO $pdo): array
     {
-        $seedDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+        $seedDir = $this->resolveSeedDir($moduleDir);
         if (!is_dir($seedDir)) return [];
 
         $ran   = [];
@@ -2000,6 +2000,26 @@ class IdeProjectService
     private function camel(string $name): string
     {
         return lcfirst($name);
+    }
+
+    /**
+     * Resolve o diretório de migrations aceitando tanto 'Migrations' quanto 'migrations' (case-insensitive no Linux).
+     */
+    private function resolveMigrDir(string $moduleDir): string
+    {
+        $upper = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        $lower = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'migrations';
+        return is_dir($upper) ? $upper : $lower;
+    }
+
+    /**
+     * Resolve o diretório de seeders aceitando tanto 'Seeders' quanto 'seeders'.
+     */
+    private function resolveSeedDir(string $moduleDir): string
+    {
+        $upper = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+        $lower = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'seeders';
+        return is_dir($upper) ? $upper : $lower;
     }
 
     private function sanitizePath(string $path): string
