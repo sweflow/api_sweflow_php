@@ -310,7 +310,14 @@ class ModuleLoader
 
     public function setEnabled(string $module, bool $enabled): void
     {
+        // Permite registrar estado de módulos recém-criados que ainda não foram descobertos
+        // (ex: createProject chama setEnabled antes do próximo boot/discover)
         if (!isset($this->providers[$module]) && !array_key_exists($module, $this->enabled)) {
+            if (!$enabled) {
+                // Só persiste se for false — false de um módulo novo precisa ser salvo
+                $this->enabled[$module] = false;
+                $this->persistState();
+            }
             return;
         }
         if ($this->isProtected($module) && $enabled === false) {
