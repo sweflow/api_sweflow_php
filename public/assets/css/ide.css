@@ -722,11 +722,13 @@ body.ide-body .ide-folder-item i {
 
 .dep-pending {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 7px;
     font-size: .88rem;
     color: var(--ide-warning);
     padding: 4px 0;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .dep-cors-info {
@@ -848,6 +850,10 @@ body.ide-body .ide-folder-item i {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .ide-modal-body label {
