@@ -234,9 +234,7 @@ class ModuleLoader
         }
 
         // Detecção automática por convenção de nome — sem composer.json obrigatório.
-        // Procura por Providers/{Module}ServiceProvider ou Providers/{Module}Provider
-        // NUNCA usa class_exists com autoload — pode causar fatal error se interface incompleta.
-        // Verifica o arquivo fisicamente e só carrega se seguro.
+        // Usa PartialProviderAdapter para suportar providers com interface incompleta.
         $conventionProviders = [
             'Src\\Modules\\' . $module . '\\Providers\\' . $module . 'ServiceProvider',
             'Src\\Modules\\' . $module . '\\Providers\\' . $module . 'Provider',
@@ -249,47 +247,76 @@ class ModuleLoader
                 continue;
             }
 
+            // Verifica se a classe tem interface incompleta ANTES de carregar
+            // para evitar fatal error do PHP
             $fileContent = (string) file_get_contents($providerFile);
-
-            // Se implementa ModuleProviderInterface, verifica se tem TODOS os métodos
-            // antes de tentar carregar — evita fatal error de interface incompleta
+            $hasIncompleteInterface = false;
             if (str_contains($fileContent, 'ModuleProviderInterface')) {
                 $required = ['registerRoutes', 'boot', 'describe', 'getName', 'setName',
                              'onInstall', 'onEnable', 'onDisable', 'onUninstall'];
                 foreach ($required as $method) {
                     if (!preg_match('/function\s+' . $method . '\s*\(/', $fileContent)) {
-                        // Interface incompleta — usa SimpleModuleProvider sem delegate
-                        // O boot() do SimpleModuleProvider ainda rebinda PDO::class se necessário
-                        break 2;
+                        $hasIncompleteInterface = true;
+                        break;
                     }
                 }
             }
 
-            // Só usa class_exists SEM autoload (false) — não dispara o autoloader
-            // Se a classe não está carregada ainda, pula (será carregada pelo autoloader
-            // quando o router precisar instanciar o controller)
-            if (!class_exists($providerClass, false)) {
-                // Tenta carregar via autoloader apenas se o arquivo não implementa
-                // ModuleProviderInterface com interface incompleta (já verificado acima)
+            // Se interface incompleta, não tenta carregar via autoloader
+            // (causaria fatal error) — usa PartialProviderAdapter via eval seguro
+            if ($hasIncompleteInterface) {
+                // Cria uma versão sem a declaração de interface para instanciar
+                $safeContent = preg_replace(
+                    '/\bimplements\s+[\\\\A-Za-z0-9,\s]+(?=\s*\{)/',
+                    '',
+                    $fileContent
+                ) ?? $fileContent;
+                // Usa arquivo temporário sem a interface para instanciar
+                $tmpFile = sys_get_temp_dir() . '/vupi_provider_' . md5($providerFile) . '.php';
+                // Muda o namespace para evitar conflito com a classe original
+                $tmpContent = str_replace(
+                    'class ' . basename(str_replace('\\', '/', $providerClass)),
+                    'class VupiTmp_' . $module . '_Provider',
+                    $safeContent
+                );
+                file_put_contents($tmpFile, $tmpContent);
                 try {
-                    spl_autoload_call($providerClass);
-                } catch (\Throwable) {
-                    continue;
+                    require_once $tmpFile;
+                    $tmpClass = 'VupiTmp_' . $module . '_Provider';
+                    // Extrai o namespace do arquivo original
+                    if (preg_match('/^namespace\s+([^;]+);/m', $fileContent, $nsMatch)) {
+                        $tmpClass = $nsMatch[1] . '\\VupiTmp_' . $module . '_Provider';
+                    }
+                    if (class_exists($tmpClass, false)) {
+                        $delegate = new $tmpClass();
+                        $adapter  = new PartialProviderAdapter($module, $moduleDir, $delegate);
+                        $this->providers[$module] = $adapter;
+                        $this->setEnabledIfNotExist($module);
+                        @unlink($tmpFile);
+                        return;
+                    }
+                } catch (\Throwable $e) {
+                    error_log("[ModuleLoader] PartialProviderAdapter falhou para {$module}: " . $e->getMessage());
                 }
-                if (!class_exists($providerClass, false)) {
-                    continue;
-                }
+                @unlink($tmpFile);
+                continue;
             }
 
+            // Interface completa — carrega normalmente
+            if (!class_exists($providerClass, true)) {
+                continue;
+            }
             try {
-                $ref = new \ReflectionClass($providerClass);
-                if (!$ref->isInstantiable()) continue;
-
-                $userProvider = $this->container->make($providerClass);
-                $wrapper = new SimpleModuleProvider($module, $moduleDir);
-                $wrapper->setDelegateBootProvider($userProvider);
-
-                $this->providers[$module] = $wrapper;
+                $provider = $this->container->make($providerClass);
+                if ($provider instanceof ModuleProviderInterface) {
+                    $name = $provider->getName() ?: $module;
+                    $this->providers[$name] = $provider;
+                    $this->setEnabledIfNotExist($name);
+                    return;
+                }
+                // Não implementa a interface — usa adapter
+                $adapter = new PartialProviderAdapter($module, $moduleDir, $provider);
+                $this->providers[$module] = $adapter;
                 $this->setEnabledIfNotExist($module);
                 return;
             } catch (\Throwable $e) {
@@ -407,16 +434,7 @@ class ModuleLoader
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
 
-            $pref = $this->getProviderConnection($provider);
-            if ($pref === 'auto') {
-                $default = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
-                $pref = in_array($default, ['core', 'modules'], true) ? $default : 'core';
-            }
-
-            // Para módulos com connection=modules, passa o container principal
-            // e deixa o boot() rebindar PDO::class nele diretamente.
-            // Para módulos core, passa container derivado (isolamento).
-            $container = ($pref === 'modules') ? $this->container : $this->resolveContainerForProvider($provider);
+            $container = $this->resolveContainerForProvider($provider);
 
             if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
                 $provider->boot($container);
