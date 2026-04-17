@@ -40,9 +40,10 @@ final class PartialProviderAdapter implements ModuleProviderInterface
 
     public function registerRoutes(RouterInterface $router): void
     {
-        if (method_exists($this->delegate, 'registerRoutes')) {
-            $this->delegate->registerRoutes($router);
-        }
+        // Usa SimpleModuleProvider para registrar rotas — ele conhece o path correto do módulo
+        // O delegate (arquivo temporário) tem __DIR__ errado e não pode resolver paths relativos
+        $simple = new SimpleModuleProvider($this->name, $this->path);
+        $simple->registerRoutes($router);
     }
 
     public function describe(): array
