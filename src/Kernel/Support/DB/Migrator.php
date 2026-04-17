@@ -130,8 +130,16 @@ class Migrator
         $result  = ['core' => [], 'modules' => []];
 
         foreach ($modules as $module) {
-            $conn = $this->resolveConnection($module);
-            $dir  = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+            try {
+                $conn = $this->resolveConnection($module);
+            } catch (\Throwable) {
+                continue; // módulo com connection.php inválido — ignora silenciosamente
+            }
+
+            // Aceita tanto Migrations quanto migrations (case-insensitive no Linux)
+            $dirUpper = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+            $dirLower = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'migrations';
+            $dir = is_dir($dirUpper) ? $dirUpper : $dirLower;
             if (!is_dir($dir)) continue;
 
             $pdo   = $this->pdoForConnection($conn);
@@ -178,10 +186,17 @@ class Migrator
     private function runMigrations(array $modules, ?string $filter = null): void
     {
         foreach ($modules as $module) {
-            $dir = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+            $dirUpper = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+            $dirLower = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'migrations';
+            $dir = is_dir($dirUpper) ? $dirUpper : $dirLower;
             if (!is_dir($dir)) continue;
 
-            $conn = $this->resolveConnection($module);
+            try {
+                $conn = $this->resolveConnection($module);
+            } catch (\Throwable $e) {
+                echo "  ⚠ Módulo " . basename($module) . ": " . $e->getMessage() . "\n";
+                continue;
+            }
             $pdo  = $this->pdoForConnection($conn);
             $name = basename($module);
 
@@ -257,10 +272,17 @@ class Migrator
     private function runSeeders(array $modules, ?string $filter = null): void
     {
         foreach ($modules as $module) {
-            $dir = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+            $dirUpper = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+            $dirLower = $module . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'seeders';
+            $dir = is_dir($dirUpper) ? $dirUpper : $dirLower;
             if (!is_dir($dir)) continue;
 
-            $conn = $this->resolveConnection($module);
+            try {
+                $conn = $this->resolveConnection($module);
+            } catch (\Throwable $e) {
+                echo "  ⚠ Módulo " . basename($module) . ": " . $e->getMessage() . "\n";
+                continue;
+            }
             $pdo  = $this->pdoForConnection($conn);
             $name = basename($module);
 

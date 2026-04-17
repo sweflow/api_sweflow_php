@@ -548,7 +548,13 @@ class IdeProjectService
 
             // ── Validação server-side: tabelas devem ter prefixo do módulo ──────
             $migContent = (string) file_get_contents($file);
-            $validation = $this->validateMigrationTablesDetailed($moduleName, $migContent, $migName, $activePdo);
+
+            // Remove namespace do arquivo de migration — migrations não devem ter namespace
+            // pois isso quebra a resolução de PDO e outras classes globais
+            $migContentClean = preg_replace('/^\s*namespace\s+[^;]+;\s*/m', '', $migContent) ?? $migContent;
+            $needsRewrite = $migContentClean !== $migContent;
+
+            $validation = $this->validateMigrationTablesDetailed($moduleName, $migContentClean, $migName, $activePdo);
             if (!$validation['valid']) {
                 foreach ($validation['violations'] as $v) {
                     $errors[] = "[{$v['op']} {$v['table']}] {$v['message']}";
@@ -556,7 +562,15 @@ class IdeProjectService
                 continue; // bloqueia execução desta migration
             }
             try {
-                $callable = include $file;
+                // Se o arquivo tinha namespace, executa via arquivo temporário sem namespace
+                if ($needsRewrite) {
+                    $tmpFile = sys_get_temp_dir() . '/vupi_migr_' . md5($file) . '.php';
+                    file_put_contents($tmpFile, $migContentClean);
+                    $callable = include $tmpFile;
+                    @unlink($tmpFile);
+                } else {
+                    $callable = include $file;
+                }
                 if (is_array($callable) && isset($callable['up']) && is_callable($callable['up'])) {
                     ($callable['up'])($activePdo);
                 } elseif (is_callable($callable)) {
@@ -827,7 +841,10 @@ class IdeProjectService
 
             // ── Validação server-side: seeders só podem acessar tabelas do módulo ──
             $seedContent = (string) file_get_contents($file);
-            $validation  = $this->validateMigrationTablesDetailed($moduleName, $seedContent, $seedName, $activePdo);
+            $seedContentClean = preg_replace('/^\s*namespace\s+[^;]+;\s*/m', '', $seedContent) ?? $seedContent;
+            $needsRewrite = $seedContentClean !== $seedContent;
+
+            $validation  = $this->validateMigrationTablesDetailed($moduleName, $seedContentClean, $seedName, $activePdo);
             if (!$validation['valid']) {
                 foreach ($validation['violations'] as $v) {
                     $errors[] = "[Seeder {$seedName}] {$v['message']}";
@@ -836,7 +853,14 @@ class IdeProjectService
             }
 
             try {
-                $callable = include $file;
+                if ($needsRewrite) {
+                    $tmpFile = sys_get_temp_dir() . '/vupi_seed_' . md5($file) . '.php';
+                    file_put_contents($tmpFile, $seedContentClean);
+                    $callable = include $tmpFile;
+                    @unlink($tmpFile);
+                } else {
+                    $callable = include $file;
+                }
                 if (!is_callable($callable)) continue;
                 $callable($activePdo);
 
@@ -1442,9 +1466,16 @@ class IdeProjectService
      */
     private function resolveActivePdo(string $conn, PDO $pdo, ?PDO $pdoModules): PDO
     {
-        // Verifica se DEFAULT_MODULE_CONNECTION aponta para modules
-        $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
-        $useModules  = ($conn === 'modules') || ($defaultConn === 'modules');
+        // O connection.php do módulo tem prioridade absoluta.
+        // DEFAULT_MODULE_CONNECTION só se aplica quando conn = 'auto' ou quando
+        // o módulo não tem connection.php (conn vem como 'core' por padrão).
+        $useModules = ($conn === 'modules');
+
+        // 'auto' → respeita DEFAULT_MODULE_CONNECTION
+        if ($conn === 'auto') {
+            $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+            $useModules  = ($defaultConn === 'modules');
+        }
 
         if (!$useModules) {
             return $pdo;
