@@ -22,6 +22,9 @@
     <meta name="twitter:description" content="<?= htmlspecialchars($descricao ?? 'API modular com detecção automática de módulos e rotas.', ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <?php if (!empty($logo_url)): ?>
+    <link rel="preload" href="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" as="image" fetchpriority="high">
+    <?php endif; ?>
 </head>
 <body class="home-body">
 
@@ -32,9 +35,9 @@
             <!-- Brand -->
             <a href="/" class="home-nav-brand" aria-label="Vupi.us API — início">
                 <?php if (!empty($logo_url)): ?>
-                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-nav-logo-img" />
+                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-nav-logo-img" fetchpriority="high" width="28" height="28" />
                 <?php else: ?>
-                    <img src="/favicon.ico" alt="Vupi.us API" class="home-nav-logo-img" />
+                    <img src="/favicon.ico" alt="Vupi.us API" class="home-nav-logo-img" width="28" height="28" />
                 <?php endif; ?>
                 <span class="home-nav-name">Vupi.us <span class="home-nav-name-accent">API</span></span>
             </a>
@@ -112,7 +115,7 @@
             </div>
             <h1 class="home-hero-title">
                 <?php if (!empty($logo_url)): ?>
-                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-hero-logo" />
+                    <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-hero-logo" fetchpriority="high" />
                 <?php endif; ?>
                 Vupi.us API
             </h1>

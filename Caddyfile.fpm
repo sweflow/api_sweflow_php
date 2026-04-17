@@ -75,6 +75,7 @@ api.vupi.us {
     }
     handle @static {
         header Cache-Control "public, max-age=31536000, immutable"
+        header Vary "Accept-Encoding"
         file_server
     }
 
