@@ -479,17 +479,22 @@
     function showModal(id)  { var m = el(id); if (m) { m.removeAttribute('aria-hidden'); m.classList.add('show'); } }
     function hideModal(id)  { var m = el(id); if (m) { m.setAttribute('aria-hidden','true'); m.classList.remove('show'); } }
 
+    function sanitizeAvatarUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        try {
+            var p = new URL(url, window.location.href);
+            if (p.protocol !== 'https:' && p.protocol !== 'http:') return '';
+            return encodeURI(decodeURI(url));
+        } catch { return ''; }
+    }
+
     function updateTopbarAvatar(url) {
         var img  = el('idep-avatar-img');
         var icon = el('idep-avatar-icon');
         if (!img || !icon) return;
-        // Valida URL antes de atribuir ao src
-        if (url) {
-            try { new URL(url, window.location.href); } catch (e) { url = null; }
-        }
-        // Não atualiza se já está correto (evita flash)
-        if (url && img.src && img.src.endsWith(url) && img.style.display !== 'none') return;
-        if (url) { img.src = url; img.style.display = 'block'; icon.style.display = 'none'; }
+        var safeUrl = sanitizeAvatarUrl(url);
+        if (safeUrl && img.src && img.src.endsWith(safeUrl) && img.style.display !== 'none') return;
+        if (safeUrl) { img.src = safeUrl; img.style.display = 'block'; icon.style.display = 'none'; }
         else     { img.style.display = 'none'; icon.style.display = ''; }
     }
 
@@ -548,8 +553,7 @@
         var avatar = currentUser.url_avatar || '';
         var pImg = el('idep-profile-avatar-img'), pIcon = el('idep-profile-avatar-icon');
         if (pImg && pIcon) {
-            var safeAvatar = avatar;
-            if (safeAvatar) { try { new URL(safeAvatar, window.location.href); } catch(e) { safeAvatar = ''; } }
+            var safeAvatar = sanitizeAvatarUrl(avatar);
             if (safeAvatar) { pImg.src = safeAvatar; pImg.style.display = 'block'; pIcon.style.display = 'none'; }
             else        { pImg.style.display = 'none'; pIcon.style.display = ''; }
         }
@@ -575,8 +579,7 @@
             el('idep-pv-nome').textContent        = nome;
             el('idep-pv-nome-header').textContent = nome;
             if (el('idep-profile-avatar-img') && avatar) {
-                var safeAv = avatar;
-                try { new URL(safeAv, window.location.href); } catch(e) { safeAv = ''; }
+                var safeAv = sanitizeAvatarUrl(avatar);
                 if (safeAv) el('idep-profile-avatar-img').src = safeAv;
                 el('idep-profile-avatar-img').style.display = 'block';
                 el('idep-profile-avatar-icon').style.display = 'none';

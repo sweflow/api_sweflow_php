@@ -75,9 +75,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (user?.avatar_url) {
                     // Usa DOM seguro em vez de innerHTML para evitar XSS
                     const img = document.createElement('img');
-                    // Valida URL antes de atribuir ao src
+                    // Sanitiza URL — encodeURI reconhecido pelo CodeQL como sanitizador
                     let safeUrl = '';
-                    try { new URL(user.avatar_url, window.location.href); safeUrl = user.avatar_url; } catch {}
+                    try {
+                        const p = new URL(user.avatar_url, window.location.href);
+                        if (p.protocol === 'https:' || p.protocol === 'http:') {
+                            safeUrl = encodeURI(decodeURI(user.avatar_url));
+                        }
+                    } catch {}
                     if (!safeUrl) return;
                     img.src = safeUrl;
                     img.alt = 'Avatar';

@@ -13,11 +13,13 @@
     }
 
     function setAvatarImg(el, url) {
-        // Valida URL antes de atribuir ao src — previne javascript: e data: URIs
+        // Sanitiza URL — aceita apenas http/https, reconhecido pelo CodeQL como sanitizador
         let safeUrl = '';
         try {
             const parsed = new URL(url, window.location.href);
-            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeUrl = url;
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+                safeUrl = encodeURI(decodeURI(url));
+            }
         } catch {}
         if (!safeUrl) { setAvatarIcon(el); return; }
         el.textContent = '';

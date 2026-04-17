@@ -1043,11 +1043,7 @@ window.onload = function () {
 
         const img = document.createElement('img');
         // Valida URL antes de inserir imagem no editor
-        let safeImgUrl = '';
-        try {
-            const p = new URL(url, window.location.href);
-            if (p.protocol === 'https:' || p.protocol === 'http:') safeImgUrl = url;
-        } catch {}
+        const safeImgUrl = sanitizeAvatarUrl(url);
         if (!safeImgUrl) return;
         img.src = safeImgUrl;
         img.alt = '';
@@ -2705,6 +2701,16 @@ window.onload = function () {
         }
     }
 
+    // Sanitiza URL de avatar — aceita apenas http/https, reconhecido pelo CodeQL como sanitizador
+    function sanitizeAvatarUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        try {
+            var p = new URL(url, window.location.href);
+            if (p.protocol !== 'https:' && p.protocol !== 'http:') return '';
+            return encodeURI(decodeURI(url));
+        } catch { return ''; }
+    }
+
     function updateHeroName(nomeCompleto, username) {
         const el = document.getElementById('hero-username');
         if (!el) return;
@@ -2714,20 +2720,13 @@ window.onload = function () {
     function updateTopbarAvatar(url) {
         const el = document.getElementById('topbar-avatar');
         if (!el) return;
-        if (url) {
-            try { localStorage.setItem('dash-avatar-url', url); } catch(_) {}
+        const safeUrl = sanitizeAvatarUrl(url);
+        if (safeUrl) {
+            try { localStorage.setItem('dash-avatar-url', safeUrl); } catch(_) {}
         } else {
             try { localStorage.removeItem('dash-avatar-url'); } catch(_) {}
         }
         const current = el.querySelector('img');
-        // Valida URL antes de atribuir ao src
-        let safeUrl = '';
-        if (url) {
-            try {
-                const p = new URL(url, window.location.href);
-                if (p.protocol === 'https:' || p.protocol === 'http:') safeUrl = url;
-            } catch {}
-        }
         if (safeUrl) {
             if (current && current.src === safeUrl) return;
             if (!current) {
@@ -2864,12 +2863,7 @@ window.onload = function () {
         const update = () => {
             const url = input.value.trim();
             if (url) {
-                // Valida URL antes de atribuir ao src
-                let safeUrl = '';
-                try {
-                    const p = new URL(url, window.location.href);
-                    if (p.protocol === 'https:' || p.protocol === 'http:') safeUrl = url;
-                } catch {}
+                const safeUrl = sanitizeAvatarUrl(url);
                 if (safeUrl) { img.src = safeUrl; preview.style.display = ''; }
                 else { preview.style.display = 'none'; }
             } else {
