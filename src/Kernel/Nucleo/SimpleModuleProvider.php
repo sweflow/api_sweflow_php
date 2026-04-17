@@ -82,42 +82,10 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function boot(ContainerInterface $container): void
     {
-        // Tenta carregar um ServiceProvider do módulo automaticamente
-        // Convenção: Providers/{ModuleName}ServiceProvider.php ou Providers/{ModuleName}Provider.php
-        $this->bootServiceProvider($container);
-    }
-
-    private function bootServiceProvider(ContainerInterface $container): void
-    {
-        $ns   = 'Src\\Modules\\' . $this->name . '\\Providers\\';
-        $candidates = [
-            $this->path . '/Providers/' . $this->name . 'ServiceProvider.php',
-            $this->path . '/Providers/' . $this->name . 'Provider.php',
-        ];
-
-        foreach ($candidates as $file) {
-            if (!is_file($file)) continue;
-            // Inclui o arquivo para garantir que a classe está carregada
-            require_once $file;
-
-            // Tenta as duas convenções de nome de classe
-            $classes = [
-                $ns . $this->name . 'ServiceProvider',
-                $ns . $this->name . 'Provider',
-            ];
-            foreach ($classes as $class) {
-                if (!class_exists($class)) continue;
-                try {
-                    $provider = new $class();
-                    if (method_exists($provider, 'boot')) {
-                        $provider->boot($container);
-                    }
-                } catch (\Throwable $e) {
-                    error_log("[SimpleModuleProvider] Erro ao bootar {$class}: " . $e->getMessage());
-                }
-                return; // só executa o primeiro encontrado
-            }
-        }
+        // Zero config: bindings são automáticos pelo container.
+        // ServiceProviders com ModuleProviderInterface são carregados pelo ModuleLoader
+        // via composer.json extra.vupi.us.providers — não instanciar aqui para evitar
+        // fatal errors de classes com interface incompleta.
     }
 
     public function registerRoutes(RouterInterface $router): void
