@@ -19,6 +19,8 @@ class SimpleModuleProvider implements ModuleProviderInterface
     private ?array $describeCache = null;
     /** Módulos externos (vendor, storage/modules) passam pelo filtro de URI */
     private bool $isExternal = false;
+    /** Provider delegado para boot() — ex: AccountsServiceProvider do usuário */
+    private ?object $delegateBootProvider = null;
 
     public function __construct(string $name, string $path)
     {
@@ -85,19 +87,32 @@ class SimpleModuleProvider implements ModuleProviderInterface
         // Se o módulo usa DB2 (connection.php = 'modules'), rebinda PDO::class
         // para que repositórios instanciados pelo container usem a conexão correta.
         $conn = $this->preferredConnection();
-        if ($conn !== 'modules') {
-            return;
+        if ($conn === 'modules') {
+            try {
+                $modulesPdo = $container->make('pdo.modules');
+                $corePdo    = null;
+                try { $corePdo = $container->make(\PDO::class); } catch (\Throwable) {}
+                if ($modulesPdo !== $corePdo) {
+                    $container->bind(\PDO::class, static fn() => $modulesPdo, true);
+                }
+            } catch (\Throwable) {}
         }
-        try {
-            $modulesPdo = $container->make('pdo.modules');
-            $corePdo    = null;
-            try { $corePdo = $container->make(\PDO::class); } catch (\Throwable) {}
-            if ($modulesPdo !== $corePdo) {
-                $container->bind(\PDO::class, static fn() => $modulesPdo, true);
+
+        // Executa o boot do provider delegado (ex: AccountsServiceProvider)
+        if ($this->delegateBootProvider !== null) {
+            try {
+                if (method_exists($this->delegateBootProvider, 'boot')) {
+                    $this->delegateBootProvider->boot($container);
+                }
+            } catch (\Throwable $e) {
+                error_log("[SimpleModuleProvider] Erro no boot delegado de {$this->name}: " . $e->getMessage());
             }
-        } catch (\Throwable) {
-            // pdo.modules não disponível — mantém core
         }
+    }
+
+    public function setDelegateBootProvider(object $provider): void
+    {
+        $this->delegateBootProvider = $provider;
     }
 
     public function registerRoutes(RouterInterface $router): void
