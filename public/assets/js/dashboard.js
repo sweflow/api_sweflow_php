@@ -1042,7 +1042,14 @@ window.onload = function () {
         }
 
         const img = document.createElement('img');
-        img.src = url;
+        // Valida URL antes de inserir imagem no editor
+        let safeImgUrl = '';
+        try {
+            const p = new URL(url, window.location.href);
+            if (p.protocol === 'https:' || p.protocol === 'http:') safeImgUrl = url;
+        } catch {}
+        if (!safeImgUrl) return;
+        img.src = safeImgUrl;
         img.alt = '';
         img.style.maxWidth = '100%';
         img.style.height = 'auto';
@@ -2713,12 +2720,20 @@ window.onload = function () {
             try { localStorage.removeItem('dash-avatar-url'); } catch(_) {}
         }
         const current = el.querySelector('img');
+        // Valida URL antes de atribuir ao src
+        let safeUrl = '';
         if (url) {
-            if (current && current.src === url) return;
+            try {
+                const p = new URL(url, window.location.href);
+                if (p.protocol === 'https:' || p.protocol === 'http:') safeUrl = url;
+            } catch {}
+        }
+        if (safeUrl) {
+            if (current && current.src === safeUrl) return;
             if (!current) {
                 el.textContent = '';
                 const img = document.createElement('img');
-                img.src = url;
+                img.src = safeUrl;
                 img.alt = 'Avatar';
                 img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
                 img.onerror = () => {
@@ -2729,7 +2744,7 @@ window.onload = function () {
                 };
                 el.appendChild(img);
             } else {
-                current.src = url;
+                current.src = safeUrl;
             }
         } else {
             if (!current) return;
@@ -2849,8 +2864,14 @@ window.onload = function () {
         const update = () => {
             const url = input.value.trim();
             if (url) {
-                img.src = url;
-                preview.style.display = '';
+                // Valida URL antes de atribuir ao src
+                let safeUrl = '';
+                try {
+                    const p = new URL(url, window.location.href);
+                    if (p.protocol === 'https:' || p.protocol === 'http:') safeUrl = url;
+                } catch {}
+                if (safeUrl) { img.src = safeUrl; preview.style.display = ''; }
+                else { preview.style.display = 'none'; }
             } else {
                 preview.style.display = 'none';
             }

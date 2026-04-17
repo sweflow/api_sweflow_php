@@ -483,6 +483,10 @@
         var img  = el('idep-avatar-img');
         var icon = el('idep-avatar-icon');
         if (!img || !icon) return;
+        // Valida URL antes de atribuir ao src
+        if (url) {
+            try { new URL(url, window.location.href); } catch (e) { url = null; }
+        }
         // Não atualiza se já está correto (evita flash)
         if (url && img.src && img.src.endsWith(url) && img.style.display !== 'none') return;
         if (url) { img.src = url; img.style.display = 'block'; icon.style.display = 'none'; }
@@ -544,7 +548,9 @@
         var avatar = currentUser.url_avatar || '';
         var pImg = el('idep-profile-avatar-img'), pIcon = el('idep-profile-avatar-icon');
         if (pImg && pIcon) {
-            if (avatar) { pImg.src = avatar; pImg.style.display = 'block'; pIcon.style.display = 'none'; }
+            var safeAvatar = avatar;
+            if (safeAvatar) { try { new URL(safeAvatar, window.location.href); } catch(e) { safeAvatar = ''; } }
+            if (safeAvatar) { pImg.src = safeAvatar; pImg.style.display = 'block'; pIcon.style.display = 'none'; }
             else        { pImg.style.display = 'none'; pIcon.style.display = ''; }
         }
         setProfileEditMode(false);
@@ -569,7 +575,9 @@
             el('idep-pv-nome').textContent        = nome;
             el('idep-pv-nome-header').textContent = nome;
             if (el('idep-profile-avatar-img') && avatar) {
-                el('idep-profile-avatar-img').src = avatar;
+                var safeAv = avatar;
+                try { new URL(safeAv, window.location.href); } catch(e) { safeAv = ''; }
+                if (safeAv) el('idep-profile-avatar-img').src = safeAv;
                 el('idep-profile-avatar-img').style.display = 'block';
                 el('idep-profile-avatar-icon').style.display = 'none';
             } else if (!avatar) {
@@ -664,7 +672,11 @@
     // Password eye toggles
     document.querySelectorAll('.idep-pwd-eye').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            var inp = el(btn.getAttribute('data-target'));
+            var targetId = btn.getAttribute('data-target');
+            // Whitelist de IDs permitidos
+            var allowed = ['idep-pwd-current', 'idep-pwd-new', 'idep-pwd-confirm'];
+            if (!targetId || !allowed.includes(targetId)) return;
+            var inp = document.getElementById(targetId);
             if (!inp) return;
             var show = inp.type === 'password';
             inp.type = show ? 'text' : 'password';

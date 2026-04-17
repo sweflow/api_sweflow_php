@@ -3335,8 +3335,18 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
         var img  = $('topbar-avatar-img');
         var icon = $('topbar-avatar-icon');
         if (!img || !icon) return;
-        if (url) {
-            img.src = url;
+        // Valida URL — só aceita http/https, rejeita javascript: e data:
+        var safeUrl = '';
+        if (url && typeof url === 'string') {
+            try {
+                var parsed = new URL(url, window.location.href);
+                if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+                    safeUrl = url;
+                }
+            } catch {}
+        }
+        if (safeUrl) {
+            img.src = safeUrl;
             img.style.display = 'block';
             icon.style.display = 'none';
         } else {
@@ -3367,8 +3377,12 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
         if (pNivel) pNivel.textContent = nivel;
 
         if (pImg && pIcon) {
+            var safeAvatar = '';
             if (avatar) {
-                pImg.src = avatar;
+                try { new URL(avatar, window.location.href); safeAvatar = avatar; } catch { safeAvatar = ''; }
+            }
+            if (safeAvatar) {
+                pImg.src = safeAvatar;
                 pImg.style.display = 'block';
                 pIcon.style.display = 'none';
             } else {
@@ -3419,7 +3433,7 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
 
         if (!nome) { showProfileFeedback('Nome completo é obrigatório.', false); return; }
 
-        if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...'; }
+        if (saveBtn) { saveBtn.disabled = true; setBtn(saveBtn, 'fa-solid fa-spinner fa-spin', 'Salvando...'); }
 
         try {
             var res  = await fetch('/api/perfil', {
@@ -3443,9 +3457,13 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
                 // Refresh view
                 if ($('profile-nome'))  $('profile-nome').textContent  = nome;
                 if ($('profile-avatar-img') && avatar) {
-                    $('profile-avatar-img').src = avatar;
-                    $('profile-avatar-img').style.display = 'block';
-                    if ($('profile-avatar-icon')) $('profile-avatar-icon').style.display = 'none';
+                    var safeAv = '';
+                    try { new URL(avatar, window.location.href); safeAv = avatar; } catch { safeAv = ''; }
+                    if (safeAv) {
+                        $('profile-avatar-img').src = safeAv;
+                        $('profile-avatar-img').style.display = 'block';
+                        if ($('profile-avatar-icon')) $('profile-avatar-icon').style.display = 'none';
+                    }
                 } else if ($('profile-avatar-img') && !avatar) {
                     $('profile-avatar-img').style.display = 'none';
                     if ($('profile-avatar-icon')) $('profile-avatar-icon').style.display = '';
@@ -3454,7 +3472,7 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
         } catch (e) {
             showProfileFeedback(e.message, false);
         } finally {
-            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar'; }
+            if (saveBtn) { saveBtn.disabled = false; setBtn(saveBtn, 'fa-solid fa-floppy-disk', 'Salvar'); }
         }
     }
 
@@ -3528,7 +3546,7 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
 
         if (!validatePassword() || !current.trim()) return;
 
-        if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Alterando...'; }
+        if (saveBtn) { saveBtn.disabled = true; setBtn(saveBtn, 'fa-solid fa-spinner fa-spin', 'Alterando...'); }
         if (feedback) feedback.style.display = 'none';
 
         try {
@@ -3553,7 +3571,7 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
                 feedback.style.color = '#f87171';
                 feedback.style.display = 'block';
             }
-            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-key"></i> Alterar senha'; }
+            if (saveBtn) { saveBtn.disabled = false; setBtn(saveBtn, 'fa-solid fa-key', 'Alterar senha'); }
         }
     }
 
@@ -3561,7 +3579,10 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
     document.querySelectorAll('.ide-pwd-toggle').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var targetId = btn.getAttribute('data-target');
-            var input = $(targetId);
+            // Whitelist de IDs permitidos — previne uso de data-target como selector arbitrário
+            var allowed = ['pwd-current', 'pwd-new', 'pwd-confirm'];
+            if (!targetId || !allowed.includes(targetId)) return;
+            var input = document.getElementById(targetId);
             if (!input) return;
             var isText = input.type === 'text';
             input.type = isText ? 'password' : 'text';

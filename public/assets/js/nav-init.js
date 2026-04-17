@@ -13,9 +13,16 @@
     }
 
     function setAvatarImg(el, url) {
+        // Valida URL antes de atribuir ao src — previne javascript: e data: URIs
+        let safeUrl = '';
+        try {
+            const parsed = new URL(url, window.location.href);
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeUrl = url;
+        } catch {}
+        if (!safeUrl) { setAvatarIcon(el); return; }
         el.textContent = '';
         const img = document.createElement('img');
-        img.src = url;
+        img.src = safeUrl;
         img.alt = 'Avatar';
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
         img.onerror = () => setAvatarIcon(el);

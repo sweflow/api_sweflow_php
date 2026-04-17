@@ -73,10 +73,24 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 const user = data?.user ?? data;
                 if (user?.avatar_url) {
-                    avatar.innerHTML = `<img src="${user.avatar_url}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+                    // Usa DOM seguro em vez de innerHTML para evitar XSS
+                    const img = document.createElement('img');
+                    // Valida URL antes de atribuir ao src
+                    let safeUrl = '';
+                    try { new URL(user.avatar_url, window.location.href); safeUrl = user.avatar_url; } catch {}
+                    if (!safeUrl) return;
+                    img.src = safeUrl;
+                    img.alt = 'Avatar';
+                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                    avatar.textContent = '';
+                    avatar.appendChild(img);
                 } else if (user?.nome || user?.username) {
                     const initials = ((user.nome || user.username || '?')[0]).toUpperCase();
-                    avatar.innerHTML = `<span style="font-size:1.1rem;font-weight:800;">${initials}</span>`;
+                    const span = document.createElement('span');
+                    span.style.cssText = 'font-size:1.1rem;font-weight:800;';
+                    span.textContent = initials; // textContent é seguro
+                    avatar.textContent = '';
+                    avatar.appendChild(span);
                 }
             })
             .catch(() => {});

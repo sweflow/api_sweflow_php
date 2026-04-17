@@ -232,7 +232,15 @@ function renderTable() {
         if (u.url_avatar) {
             var img = document.createElement('img');
             img.className = 'u-avatar';
-            img.src       = u.url_avatar;
+            // Valida URL antes de atribuir ao src
+            var safeAvatarUrl = '';
+            if (u.url_avatar) {
+                try {
+                    var p = new URL(u.url_avatar, window.location.href);
+                    if (p.protocol === 'https:' || p.protocol === 'http:') safeAvatarUrl = u.url_avatar;
+                } catch {}
+            }
+            img.src       = safeAvatarUrl || '/assets/imgs/logo.png';
             img.alt       = 'Avatar';
             img.loading   = 'lazy';
             img.addEventListener('error', function () {

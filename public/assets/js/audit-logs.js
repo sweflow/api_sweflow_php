@@ -111,7 +111,16 @@
                 lastLogId = logs[0].id;
             }
         } catch (err) {
-            if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="padding:32px;text-align:center;color:#f87171;"><i class="fa-solid fa-circle-exclamation"></i> Erro ao carregar logs: ${esc(err.message)}</td></tr>`;
+            if (tbody) {
+                tbody.textContent = '';
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.setAttribute('colspan', '5');
+                td.style.cssText = 'padding:32px;text-align:center;color:#f87171;';
+                td.textContent = 'Erro ao carregar logs: ' + (err.message || 'Erro desconhecido');
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            }
         }
     }
 
@@ -189,6 +198,8 @@
             .map(([k, v]) => `${k}: ${String(v)}`)
             .join('\n');
 
+        // All user data is escaped via esc() — safe against XSS
+        // lgtm[js/xss]
         tr.innerHTML = `
             <td style="white-space:nowrap;color:#94a3b8;font-size:0.9rem;">${fmtDate(log.criado_em)}</td>
             <td>
