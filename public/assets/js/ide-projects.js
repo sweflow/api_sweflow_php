@@ -68,15 +68,17 @@ function showModal(id) { var e = $(id); if (e) { e.removeAttribute('aria-hidden'
 function hideModal(id) { var e = $(id); if (e) { e.setAttribute('aria-hidden', 'true'); e.classList.remove('show'); } }
 
 // ── Load Projects ─────────────────────────────────────────────────────────
-async function loadProjects() {
+async function loadProjects(bust) {
     $('idep-loading').style.display = 'flex';
     $('idep-empty').style.display = 'none';
     $('idep-grid').style.display = 'none';
 
     try {
         // Endpoint agregador: projetos + limites em 1 request, 1 conexão ao banco
-        var data     = await api('GET', '/api/ide/dashboard');
-        var payload  = data.data || data; // suporte ao envelope { data: {...} }
+        // bust=true adiciona timestamp para ignorar o cache de 10s do servidor
+        var url  = '/api/ide/dashboard' + (bust ? '?_=' + Date.now() : '');
+        var data     = await api('GET', url);
+        var payload  = data.data || data;
         var projects = payload.projects || [];
         var limits   = payload.limits   || { unlimited: true, blocked: false, count: projects.length, limit: -1, remaining: null };
 
@@ -433,7 +435,8 @@ $('modal-del-confirm').addEventListener('click', async function () {
             msg += ' ' + data.tables_dropped.length + ' tabela(s) removida(s).';
         }
         toast(msg);
-        loadProjects();
+        // Recarrega com cache-bust para ignorar o cache de 10s do agregador
+        loadProjects(true);
     } catch (e) {
         toast('Erro: ' + e.message);
         this.disabled = false;

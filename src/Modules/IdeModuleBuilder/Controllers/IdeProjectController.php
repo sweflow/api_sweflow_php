@@ -16,6 +16,9 @@ final class IdeProjectController
 {
     private const EXECUTOR_TIMEOUT = 30;
 
+    /** Cache de dashboard por userId — invalidado em operações de escrita */
+    private static array $dashboardCache = [];
+
     public function __construct(
         private readonly IdeProjectService $service,
         private readonly PDO $pdo,
@@ -80,11 +83,10 @@ final class IdeProjectController
         if ($err) return $err;
 
         // Cache estático por processo PHP-FPM worker (10s TTL por userId)
-        static $cache = [];
         $now = time();
 
-        if (isset($cache[$userId]) && ($now - $cache[$userId]['ts']) < 10) {
-            return Response::json(['data' => $cache[$userId]['payload']])
+        if (isset(self::$dashboardCache[$userId]) && ($now - self::$dashboardCache[$userId]['ts']) < 10) {
+            return Response::json(['data' => self::$dashboardCache[$userId]['payload']])
                 ->withHeaders(['X-Cache' => 'HIT', 'Cache-Control' => 'private, max-age=10']);
         }
 
@@ -93,7 +95,7 @@ final class IdeProjectController
             'limits'   => $this->service->getUserProjectStats($userId),
         ];
 
-        $cache[$userId] = ['ts' => $now, 'payload' => $payload];
+        self::$dashboardCache[$userId] = ['ts' => $now, 'payload' => $payload];
 
         return Response::json(['data' => $payload])
             ->withHeaders(['X-Cache' => 'MISS', 'Cache-Control' => 'private, max-age=10']);
@@ -146,6 +148,9 @@ final class IdeProjectController
     {
         [$userId, $project, $err] = $this->requireProject($request);
         if ($err) return $err;
+
+        // Invalida o cache do agregador para este usuário
+        unset(self::$dashboardCache[$userId]);
 
         $result = ['deleted' => true, 'module_name' => $project['module_name']];
 

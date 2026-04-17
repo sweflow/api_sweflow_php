@@ -229,22 +229,27 @@ async function loadProject() {
         renderFileTree();
         await renderDeployPanel();
 
-        // Abre o arquivo mais relevante automaticamente (não o primeiro alfabético)
-        // Prioridade: Controllers > Services > Routes > qualquer .php (exceto config/connection)
-        const files = Object.keys(S.project.files || {}).filter(f => f.endsWith('.php'));
-        const priority = [
-            f => f.startsWith('Controllers/'),
-            f => f.startsWith('Services/'),
-            f => f.startsWith('Routes/'),
-            f => !f.startsWith('Config/') && !f.startsWith('Database/'),
-            f => true,
-        ];
-        let firstFile = null;
-        for (const test of priority) {
-            firstFile = files.find(test) || null;
-            if (firstFile) break;
+        // Restaura tabs e arquivo ativo do localStorage — só abre automaticamente
+        // se o usuário tinha arquivos abertos na sessão anterior.
+        // Não abre nenhum arquivo automaticamente na primeira visita.
+        var savedTabs   = restoreTabState();
+        var savedActive = restoreActiveTab();
+
+        if (savedTabs.length > 0) {
+            // Reabre apenas as tabs que ainda existem no projeto
+            var projectFiles = S.project.files || {};
+            savedTabs.forEach(function (t) {
+                if (projectFiles[t.path] !== undefined) {
+                    S.tabs.push({ path: t.path, content: projectFiles[t.path], modified: false });
+                }
+            });
+            if (savedActive && projectFiles[savedActive] !== undefined) {
+                openFile(savedActive);
+            } else if (S.tabs.length > 0) {
+                openFile(S.tabs[0].path);
+            }
         }
-        if (firstFile) openFile(firstFile);
+        // Se não havia tabs salvas: não abre nenhum arquivo, mostra welcome screen
     } catch (e) {
         toast('Erro ao carregar projeto: ' + e.message);
         setTimeout(() => { window.location.href = '/dashboard/ide'; }, 2000);
@@ -715,6 +720,29 @@ function initPhpLanguageServices() {
     S._runDiagnostics = runDiagnostics;
 }
 
+// ── Folder collapse state ─────────────────────────────────────────────────
+function folderStateKey() {
+    return 'ide_folder_state_' + (S.project ? S.project.id : 'default');
+}
+function getFolderState() {
+    try { return JSON.parse(localStorage.getItem(folderStateKey()) || '{}'); } catch { return {}; }
+}
+function isFolderCollapsed(folderPath) {
+    var state = getFolderState();
+    return state[folderPath] === true;
+}
+function saveFolderState(folderPath, wasOpen) {
+    var state = getFolderState();
+    if (wasOpen) {
+        // pasta estava aberta, agora fecha — salva como collapsed
+        state[folderPath] = true;
+    } else {
+        // pasta estava fechada, agora abre — remove do estado (aberto é o padrão)
+        delete state[folderPath];
+    }
+    try { localStorage.setItem(folderStateKey(), JSON.stringify(state)); } catch {}
+}
+
 // ── File Tree ─────────────────────────────────────────────────────────────
 function renderFileTree() {
     const tree = $('ide-filetree');
@@ -815,6 +843,14 @@ function renderFileTree() {
         var children = document.createElement('div');
         children.className = 'ide-tree-folder-children';
 
+        // Restaura estado colapsado do localStorage
+        var isCollapsed = isFolderCollapsed(node.fullPath);
+        if (isCollapsed) {
+            children.style.display = 'none';
+            chevron.style.transform = 'rotate(-90deg)';
+            folderIcon.className = 'fa-solid fa-folder ide-folder-icon';
+        }
+
         // Renderiza conteúdo recursivamente
         renderNode(node, children);
 
@@ -827,6 +863,8 @@ function renderFileTree() {
             document.querySelectorAll('.ide-tree-folder-header.selected').forEach(function (el) { el.classList.remove('selected'); });
             header.classList.add('selected');
             S.selectedFolder = node.fullPath;
+            // Persiste estado da pasta
+            saveFolderState(node.fullPath, open); // open=true significa que estava aberta, agora fecha
         });
 
         header.addEventListener('contextmenu', function (e) {
@@ -935,7 +973,7 @@ function openFile(path) {
     renderFileTree();
     loadEditor(path, content);
     $('status-file-name').textContent = path;
-    // Roda diagnósticos ao abrir arquivo PHP
+    saveTabState(); // persiste tabs abertas
     if (path.endsWith('.php') && S._runDiagnostics) {
         clearTimeout(S.diagnosticTimer);
         S.diagnosticTimer = setTimeout(S._runDiagnostics, 800);
@@ -950,6 +988,7 @@ function switchTab(path) {
     S.activeTab = path;
     const tab = S.tabs.find(t => t.path === path);
     if (tab) { renderTabs(); renderFileTree(); loadEditor(path, tab.content); $('status-file-name').textContent = path; }
+    saveTabState(); // persiste tab ativa
 }
 
 async function closeTab(path) {
@@ -973,6 +1012,7 @@ async function closeTab(path) {
         else { S.activeTab = null; showWelcome(); }
     }
     renderTabs(); renderFileTree();
+    saveTabState(); // persiste estado após fechar tab
 }
 
 function loadEditor(path, content) {
@@ -2288,6 +2328,36 @@ function restoreLayout() {
     try { var d = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null'); if (!d) return; if (d.filesW) $('panel-files').style.width = d.filesW; if (d.deployW) $('panel-deploy').style.width = d.deployW; if (d.termH) $('ide-terminal-panel').style.height = d.termH; if (d.termOpen) $('ide-terminal-panel').style.display = 'flex'; } catch(e) {}
 }
 restoreLayout();
+
+// ── Tab state persistence ─────────────────────────────────────────────────
+// Salva quais arquivos estavam abertos para restaurar após F5
+function tabStateKey() {
+    return 'ide_tabs_' + (S.project ? S.project.id : 'default');
+}
+function saveTabState() {
+    try {
+        var data = {
+            tabs:   S.tabs.map(function (t) { return { path: t.path }; }),
+            active: S.activeTab || null,
+        };
+        localStorage.setItem(tabStateKey(), JSON.stringify(data));
+    } catch (e) {}
+}
+function restoreTabState() {
+    try {
+        var raw = localStorage.getItem(tabStateKey());
+        if (!raw) return [];
+        var data = JSON.parse(raw);
+        return Array.isArray(data.tabs) ? data.tabs : [];
+    } catch (e) { return []; }
+}
+function restoreActiveTab() {
+    try {
+        var raw = localStorage.getItem(tabStateKey());
+        if (!raw) return null;
+        return JSON.parse(raw).active || null;
+    } catch (e) { return null; }
+}
 
 // Terminal & Debug — Multi-tab
 // ══════════════════════════════════════════════════════════════════════════
