@@ -8,12 +8,14 @@ use Src\Kernel\Nucleo\CapabilityResolver;
 class PluginManager
 {
     private string $registry;
+    private string $projectRoot;
     private PluginMigrator $migrator;
 
     public function __construct(PluginMigrator $migrator, string $storageDir)
     {
-        $this->migrator = $migrator;
-        $this->registry = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'plugins_registry.json';
+        $this->migrator     = $migrator;
+        $this->projectRoot  = dirname(rtrim($storageDir, '/\\'));
+        $this->registry     = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . 'plugins_registry.json';
         if (!is_dir(dirname($this->registry))) {
             mkdir(dirname($this->registry), 0755, true);
         }
@@ -24,6 +26,9 @@ class PluginManager
 
     public function install(string $pluginName): void
     {
+        // Verifica dependências declaradas em plugin.json ANTES de qualquer alteração de estado
+        $this->checkDependencies($pluginName);
+
         $state = $this->read();
         $state[$pluginName] = ['enabled' => true, 'installed_at' => date('c')];
         $this->write($state);
@@ -263,9 +268,101 @@ class PluginManager
         }
     }
 
+    /**
+     * Lê o plugin.json do módulo e verifica se todos os módulos declarados
+     * em "requires.modules" já estão instalados.
+     *
+     * Formato do plugin.json:
+     *   { "requires": { "modules": ["Usuario", "Email"] } }
+     *
+     * Lança RuntimeException com mensagem clara se alguma dependência faltar.
+     * Chamado antes de qualquer alteração de estado — instalação é atômica.
+     */
+    private function checkDependencies(string $pluginName): void
+    {
+        $path = $this->resolvePluginPath($pluginName);
+        if ($path === null) {
+            return; // módulo ainda não baixado — dependências serão verificadas após o download
+        }
+
+        $meta     = $this->readPluginJson($path);
+        $required = $meta['requires']['modules'] ?? [];
+
+        if (empty($required) || !is_array($required)) {
+            return; // sem dependências declaradas
+        }
+
+        $projectRoot   = $this->projectRoot;
+        $installedState = $this->read();
+        $missing       = [];
+
+        foreach ($required as $dep) {
+            $dep = (string) $dep;
+
+            // Verifica em src/Modules/ (módulos nativos)
+            $inModules = is_dir(
+                $projectRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR
+                . 'Modules' . DIRECTORY_SEPARATOR . ucfirst($dep)
+            );
+
+            // Verifica no registry de plugins instalados via marketplace
+            $inRegistry = isset($installedState[$dep])
+                && ($installedState[$dep]['enabled'] ?? false) === true;
+
+            // Verifica variações de capitalização no registry
+            if (!$inRegistry) {
+                foreach ([ucfirst($dep), strtolower($dep)] as $variant) {
+                    if (isset($installedState[$variant]) && ($installedState[$variant]['enabled'] ?? false) === true) {
+                        $inRegistry = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$inModules && !$inRegistry) {
+                $missing[] = $dep;
+            }
+        }
+
+        if (!empty($missing)) {
+            if (count($missing) === 1) {
+                $dep = $missing[0];
+                throw new \RuntimeException(
+                    "Não é possível instalar o módulo '{$pluginName}', pois é necessário ter instalado o módulo {$dep}. " .
+                    "Por favor, faça a instalação do módulo {$dep} antes de tentar instalar este módulo novamente."
+                );
+            }
+
+            $list    = implode(', ', $missing);
+            $listFmt = implode(' e ', array_filter([
+                implode(', ', array_slice($missing, 0, -1)),
+                end($missing),
+            ]));
+            throw new \RuntimeException(
+                "Não é possível instalar o módulo '{$pluginName}', pois é necessário ter instalado os módulos {$list}. " .
+                "Por favor, faça a instalação dos módulos {$listFmt} antes de tentar instalar este módulo novamente."
+            );
+        }
+    }
+
+    /**
+     * Lê e decodifica o plugin.json de um diretório de módulo.
+     * Retorna array vazio se o arquivo não existir ou for inválido.
+     */
+    private function readPluginJson(string $modulePath): array
+    {
+        $file = $modulePath . DIRECTORY_SEPARATOR . 'plugin.json';
+        if (!is_file($file) || !is_readable($file)) {
+            return [];
+        }
+        $raw  = file_get_contents($file);
+        $data = $raw !== false ? json_decode($raw, true) : null;
+        return is_array($data) ? $data : [];
+    }
+
     private function resolvePluginPath(string $pluginName): ?string
     {
-        $projectRoot = dirname(__DIR__, 3);
+        $projectRoot = $this->projectRoot;
         
         // Normalize name to handle "email", "module-email", "vupi.us-module-email", "vupi.us/module-email"
         // Also handle "vupi.us/module-email" -> "email"

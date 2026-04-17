@@ -44,6 +44,7 @@ class MakeModuleCommand
         $this->createRepository($name, $base);
         $this->createMigration($name, $base);
         $this->createSeeder($name, $base);
+        $this->createConnection($base);
 
         echo "\033[32m✔ Módulo $name criado em src/Modules/$name\033[0m\n";
         echo "\n  Próximos passos:\n";
@@ -300,6 +301,24 @@ return function (PDO \$pdo): void {
     // Insira dados iniciais aqui
     echo "  ✔ Seeder {$name}: nenhum dado inicial definido.\n";
 };
+PHP);
+    }
+
+    private function createConnection(string $base): void
+    {
+        // Lê DEFAULT_MODULE_CONNECTION do .env — padrão 'core' se não definido
+        $conn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+        if (!in_array($conn, ['core', 'modules', 'auto'], true)) {
+            $conn = 'core';
+        }
+
+        file_put_contents("$base/Database/connection.php", <<<PHP
+<?php
+// Define qual banco de dados este módulo usa.
+// 'core'    → usa DB_* do .env (banco principal)
+// 'modules' → usa DB2_* do .env (banco secundário)
+// 'auto'    → o Kernel decide baseado na origem do módulo
+return '{$conn}';
 PHP);
     }
 }

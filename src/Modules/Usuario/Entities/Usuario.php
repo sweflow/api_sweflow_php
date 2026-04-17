@@ -5,12 +5,13 @@ namespace Src\Modules\Usuario\Entities;
 use DateTimeImmutable;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
+use Src\Kernel\Contracts\AuthenticatableInterface;
 use Src\Kernel\Utils\RelogioTimeZone;
 use Src\Modules\Usuario\Exceptions\InvalidEmailException;
 use Src\Modules\Usuario\Exceptions\InvalidPasswordException;
 use Src\Modules\Usuario\Exceptions\InvalidUsernameException;
 
-final class Usuario
+final class Usuario implements AuthenticatableInterface
 {
     private const NIVEIS_VALIDOS = ['usuario', 'admin', 'moderador', 'admin_system'];
 
@@ -31,6 +32,7 @@ final class Usuario
         private readonly DateTimeImmutable $criadoEm,
         private ?DateTimeImmutable        $atualizadoEm,
         private string                    $statusVerificacao,
+        private ?DateTimeImmutable        $senhaAlteradaEm = null,
     ) {}
 
     // ── Factory methods ───────────────────────────────────────────────────
@@ -90,7 +92,8 @@ final class Usuario
         ?string            $tokenRecuperacaoSenha = null,
         ?string            $tokenVerificacaoEmail = null,
         ?DateTimeImmutable $atualizadoEm = null,
-        string             $statusVerificacao = 'Não verificado'
+        string             $statusVerificacao = 'Não verificado',
+        ?DateTimeImmutable $senhaAlteradaEm = null,
     ): self {
         return new self(
             uuid:                  $uuid,
@@ -109,8 +112,17 @@ final class Usuario
             criadoEm:              $criadoEm,
             atualizadoEm:          $atualizadoEm,
             statusVerificacao:     $statusVerificacao,
+            senhaAlteradaEm:       $senhaAlteradaEm,
         );
     }
+
+    // ── AuthenticatableInterface ──────────────────────────────────────────
+    // Permite que o módulo Auth funcione com esta entidade sem acoplamento direto.
+
+    public function getAuthId(): string       { return $this->uuid->toString(); }
+    public function getAuthEmail(): string    { return $this->email; }
+    public function getAuthUsername(): ?string { return $this->username; }
+    public function getAuthRole(): string     { return $this->nivelAcesso; }
 
     // ── Getters ───────────────────────────────────────────────────────────
 
@@ -127,6 +139,7 @@ final class Usuario
     public function isEmailVerificado(): bool           { return $this->verificadoEmail; }
     public function getCriadoEm(): DateTimeImmutable    { return $this->criadoEm; }
     public function getAtualizadoEm(): ?DateTimeImmutable { return $this->atualizadoEm; }
+    public function getSenhaAlteradaEm(): ?int          { return $this->senhaAlteradaEm?->getTimestamp(); }
     public function getTokenRecuperacaoSenha(): ?string { return $this->tokenRecuperacaoSenha; }
     public function getTokenVerificacaoEmail(): ?string { return $this->tokenVerificacaoEmail; }
     public function getStatusVerificacao(): string      { return $this->statusVerificacao; }
@@ -161,8 +174,9 @@ final class Usuario
     public function alterarSenha(string $senhaPlana): void
     {
         self::validarSenha($senhaPlana);
-        $this->senhaHash    = password_hash($senhaPlana, PASSWORD_ARGON2ID);
-        $this->atualizadoEm = RelogioTimeZone::agora();
+        $this->senhaHash       = password_hash($senhaPlana, PASSWORD_ARGON2ID);
+        $this->senhaAlteradaEm = RelogioTimeZone::agora();
+        $this->atualizadoEm    = $this->senhaAlteradaEm;
     }
 
     public function alterarAvatar(?string $urlAvatar): void

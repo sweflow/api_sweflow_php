@@ -58,6 +58,30 @@ class CapabilityResolver
     }
 
     /**
+     * Retorna todas as capabilities: as declaradas via plugin.json
+     * MAIS as que já estão salvas no registry (mesmo sem plugin.json).
+     * Garante que providers salvos manualmente nunca desaparecem da UI.
+     */
+    public function getAllCapabilitiesIncludingSaved(): array
+    {
+        $capabilities = [];
+
+        // 1. Capabilities declaradas via plugin.json
+        foreach ($this->scanAllModuleDirs() as [$dir]) {
+            foreach ($this->readProvides($dir) as $cap) {
+                $capabilities[$cap] = true;
+            }
+        }
+
+        // 2. Capabilities já salvas no registry (ex: email-sender salvo manualmente)
+        foreach (array_keys($this->read()) as $cap) {
+            $capabilities[$cap] = true;
+        }
+
+        return array_keys($capabilities);
+    }
+
+    /**
      * Varre todos os diretórios de módulos e retorna pares [path, name].
      * Centraliza a lógica duplicada entre listProviders() e getAllCapabilities().
      *
@@ -125,6 +149,13 @@ class CapabilityResolver
 
         foreach ($map as $cap => $provider) {
             $available = $this->listProviders($cap);
+
+            // Se não há providers registrados via plugin.json, não remove —
+            // o provider pode ter sido instalado sem plugin.json (ex: módulo Email)
+            if (empty($available)) {
+                continue;
+            }
+
             if (in_array($provider, $available, true)) {
                 continue; // provider still valid
             }

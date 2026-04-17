@@ -24,7 +24,8 @@ return [
                     verificado_email        BOOLEAN      NOT NULL DEFAULT FALSE,
                     criado_em               TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em           TIMESTAMP,
-                    status_verificacao      VARCHAR(30)  DEFAULT 'Não verificado'
+                    status_verificacao      VARCHAR(30)  DEFAULT 'Não verificado',
+                    senha_alterada_em       TIMESTAMP    NULL
                 )
             ");
             $pdo->exec("CREATE INDEX IF NOT EXISTS idx_usuarios_email    ON usuarios (email)");
@@ -49,6 +50,7 @@ return [
                     criado_em               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     atualizado_em           DATETIME,
                     status_verificacao      VARCHAR(30)  DEFAULT 'Não verificado',
+                    senha_alterada_em       DATETIME     NULL,
                     INDEX idx_email (email),
                     INDEX idx_username (username),
                     INDEX idx_ativo (ativo)

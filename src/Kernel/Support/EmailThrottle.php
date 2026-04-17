@@ -20,27 +20,6 @@ final class EmailThrottle
     public function __construct(private PDO $pdo) {}
 
     /**
-     * Retorna true se o e-mail pode ser enviado (cooldown expirado ou sem registro).
-     * Não-atômico — use tryRecord() para operação atômica.
-     */
-    public function canSend(string $type, string $email, int $cooldownSeconds = 120): bool
-    {
-        try {
-            $stmt = $this->pdo->prepare(
-                "SELECT sent_at FROM email_throttle WHERE type = :type AND email = :email"
-            );
-            $stmt->execute([':type' => $type, ':email' => strtolower(trim($email))]);
-            $row = $stmt->fetch();
-            if (!$row) {
-                return true;
-            }
-            return (time() - strtotime((string) $row['sent_at'])) >= $cooldownSeconds;
-        } catch (\Throwable) {
-            return true;
-        }
-    }
-
-    /**
      * Tenta registrar o envio de forma atômica.
      * Retorna true se o registro foi feito (cooldown respeitado), false se bloqueado.
      *
@@ -86,35 +65,6 @@ final class EmailThrottle
         } catch (\Throwable $e) {
             error_log('[EmailThrottle] tryRecord failed: ' . $e->getMessage());
             return true; // fail-open: não bloqueia envio em caso de erro de DB
-        }
-    }
-
-    /**
-     * Registra o envio e purga entradas antigas (> 1h).
-     * @deprecated Use tryRecord() para operação atômica.
-     */
-    public function record(string $type, string $email): void
-    {
-        trigger_error('EmailThrottle::record() está depreciado. Use tryRecord() para operação atômica.', E_USER_DEPRECATED);
-        try {
-            $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-            $normalizedEmail = strtolower(trim($email));
-
-            if ($driver === 'pgsql') {
-                $this->pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES (:type, :email, NOW())
-                     ON CONFLICT (type, email) DO UPDATE SET sent_at = NOW()"
-                )->execute([':type' => $type, ':email' => $normalizedEmail]);
-            } else {
-                $this->pdo->prepare(
-                    "INSERT INTO email_throttle (type, email, sent_at) VALUES (:type, :email, NOW())
-                     ON DUPLICATE KEY UPDATE sent_at = NOW()"
-                )->execute([':type' => $type, ':email' => $normalizedEmail]);
-            }
-
-            $this->purgeOld();
-        } catch (\Throwable $e) {
-            error_log('[EmailThrottle] record failed: ' . $e->getMessage());
         }
     }
 

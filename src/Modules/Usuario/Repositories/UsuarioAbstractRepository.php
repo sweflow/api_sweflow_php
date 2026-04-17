@@ -113,27 +113,6 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
         return $this->buscarUmPor('email', $email);
     }
 
-    public function buscarTodosPor(string $coluna, $valor): array
-    {
-        $colunaBanco = $this->resolverColuna($coluna);
-
-        return $this->executarQuery(function () use ($colunaBanco, $valor) {
-            $sql = "SELECT * FROM {$this->tabela}
-                    WHERE {$colunaBanco} = :valor";
-
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bindValue(':valor', $valor);
-            $stmt->execute();
-
-            $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            return array_map(
-                fn(array $row) => $this->mapearParaEntity($row),
-                $resultados
-            );
-        }, "Erro ao buscar usuários por {$colunaBanco}");
-    }
-
     public function deletar(string $uuid): void
     {
         $this->executarQuery(function () use ($uuid) {
@@ -235,7 +214,10 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
             isset($dados['atualizado_em'])
                 ? new DateTimeImmutable((string) $dados['atualizado_em'])
                 : null,
-            $dados['status_verificacao'] ?? 'Não verificado'
+            $dados['status_verificacao'] ?? 'Não verificado',
+            isset($dados['senha_alterada_em'])
+                ? new DateTimeImmutable((string) $dados['senha_alterada_em'])
+                : null,
         );
     }
 

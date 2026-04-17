@@ -1,45 +1,65 @@
-# Ignore diretórios:
+# ── Dependências ──────────────────────────────────────────────────────────
 /vendor/
-/storage/ratelimit/
-/storage/threat/
-/storage/circuit/
-/storage/modules_cache.php
-/storage/backups/
-/storage/server.log
-/storage/server.pid
-/cache/
-/src/storage/ratelimit/
-/src/storage/threat/
 
-# Backups de banco de dados
-*.sql
-*.sql.gz
-
-# Ignore arquivos:
+# ── Ambiente ──────────────────────────────────────────────────────────────
 .env
 .env.local
 .env.production
 .env.docker
-
-# Docker — dados locais (não commitar)
 .env.docker.local
+
+# ── Storage (runtime — manter .gitkeep, ignorar conteúdo) ─────────────────
+/storage/ratelimit/*
+!/storage/ratelimit/.gitkeep
+/storage/threat/*
+!/storage/threat/.gitkeep
+/storage/circuit/*
+!/storage/circuit/.gitkeep
+/storage/backups/*
+!/storage/backups/.gitkeep
+/storage/ide_projects/*/
+/storage/server.log
+/storage/server.pid
+/storage/modules_cache.php
+/storage/security_results.txt
+
+# ── Cache ─────────────────────────────────────────────────────────────────
+/cache/*
+!/cache/.gitkeep
+
+# ── Testes ────────────────────────────────────────────────────────────────
+.phpunit.result.cache
+.phpunit.cache/
+
+# ── Docker ────────────────────────────────────────────────────────────────
 docker/postgres/data/
 docker/mysql/data/
 
-# Caddy — certificados locais gerados pelo mkcert
+# ── Certificados ──────────────────────────────────────────────────────────
 *.pem
 *.key
 
-# Tokens e credenciais geradas localmente
+# ── Backups de banco ──────────────────────────────────────────────────────
+*.sql
+*.sql.gz
+
+# ── Arquivos de debug (nunca commitar) ────────────────────────────────────
+_debug_*.php
+_debug_*.txt
+_test_*.php
+_check_*.php
+diagnostico.php
+gerar_jwt.php
+fix_producao.sh
 _token.txt
 _token_clean.txt
 *.token.txt
-gerar_jwt.php
 
-# Scripts de debug e teste locais
-_debug_*.php
-_debug_*.txt
-diagnostico.php
-_test_*.php
-_check_*.php
-fix_producao.sh
+# ── IDE/Editor ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

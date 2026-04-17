@@ -314,3 +314,11 @@
     .cfg-topbar-title { font-size: 0.95rem; }
     .cfg-fields-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Field hint ── */
+.cfg-field-hint {
+    margin: 5px 0 0;
+    font-size: 0.82rem;
+    color: var(--cfg-text-muted, #64748b);
+    line-height: 1.5;
+}

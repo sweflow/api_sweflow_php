@@ -54,7 +54,7 @@ class AuditLogger
      * Registra respostas HTTP de segurança (401, 403, 429) para observabilidade e Fail2Ban.
      * Deve ser chamado após o dispatch, com o status code da resposta.
      */
-    public function registrarResposta(int $statusCode, string $uri, ?string $ip = null): void
+    public function registrarResposta(int $statusCode, string $uri, ?string $ip = null, array $contextoExtra = []): void
     {
         if (!in_array($statusCode, [401, 403, 429], true)) {
             return;
@@ -68,6 +68,8 @@ class AuditLogger
             429 => 'http.rate_limited',
         ];
 
+        $contexto = array_merge(['status' => $statusCode, 'uri' => $uri], $contextoExtra);
+
         $line = json_encode([
             'timestamp'  => date('Y-m-d\TH:i:sP'),
             'type'       => 'SECURITY_RESPONSE',
@@ -77,7 +79,7 @@ class AuditLogger
             'ip'         => $ip,
             'uri'        => $uri,
             'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200),
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        ] + $contextoExtra, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
 
@@ -86,7 +88,7 @@ class AuditLogger
             $this->persistir(
                 $eventMap[$statusCode],
                 null,
-                ['status' => $statusCode, 'uri' => $uri],
+                $contexto,
                 $ip,
                 substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 512),
                 ($_SERVER['REQUEST_METHOD'] ?? 'GET') . ' ' . $uri

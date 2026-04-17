@@ -332,12 +332,24 @@ class SystemModulesController
             return;
         }
 
-        // 1. Tenta baixar via composer download (sem adicionar ao require do projeto)
-        //    Usa git clone como estratégia principal para src/Modules/
+        // 1. Tenta git clone
         $repoUrl = $this->resolvePackageRepo($package);
 
         if ($repoUrl && $this->gitAvailable()) {
-            $this->gitCloneToModules($repoUrl, $targetDir);
+            try {
+                $this->gitCloneToModules($repoUrl, $targetDir);
+                $this->installModuleDependencies($targetDir);
+                $this->regenerateAutoload();
+                $this->pluginManager->install($pluginName);
+                $this->incrementDownload($package);
+                return;
+            } catch (\RuntimeException $e) {
+                error_log("[Marketplace] git clone falhou: " . $e->getMessage() . " — tentando zip download");
+            }
+        }
+
+        // 2. Fallback: download do zip do GitHub (não precisa de git instalado)
+        if ($repoUrl && $this->tryZipInstall($repoUrl, $targetDir)) {
             $this->installModuleDependencies($targetDir);
             $this->regenerateAutoload();
             $this->pluginManager->install($pluginName);
@@ -578,15 +590,91 @@ class SystemModulesController
         return $proc->isSuccessful();
     }
 
+    /**
+     * Baixa o zip do branch main/master do GitHub e extrai para o targetDir.
+     * Funciona sem git instalado — usa apenas file_get_contents + ZipArchive.
+     */
+    private function tryZipInstall(string $repoUrl, string $targetDir): bool
+    {
+        // Converte URL do repo para URL do zip: https://github.com/vendor/repo → .../archive/refs/heads/main.zip
+        $repoUrl  = rtrim($repoUrl, '/');
+        $branches = ['main', 'master'];
+
+        foreach ($branches as $branch) {
+            $zipUrl = $repoUrl . '/archive/refs/heads/' . $branch . '.zip';
+            try {
+                $ctx  = stream_context_create(['http' => [
+                    'timeout'    => 30,
+                    'user_agent' => 'Vupi.usAPI/1.0',
+                    'follow_location' => 1,
+                ]]);
+                $data = @file_get_contents($zipUrl, false, $ctx);
+                if ($data === false || strlen($data) < 100) continue;
+
+                $tmp = sys_get_temp_dir() . '/vupi_module_' . bin2hex(random_bytes(6)) . '.zip';
+                file_put_contents($tmp, $data);
+
+                if (!class_exists('ZipArchive')) {
+                    @unlink($tmp);
+                    continue;
+                }
+
+                $zip = new \ZipArchive();
+                if ($zip->open($tmp) !== true) {
+                    @unlink($tmp);
+                    continue;
+                }
+
+                $extractTo = sys_get_temp_dir() . '/vupi_extract_' . bin2hex(random_bytes(6));
+                $zip->extractTo($extractTo);
+                $zip->close();
+                @unlink($tmp);
+
+                // O zip do GitHub extrai para vendor-repo-branch/
+                $entries = glob($extractTo . '/*', GLOB_ONLYDIR);
+                if (empty($entries)) {
+                    (new Process(['rm', '-rf', $extractTo]))->run();
+                    continue;
+                }
+
+                // Move o diretório extraído para o targetDir
+                rename($entries[0], $targetDir);
+                (new Process(['rm', '-rf', $extractTo]))->run();
+                return true;
+
+            } catch (\Throwable $e) {
+                error_log("[Marketplace] zip install falhou ({$branch}): " . $e->getMessage());
+            }
+        }
+
+        return false;
+    }
+
     private function gitCloneToModules(string $repoUrl, string $targetDir): void
     {
         if (is_dir($targetDir)) {
-            return; // already exists
+            return;
         }
-        $proc = new Process(['git', 'clone', '--depth=1', $repoUrl, $targetDir]);
+
+        // Tenta HTTPS público primeiro, depois SSH como fallback
+        $proc = new Process([
+            'git', 'clone', '--depth=1',
+            '--config', 'core.askPass=echo', // evita prompt de senha que trava o processo
+            $repoUrl,
+            $targetDir,
+        ]);
         $proc->run();
+
         if (!$proc->isSuccessful()) {
-            throw new \RuntimeException("Falha ao clonar repositório: {$repoUrl}");
+            $detail = mb_substr(trim($proc->getOutput()), 0, 300);
+            // Limpa diretório parcialmente clonado
+            if (is_dir($targetDir)) {
+                (new Process(['rm', '-rf', $targetDir]))->run();
+            }
+            throw new \RuntimeException(
+                "Falha ao clonar repositório: {$repoUrl}" .
+                ($detail !== '' ? " — {$detail}" : '')
+            );
         }
     }
 
@@ -799,19 +887,35 @@ class SystemModulesController
         $root = dirname(__DIR__, 3) . '/src/Modules';
         if (!is_dir($root)) return [];
 
+        // Módulos nativos do projeto — nunca devem aparecer no marketplace
+        $nativeModules = ['auth', 'usuario', 'documentacao'];
+
         $results = [];
         foreach (scandir($root) as $dir) {
             if ($dir === '.' || $dir === '..') continue;
             if (!is_dir($root . '/' . $dir)) continue;
 
-            $composerJson = $root . '/' . $dir . '/composer.json';
-            $meta = [];
-            if (is_file($composerJson) && is_readable($composerJson)) {
-                $raw  = file_get_contents($composerJson);
-                $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
+            // Módulos nativos são parte do projeto, não são instaláveis pelo marketplace
+            if (in_array(strtolower($dir), $nativeModules, true)) {
+                continue;
             }
 
-            $name = $meta['name'] ?? 'sweflow/module-' . strtolower($dir);
+            $composerJson = $root . '/' . $dir . '/composer.json';
+
+            // Sem composer.json = módulo interno sem identidade de pacote — não exibir
+            if (!is_file($composerJson) || !is_readable($composerJson)) {
+                continue;
+            }
+
+            $raw  = file_get_contents($composerJson);
+            $meta = $raw !== false ? (json_decode($raw, true) ?: []) : [];
+
+            // Sem nome de pacote explícito = não é um pacote publicável
+            if (empty($meta['name'])) {
+                continue;
+            }
+
+            $name = $meta['name'];
             $desc = $meta['description'] ?? 'Módulo do Sistema';
 
             if ($query !== '' &&
@@ -822,16 +926,12 @@ class SystemModulesController
                 continue;
             }
 
-            if (in_array(strtolower($dir), ['auth', 'usuario', 'documentacao'], true)) {
-                continue;
-            }
-
             $results[] = [
                 'name'        => $name,
                 'description' => $desc . ' (src/Modules)',
                 'downloads'   => $this->getDownloadCount($name),
-                'url'         => '',
-                'repository'  => '',
+                'url'         => $meta['homepage'] ?? '',
+                'repository'  => $meta['support']['source'] ?? '',
             ];
         }
         return $results;

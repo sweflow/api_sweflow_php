@@ -2,7 +2,6 @@
 
 namespace Src\Kernel\Middlewares;
 
-use DomainException;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Contracts\TokenBlacklistInterface;
 use Src\Kernel\Contracts\UserRepositoryInterface;
@@ -13,37 +12,45 @@ use Src\Kernel\Support\JwtDecoder;
 class AuthCookieMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private UserRepositoryInterface $usuarios,
-        private TokenBlacklistInterface $blacklistRepo
+        private ?UserRepositoryInterface $usuarios,
+        private ?TokenBlacklistInterface $blacklistRepo
     ) {}
 
     public function handle(Request $request, callable $next): Response
     {
+        if ($this->usuarios === null || $this->blacklistRepo === null) {
+            return $next($request);
+        }
+
         $token = $_COOKIE['auth_token'] ?? '';
         $token = is_string($token) ? trim($token) : '';
         if ($token === '') {
-            return $this->responder(401, 'Não autenticado: cookie ausente.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
         try {
             [$payload] = JwtDecoder::decodeUser($token);
             JwtDecoder::validateUserClaims($payload);
-        } catch (DomainException $e) {
-            return $this->responder(401, $e->getMessage());
+        } catch (\Throwable) {
+            return $this->responder(401, 'Não autenticado.');
         }
 
         if ($this->blacklistRepo->isRevoked($payload->jti ?? '')) {
-            return $this->responder(401, 'Token revogado. Faça login novamente.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
         $sub = $payload->sub ?? '';
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sub)) {
-            return $this->responder(401, 'Token inválido: identificador de usuário malformado.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
         $usuario = $this->usuarios->buscarPorUuid($sub);
         if (!$usuario) {
-            return $this->responder(401, 'Usuário não encontrado.');
+            return $this->responder(401, 'Não autenticado.');
+        }
+
+        if (method_exists($usuario, 'isAtivo') && !$usuario->isAtivo()) {
+            return $this->responder(403, 'Acesso negado.');
         }
 
         return $next(

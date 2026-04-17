@@ -2,5 +2,6 @@
     "Auth": true,
     "Usuario": true,
     "Documentacao": true,
-    "Email": false
+    "IdeModuleBuilder": true,
+    "LinkEncurtador": true
 }

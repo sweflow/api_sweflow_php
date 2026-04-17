@@ -62,7 +62,7 @@ class SetupCommand
         echo "13) Reiniciar servidor\n";
         echo "14) Instalar Caddy + subir HTTPS em produção\n";
         echo "15) Subir Caddy em desenvolvimento (HTTPS local via mkcert)\n";
-        echo "16) Subir PM2 + Caddy em produção (recomendado para produção)\n";
+        echo "16) Subir PM2 + Caddy em produção\n";
         echo "17) Reiniciar PM2 + Caddy\n";
         echo "18) Parar PM2 + Caddy\n";
         echo "19) Fazer backup do banco de dados\n";
@@ -70,6 +70,12 @@ class SetupCommand
         echo "21) Status das migrations\n";
         echo "22) Rodar migrations apenas conexão core (DB)\n";
         echo "23) Rodar migrations apenas conexão modules (DB2)\n";
+        echo "24) \033[1;32m[RECOMENDADO PRODUÇÃO]\033[0m PHP-FPM + Caddy (substitui php -S / PM2)\n";
+        echo "25) Recarregar PHP-FPM (aplica mudanças de código sem derrubar)\n";
+        echo "26) Recarregar Caddy (aplica mudanças no Caddyfile)\n";
+        echo "27) Recarregar tudo (PHP-FPM + Caddy)\n";
+        echo "28) Verificar e corrigir permissões do projeto\n";
+        echo "29) \033[1;35m[MODO ESQUELETO]\033[0m Remover módulos nativos e frontend (strip)\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -101,6 +107,12 @@ class SetupCommand
             '21' => fn() => $this->migrateStatus(),
             '22' => fn() => $this->migrateCore(),
             '23' => fn() => $this->migrateModules(),
+            '24' => fn() => $this->startFpmWithCaddy(),
+            '25' => fn() => $this->reloadFpm(),
+            '26' => fn() => $this->reloadCaddy(),
+            '27' => fn() => $this->reloadAll(),
+            '28' => fn() => $this->fixPermissions(),
+            '29' => fn() => $this->runStrip(),
         ];
 
         if ($choice === '0') {
@@ -145,6 +157,10 @@ class SetupCommand
 
         // Inicia o servidor PHP em background primeiro
         $server = strtolower((string)($flags['server'] ?? 'background'));
+        if ($server === 'fpm+caddy') {
+            $this->startFpmWithCaddy();
+            return;
+        }
         if ($server === 'pm2+caddy') {
             $this->startPm2WithCaddy();
             return;
@@ -165,6 +181,316 @@ class SetupCommand
         } elseif ($caddy === 'dev') {
             $this->startCaddyDev();
         }
+    }
+
+    private function runStrip(): void
+    {
+        echo "\n\033[1;35m╔══════════════════════════════════════════════════════╗\033[0m\n";
+        echo "\033[1;35m║         ⚠  MODO ESQUELETO — AÇÃO IRREVERSÍVEL        ║\033[0m\n";
+        echo "\033[1;35m╚══════════════════════════════════════════════════════╝\033[0m\n\n";
+
+        echo "\033[1;33mEste comando vai remover PERMANENTEMENTE:\033[0m\n";
+        echo "  • src/Modules/          — Auth, Usuario, IDE, Documentacao, LinkEncurtador\n";
+        echo "  • src/Kernel/Views/     — dashboard, IDE, home, marketplace, usuarios\n";
+        echo "  • src/Kernel/Controllers/ — DashboardController, HomeController, IdeController...\n";
+        echo "  • public/assets/        — todo o frontend (JS, CSS, imagens)\n";
+        echo "  • Documentacao/         — documentação HTML\n";
+        echo "  • storage/modules_state.json e capabilities_registry.json\n\n";
+
+        echo "\033[1;31mEsta ação NÃO PODE SER DESFEITA.\033[0m\n";
+        echo "Certifique-se de ter um backup antes de continuar.\n\n";
+
+        $confirm1 = $this->prompt('Digite "CONFIRMAR" para continuar (ou Enter para cancelar)');
+        if ($confirm1 !== 'CONFIRMAR') {
+            echo "\n\033[1;32m✔ Operação cancelada. Nenhum arquivo foi removido.\033[0m\n";
+            return;
+        }
+
+        $confirm2 = $this->prompt('Tem certeza? Digite "SIM" para executar');
+        if (strtoupper(trim($confirm2)) !== 'SIM') {
+            echo "\n\033[1;32m✔ Operação cancelada. Nenhum arquivo foi removido.\033[0m\n";
+            return;
+        }
+
+        echo "\n\033[1;31m▶ Executando limpeza...\033[0m\n\n";
+        (new \Src\CLI\StripCommand())->handle(['--force']);
+    }
+
+    private function fixPermissions(): void
+    {
+        $root    = dirname(__DIR__, 2);
+        $phpVer  = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+        $appUser = trim((string) (getenv('SUDO_USER') ?: posix_getpwuid(posix_getuid())['name'] ?? 'ubuntu'));
+
+        echo "\n\033[1;36m▶ Verificando e corrigindo permissões do projeto\033[0m\n\n";
+
+        $checks = [
+            // [descrição, verificação, correção]
+            [
+                'Dono do projeto → www-data',
+                fn() => $this->checkOwner($root, 'www-data'),
+                fn() => $this->runProcess(['sudo', 'chown', '-R', 'www-data:www-data', $root]),
+            ],
+            [
+                "Usuário {$appUser} no grupo www-data",
+                fn() => in_array('www-data', $this->getUserGroups($appUser), true),
+                fn() => $this->runProcess(['sudo', 'usermod', '-aG', 'www-data', $appUser]),
+            ],
+            [
+                'Usuário caddy no grupo www-data',
+                fn() => in_array('www-data', $this->getUserGroups('caddy'), true),
+                fn() => $this->runProcess(['sudo', 'usermod', '-aG', 'www-data', 'caddy']),
+            ],
+            [
+                'Diretório /home acessível (755)',
+                fn() => decoct(fileperms(dirname($root)) & 0777) >= '755',
+                fn() => $this->runProcess(['sudo', 'chmod', '755', dirname($root)]),
+            ],
+            [
+                'Projeto acessível (775)',
+                fn() => is_readable($root . '/index.php'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root]),
+            ],
+            [
+                '.env protegido (640)',
+                fn() => (fileperms($root . '/.env') & 0777) <= 0640,
+                fn() => $this->runProcess(['sudo', 'chmod', '640', $root . '/.env']),
+            ],
+            [
+                'src/Modules/ gravável pelo www-data (conexão de banco)',
+                fn() => is_writable($root . '/src/Modules'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root . '/src/Modules']),
+            ],
+            [
+                'storage/ gravável pelo www-data',
+                fn() => is_writable($root . '/storage'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '775', $root . '/storage']),
+            ],
+            [
+                'vendor/ legível',
+                fn() => is_readable($root . '/vendor/autoload.php'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '755', $root . '/vendor']),
+            ],
+            [
+                'public/ legível pelo Caddy',
+                fn() => is_readable($root . '/public/index.php') || is_readable($root . '/public/favicon.ico'),
+                fn() => $this->runProcess(['sudo', 'chmod', '-R', '755', $root . '/public']),
+            ],
+            [
+                "Socket PHP-FPM /run/php/php{$phpVer}-fpm.sock acessível",
+                fn() => file_exists("/run/php/php{$phpVer}-fpm.sock"),
+                fn() => $this->runProcess(['sudo', 'systemctl', 'restart', "php{$phpVer}-fpm"]),
+            ],
+        ];
+
+        $fixed = 0;
+        foreach ($checks as [$desc, $check, $fix]) {
+            try {
+                $ok = $check();
+            } catch (\Throwable) {
+                $ok = false;
+            }
+
+            if ($ok) {
+                echo "  \033[1;32m✔\033[0m {$desc}\n";
+            } else {
+                echo "  \033[1;33m⚠\033[0m {$desc} — corrigindo...\n";
+                try {
+                    $fix();
+                    $fixed++;
+                    echo "    \033[1;32m✔ corrigido\033[0m\n";
+                } catch (\Throwable $e) {
+                    echo "    \033[1;31m✖ falhou: {$e->getMessage()}\033[0m\n";
+                }
+            }
+        }
+
+        echo "\n";
+        if ($fixed > 0) {
+            echo "\033[1;33m{$fixed} permissão(ões) corrigida(s).\033[0m\n";
+            echo "Recarregue o servidor com a opção 27 para aplicar as mudanças.\n";
+        } else {
+            echo "\033[1;32mTodas as permissões estão corretas.\033[0m\n";
+        }
+    }
+
+    private function checkOwner(string $path, string $expectedUser): bool
+    {
+        if (!file_exists($path)) return false;
+        $stat = stat($path);
+        if ($stat === false) return false;
+        $info = posix_getpwuid($stat['uid']);
+        return ($info['name'] ?? '') === $expectedUser;
+    }
+
+    private function getUserGroups(string $username): array
+    {
+        $proc = new Process(['id', '-Gn', $username]);
+        $proc->run();
+        if (!$proc->isSuccessful()) return [];
+        return explode(' ', trim($proc->getOutput()));
+    }
+
+    private function reloadFpm(): void
+    {
+        $phpVer = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+        $svc    = "php{$phpVer}-fpm";
+        echo "▶ Recarregando {$svc}...\n";
+        $proc = new Process(['sudo', 'systemctl', 'reload', $svc]);
+        $proc->passthru();
+        if ($proc->isSuccessful()) {
+            echo "✔ {$svc} recarregado — OPcache limpo, código novo ativo.\n";
+        } else {
+            // reload pode falhar se FPM não suportar — tenta restart
+            echo "⚠ reload falhou, tentando restart...\n";
+            (new Process(['sudo', 'systemctl', 'restart', $svc]))->passthru();
+            echo "✔ {$svc} reiniciado.\n";
+        }
+    }
+
+    private function reloadCaddy(): void
+    {
+        echo "▶ Recarregando Caddy...\n";
+        if ($this->commandExists('caddy')) {
+            // caddy reload é mais rápido que systemctl reload — não espera notify do systemd
+            $proc = new Process(['sudo', 'caddy', 'reload', '--config', '/etc/caddy/Caddyfile']);
+            $proc->passthru();
+            if ($proc->isSuccessful()) {
+                echo "✔ Caddy recarregado.\n";
+            } else {
+                // fallback para systemctl
+                (new Process(['sudo', 'systemctl', 'reload', 'caddy']))->passthru();
+                echo "✔ Caddy recarregado via systemctl.\n";
+            }
+        } else {
+            echo "✖ Caddy não encontrado.\n";
+        }
+    }
+
+    private function reloadAll(): void
+    {
+        $this->reloadFpm();
+        $this->reloadCaddy();
+        echo "\n✔ Tudo recarregado.\n";
+    }
+
+    private function startFpmWithCaddy(): void
+    {
+        $this->reloadEnv();
+        $root      = dirname(__DIR__, 2);
+        $phpVer    = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+
+        // Ubuntu/Debian podem usar php8.2-fpm ou php-fpm8.2 dependendo da versão
+        $fpmBin = null;
+        foreach (["php{$phpVer}-fpm", "php-fpm{$phpVer}", 'php-fpm'] as $candidate) {
+            if ($this->commandExists($candidate)) {
+                $fpmBin = $candidate;
+                break;
+            }
+        }
+
+        // Verifica também se o serviço systemd existe mesmo sem o binário no PATH
+        if ($fpmBin === null) {
+            $svcCheck = new Process(['sudo', 'systemctl', 'status', "php{$phpVer}-fpm"]);
+            $svcCheck->run();
+            if ($svcCheck->getExitCode() !== 4) { // exit 4 = unit not found
+                $fpmBin = "php{$phpVer}-fpm"; // serviço existe, usa o nome padrão
+            }
+        }
+
+        if ($fpmBin === null) {
+            echo "✖ PHP-FPM não encontrado. Instale com:\n";
+            echo "  sudo apt-get install php{$phpVer}-fpm php{$phpVer}-opcache\n";
+            return;
+        }
+
+        // Nome do serviço systemd (sempre php{ver}-fpm independente do binário)
+        $fpmService = "php{$phpVer}-fpm";
+        $poolSrc   = $root . '/ci/php-fpm/vupi.us.conf';
+        $poolDst   = "/etc/php/{$phpVer}/fpm/pool.d/vupi.us.conf";
+        $caddySrc  = $root . '/Caddyfile.fpm';
+        $caddyDst  = '/etc/caddy/Caddyfile';
+        $domain    = preg_replace('#^https?://#', '', rtrim((string)($_ENV['APP_URL'] ?? 'api.vupi.us'), '/'));
+        $appRoot   = $root;
+        $email     = $_ENV['CADDY_EMAIL'] ?? ('admin@' . $domain);
+
+        echo "\n\033[1;32m▶ PHP-FPM + Caddy — configuração de produção\033[0m\n\n";
+        echo "  FPM binário: {$fpmBin}\n";
+        echo "  FPM serviço: {$fpmService}\n\n";
+
+        // ── 2. Instala pool config ────────────────────────────────────
+        if (!is_file($poolSrc)) {
+            echo "✖ Pool config não encontrado: {$poolSrc}\n";
+            return;
+        }
+
+        // Substitui APP_ROOT no pool config antes de copiar
+        $poolContent = (string) file_get_contents($poolSrc);
+        $tmpPool = tempnam(sys_get_temp_dir(), 'vupi_pool_');
+        file_put_contents($tmpPool, $poolContent);
+        $this->runProcess(['sudo', 'cp', $tmpPool, $poolDst]);
+        $this->runProcess(['sudo', 'chmod', '644', $poolDst]);
+        unlink($tmpPool);
+        echo "✔ Pool config instalado em {$poolDst}\n";
+
+        // Garante diretório de logs
+        $this->runProcess(['sudo', 'mkdir', '-p', '/var/log/php-fpm']);
+        $this->runProcess(['sudo', 'chown', 'www-data:www-data', '/var/log/php-fpm']);
+
+        // ── 3. Reinicia PHP-FPM ───────────────────────────────────────
+        echo "▶ Reiniciando PHP-FPM...\n";
+        $this->runProcess(['sudo', 'systemctl', 'restart', $fpmService]);
+        $this->runProcess(['sudo', 'systemctl', 'enable',  $fpmService]);
+        echo "✔ PHP-FPM {$phpVer} rodando com pool vupi.us\n";
+
+        // ── 4. Instala Caddy se necessário ────────────────────────────
+        if (!$this->commandExists('caddy')) {
+            echo "Caddy não encontrado. Instalando...\n";
+            $this->installCaddy();
+        }
+
+        // ── 5. Instala Caddyfile.fpm ──────────────────────────────────
+        if (!is_file($caddySrc)) {
+            echo "✖ Caddyfile.fpm não encontrado: {$caddySrc}\n";
+            return;
+        }
+        $this->runProcess(['sudo', 'cp', $caddySrc, $caddyDst]);
+        echo "✔ Caddyfile.fpm instalado em {$caddyDst}\n";
+
+        // ── 6. Grava variáveis de ambiente para o Caddy ───────────────
+        $envContent = "# Gerado pelo vupi.us setup em " . date('Y-m-d H:i:s') . "\n"
+            . "APP_DOMAIN={$domain}\n"
+            . "APP_ROOT={$appRoot}\n"
+            . "CADDY_EMAIL={$email}\n"
+            . "APP_ENV=" . ($_ENV['APP_ENV'] ?? 'production') . "\n";
+        $tmpEnv = tempnam(sys_get_temp_dir(), 'vupi_env_');
+        file_put_contents($tmpEnv, $envContent);
+        $this->runProcess(['sudo', 'cp', $tmpEnv, '/etc/caddy/vupi.us.env']);
+        $this->runProcess(['sudo', 'chmod', '640', '/etc/caddy/vupi.us.env']);
+        unlink($tmpEnv);
+        echo "✔ /etc/caddy/vupi.us.env atualizado\n";
+
+        // ── 7. Inicia/recarrega Caddy ─────────────────────────────────
+        $check = new Process(['sudo', 'systemctl', 'is-active', 'caddy']);
+        $check->run();
+        if (trim($check->getOutput()) === 'active') {
+            $this->runProcess(['sudo', 'systemctl', 'daemon-reload']);
+            $this->runProcess(['sudo', 'systemctl', 'reload', 'caddy']);
+            echo "✔ Caddy recarregado\n";
+        } else {
+            $this->runProcess(['sudo', 'systemctl', 'enable', '--now', 'caddy']);
+            echo "✔ Caddy iniciado\n";
+        }
+
+        $appUrl = (string)($_ENV['APP_URL'] ?? "https://{$domain}");
+        echo "\n\033[1;32m✔ Produção ativa!\033[0m\n";
+        echo "  API:         {$appUrl}\n";
+        echo "  PHP-FPM:     systemctl status {$fpmService}\n";
+        echo "  Caddy:       systemctl status caddy\n";
+        echo "  Workers FPM: sudo systemctl reload {$fpmService}\n";
+        echo "  Logs FPM:    tail -f /var/log/php-fpm/vupi.us-error.log\n";
+        echo "  Logs Caddy:  journalctl -u caddy -f\n\n";
+        echo "  \033[1;33mPara voltar ao php -S:\033[0m opção 16 (PM2 + Caddy)\n";
     }
 
     private function startPm2WithCaddy(): void
@@ -429,13 +755,20 @@ class SetupCommand
         echo "\n";
         echo "Flags (modo --auto):\n";
         echo "  --db-mode=compose|docker|skip   # padrão: compose\n";
-        echo "  --server=background|php|pm2|pm2+caddy  # padrão: background\n";
+        echo "  --server=background|php|pm2|pm2+caddy|fpm+caddy  # padrão: background\n";
         echo "  --jwt=if-empty|skip             # padrão: if-empty\n";
         echo "  --api-token=generate|skip       # padrão: skip\n";
         echo "  --caddy=production|dev|skip     # padrão: skip\n";
         echo "\n";
         echo "Exemplos:\n";
-        echo "  # Produção: PM2 + Caddy HTTPS automático (recomendado):\n";
+        echo "  # Produção REAL (PHP-FPM + Caddy — recomendado):\n";
+        echo "  php vupi setup --auto --server=fpm+caddy\n";
+        echo "\n";
+        echo "  # Modo esqueleto (remove módulos nativos e frontend):\n";
+        echo "  php vupi strip --dry-run    # visualiza o que seria removido\n";
+        echo "  php vupi strip --force      # executa a remoção\n";
+        echo "\n";
+        echo "  # Produção: PM2 + Caddy HTTPS automático:\n";
         echo "  php vupi setup --auto --server=pm2+caddy\n";
         echo "\n";
         echo "  # Produção: php -S + Caddy HTTPS automático:\n";

@@ -21,8 +21,14 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         $isApi   = str_starts_with($request->getUri(), '/api/');
         $isHttps = CookieConfig::isHttps();
 
-        $headers = Response::buildSecurityHeaders($isApi, $isHttps);
+        $headers         = Response::buildSecurityHeaders($isApi, $isHttps);
+        $existingHeaders = array_change_key_case($response->getHeaders(), CASE_LOWER);
+
         foreach ($headers as $name => $value) {
+            // Não sobrescreve headers já definidos pela resposta (ex: CSP customizado)
+            if (isset($existingHeaders[strtolower($name)])) {
+                continue;
+            }
             $response = $response->withHeader($name, $value);
         }
 

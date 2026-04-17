@@ -14,8 +14,8 @@ $apiProtected = [ApiTokenMiddleware::class];
 // Circuit breaker para rotas que dependem de DB
 $dbCircuit = [CircuitBreakerMiddleware::class, ['service' => 'database', 'threshold' => 5, 'cooldown' => 20]];
 
-// Rate limits: login → 10/min, recuperação → 5/min, refresh → 20/min
-$loginRateLimit    = [RateLimitMiddleware::class, ['limit' => 10, 'window' => 60,  'key' => 'auth.login',    'user_limit' => 5]];
+// Rate limits: login → 5/min por IP, recuperação → 5/min, refresh → 20/min
+$loginRateLimit    = [RateLimitMiddleware::class, ['limit' => 5,  'window' => 60,  'key' => 'auth.login',    'user_limit' => 5]];
 $recoveryRateLimit = [RateLimitMiddleware::class, ['limit' => 5,  'window' => 60,  'key' => 'auth.recovery', 'user_limit' => 3]];
 $refreshRateLimit  = [RateLimitMiddleware::class, ['limit' => 20, 'window' => 60,  'key' => 'auth.refresh',  'user_limit' => 10]];
 

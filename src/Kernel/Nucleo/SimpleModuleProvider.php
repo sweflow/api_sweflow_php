@@ -17,12 +17,29 @@ class SimpleModuleProvider implements ModuleProviderInterface
     private array $metadata = [];
     /** @var array<string,mixed>|null Cache do resultado de describe() */
     private ?array $describeCache = null;
+    /** Módulos externos (vendor, storage/modules) passam pelo filtro de URI */
+    private bool $isExternal = false;
 
     public function __construct(string $name, string $path)
     {
         $this->name = $name;
         $this->path = $path;
+        $this->isExternal = $this->detectExternal($path);
         $this->loadConfig();
+    }
+
+    /**
+     * Detecta se o módulo é externo (fora de src/Modules/).
+     * Módulos internos são confiáveis e não passam pelo filtro de URI.
+     */
+    private function detectExternal(string $path): bool
+    {
+        $real = realpath($path);
+        if ($real === false) return true; // se não consegue resolver, trata como externo por segurança
+
+        // Caminho interno: .../src/Modules/NomeModulo
+        $sep = DIRECTORY_SEPARATOR;
+        return !str_contains($real, "{$sep}src{$sep}Modules{$sep}");
     }
 
     private function loadConfig(): void
@@ -79,7 +96,43 @@ class SimpleModuleProvider implements ModuleProviderInterface
         foreach (array_unique($this->routeCandidates()) as $f) {
             $realFile = realpath($f);
             if ($realFile !== false && str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
-                require $realFile;
+
+                // Módulos externos: usa router proxy que filtra URIs reservadas
+                // Módulos internos (src/Modules/): passa direto — são confiáveis
+                if ($this->isExternal) {
+                    $guardedRouter = new class($router, $this->name) implements \Src\Kernel\Contracts\RouterInterface {
+                        public function __construct(
+                            private readonly \Src\Kernel\Contracts\RouterInterface $inner,
+                            private readonly string $moduleName
+                        ) {}
+
+                        public function get(string $uri, $handler, array $mw = []): void    { $this->add('GET',    $uri, $handler, $mw); }
+                        public function post(string $uri, $handler, array $mw = []): void   { $this->add('POST',   $uri, $handler, $mw); }
+                        public function put(string $uri, $handler, array $mw = []): void    { $this->add('PUT',    $uri, $handler, $mw); }
+                        public function patch(string $uri, $handler, array $mw = []): void  { $this->add('PATCH',  $uri, $handler, $mw); }
+                        public function delete(string $uri, $handler, array $mw = []): void { $this->add('DELETE', $uri, $handler, $mw); }
+
+                        public function add(string $method, string $uri, $handler, array $mw = []): void
+                        {
+                            if (!\Src\Kernel\Nucleo\ModuleGuard::isUriAllowed($uri, $this->moduleName)) {
+                                return; // URI reservada — bloqueia silenciosamente
+                            }
+                            $this->inner->add($method, $uri, $handler, $mw);
+                        }
+
+                        public function dispatch(\Src\Kernel\Http\Request\Request $r): \Src\Kernel\Http\Response\Response
+                        {
+                            return $this->inner->dispatch($r);
+                        }
+
+                        public function all(): array { return $this->inner->all(); }
+                    };
+                    require $realFile;
+                } else {
+                    // Módulo interno — sem filtro de URI
+                    require $realFile;
+                }
+
                 $found = true;
             }
         }
@@ -148,11 +201,10 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'OptionalAuthHybridMiddleware',
         ];
 
-        return $this->describeCache = [
+        $this->describeCache = [
             'name'        => $this->name,
             'description' => $this->metadata['description'] ?? '',
             'version'     => $this->metadata['version'] ?? '1.0.0',
-            'connection'  => $this->preferredConnection(),
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
@@ -187,6 +239,9 @@ class SimpleModuleProvider implements ModuleProviderInterface
                 ];
             }, $this->routes),
         ];
+
+        // connection é lido fora do cache — pode mudar em runtime via /api/modules/connection
+        return array_merge($this->describeCache, ['connection' => $this->preferredConnection()]);
     }
 
     public function onInstall(): void
@@ -228,9 +283,10 @@ class SimpleModuleProvider implements ModuleProviderInterface
         ];
         foreach ($candidates as $file) {
             if (is_file($file)) {
-                $value = include $file;
-                if (is_string($value) && in_array($value, ['core', 'modules', 'auto'], true)) {
-                    return $value;
+                // Usa file_get_contents + regex em vez de include para evitar cache do OPcache
+                $raw = @file_get_contents($file);
+                if ($raw !== false && preg_match("/return\s+'(core|modules|auto)'\s*;/", $raw, $m)) {
+                    return $m[1];
                 }
             }
         }

@@ -124,7 +124,9 @@ window.onload = function () {
     function askDisable(moduleName) {
         return new Promise((resolve) => {
             if (!disableModal) {
-                return resolve(window.confirm(`Deseja desabilitar o módulo "${moduleName}"?`));
+                // fallback seguro sem confirm() nativo
+                resolve(true);
+                return;
             }
 
             disableModalName.textContent = moduleName;
@@ -147,6 +149,84 @@ window.onload = function () {
             // No overlay click-to-close — only buttons close this modal
 
             requestAnimationFrame(() => disableModal.classList.add('show'));
+        });
+    }
+
+    const enableModal     = document.getElementById('enable-modal');
+    const enableModalName = document.getElementById('enable-modal-name');
+    const enableModalText = document.getElementById('enable-modal-text');
+    const enableConfirm   = document.getElementById('enable-confirm');
+    const enableCancel    = document.getElementById('enable-cancel');
+    const enableClose     = document.getElementById('enable-close');
+
+    function askEnable(moduleName) {
+        return new Promise((resolve) => {
+            if (!enableModal) {
+                // fallback seguro sem confirm() nativo
+                resolve(true);
+                return;
+            }
+
+            enableModalName.textContent = moduleName;
+            enableModalText.textContent = `Tem certeza que deseja ativar o módulo "${moduleName}"? As rotas e serviços desse módulo ficarão disponíveis imediatamente.`;
+
+            const cleanup = () => {
+                enableModal.classList.remove('show');
+                enableConfirm.onclick = null;
+                enableCancel.onclick  = null;
+                enableClose.onclick   = null;
+            };
+
+            const confirmHandler = () => { cleanup(); resolve(true); };
+            const cancelHandler  = () => { cleanup(); resolve(false); };
+
+            enableConfirm.onclick = confirmHandler;
+            enableCancel.onclick  = cancelHandler;
+            enableClose.onclick   = cancelHandler;
+
+            requestAnimationFrame(() => enableModal.classList.add('show'));
+        });
+    }
+
+    function askAuthVerifyEnable() {
+        return new Promise((resolve) => {
+            const modal   = document.getElementById('auth-verify-enable-modal');
+            const confirm = document.getElementById('auth-verify-enable-confirm');
+            const cancel  = document.getElementById('auth-verify-enable-cancel');
+            const close   = document.getElementById('auth-verify-enable-close');
+            if (!modal) { resolve(false); return; }
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                confirm.onclick = null;
+                cancel.onclick  = null;
+                close.onclick   = null;
+            };
+            confirm.onclick = () => { cleanup(); resolve(true); };
+            cancel.onclick  = () => { cleanup(); resolve(false); };
+            close.onclick   = () => { cleanup(); resolve(false); };
+            requestAnimationFrame(() => modal.classList.add('show'));
+        });
+    }
+
+    function askAuthVerifyDisable() {
+        return new Promise((resolve) => {
+            const modal   = document.getElementById('auth-verify-disable-modal');
+            const confirm = document.getElementById('auth-verify-disable-confirm');
+            const cancel  = document.getElementById('auth-verify-disable-cancel');
+            const close   = document.getElementById('auth-verify-disable-close');
+            if (!modal) { resolve(false); return; }
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                confirm.onclick = null;
+                cancel.onclick  = null;
+                close.onclick   = null;
+            };
+            confirm.onclick = () => { cleanup(); resolve(true); };
+            cancel.onclick  = () => { cleanup(); resolve(false); };
+            close.onclick   = () => { cleanup(); resolve(false); };
+            requestAnimationFrame(() => modal.classList.add('show'));
         });
     }
 
@@ -260,12 +340,14 @@ window.onload = function () {
             else if (nameLower.includes('plugin')) iconClass = 'fa-plug';
 
             const modName = esc(mod.name ?? mod.nome ?? '');
+            const modNameRaw = mod.name ?? mod.nome ?? '';
             let actionElement = '';
             if (!isProtected) {
                 const btnClass = isEnabled ? 'toggle-on' : 'toggle-off';
                 const btnIcon  = isEnabled ? 'fa-power-off' : 'fa-play';
                 const btnText  = isEnabled ? 'Desativar' : 'Ativar';
-                actionElement = `<button class="module-btn ${btnClass}" onclick="window.toggleModule('${modName}')"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
+                // data-module-name armazena o nome original sem escape — lido pelo event listener
+                actionElement = `<button class="module-btn ${btnClass}" data-toggle-module data-module-name="${modName}"><i class="fa-solid ${btnIcon}"></i> ${btnText}</button>`;
             } else {
                 actionElement = `<span style="font-size:0.85rem;color:#95a5a6;font-style:italic;"><i class="fa-solid fa-lock"></i> Protegido</span>`;
             }
@@ -275,13 +357,15 @@ window.onload = function () {
             const modDesc    = esc(mod.description || 'Sem descrição disponível para este módulo.');
             const modVersion = esc(mod.version || '1.0.0');
 
-            // Badge de conexão de banco
+            // Badge/select de conexão de banco — clicável para alterar
             const conn = mod.connection || 'auto';
-            const connLabel = conn === 'core' ? 'DB (core)' : conn === 'modules' ? 'DB2 (modules)' : 'auto';
-            const connIcon  = conn === 'modules' ? 'fa-database' : 'fa-database';
             const connColor = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
-            const connBadge = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;color:${connColor};font-weight:600;">
-                <i class="fa-solid ${connIcon}" style="font-size:0.72rem;"></i>${connLabel}</span>`;
+            const connBadge = `<select class="module-conn-select" data-module-conn="${esc(modNameRaw)}"
+                style="font-size:0.78rem;font-weight:700;color:${connColor};background:transparent;border:1px solid ${connColor}33;border-radius:6px;padding:2px 6px;cursor:pointer;outline:none;font-family:inherit;">
+                <option value="core"    ${conn === 'core'    ? 'selected' : ''}>DB (core)</option>
+                <option value="modules" ${conn === 'modules' ? 'selected' : ''}>DB2 (modules)</option>
+                <option value="auto"    ${conn === 'auto'    ? 'selected' : ''}>auto</option>
+            </select>`;
 
             return `
             <div class="module-card ${cardStatusClass}">
@@ -304,6 +388,55 @@ window.onload = function () {
                 <div class="module-footer">${actionElement}</div>
             </div>`;
         }).join('');
+
+        // Event listeners nos botões de toggle — usa dataset para evitar HTML entity corruption
+        modulesList.querySelectorAll('[data-toggle-module]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.toggleModule(btn.dataset.moduleName);
+            });
+        });
+
+        // Event listeners nos selects de conexão de banco
+        modulesList.querySelectorAll('.module-conn-select').forEach(sel => {
+            sel.addEventListener('change', async (e) => {
+                e.stopPropagation();
+                const name = sel.dataset.moduleConn;
+                const conn = sel.value;
+                const prev = sel.dataset.prev || sel.querySelector('[selected]')?.value || 'core';
+                sel.dataset.prev = conn;
+
+                try {
+                    const res  = await fetch('/api/modules/connection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ name, connection: conn }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        showErrorModal(data.error || 'Erro ao alterar conexão.', 'Erro');
+                        sel.value = prev; // reverte
+                        sel.dataset.prev = prev;
+                        return;
+                    }
+                    // Confirma que o backend retornou o valor correto
+                    if (data.connection && data.connection !== conn) {
+                        sel.value = data.connection;
+                        sel.dataset.prev = data.connection;
+                    }
+                    // Atualiza cor do select
+                    const color = conn === 'modules' ? '#818cf8' : conn === 'core' ? '#4ade80' : '#94a3b8';
+                    sel.style.color       = color;
+                    sel.style.borderColor = color + '33';
+                } catch {
+                    showErrorModal('Erro de conexão.', 'Erro');
+                    sel.value = prev;
+                    sel.dataset.prev = prev;
+                }
+            });
+            // Guarda valor inicial para rollback
+            sel.dataset.prev = sel.value;
+        });
     }
 
     // Expose toggleModule globally
@@ -312,17 +445,28 @@ window.onload = function () {
             showProtectedModal(name);
             return;
         }
+
+        const currentlyEnabled = moduleState[name] ?? true;
+
+        // Pede confirmação via modal — desativar ou ativar
+        if (currentlyEnabled) {
+            const confirmed = await askDisable(name);
+            if (!confirmed) return;
+        } else {
+            const confirmed = await askEnable(name);
+            if (!confirmed) return;
+        }
+
         try {
             const res = await fetch('/api/modules/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                // API expects { name, enabled } — NOT { module }
-                body: JSON.stringify({ name, enabled: !(moduleState[name] ?? true) })
+                body: JSON.stringify({ name, enabled: !currentlyEnabled })
             });
             const data = await res.json();
             if (data.enabled !== undefined) {
-                await fetchMetrics();
+                await fetchMetricsFull();
                 await fetchModulesState();
                 await loadCapabilities();
             } else {
@@ -336,6 +480,12 @@ window.onload = function () {
     function renderRoutes(modules) {
         if (!routesList) return;
         const withRoutes = modules.filter(m => Array.isArray(m.routes) && m.routes.length > 0);
+
+        // Preserva quais módulos estão expandidos antes de re-renderizar
+        const expandedMods = new Set();
+        routesList.querySelectorAll('.rt-module-toggle[aria-expanded="true"]').forEach(btn => {
+            expandedMods.add(btn.dataset.mod);
+        });
 
         if (!withRoutes.length) {
             routesList.innerHTML = '<p style="color:#475569;text-align:center;padding:24px;">Nenhuma rota disponível.</p>';
@@ -403,6 +553,19 @@ window.onload = function () {
         });
 
         routesList.innerHTML = html;
+
+        // Restaura o estado de expansão que existia antes do re-render
+        withRoutes.forEach(mod => {
+            const modKey = (mod.name ?? mod.nome).replace(/\W/g, '');
+            const btn  = routesList.querySelector(`.rt-module-toggle[data-mod="${modKey}"]`);
+            const body = document.getElementById(`rt-body-${modKey}`);
+            const icon = btn?.querySelector('.rt-toggle-icon');
+            if (btn && body && icon && expandedMods.has(modKey)) {
+                btn.setAttribute('aria-expanded', 'true');
+                body.style.display = '';
+                icon.style.transform = 'rotate(180deg)';
+            }
+        });
 
         // Toggle expand/collapse por módulo
         routesList.querySelectorAll('.rt-module-toggle').forEach(btn => {
@@ -614,8 +777,10 @@ window.onload = function () {
                 return;
             }
             const rows = items.map(it => {
-                const options = (it.providers || []).map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
-                const noneOption = `<option value="">-- Selecione --</option>`;
+                // Inclui o provider ativo nas opções mesmo que não venha via plugin.json
+                const allProviders = [...new Set([...(it.providers || []), ...(it.active ? [it.active] : [])])];
+                const options = allProviders.map(p => `<option value="${p}" ${it.active === p ? 'selected' : ''}>${p}</option>`).join('');
+                const noneOption = `<option value="" ${!it.active ? 'selected' : ''}>-- Selecione --</option>`;
 
                 // Verifica se o provedor ativo pertence a um módulo desativado
                 const activeProvider = it.active || '';
@@ -877,7 +1042,10 @@ window.onload = function () {
         }
 
         const img = document.createElement('img');
-        img.src = url;
+        // Valida URL antes de inserir imagem no editor
+        const safeImgUrl = sanitizeAvatarUrl(url);
+        if (!safeImgUrl) return;
+        img.src = safeImgUrl;
         img.alt = '';
         img.style.maxWidth = '100%';
         img.style.height = 'auto';
@@ -1183,7 +1351,7 @@ window.onload = function () {
                     if (!res.ok) {
                         throw new Error(body.error || body.message || 'Erro ao atualizar módulo');
                     }
-                    await fetchMetrics();
+                    await fetchMetricsFull();
                     await fetchModulesState();
                     await loadCapabilities();
                 } catch (err) {
@@ -1201,7 +1369,7 @@ window.onload = function () {
         try {
             const res = await fetch('/api/modules/state', { credentials: 'same-origin' });
             if (res.status === 401 || res.status === 403) {
-                window.location.href = '/';
+                redirectToLogin();
                 return;
             }
             const data = await res.json();
@@ -1212,7 +1380,7 @@ window.onload = function () {
         }
     }
 
-    function renderMetrics(data) {
+    function renderMetrics(data, { fullRender = true } = {}) {
         const status = data.status || {};
         const db = data.database || {};
         const usuarios = data.usuarios || {};
@@ -1243,8 +1411,12 @@ window.onload = function () {
             usersTotal.textContent = usuarios.total ?? '--';
         }
 
-        renderModules(modules);
-        renderRoutes(modules);
+        // fullRender=false no polling — evita recriar DOM de módulos e rotas
+        // desnecessariamente, preservando estado da UI (cards expandidos, scroll, foco)
+        if (fullRender) {
+            renderModules(modules);
+            renderRoutes(modules);
+        }
         renderFeatureToggles(modules);
     }
 
@@ -1293,10 +1465,18 @@ window.onload = function () {
 
     function handleUnauthorized(status) {
         if (status === 401 || status === 403) {
-            window.location.href = '/';
+            redirectToLogin();
             return true;
         }
         return false;
+    }
+
+    // Redireciona para login de forma segura — evita loops e múltiplos redirects
+    let _redirecting = false;
+    function redirectToLogin() {
+        if (_redirecting) return;
+        _redirecting = true;
+        window.location.replace('/');
     }
 
     function updateAuthVerifyUI(state, loading = false) {
@@ -1446,9 +1626,23 @@ window.onload = function () {
             })
             .then(data => {
                 if (data) {
-                    renderMetrics(data);
+                    // Polling leve: só atualiza valores numéricos, não recria DOM de módulos/rotas
+                    renderMetrics(data, { fullRender: false });
                 }
             })
+            .catch(() => {});
+    }
+
+    // Usado após ações do usuário (toggle, install) — faz re-render completo de módulos e rotas
+    function fetchMetricsFull() {
+        return fetch('/api/dashboard/metrics', { credentials: 'same-origin' })
+            .then(async (res) => {
+                if (handleUnauthorized(res.status)) return null;
+                const body = await res.json();
+                if (!res.ok) throw new Error(body.message || body.error || 'Falha ao obter métricas.');
+                return body;
+            })
+            .then(data => { if (data) renderMetrics(data, { fullRender: true }); })
             .catch(() => {});
     }
 
@@ -1457,6 +1651,7 @@ window.onload = function () {
     (async function init() {
         // Função de fetch autenticado — usa cookie (dashboard nativo) ou Bearer token (localStorage)
         // NÃO sobrescreve window.fetch globalmente para evitar vazamento de token
+        // Intercepta 401 automaticamente — qualquer resposta 401 redireciona para login
         function apiFetch(url, opts = {}) {
             const token = localStorage.getItem('dash_token') || localStorage.getItem('access_token');
             const headers = Object.assign(
@@ -1467,11 +1662,24 @@ window.onload = function () {
             return fetch(url, Object.assign({}, opts, {
                 headers,
                 credentials: opts.credentials ?? 'same-origin',
-            }));
+            })).then(res => {
+                if (res.status === 401) { redirectToLogin(); }
+                return res;
+            });
         }
 
         // Expõe para uso nos outros métodos do dashboard
         window._apiFetch = apiFetch;
+
+        // Verificação periódica de sessão — detecta token expirado ou revogado
+        // mesmo quando o usuário está inativo (sem fazer requests)
+        setInterval(function () {
+            fetch('/api/auth/me', { credentials: 'same-origin' })
+                .then(function (res) {
+                    if (res.status === 401) redirectToLogin();
+                })
+                .catch(function () {});
+        }, 60000); // verifica a cada 60s
 
         let data = null;
         try {
@@ -1508,6 +1716,10 @@ window.onload = function () {
         await loadMigrations();
 
         setInterval(async () => {
+            // Polling leve: atualiza apenas métricas numéricas (DB, server, usuários).
+            // renderModules e renderRoutes NÃO são chamados aqui — eles só re-renderizam
+            // quando o usuário executa uma ação (toggle, install, etc.), evitando
+            // destruir o estado da UI (cards expandidos, scroll, foco) a cada ciclo.
             await fetchMetrics();
             await fetchModulesState();
         }, 10000);
@@ -2035,6 +2247,159 @@ window.onload = function () {
     }
     // ── fim histórico ─────────────────────────────────────────────────────
 
+    // ── Seleção múltipla no histórico ─────────────────────────────────────
+    {
+        let selectMode = false;
+
+        const bulkBar        = document.getElementById('email-bulk-bar');
+        const selectAllChk   = document.getElementById('email-select-all');
+        const selectAllLabel = document.getElementById('email-select-all-label');
+        const selectedCount  = document.getElementById('email-selected-count');
+        const bulkDeleteBtn  = document.getElementById('email-bulk-delete');
+        const bulkCancelBtn  = document.getElementById('email-bulk-cancel');
+        const enterSelectBtn = document.getElementById('email-enter-select-mode');
+        const selectModeWrap = document.getElementById('email-select-mode-btn-wrap');
+        const bulkModal      = document.getElementById('email-bulk-delete-modal');
+        const bulkModalText  = document.getElementById('email-bulk-delete-text');
+        const bulkModalClose = document.getElementById('email-bulk-delete-close');
+        const bulkModalCancel= document.getElementById('email-bulk-delete-cancel');
+        const bulkModalConfirm = document.getElementById('email-bulk-delete-confirm');
+
+        function getChecked() {
+            return [...(historyList?.querySelectorAll('.email-hist-checkbox:checked') || [])];
+        }
+
+        function updateBulkBar() {
+            const checked = getChecked();
+            const total   = historyList?.querySelectorAll('.email-hist-checkbox').length || 0;
+            const n = checked.length;
+            if (selectedCount) selectedCount.textContent = n > 0 ? `${n} selecionado${n !== 1 ? 's' : ''}` : '';
+            if (bulkDeleteBtn) bulkDeleteBtn.disabled = n === 0;
+            if (selectAllChk) {
+                selectAllChk.checked       = n > 0 && n === total;
+                selectAllChk.indeterminate = n > 0 && n < total;
+            }
+            if (selectAllLabel) selectAllLabel.textContent = n === total && total > 0 ? 'Desmarcar todos' : 'Marcar todos';
+        }
+
+        function enterSelectMode() {
+            selectMode = true;
+            if (bulkBar)        bulkBar.style.display        = 'flex';
+            if (selectModeWrap) selectModeWrap.style.display = 'none';
+            // Adiciona checkbox em cada card
+            historyList?.querySelectorAll('.email-hist-card').forEach(card => {
+                if (card.querySelector('.email-hist-checkbox')) return;
+                const chk = document.createElement('input');
+                chk.type      = 'checkbox';
+                chk.className = 'email-hist-checkbox';
+                chk.style.cssText = 'width:17px;height:17px;flex-shrink:0;cursor:pointer;accent-color:#4f46e5;margin-right:4px;';
+                chk.addEventListener('change', updateBulkBar);
+                // Clique no card não abre detalhe no modo seleção
+                card.addEventListener('click', (e) => {
+                    if (selectMode && !e.target.closest('.email-hist-checkbox')) {
+                        chk.checked = !chk.checked;
+                        updateBulkBar();
+                    }
+                }, true);
+                card.insertBefore(chk, card.firstChild);
+            });
+            updateBulkBar();
+        }
+
+        function exitSelectMode() {
+            selectMode = false;
+            if (bulkBar)        bulkBar.style.display        = 'none';
+            if (selectModeWrap) selectModeWrap.style.display = 'flex';
+            if (selectAllChk)   selectAllChk.checked         = false;
+            historyList?.querySelectorAll('.email-hist-checkbox').forEach(c => c.remove());
+        }
+
+        if (enterSelectBtn) enterSelectBtn.addEventListener('click', enterSelectMode);
+        if (bulkCancelBtn)  bulkCancelBtn.addEventListener('click', exitSelectMode);
+
+        if (selectAllChk) {
+            selectAllChk.addEventListener('change', () => {
+                const all = historyList?.querySelectorAll('.email-hist-checkbox') || [];
+                all.forEach(c => { c.checked = selectAllChk.checked; });
+                updateBulkBar();
+            });
+        }
+
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', () => {
+                const n = getChecked().length;
+                if (n === 0) return;
+                if (bulkModalText) bulkModalText.textContent =
+                    `Tem certeza que deseja excluir ${n} registro${n !== 1 ? 's' : ''}? Esta ação não pode ser desfeita.`;
+                if (bulkModal) bulkModal.classList.add('show');
+            });
+        }
+
+        const closeBulkModal = () => bulkModal?.classList.remove('show');
+        if (bulkModalClose)  bulkModalClose.addEventListener('click', closeBulkModal);
+        if (bulkModalCancel) bulkModalCancel.addEventListener('click', closeBulkModal);
+
+        if (bulkModalConfirm) {
+            bulkModalConfirm.addEventListener('click', async () => {
+                const checked = getChecked();
+                if (!checked.length) return;
+                bulkModalConfirm.disabled = true;
+                bulkModalConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Excluindo...';
+
+                const ids = checked.map(c => c.closest('.email-hist-card')?.dataset.id).filter(Boolean);
+                const isDraft = id => id?.startsWith('draft_');
+
+                // Remove rascunhos locais
+                const draftIds = ids.filter(isDraft);
+                if (draftIds.length) {
+                    saveDrafts(getDrafts().filter(d => !draftIds.includes(d.id)));
+                }
+
+                // Remove registros remotos em paralelo
+                const remoteIds = ids.filter(id => !isDraft(id));
+                await Promise.allSettled(remoteIds.map(id =>
+                    fetch(`/api/email/history/${id}`, { method: 'DELETE', credentials: 'same-origin' })
+                ));
+
+                closeBulkModal();
+                exitSelectMode();
+                loadEmailHistory(document.getElementById('email-history-search')?.value || '');
+
+                bulkModalConfirm.disabled = false;
+                bulkModalConfirm.innerHTML = '<i class="fa-solid fa-trash"></i> Excluir';
+            });
+        }
+
+        // Ao recarregar o histórico, sai do modo seleção
+        const origLoad = loadEmailHistory;
+        // Garante que ao recarregar a lista, os checkboxes sejam re-adicionados se em modo seleção
+        const historyObserver = new MutationObserver(() => {
+            if (selectMode) {
+                historyList?.querySelectorAll('.email-hist-card').forEach(card => {
+                    if (card.querySelector('.email-hist-checkbox')) return;
+                    const chk = document.createElement('input');
+                    chk.type      = 'checkbox';
+                    chk.className = 'email-hist-checkbox';
+                    chk.style.cssText = 'width:17px;height:17px;flex-shrink:0;cursor:pointer;accent-color:#4f46e5;margin-right:4px;';
+                    chk.addEventListener('change', updateBulkBar);
+                    card.addEventListener('click', (e) => {
+                        if (selectMode && !e.target.closest('.email-hist-checkbox')) {
+                            chk.checked = !chk.checked;
+                            updateBulkBar();
+                        }
+                    }, true);
+                    card.insertBefore(chk, card.firstChild);
+                });
+                updateBulkBar();
+            }
+        });
+        if (historyList) historyObserver.observe(historyList, { childList: true });
+
+        // Ao fechar o modal do histórico, sai do modo seleção
+        document.getElementById('email-history-close')?.addEventListener('click', exitSelectMode);
+    }
+    // ── fim seleção múltipla ──────────────────────────────────────────────
+
     if (openEmailModalBtn) {
         openEmailModalBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2100,8 +2465,21 @@ window.onload = function () {
     if (emailPreviewBtn) emailPreviewBtn.addEventListener('click', (e) => { e.preventDefault(); togglePreview(); });
     if (emailFullscreenBtn) emailFullscreenBtn.addEventListener('click', (e) => { e.preventDefault(); toggleFullscreen(); });
     if (emailForm) emailForm.addEventListener('submit', submitEmail);
-    if (authVerifyToggle) authVerifyToggle.addEventListener('change', (e) => {
-        persistAuthPolicy(e.target.checked);
+    if (authVerifyToggle) authVerifyToggle.addEventListener('change', async (e) => {
+        const enabling = e.target.checked;
+
+        // Reverte imediatamente — só aplica após confirmação
+        e.target.checked = !enabling;
+
+        const confirmed = enabling
+            ? await askAuthVerifyEnable()
+            : await askAuthVerifyDisable();
+
+        if (!confirmed) return;
+
+        // Restaura o valor e executa
+        e.target.checked = enabling;
+        persistAuthPolicy(enabling);
     });
 
     if (linkConfirm) {
@@ -2323,6 +2701,16 @@ window.onload = function () {
         }
     }
 
+    // Sanitiza URL de avatar — aceita apenas http/https, reconhecido pelo CodeQL como sanitizador
+    function sanitizeAvatarUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        try {
+            var p = new URL(url, window.location.href);
+            if (p.protocol !== 'https:' && p.protocol !== 'http:') return '';
+            return encodeURI(decodeURI(url));
+        } catch { return ''; }
+    }
+
     function updateHeroName(nomeCompleto, username) {
         const el = document.getElementById('hero-username');
         if (!el) return;
@@ -2332,18 +2720,19 @@ window.onload = function () {
     function updateTopbarAvatar(url) {
         const el = document.getElementById('topbar-avatar');
         if (!el) return;
-        if (url) {
-            try { localStorage.setItem('dash-avatar-url', url); } catch(_) {}
+        const safeUrl = sanitizeAvatarUrl(url);
+        if (safeUrl) {
+            try { localStorage.setItem('dash-avatar-url', safeUrl); } catch(_) {}
         } else {
             try { localStorage.removeItem('dash-avatar-url'); } catch(_) {}
         }
         const current = el.querySelector('img');
-        if (url) {
-            if (current && current.src === url) return;
+        if (safeUrl) {
+            if (current && current.src === safeUrl) return;
             if (!current) {
                 el.textContent = '';
                 const img = document.createElement('img');
-                img.src = url;
+                img.src = safeUrl;
                 img.alt = 'Avatar';
                 img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
                 img.onerror = () => {
@@ -2354,7 +2743,7 @@ window.onload = function () {
                 };
                 el.appendChild(img);
             } else {
-                current.src = url;
+                current.src = safeUrl;
             }
         } else {
             if (!current) return;
@@ -2474,8 +2863,9 @@ window.onload = function () {
         const update = () => {
             const url = input.value.trim();
             if (url) {
-                img.src = url;
-                preview.style.display = '';
+                const safeUrl = sanitizeAvatarUrl(url);
+                if (safeUrl) { img.src = safeUrl; preview.style.display = ''; }
+                else { preview.style.display = 'none'; }
             } else {
                 preview.style.display = 'none';
             }
@@ -2678,6 +3068,8 @@ window.onload = function () {
                 fb.textContent = 'Usuário criado com sucesso.';
                 fb.className = 'login-feedback success';
                 fetchMetrics();
+                // Recarrega a tabela de usuários se estiver na página de gerenciamento
+                if (typeof window.reloadUsuarios === 'function') window.reloadUsuarios(1);
                 setTimeout(() => {
                     closeModal('criar-usuario-modal');
                     criarUsuarioForm.reset();
@@ -2751,3 +3143,78 @@ window.onload = function () {
         atualizarPreview('ep-capa', 'ep-capa-preview', 'ep-capa-img'));
 
 };
+
+// ── Run Migrations / Seeders from Dashboard ───────────────────────────────────
+(function initMigrationActions() {
+    const btnMigrate = document.getElementById('btn-run-migrations');
+    const btnSeed    = document.getElementById('btn-run-seeders');
+    if (!btnMigrate && !btnSeed) return;
+
+    // Modal helpers
+    function openModal(id)  { document.getElementById(id)?.classList.add('show'); }
+    function closeModal(id) { document.getElementById(id)?.classList.remove('show'); }
+
+    function showResult(success, output, type) {
+        const titleEl  = document.getElementById('run-result-title');
+        const outputEl = document.getElementById('run-result-output');
+        const label    = type === 'migrate' ? 'Migrations' : 'Seeders';
+        if (titleEl) {
+            titleEl.innerHTML = success
+                ? `<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> ${label} concluídas`
+                : `<i class="fa-solid fa-circle-xmark" style="color:#f87171;"></i> Erro ao executar ${label}`;
+        }
+        if (outputEl) outputEl.textContent = output || (success ? 'Executado com sucesso.' : 'Falha ao executar.');
+        openModal('run-result-modal');
+    }
+
+    async function runAction(type) {
+        const isMigrate = type === 'migrate';
+        const endpoint  = isMigrate ? '/api/system/migrations/run' : '/api/system/seeders/run';
+        const btn       = isMigrate ? btnMigrate : btnSeed;
+        const origHTML  = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Executando...';
+
+        try {
+            const res  = await fetch(endpoint, { method: 'POST', credentials: 'same-origin' });
+            const data = await res.json();
+            showResult(res.ok, data.output || data.message || data.error, type);
+            if (res.ok) {
+                if (typeof loadMigrations === 'function') loadMigrations();
+                else document.getElementById('migrations-refresh-btn')?.click();
+            }
+        } catch (e) {
+            showResult(false, 'Erro de rede: ' + e.message, type);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origHTML;
+        }
+    }
+
+    // Migrate confirm modal
+    if (btnMigrate) {
+        btnMigrate.addEventListener('click', () => openModal('migrate-confirm-modal'));
+        document.getElementById('migrate-confirm-close')?.addEventListener('click',  () => closeModal('migrate-confirm-modal'));
+        document.getElementById('migrate-confirm-cancel')?.addEventListener('click', () => closeModal('migrate-confirm-modal'));
+        document.getElementById('migrate-confirm-ok')?.addEventListener('click', () => {
+            closeModal('migrate-confirm-modal');
+            runAction('migrate');
+        });
+    }
+
+    // Seed confirm modal
+    if (btnSeed) {
+        btnSeed.addEventListener('click', () => openModal('seed-confirm-modal'));
+        document.getElementById('seed-confirm-close')?.addEventListener('click',  () => closeModal('seed-confirm-modal'));
+        document.getElementById('seed-confirm-cancel')?.addEventListener('click', () => closeModal('seed-confirm-modal'));
+        document.getElementById('seed-confirm-ok')?.addEventListener('click', () => {
+            closeModal('seed-confirm-modal');
+            runAction('seed');
+        });
+    }
+
+    // Result modal close
+    document.getElementById('run-result-close')?.addEventListener('click', () => closeModal('run-result-modal'));
+    document.getElementById('run-result-ok')?.addEventListener('click',    () => closeModal('run-result-modal'));
+})();

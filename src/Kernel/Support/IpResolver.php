@@ -3,67 +3,46 @@
 namespace Src\Kernel\Support;
 
 /**
- * Resolve o IP real do cliente de forma centralizada.
+ * Resolve o IP real do cliente.
  *
- * Ordem de prioridade (quando TRUST_PROXY=true):
- *   1. CF-Connecting-IP  (Cloudflare)
- *   2. X-Real-IP         (nginx proxy_pass)
- *   3. X-Forwarded-For   (primeiro IP da cadeia)
- *   4. REMOTE_ADDR       (fallback)
+ * Em código novo, prefira injetar RequestContext e usar getClientIp().
+ * Este helper estático existe para compatibilidade com código legado
+ * que não usa DI (middlewares, helpers, código estático).
  *
- * Normalização:
- *   - ::1  → 127.0.0.1  (IPv6 loopback → IPv4)
- *   - ::ffff:x.x.x.x → x.x.x.x  (IPv4-mapped IPv6 → IPv4 puro)
+ * A lógica de resolução vive em RequestContext::detectClientIp() —
+ * aqui apenas replicamos o comportamento para o caso estático.
  */
 class IpResolver
 {
-    /**
-     * Retorna o IP do cliente resolvido.
-     */
     public static function resolve(): string
     {
-        $trustProxy = strtolower(trim($_ENV['TRUST_PROXY'] ?? getenv('TRUST_PROXY') ?: 'false'));
+        $trusted = in_array(
+            strtolower(trim((string) ($_ENV['TRUST_PROXY'] ?? getenv('TRUST_PROXY') ?: 'false'))),
+            ['1', 'true', 'yes', 'on'],
+            true
+        );
 
-        if (in_array($trustProxy, ['1', 'true', 'yes'], true)) {
-            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $header) {
-                $val = $_SERVER[$header] ?? '';
-                if ($val === '') {
-                    continue;
-                }
-                // X-Forwarded-For pode ter múltiplos IPs: pega o primeiro (cliente original)
-                $ip = trim(explode(',', $val)[0]);
-                $ip = self::normalize($ip);
+        if ($trusted) {
+            foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $h) {
+                $val = trim($_SERVER[$h] ?? '');
+                if ($val === '') continue;
+                $ip = self::normalize(trim(explode(',', $val)[0]));
                 if (filter_var($ip, FILTER_VALIDATE_IP)) {
                     return $ip;
                 }
             }
         }
 
-        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        return self::normalize($remoteAddr);
+        return self::normalize($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
     }
 
-    /**
-     * Normaliza endereços IPv6 especiais para IPv4 legível.
-     *
-     * ::1              → 127.0.0.1   (loopback IPv6)
-     * ::ffff:x.x.x.x  → x.x.x.x    (IPv4-mapped IPv6)
-     */
     public static function normalize(string $ip): string
     {
-        // IPv6 loopback
-        if ($ip === '::1') {
-            return '127.0.0.1';
-        }
-
-        // IPv4-mapped IPv6: ::ffff:192.168.1.1
+        if ($ip === '::1') return '127.0.0.1';
         if (stripos($ip, '::ffff:') === 0) {
-            $candidate = substr($ip, 7);
-            if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                return $candidate;
-            }
+            $v4 = substr($ip, 7);
+            if (filter_var($v4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) return $v4;
         }
-
         return $ip;
     }
 }

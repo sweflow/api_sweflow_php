@@ -66,8 +66,8 @@
         <a href="#sec-cors"   class="cfg-sidenav-link" data-sec="cors">   <i class="fa-solid fa-globe"></i>        URLs permitidas (CORS)</a>
         <a href="#sec-redis"  class="cfg-sidenav-link" data-sec="redis">  <i class="fa-solid fa-bolt"></i>         Redis</a>
         <a href="#sec-admin"  class="cfg-sidenav-link" data-sec="admin">  <i class="fa-solid fa-user-shield"></i>  Admin padrão</a>
-        <a href="#sec-docker" class="cfg-sidenav-link" data-sec="docker"> <i class="fa-solid fa-box"></i>          Docker / Infra</a>
-    </nav>
+        <a href="#sec-link-limits" class="cfg-sidenav-link" data-sec="link-limits"> <i class="fa-solid fa-link"></i> Limites de Links</a>
+        <a href="#sec-docker" class="cfg-sidenav-link" data-sec="docker"> <i class="fa-solid fa-box"></i>          Docker / Infra</a>    </nav>
 
     <!-- Main -->
     <main class="cfg-main" id="cfg-main">
@@ -78,6 +78,39 @@
     </main>
 
 </div><!-- /.cfg-layout -->
+
+<!-- Modal: DB2 não configurado / falha de conexão -->
+<div class="modal-overlay" id="db2-error-modal">
+    <div class="modal dash-modal" style="max-width:480px;width:94vw;">
+        <div class="modal-header">
+            <h2 style="color:#f87171;"><i class="fa-solid fa-circle-xmark"></i> Conexão DB2 indisponível</h2>
+            <button id="db2-error-close" class="modal-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p id="db2-error-msg" style="line-height:1.7;margin:8px 0 6px;font-size:1rem;"></p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">
+            Preencha as configurações em <strong>Banco de dados (modules)</strong> e verifique se o container está rodando antes de selecionar esta opção.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn primary" id="db2-error-ok" style="font-size:1rem;padding:10px 24px;">Entendido</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirmar limite global de links -->
+<div class="modal-overlay" id="ll-global-confirm-modal">
+    <div class="modal dash-modal" style="max-width:460px;width:94vw;">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-link" style="color:#4f46e5;"></i> Aplicar limite global</h2>
+            <button id="ll-global-confirm-close" class="modal-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p id="ll-global-confirm-text" style="line-height:1.7;margin:8px 0 6px;font-size:1rem;"></p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">Isso sobrescreve os limites individuais de todos os usuários.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="ll-global-confirm-cancel">Cancelar</button>
+            <button class="btn primary" id="ll-global-confirm-ok"><i class="fa-solid fa-check"></i> Aplicar</button>
+        </div>
+    </div>
+</div>
 
 <script src="/assets/js/configuracoes.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/configuracoes.js') ?>"></script>
 </body>

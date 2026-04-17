@@ -3,6 +3,7 @@
 namespace Src\Kernel\Middlewares;
 
 use Src\Kernel\Contracts\MiddlewareInterface;
+use Src\Kernel\Contracts\TokenBlacklistInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\JwtDecoder;
@@ -11,19 +12,20 @@ use Src\Kernel\Support\TokenExtractor;
 /**
  * Protege rotas que aceitam tanto token de usuário quanto token de API.
  * Sempre valida a assinatura JWT antes de inspecionar o payload.
- *
- * Nota: este middleware não verifica a blacklist de tokens revogados.
- * Para rotas que exigem verificação de revogação, use AuthHybridMiddleware.
  */
 class RouteProtectionMiddleware implements MiddlewareInterface
 {
+    public function __construct(
+        private ?TokenBlacklistInterface $blacklistRepo = null
+    ) {}
+
     public function handle(Request $request, callable $next): Response
     {
         $roles = $request->attribute('roles', []);
 
         $token = TokenExtractor::fromApiRequest();
         if ($token === '') {
-            return Response::json(['error' => 'Token ausente.'], 401);
+            return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
         // Token de API puro (tipo: 'api') — acesso sem usuário
@@ -39,7 +41,12 @@ class RouteProtectionMiddleware implements MiddlewareInterface
             [$payload] = JwtDecoder::decodeUser($token);
             JwtDecoder::validateUserClaims($payload);
         } catch (\Throwable) {
-            return Response::json(['error' => 'Token inválido ou expirado.'], 401);
+            return Response::json(['error' => 'Não autenticado.'], 401);
+        }
+
+        // Verifica blacklist se disponível
+        if ($this->blacklistRepo !== null && $this->blacklistRepo->isRevoked($payload->jti ?? '')) {
+            return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
         if (!empty($roles)) {

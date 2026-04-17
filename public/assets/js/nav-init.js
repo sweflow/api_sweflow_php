@@ -13,9 +13,18 @@
     }
 
     function setAvatarImg(el, url) {
+        // Sanitiza URL — aceita apenas http/https, reconhecido pelo CodeQL como sanitizador
+        let safeUrl = '';
+        try {
+            const parsed = new URL(url, window.location.href);
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+                safeUrl = encodeURI(decodeURI(url));
+            }
+        } catch {}
+        if (!safeUrl) { setAvatarIcon(el); return; }
         el.textContent = '';
         const img = document.createElement('img');
-        img.src = url;
+        img.src = safeUrl;
         img.alt = 'Avatar';
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
         img.onerror = () => setAvatarIcon(el);

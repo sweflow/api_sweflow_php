@@ -1,0 +1,100 @@
+# ============================================================
+# Caddyfile.fpm — Vupi.us API com PHP-FPM (PRODUÇÃO)
+#
+# Uso:
+#   sudo cp Caddyfile.fpm /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Pré-requisito PHP-FPM:
+#   sudo cp ci/php-fpm/vupi.us.conf /etc/php/8.2/fpm/pool.d/vupi.us.conf
+#   sudo systemctl restart php8.2-fpm
+#   sudo usermod -aG ubuntu www-data && sudo usermod -aG www-data caddy
+#
+# Troubleshooting:
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo journalctl -u caddy -f
+#   sudo tail -f /var/log/php-fpm/vupi.us-error.log
+# ============================================================
+
+{
+    email admin@vupi.us
+}
+
+api.vupi.us {
+
+    encode zstd gzip
+
+    request_body {
+        max_size 10MB
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options    "nosniff"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=(), payment=()"
+        -Server
+        -X-Powered-By
+    }
+
+    @malicious_ua {
+        header User-Agent *sqlmap*
+        header User-Agent *nikto*
+        header User-Agent *nmap*
+        header User-Agent *masscan*
+        header User-Agent *nuclei*
+        header User-Agent *dirbuster*
+        header User-Agent *gobuster*
+        header User-Agent *wfuzz*
+        header User-Agent *ffuf*
+        header User-Agent *feroxbuster*
+        header User-Agent *hydra*
+        header User-Agent *acunetix*
+        header User-Agent *nessus*
+        header User-Agent *openvas*
+        header User-Agent *zgrab*
+        header User-Agent *libwww-perl*
+        header User-Agent *scrapy*
+    }
+    respond @malicious_ua 403
+
+    @sensitive {
+        path /.env* /.git* /*.json /*.lock /*.md /*.sh /*.sql /*.yml /*.yaml
+    }
+    respond @sensitive 404
+
+    # root para estáticos aponta para /public — onde ficam favicon, css, js, imgs
+    # root para PHP aponta para a raiz do projeto — onde fica o index.php
+    root * /home/ubuntu/api_sweflow_php/public
+
+    # Arquivos estáticos com cache agressivo
+    # Exclui /doc/assets/ — esses são servidos pelo PHP (DocumentacaoController)
+    @static {
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.svg *.ico *.woff2 *.woff *.ttf *.webp
+        not path /doc/assets/*
+    }
+    handle @static {
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+
+    # Tudo que não é estático vai para o front controller index.php
+    handle {
+        root * /home/ubuntu/api_sweflow_php
+        rewrite * /index.php
+        php_fastcgi unix//run/php/vupi.us.sock {
+            env HTTPS on
+        }
+    }
+
+    # Suprime tokens sensíveis dos logs — ?token=... nunca deve aparecer em logs
+    log {
+        output stderr
+        format filter {
+            wrap json
+            fields {
+                request>uri replace "token=[^& #]*" "token=[REDACTED]"
+            }
+        }
+    }
+}

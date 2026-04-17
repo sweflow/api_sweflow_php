@@ -295,6 +295,7 @@
             const res  = await fetch('/api/system/marketplace?q=' + encodeURIComponent(query ?? ''), {
                 credentials: 'same-origin',
             });
+            if (res.status === 401) { window.location.replace('/'); return []; }
             const data = await res.json();
             return data.results || [];
         } catch {
@@ -341,7 +342,9 @@
                 const pkgs = await fetchPkgs(qInput.value.trim());
                 renderPkgs(pkgs);
             } else {
-                alert('Falha: ' + (out.message || res.status));
+                document.getElementById('error-message').textContent =
+                    out.message || 'Ocorreu um erro inesperado. Tente novamente.';
+                openModal('error-modal');
                 if (btn) {
                     btn.disabled = false;
                     btn.textContent = '';
@@ -353,7 +356,8 @@
                 }
             }
         } catch {
-            alert('Erro de conexão. Tente novamente.');
+            document.getElementById('error-message').textContent = 'Erro de conexão. Verifique sua internet e tente novamente.';
+            openModal('error-modal');
             if (btn) btn.disabled = false;
         }
     }

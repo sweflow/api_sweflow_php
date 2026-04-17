@@ -25,6 +25,9 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
             $agora  = RelogioTimeZone::agora()->format('Y-m-d H:i:s');
             $uuid   = $usuario->getUuid()->toString();
             $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $senhaAlteradaEm = $usuario->getSenhaAlteradaEm()
+                ? (new \DateTimeImmutable())->setTimestamp($usuario->getSenhaAlteradaEm())->format('Y-m-d H:i:s')
+                : null;
 
             if ($driver === 'pgsql') {
                 $sql = "INSERT INTO {$this->tabela}
@@ -45,6 +48,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                             ativo                   = EXCLUDED.ativo,
                             status_verificacao      = EXCLUDED.status_verificacao,
                             token_verificacao_email = EXCLUDED.token_verificacao_email,
+                            senha_alterada_em       = COALESCE(:senha_alterada_em, {$this->tabela}.senha_alterada_em),
                             atualizado_em           = NOW()";
             } else {
                 $sql = "INSERT INTO {$this->tabela}
@@ -65,6 +69,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
                             ativo                   = VALUES(ativo),
                             status_verificacao      = VALUES(status_verificacao),
                             token_verificacao_email = VALUES(token_verificacao_email),
+                            senha_alterada_em       = COALESCE(:senha_alterada_em, senha_alterada_em),
                             atualizado_em           = :atualizado_em";
             }
 
@@ -82,6 +87,7 @@ class UsuarioRepository extends UsuarioAbstractRepository implements UserReposit
             $stmt->bindValue(':status_verificacao',      $usuario->getStatusVerificacao());
             $stmt->bindValue(':token_verificacao_email', $usuario->getTokenVerificacaoEmail());
             $stmt->bindValue(':criado_em',               $agora);
+            $stmt->bindValue(':senha_alterada_em',       $senhaAlteradaEm);
             if ($driver !== 'pgsql') {
                 $stmt->bindValue(':atualizado_em', $agora);
             }

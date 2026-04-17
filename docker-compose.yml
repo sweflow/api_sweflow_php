@@ -4,15 +4,17 @@ version: "3.9"
 # Vupi.us API — Docker Compose
 #
 # Serviços disponíveis:
-#   postgres  — PostgreSQL 15 (padrão do projeto)
-#   mysql     — MySQL 8.0 (alternativo)
-#   adminer   — Interface web para gerenciar ambos os bancos
+#   postgres         — PostgreSQL 15 (banco principal — DB_*)
+#   postgres-modules — PostgreSQL 15 (banco secundário — DB2_*)
+#   mysql            — MySQL 8.0 (alternativo)
+#   adminer          — Interface web para gerenciar os bancos
 #
 # Uso rápido:
-#   docker compose up -d postgres          # só PostgreSQL
-#   docker compose up -d mysql             # só MySQL
-#   docker compose up -d postgres adminer  # PostgreSQL + UI
-#   docker compose up -d                   # tudo
+#   docker compose up -d postgres                    # só banco principal
+#   docker compose up -d postgres postgres-modules   # ambos os PostgreSQL
+#   docker compose up -d mysql                       # só MySQL
+#   docker compose up -d postgres adminer            # PostgreSQL + UI
+#   docker compose up -d                             # tudo
 #
 # Acesso Adminer: http://localhost:8080
 # ============================================================
@@ -38,6 +40,29 @@ services:
       - ./src/Kernel/Database/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO:-admin} -d ${DB_NOME:-vupi_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - vupi.us_net
+
+  # ── PostgreSQL (modules — segunda conexão DB2) ─────────
+  postgres-modules:
+    image: postgres:15-alpine
+    container_name: vupi.us_postgres_modules
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB2_NOME:-vupi_modules_db}
+      POSTGRES_USER:     ${DB2_USUARIO:-admin}
+      POSTGRES_PASSWORD: ${DB2_SENHA:-123456}
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES2_PORT:-5433}:5432"
+    volumes:
+      - postgres_modules_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB2_USUARIO:-admin} -d ${DB2_NOME:-vupi_modules_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,6 +120,8 @@ services:
 # ── Volumes persistentes ─────────────────────────────────
 volumes:
   postgres_data:
+    driver: local
+  postgres_modules_data:
     driver: local
   mysql_data:
     driver: local

@@ -5,6 +5,7 @@ namespace Src\Kernel\Support;
 use DomainException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Ramsey\Uuid\Uuid;
 use Src\Kernel\Support\IpResolver;
 use Src\Kernel\Support\SecurityEventLogger;
 
@@ -30,6 +31,8 @@ use Src\Kernel\Support\SecurityEventLogger;
  */
 final class JwtDecoder
 {
+    /** Algoritmos JWT aceitos. Altere aqui se migrar para RS256 no futuro. */
+    private const ALLOWED_ALGS = ['HS256'];
     /**
      * Decodifica um token de usuário.
      * Tenta JWT_API_SECRET primeiro (admin), depois JWT_SECRET com suporte a kid rotation.
@@ -39,6 +42,8 @@ final class JwtDecoder
      */
     public static function decodeUser(string $token): array
     {
+        self::validateAlgorithm($token);
+
         // Tenta JWT_API_SECRET primeiro (admin_system)
         $apiSecret = self::secret('JWT_API_SECRET');
         if ($apiSecret !== '') {
@@ -167,6 +172,21 @@ final class JwtDecoder
             }
         }
 
+        // Valida sub como UUID (via Ramsey\Uuid para precisão)
+        if (!Uuid::isValid($payload->sub ?? '')) {
+            throw new DomainException('Token inválido: sub malformado.', 401);
+        }
+
+        // Valida jti como UUID (via Ramsey\Uuid para precisão)
+        if (!Uuid::isValid($payload->jti ?? '')) {
+            throw new DomainException('Token inválido: jti malformado.', 401);
+        }
+
+        // nbf (Not Before) — tolerância de 30s para clock skew
+        if (isset($payload->nbf) && $payload->nbf > time() + 30) {
+            throw new DomainException('Token ainda não é válido.', 401);
+        }
+
         // exp: Firebase JWT já valida, mas verificamos explicitamente para log
         if (isset($payload->exp) && $payload->exp < time()) {
             throw new DomainException('Token expirado.', 401);
@@ -174,6 +194,22 @@ final class JwtDecoder
     }
 
     // ── Helpers privados ──────────────────────────────────────────────
+
+    /**
+     * Valida que o algoritmo no header JWT está na lista de permitidos.
+     * Previne ataques de confusão de algoritmo (alg:none, RS256, etc.).
+     */
+    private static function validateAlgorithm(string $token): void
+    {
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            throw new DomainException('Token malformado.', 401);
+        }
+        $header = json_decode(base64_decode(strtr($parts[0], '-_', '+/')), true);
+        if (!is_array($header) || !in_array($header['alg'] ?? '', self::ALLOWED_ALGS, true)) {
+            throw new DomainException('Algoritmo JWT não permitido.', 401);
+        }
+    }
 
     /**
      * Constrói o mapa kid → secret para suporte a key rotation.

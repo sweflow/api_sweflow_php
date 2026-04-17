@@ -121,6 +121,7 @@
             <div class="dash-dropdown-menu" id="dd-config">
                 <a href="#capabilities"        class="dash-dd-item"><i class="fa-solid fa-plug"></i> Capacidades</a>
                 <a href="/modules/marketplace" class="dash-dd-item"><i class="fa-solid fa-store"></i> Marketplace</a>
+                <a href="/dashboard/ide"       class="dash-dd-item" style="color:#818cf8;font-weight:700;"><i class="fa-solid fa-code"></i> Vupi.us IDE</a>
                 <a href="#email-actions"       class="dash-dd-item"><i class="fa-solid fa-envelope"></i> E-mail</a>
             </div>
         </div>
@@ -204,7 +205,9 @@
                     <span class="dash-sidenav-label">Configuração</span>
                     <a href="#capabilities"        class="dash-sidenav-link"><i class="fa-solid fa-plug"></i> Capacidades</a>
                     <a href="#migrations"          class="dash-sidenav-link"><i class="fa-solid fa-database"></i> Migrations</a>
+                    <a href="#audit-logs"           class="dash-sidenav-link"><i class="fa-solid fa-shield-halved"></i> Logs & Monitoramento</a>
                     <a href="/modules/marketplace" class="dash-sidenav-link"><i class="fa-solid fa-store"></i> Marketplace</a>
+                    <a href="/dashboard/ide"        class="dash-sidenav-link" style="color:#818cf8;font-weight:700;"><i class="fa-solid fa-code"></i> Vupi.us IDE</a>
                     <a href="#email-actions"        class="dash-sidenav-link"><i class="fa-solid fa-envelope"></i> E-mail</a>
                     <a href="/dashboard/configuracoes" class="dash-sidenav-link"><i class="fa-solid fa-sliders"></i> Configurações</a>
                 </div>
@@ -334,12 +337,124 @@
                     <p class="dash-section-sub">Status das migrations por banco de dados.</p>
                 </div>
                 <div class="dash-section-actions">
+                    <button class="dash-btn-primary" id="btn-run-migrations" style="margin-right:6px;">
+                        <i class="fa-solid fa-play"></i> Rodar Migrations
+                    </button>
+                    <button class="dash-btn-primary" id="btn-run-seeders" style="margin-right:6px;background:linear-gradient(135deg,#22c55e,#16a34a);">
+                        <i class="fa-solid fa-seedling"></i> Rodar Seeders
+                    </button>
                     <button class="dash-btn-ghost" id="migrations-refresh-btn">
                         <i class="fa-solid fa-rotate-right"></i> Atualizar
                     </button>
                 </div>
             </div>
             <div id="migrations-list"><span class="dash-loading">Carregando...</span></div>
+        </section>
+
+        <!-- Logs & Monitoramento -->
+        <section class="dash-card dash-section" id="audit-logs">
+            <div class="dash-section-header">
+                <div>
+                    <h2 class="dash-section-title"><i class="fa-solid fa-shield-halved"></i> Logs &amp; Monitoramento</h2>
+                    <p class="dash-section-sub">Auditoria em tempo real — autenticações, segurança, alterações e erros.</p>
+                </div>
+                <div class="dash-section-actions">
+                    <button class="dash-btn-ghost" id="audit-refresh-btn" title="Atualizar agora" style="font-size:1rem;padding:10px 18px;">
+                        <i class="fa-solid fa-rotate-right"></i> Atualizar
+                    </button>
+                    <button class="dash-btn-ghost" id="audit-clear-btn" title="Limpar logs antigos" style="color:#f87171;font-size:1rem;padding:10px 18px;">
+                        <i class="fa-solid fa-trash"></i> Limpar antigos
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats cards -->
+            <div id="audit-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;">
+                <div class="audit-stat-card" data-cat="total">
+                    <div class="audit-stat-icon" style="background:rgba(99,102,241,0.12);color:#818cf8;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-list"></i></div>
+                    <div class="audit-stat-val" id="stat-total" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Total 24h</div>
+                </div>
+                <div class="audit-stat-card" data-cat="auth">
+                    <div class="audit-stat-icon" style="background:rgba(74,222,128,0.12);color:#4ade80;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-key"></i></div>
+                    <div class="audit-stat-val" id="stat-auth" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Autenticações</div>
+                </div>
+                <div class="audit-stat-card" data-cat="usuarios">
+                    <div class="audit-stat-icon" style="background:rgba(96,165,250,0.12);color:#60a5fa;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-users"></i></div>
+                    <div class="audit-stat-val" id="stat-usuarios" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Usuários</div>
+                </div>
+                <div class="audit-stat-card" data-cat="seguranca">
+                    <div class="audit-stat-icon" style="background:rgba(248,113,113,0.12);color:#f87171;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="audit-stat-val" id="stat-seguranca" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Segurança</div>
+                </div>
+                <div class="audit-stat-card" data-cat="admin">
+                    <div class="audit-stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-gear"></i></div>
+                    <div class="audit-stat-val" id="stat-admin" style="font-size:2rem;">—</div>
+                    <div class="audit-stat-label" style="font-size:0.88rem;">Ações Admin</div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+                <div style="position:relative;flex:1;min-width:200px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#64748b;font-size:1rem;pointer-events:none;"></i>
+                    <input type="search" id="audit-search" placeholder="Buscar evento, IP, endpoint..."
+                           style="width:100%;padding:12px 14px 12px 40px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:10px;font-size:1rem;box-sizing:border-box;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;">
+                </div>
+                <select id="audit-categoria" style="padding:12px 16px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:10px;font-size:1rem;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;cursor:pointer;min-width:180px;">
+                    <option value="">Todas as categorias</option>
+                    <option value="auth">Autenticação</option>
+                    <option value="usuarios">Usuários</option>
+                    <option value="seguranca">Segurança</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <select id="audit-periodo" style="padding:12px 16px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:10px;font-size:1rem;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;cursor:pointer;min-width:160px;">
+                    <option value="1">Última hora</option>
+                    <option value="24" selected>Últimas 24h</option>
+                    <option value="168">Últimos 7 dias</option>
+                    <option value="720">Últimos 30 dias</option>
+                    <option value="">Todos</option>
+                </select>
+                <label style="display:flex;align-items:center;gap:8px;font-size:1rem;color:#94a3b8;cursor:pointer;white-space:nowrap;">
+                    <input type="checkbox" id="audit-realtime" checked style="accent-color:#4f46e5;width:18px;height:18px;cursor:pointer;">
+                    Tempo real
+                </label>
+            </div>
+
+            <!-- Tabela de logs -->
+            <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border-card,rgba(255,255,255,0.07));">
+                <table style="width:100%;border-collapse:collapse;font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:var(--bg-card,rgba(255,255,255,0.03));border-bottom:1px solid var(--border-card,rgba(255,255,255,0.07));">
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;white-space:nowrap;font-size:0.9rem;">Data/Hora</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Evento</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">IP</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Endpoint</th>
+                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-log-tbody">
+                        <tr><td colspan="5" style="padding:40px;text-align:center;color:#64748b;font-size:1rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            <div id="audit-pagination" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:12px;">
+                <span id="audit-total-label" style="font-size:0.95rem;color:#94a3b8;font-weight:600;"></span>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button id="audit-prev" class="btn ghost" style="font-size:0.95rem;padding:10px 20px;" disabled>
+                        <i class="fa-solid fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="audit-page-label" style="font-size:0.95rem;color:#94a3b8;font-weight:600;"></span>
+                    <button id="audit-next" class="btn ghost" style="font-size:0.95rem;padding:10px 20px;" disabled>
+                        Próxima <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
         </section>
 
     </main>
@@ -374,6 +489,20 @@
     </div>
 </div>
 
+<!-- Ativar módulo -->
+<div class="modal-overlay" id="enable-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header"><h2><i class="fa-solid fa-play"></i> Ativar módulo</h2>
+            <button class="modal-close" id="enable-close"><i class="fa-solid fa-xmark"></i></button></div>
+        <p id="enable-modal-text">Tem certeza que deseja ativar este módulo?</p>
+        <div class="pill" style="margin:12px 0;"><i class="fa-solid fa-layer-group"></i> <span id="enable-modal-name">--</span></div>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="enable-cancel">Cancelar</button>
+            <button class="btn primary" id="enable-confirm" style="background:#16a34a;"><i class="fa-solid fa-play"></i> Ativar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Módulo protegido -->
 <div class="modal-overlay" id="protected-modal">
     <div class="modal dash-modal">
@@ -382,6 +511,48 @@
         <p>O módulo <strong id="protected-modal-name">--</strong> é essencial e não pode ser desabilitado.</p>
         <div class="form-actions" style="justify-content:flex-end;">
             <button class="btn primary" id="protected-modal-ok">Entendi</button>
+        </div>
+    </div>
+</div>
+
+<!-- Ativar verificação de e-mail -->
+<div class="modal-overlay" id="auth-verify-enable-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-envelope-circle-check" style="color:#4f46e5;"></i> Ativar verificação de e-mail</h2>
+            <button class="modal-close" id="auth-verify-enable-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja ativar <strong>Login só após e-mail verificado</strong>?</p>
+        <p style="color:#64748b;font-size:0.93rem;line-height:1.6;margin-bottom:16px;">
+            Após ativar, todos os usuários precisarão ter o e-mail confirmado para fazer login.<br>
+            Usuários com e-mail não verificado serão bloqueados até confirmarem o cadastro.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="auth-verify-enable-cancel">Cancelar</button>
+            <button class="btn primary" id="auth-verify-enable-confirm" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);">
+                <i class="fa-solid fa-envelope-circle-check"></i> Ativar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Desativar verificação de e-mail -->
+<div class="modal-overlay" id="auth-verify-disable-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-envelope-open" style="color:#f59e0b;"></i> Desativar verificação de e-mail</h2>
+            <button class="modal-close" id="auth-verify-disable-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja desativar <strong>Login só após e-mail verificado</strong>?</p>
+        <p style="color:#64748b;font-size:0.93rem;line-height:1.6;margin-bottom:16px;">
+            Ao desativar, os usuários poderão fazer login mesmo sem confirmar o e-mail.<br>
+            A verificação de e-mail <strong>não</strong> será mais obrigatória para novos logins.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="auth-verify-disable-cancel">Cancelar</button>
+            <button class="btn primary" id="auth-verify-disable-confirm" style="background:#d97706;">
+                <i class="fa-solid fa-envelope-open"></i> Desativar
+            </button>
         </div>
     </div>
 </div>
@@ -595,6 +766,26 @@
                        style="width:100%;padding:11px 14px 11px 40px;border:1.5px solid var(--border-input,rgba(255,255,255,0.1));border-radius:12px;font-size:0.95rem;box-sizing:border-box;background:var(--bg-input,rgba(255,255,255,0.05));color:var(--text-primary,#f1f5f9);font-family:inherit;outline:none;transition:border-color .15s;" />
             </div>
         </div>
+        <!-- Barra de seleção múltipla -->
+        <div id="email-bulk-bar" style="display:none;align-items:center;gap:10px;padding:10px 4px 6px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;color:var(--text-muted,#64748b);user-select:none;">
+                <input type="checkbox" id="email-select-all" style="width:16px;height:16px;cursor:pointer;accent-color:#4f46e5;">
+                <span id="email-select-all-label">Marcar todos</span>
+            </label>
+            <span id="email-selected-count" style="font-size:0.85rem;color:#818cf8;font-weight:600;"></span>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+                <button id="email-bulk-cancel" class="btn ghost" style="font-size:0.85rem;padding:7px 14px;">Cancelar</button>
+                <button id="email-bulk-delete" class="btn" style="background:#e74c3c;color:#fff;font-size:0.85rem;padding:7px 14px;" disabled>
+                    <i class="fa-solid fa-trash"></i> Excluir selecionados
+                </button>
+            </div>
+        </div>
+        <!-- Botão para entrar no modo de seleção -->
+        <div id="email-select-mode-btn-wrap" style="display:flex;justify-content:flex-end;padding:4px 0 2px;">
+            <button id="email-enter-select-mode" class="btn ghost" style="font-size:0.82rem;padding:6px 12px;">
+                <i class="fa-solid fa-check-square"></i> Selecionar
+            </button>
+        </div>
         <div id="email-history-list" style="max-height:58vh;overflow-y:auto;padding-right:2px;"></div>
     </div>
 </div>
@@ -643,7 +834,42 @@
     </div>
 </div>
 
-<!-- Meu Perfil -->
+<!-- Confirmar exclusão em lote -->
+<div class="modal-overlay" id="email-bulk-delete-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-trash"></i> Excluir selecionados</h2>
+            <button class="modal-close" id="email-bulk-delete-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p id="email-bulk-delete-text">Tem certeza que deseja excluir os registros selecionados? Esta ação não pode ser desfeita.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="email-bulk-delete-cancel">Cancelar</button>
+            <button class="btn" style="background:#e74c3c;color:#fff;" id="email-bulk-delete-confirm">
+                <i class="fa-solid fa-trash"></i> Excluir
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmar limpeza de logs antigos -->
+<div class="modal-overlay" id="audit-clear-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-trash" style="color:#f87171;"></i> Limpar logs antigos</h2>
+            <button class="modal-close" id="audit-clear-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;font-size:1rem;">Tem certeza que deseja remover os logs com mais de <strong>90 dias</strong>?</p>
+        <p style="color:#94a3b8;font-size:0.93rem;line-height:1.6;margin-bottom:20px;">
+            Esta ação não pode ser desfeita. Logs mais recentes serão preservados.
+        </p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="audit-clear-cancel" style="font-size:1rem;padding:10px 20px;">Cancelar</button>
+            <button class="btn" id="audit-clear-confirm" style="background:#e74c3c;color:#fff;font-size:1rem;padding:10px 20px;">
+                <i class="fa-solid fa-trash"></i> Remover logs antigos
+            </button>
+        </div>
+    </div>
+</div>
 <div class="modal-overlay" id="meu-perfil-modal">
     <div class="modal perfil-modal" style="max-width:680px;width:96vw;">
         <div class="modal-header perfil-modal-header">
@@ -800,8 +1026,55 @@
     </div>
 </div>
 
+<!-- Confirmar Rodar Migrations -->
+<div class="modal-overlay" id="migrate-confirm-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-database" style="color:#4f46e5;"></i> Rodar Migrations</h2>
+            <button class="modal-close" id="migrate-confirm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja executar <strong>todas as migrations pendentes</strong>?</p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">Esta ação criará ou alterará tabelas no banco de dados e não pode ser desfeita facilmente.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="migrate-confirm-cancel">Cancelar</button>
+            <button class="btn primary" id="migrate-confirm-ok"><i class="fa-solid fa-database"></i> Executar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmar Rodar Seeders -->
+<div class="modal-overlay" id="seed-confirm-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-seedling" style="color:#10b981;"></i> Rodar Seeders</h2>
+            <button class="modal-close" id="seed-confirm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="line-height:1.7;margin:8px 0 6px;">Tem certeza que deseja executar <strong>todos os seeders pendentes</strong>?</p>
+        <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:20px;">Esta ação inserirá dados iniciais no banco de dados.</p>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn ghost" id="seed-confirm-cancel">Cancelar</button>
+            <button class="btn primary" id="seed-confirm-ok" style="background:#10b981;"><i class="fa-solid fa-seedling"></i> Executar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Resultado de Migration/Seeder -->
+<div class="modal-overlay" id="run-result-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header">
+            <h2 id="run-result-title"><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Concluído</h2>
+            <button class="modal-close" id="run-result-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <pre id="run-result-output" style="background:#0f172a;color:#e2e8f0;padding:16px;border-radius:8px;font-size:0.88rem;line-height:1.6;max-height:320px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;margin:8px 0 20px;"></pre>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn primary" id="run-result-ok">OK</button>
+        </div>
+    </div>
+</div>
+
 <script src="/assets/js/dashboard-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard-init.js') ?>"></script>
 <script src="/assets/js/nav-init.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/nav-init.js') ?>"></script>
 <script src="/assets/js/dashboard.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/dashboard.js') ?>"></script>
+<script src="/assets/js/audit-logs.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/audit-logs.js') ?: time() ?>"></script>
 </body>
 </html>

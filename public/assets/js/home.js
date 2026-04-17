@@ -202,10 +202,73 @@ function initPage() {
         applyLock(isLocked());
 
         if (loginInput) {
+            // Bloqueia caracteres inválidos em tempo real antes de inserir no input
+            loginInput.addEventListener('beforeinput', (e) => {
+                if (!e.data) return; // delete, backspace, etc.
+
+                const current  = loginInput.value;
+                const isEmail  = current.includes('@') || e.data.includes('@');
+                const cursorAt = loginInput.selectionStart ?? current.length;
+
+                // Espaço nunca é permitido
+                if (/\s/.test(e.data)) { e.preventDefault(); return; }
+
+                if (!isEmail) {
+                    // Username: só letras minúsculas, números, ponto e underline
+                    const normalized = e.data.toLowerCase();
+                    if (!/^[a-z0-9._]+$/.test(normalized)) { e.preventDefault(); return; }
+
+                    // Não pode iniciar com '.' ou '_'
+                    if (cursorAt === 0 && /^[._]/.test(normalized)) { e.preventDefault(); return; }
+
+                    // Máximo de um caractere especial (. ou _) no total
+                    const specialCount = (current.match(/[._]/g) || []).length;
+                    const addingSpecial = /[._]/.test(normalized);
+                    if (addingSpecial && specialCount >= 1) { e.preventDefault(); return; }
+                }
+            });
+
+            // Fallback para paste e drag-drop: sanitiza após inserção
+            loginInput.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasted = (e.clipboardData || window.clipboardData).getData('text');
+                const current = loginInput.value;
+                const isEmail = current.includes('@') || pasted.includes('@');
+                let clean;
+                if (isEmail) {
+                    // E-mail: remove espaços, mantém o resto
+                    clean = pasted.replace(/\s/g, '').toLowerCase();
+                } else {
+                    // Username: remove tudo que não é permitido, normaliza para minúsculas
+                    clean = pasted.toLowerCase().replace(/[^a-z0-9._]/g, '');
+                    // Remove pontos/underlines extras além do primeiro
+                    let specials = 0;
+                    clean = clean.split('').filter(c => {
+                        if (/[._]/.test(c)) { specials++; return specials <= 1; }
+                        return true;
+                    }).join('');
+                }
+                // Insere no cursor
+                const start = loginInput.selectionStart ?? current.length;
+                const end   = loginInput.selectionEnd   ?? current.length;
+                const newVal = current.slice(0, start) + clean + current.slice(end);
+                loginInput.value = newVal;
+                const newCursor = start + clean.length;
+                try { loginInput.setSelectionRange(newCursor, newCursor); } catch (_) {}
+                loginInput.dispatchEvent(new Event('input'));
+            });
+
             loginInput.addEventListener('input', () => {
-                const n = normalize(loginInput.value);
-                if (loginInput.value !== n) loginInput.value = n;
-                const validation = validate(loginInput.value);
+                // Normaliza para minúsculas e remove espaços residuais
+                const cursor = loginInput.selectionStart;
+                const normalized = loginInput.value.toLowerCase().replace(/\s/g, '');
+                if (loginInput.value !== normalized) {
+                    loginInput.value = normalized;
+                    try { loginInput.setSelectionRange(cursor, cursor); } catch (_) {}
+                }
+
+                const n = normalized;
+                const validation = validate(n);
                 if (feedback) {
                     feedback.textContent = (!validation.ok && n) ? validation.message : '';
                     feedback.className = 'lm-feedback' + ((!validation.ok && n) ? ' error' : '');
