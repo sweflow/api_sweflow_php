@@ -94,6 +94,9 @@
       <a class="docs-nav-link" data-page="auth-modulo" href="#auth-modulo">
         <i class="fa-solid fa-key"></i> Módulo Auth
       </a>
+      <a class="docs-nav-link" data-page="usuario-customizado" href="#usuario-customizado">
+        <i class="fa-solid fa-user-gear"></i> Usuário Customizado
+      </a>
       <a class="docs-nav-link" data-page="banco" href="#banco">
         <i class="fa-solid fa-database"></i> Banco de Dados
       </a>
@@ -4089,6 +4092,275 @@ $stmt-&gt;bindValue(':email', $email);
 $stmt-&gt;execute();
 $row = $stmt-&gt;fetch(PDO::FETCH_ASSOC);</code></pre>
       </div>
+    </section>
+
+    <!-- PAGE: USUARIO CUSTOMIZADO -->
+    <section class="docs-page" id="page-usuario-customizado">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-user-gear"></i></div>
+        <div>
+          <h1>Usuário Customizado</h1>
+          <p>Como substituir o módulo <code>Usuario</code> padrão pelo seu próprio, com campos específicos da sua aplicação, mantendo o módulo Auth funcionando.</p>
+        </div>
+      </div>
+
+      <h2 id="uc-conceito">Como funciona</h2>
+      <p>O módulo <strong>Auth</strong> não depende da entidade <code>Usuario</code> — ele depende de duas interfaces do kernel:</p>
+      <table class="docs-table">
+        <thead><tr><th>Interface</th><th>Responsabilidade</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthenticatableInterface</code></td><td>Contrato que sua entidade de usuário deve implementar</td></tr>
+          <tr><td><code>UserRepositoryInterface</code></td><td>Contrato que seu repositório deve implementar</td></tr>
+        </tbody>
+      </table>
+      <p>Basta implementar essas duas interfaces e registrar seu repositório no container — o Auth passa a usar sua tabela automaticamente. Login, refresh token, recuperação de senha e verificação de e-mail funcionam sem nenhuma alteração.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>O módulo Usuario original continua existindo</strong>
+          <p>Você não precisa removê-lo. O binding de <code>UserRepositoryInterface</code> no container é sobrescrito pelo seu provider — o Auth usa o último binding registrado.</p>
+        </div>
+      </div>
+
+      <h2 id="uc-estrutura">Estrutura do módulo</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>src/Modules/MeuApp/
+├── Entities/
+│   └── MeuUsuario.php           ← sua entidade (implementa AuthenticatableInterface)
+├── Repositories/
+│   └── MeuUsuarioRepository.php ← seu repositório (implementa UserRepositoryInterface)
+├── Database/migrations/
+│   └── 001_criar_tabela_usuarios.php
+├── Providers/
+│   └── MeuAppServiceProvider.php ← registra no container
+└── Routes/
+    └── web.php</code></pre>
+      </div>
+
+      <h2 id="uc-entidade">1. Entidade</h2>
+      <p>Implemente <code>AuthenticatableInterface</code> e adicione seus campos específicos:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>namespace Src\Modules\MeuApp\Entities;
+
+use Ramsey\Uuid\Uuid;
+use Ramsey\Uuid\UuidInterface;
+use Src\Kernel\Contracts\AuthenticatableInterface;
+
+final class MeuUsuario implements AuthenticatableInterface
+{
+    private function __construct(
+        private readonly UuidInterface $uuid,
+        private string                 $email,
+        private string                 $username,
+        private string                 $senhaHash,
+        private string                 $role,
+        private bool                   $ativo,
+        private bool                   $emailVerificado,
+        private ?int                   $senhaAlteradaEm,
+        private ?string                $tokenRecuperacaoSenha,
+        private ?string                $tokenVerificacaoEmail,
+        // ── Seus campos específicos ──────────────────
+        private string                 $nomeCompleto,
+        private string                 $cpf,
+        private string                 $plano,
+    ) {}
+
+    // ── AuthenticatableInterface (obrigatório) ────────
+    public function getAuthId(): string        { return $this->uuid->toString(); }
+    public function getAuthEmail(): string     { return $this->email; }
+    public function getAuthUsername(): ?string { return $this->username; }
+    public function getAuthRole(): string      { return $this->role; }
+    public function isAtivo(): bool            { return $this->ativo; }
+    public function isEmailVerificado(): bool  { return $this->emailVerificado; }
+    public function getSenhaAlteradaEm(): ?int { return $this->senhaAlteradaEm; }
+
+    public function verificarSenha(string $senhaPlana): bool
+    {
+        return password_verify($senhaPlana, $this->senhaHash);
+    }
+
+    // ── Seus getters específicos ──────────────────────
+    public function getCpf(): string   { return $this->cpf; }
+    public function getPlano(): string { return $this->plano; }
+}</code></pre>
+      </div>
+
+      <h2 id="uc-repositorio">2. Repositório</h2>
+      <p>Implemente <code>UserRepositoryInterface</code> apontando para sua tabela:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>namespace Src\Modules\MeuApp\Repositories;
+
+use PDO;
+use Src\Kernel\Contracts\UserRepositoryInterface;
+use Src\Modules\MeuApp\Entities\MeuUsuario;
+
+class MeuUsuarioRepository implements UserRepositoryInterface
+{
+    private const TABELA = 'meu_app_usuarios';
+
+    public function __construct(private readonly PDO $pdo) {}
+
+    public function buscarPorEmail(string $email): ?MeuUsuario
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM ' . self::TABELA . ' WHERE email = ? LIMIT 1'
+        );
+        $stmt->execute([mb_strtolower(trim($email))]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? $this->hidratar($row) : null;
+    }
+
+    public function buscarPorUsername(string $username): ?MeuUsuario
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM ' . self::TABELA . ' WHERE username = ? LIMIT 1'
+        );
+        $stmt->execute([mb_strtolower(trim($username))]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? $this->hidratar($row) : null;
+    }
+
+    // ... demais métodos da interface (buscarPorUuid, salvarToken, etc.)
+
+    private function hidratar(array $row): MeuUsuario
+    {
+        return MeuUsuario::reconstituir(/* ... */);
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="uc-provider">3. Service Provider</h2>
+      <p>Registre seu repositório no container. O Auth vai usá-lo automaticamente:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>namespace Src\Modules\MeuApp\Providers;
+
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\ModuleProviderInterface;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Contracts\UserRepositoryInterface;
+use Src\Modules\MeuApp\Repositories\MeuUsuarioRepository;
+
+class MeuAppServiceProvider implements ModuleProviderInterface
+{
+    public function getName(): string { return 'MeuApp'; }
+
+    public function boot(ContainerInterface $container): void
+    {
+        // Registra seu repositório — o Auth usa este binding automaticamente
+        $container->bind(
+            UserRepositoryInterface::class,
+            fn() => new MeuUsuarioRepository($container->make(\PDO::class)),
+            true // singleton
+        );
+    }
+
+    public function registerRoutes(RouterInterface $router): void
+    {
+        $routesFile = __DIR__ . '/../Routes/web.php';
+        if (is_file($routesFile)) {
+            require $routesFile;
+        }
+    }
+
+    public function describe(): array
+    {
+        return ['description' => 'Módulo principal com usuários customizados.', 'version' => '1.0.0', 'routes' => []];
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="uc-migration">4. Migration</h2>
+      <p>Crie a tabela com os campos do kernel (obrigatórios para o Auth) mais os seus campos específicos:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// src/Modules/MeuApp/Database/migrations/001_criar_tabela_usuarios.php
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS meu_app_usuarios (
+                    uuid                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    email                   VARCHAR(254) NOT NULL UNIQUE,
+                    username                VARCHAR(64) NOT NULL UNIQUE,
+                    senha_hash              VARCHAR(255) NOT NULL,
+                    role                    VARCHAR(50) NOT NULL DEFAULT 'usuario',
+                    ativo                   BOOLEAN NOT NULL DEFAULT TRUE,
+                    email_verificado        BOOLEAN NOT NULL DEFAULT FALSE,
+                    senha_alterada_em       INTEGER,
+                    token_recuperacao_senha VARCHAR(255),
+                    token_verificacao_email VARCHAR(255),
+                    -- seus campos específicos:
+                    nome_completo           VARCHAR(255) NOT NULL,
+                    cpf                     VARCHAR(14),
+                    plano                   VARCHAR(50) NOT NULL DEFAULT 'free',
+                    criado_em               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            ");
+        } else {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS meu_app_usuarios (
+                    uuid                    CHAR(36) PRIMARY KEY,
+                    email                   VARCHAR(254) NOT NULL UNIQUE,
+                    username                VARCHAR(64) NOT NULL UNIQUE,
+                    senha_hash              VARCHAR(255) NOT NULL,
+                    role                    VARCHAR(50) NOT NULL DEFAULT 'usuario',
+                    ativo                   TINYINT(1) NOT NULL DEFAULT 1,
+                    email_verificado        TINYINT(1) NOT NULL DEFAULT 0,
+                    senha_alterada_em       INT UNSIGNED,
+                    token_recuperacao_senha VARCHAR(255),
+                    token_verificacao_email VARCHAR(255),
+                    -- seus campos específicos:
+                    nome_completo           VARCHAR(255) NOT NULL,
+                    cpf                     VARCHAR(14),
+                    plano                   VARCHAR(50) NOT NULL DEFAULT 'free',
+                    criado_em               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS meu_app_usuarios");
+    },
+];</code></pre>
+      </div>
+
+      <h2 id="uc-rodar">5. Rodar a migration</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php vupi migrate</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Pronto</strong>
+          <p>Após registrar o provider, o endpoint <code>POST /api/login</code> já autentica contra sua tabela. Recuperação de senha, refresh token e verificação de e-mail funcionam automaticamente.</p>
+        </div>
+      </div>
+
+      <h2 id="uc-campos-obrigatorios">Campos obrigatórios na tabela</h2>
+      <p>O módulo Auth precisa destes campos para funcionar. Os demais são livres:</p>
+      <table class="docs-table">
+        <thead><tr><th>Coluna</th><th>Tipo</th><th>Usado pelo Auth para</th></tr></thead>
+        <tbody>
+          <tr><td><code>uuid</code></td><td>UUID / CHAR(36)</td><td>Identificar o usuário no JWT (<code>sub</code>)</td></tr>
+          <tr><td><code>email</code></td><td>VARCHAR(254)</td><td>Login por e-mail</td></tr>
+          <tr><td><code>username</code></td><td>VARCHAR(64)</td><td>Login por username</td></tr>
+          <tr><td><code>senha_hash</code></td><td>VARCHAR(255)</td><td>Verificar senha (<code>password_verify</code>)</td></tr>
+          <tr><td><code>role</code></td><td>VARCHAR(50)</td><td>Controle de acesso (RBAC)</td></tr>
+          <tr><td><code>ativo</code></td><td>BOOLEAN</td><td>Bloquear contas desativadas</td></tr>
+          <tr><td><code>email_verificado</code></td><td>BOOLEAN</td><td>Política de verificação de e-mail</td></tr>
+          <tr><td><code>senha_alterada_em</code></td><td>INTEGER (unix)</td><td>Invalidar tokens antigos após troca de senha</td></tr>
+          <tr><td><code>token_recuperacao_senha</code></td><td>VARCHAR(255)</td><td>Fluxo de recuperação de senha</td></tr>
+          <tr><td><code>token_verificacao_email</code></td><td>VARCHAR(255)</td><td>Fluxo de verificação de e-mail</td></tr>
+        </tbody>
+      </table>
     </section>
 
     <!-- PAGE: COMUNICACAO -->
