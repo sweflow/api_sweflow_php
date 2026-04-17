@@ -263,42 +263,44 @@ class ModuleLoader
             }
 
             // Se interface incompleta, não tenta carregar via autoloader
-            // (causaria fatal error) — usa PartialProviderAdapter via eval seguro
+            // (causaria fatal error) — usa PartialProviderAdapter via arquivo temporário
             if ($hasIncompleteInterface) {
-                // Cria uma versão sem a declaração de interface para instanciar
-                $safeContent = preg_replace(
-                    '/\bimplements\s+[\\\\A-Za-z0-9,\s]+(?=\s*\{)/',
-                    '',
-                    $fileContent
-                ) ?? $fileContent;
-                // Usa arquivo temporário sem a interface para instanciar
-                $tmpFile = sys_get_temp_dir() . '/vupi_provider_' . md5($providerFile) . '.php';
-                // Muda o namespace para evitar conflito com a classe original
-                $tmpContent = str_replace(
-                    'class ' . basename(str_replace('\\', '/', $providerClass)),
-                    'class VupiTmp_' . $module . '_Provider',
-                    $safeContent
-                );
-                file_put_contents($tmpFile, $tmpContent);
+                $tmpFile  = sys_get_temp_dir() . '/vupi_provider_' . md5($providerFile) . '.php';
+                $tmpClass = 'VupiTmp_' . $module . '_Provider';
+                if (preg_match('/^namespace\s+([^;]+);/m', $fileContent, $nsMatch)) {
+                    $tmpClass = $nsMatch[1] . '\\VupiTmp_' . $module . '_Provider';
+                }
+
+                // Só reescreve o arquivo temporário se o provider foi modificado
+                $providerMtime = filemtime($providerFile) ?: 0;
+                $tmpMtime      = is_file($tmpFile) ? (filemtime($tmpFile) ?: 0) : 0;
+
+                if ($tmpMtime < $providerMtime || !is_file($tmpFile)) {
+                    $safeContent = preg_replace(
+                        '/\bimplements\s+[\\\\A-Za-z0-9,\s]+(?=\s*\{)/',
+                        '',
+                        $fileContent
+                    ) ?? $fileContent;
+                    $tmpContent = str_replace(
+                        'class ' . basename(str_replace('\\', '/', $providerClass)),
+                        'class VupiTmp_' . $module . '_Provider',
+                        $safeContent
+                    );
+                    file_put_contents($tmpFile, $tmpContent);
+                }
+
                 try {
-                    require_once $tmpFile;
-                    $tmpClass = 'VupiTmp_' . $module . '_Provider';
-                    // Extrai o namespace do arquivo original
-                    if (preg_match('/^namespace\s+([^;]+);/m', $fileContent, $nsMatch)) {
-                        $tmpClass = $nsMatch[1] . '\\VupiTmp_' . $module . '_Provider';
-                    }
+                    require_once $tmpFile; // idempotente — só inclui uma vez por processo
                     if (class_exists($tmpClass, false)) {
                         $delegate = new $tmpClass();
                         $adapter  = new PartialProviderAdapter($module, $moduleDir, $delegate);
                         $this->providers[$module] = $adapter;
                         $this->setEnabledIfNotExist($module);
-                        @unlink($tmpFile);
                         return;
                     }
                 } catch (\Throwable $e) {
                     error_log("[ModuleLoader] PartialProviderAdapter falhou para {$module}: " . $e->getMessage());
                 }
-                @unlink($tmpFile);
                 continue;
             }
 
@@ -367,18 +369,26 @@ class ModuleLoader
         return $derived;
     }
 
+    /** Cache de conexão por provider — evita reler connection.php a cada boot */
+    private array $connectionCache = [];
+
     /**
      * Determina a conexão preferida do provider.
      * Prioridade: preferredConnection() > connection.php > 'core'
      */
     private function getProviderConnection(ModuleProviderInterface $provider): string
     {
+        $cacheKey = spl_object_id($provider);
+        if (isset($this->connectionCache[$cacheKey])) {
+            return $this->connectionCache[$cacheKey];
+        }
+
         // 1. Método preferredConnection() declarado no provider
         if (method_exists($provider, 'preferredConnection')) {
             try {
                 $pref = (string) $provider->preferredConnection();
                 if (in_array($pref, ['core', 'modules', 'auto'], true)) {
-                    return $pref;
+                    return $this->connectionCache[$cacheKey] = $pref;
                 }
             } catch (\Throwable) {}
         }
@@ -390,11 +400,11 @@ class ModuleLoader
                 try {
                     $val = (string)(include $connFile);
                     if (in_array($val, ['core', 'modules', 'auto'], true)) {
-                        return $val;
+                        return $this->connectionCache[$cacheKey] = $val;
                     }
                 } catch (\Throwable) {}
             }
-            return 'core';
+            return $this->connectionCache[$cacheKey] = 'core';
         }
 
         // 3. Provider real (classe PHP) — tenta descobrir o path via Reflection
@@ -402,14 +412,13 @@ class ModuleLoader
             $ref  = new \ReflectionClass($provider);
             $file = $ref->getFileName() ?: '';
             if ($file !== '') {
-                // Sobe até encontrar Database/connection.php
                 $dir = dirname($file);
                 for ($i = 0; $i < 5; $i++) {
                     $connFile = $dir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
                     if (is_file($connFile)) {
                         $val = (string)(include $connFile);
                         if (in_array($val, ['core', 'modules', 'auto'], true)) {
-                            return $val;
+                            return $this->connectionCache[$cacheKey] = $val;
                         }
                     }
                     $dir = dirname($dir);
@@ -417,7 +426,7 @@ class ModuleLoader
             }
         } catch (\Throwable) {}
 
-        return 'core';
+        return $this->connectionCache[$cacheKey] = 'core';
     }
 
     private function setEnabledIfNotExist(string $name): void
