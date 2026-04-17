@@ -12,6 +12,7 @@ class Container implements ContainerInterface
     private array $instances = [];
     private array $buildStack = [];
     private array $reflectionCache = [];
+    private ?ContainerInterface $resolveContext = null;
 
     public function bind(string $abstract, callable|object|string $concrete, bool $singleton = false): void
     {
@@ -162,6 +163,15 @@ class Container implements ContainerInterface
             return $this->build($definition);
         }
 
-        return $definition($this);
+        return $definition($this->resolveContext ?? $this);
+    }
+
+    /**
+     * Define o container de contexto passado para closures durante resolução.
+     * Usado pelo ModuleContainerProxy para injetar o proxy como $c nas closures.
+     */
+    public function setResolveContext(?ContainerInterface $context): void
+    {
+        $this->resolveContext = $context;
     }
 }
