@@ -379,36 +379,49 @@ $container->bind(AuditLogger::class, static function () use ($container) {
 }, true);
 
 // Registra implementações dos contratos do Kernel.
-// Estes bindings conectam o kernel aos módulos — único lugar onde isso acontece.
-// O desenvolvedor de módulos não precisa tocar aqui.
+// Todos os bindings são condicionais — o sistema funciona mesmo sem os módulos nativos.
+// Se os módulos Auth, Usuario ou IdeModuleBuilder não existirem, o servidor continua
+// funcionando sem autenticação, gerenciamento de usuários ou IDE.
 
-// Determina qual PDO usar para o módulo Usuario baseado no connection.php
-// O ModuleConnectionResolver lança RuntimeException(503) se a conexão declarada não estiver configurada.
-(static function () use ($container): void {
-    // UserRepositoryInterface (kernel) — usado pelo AuthController e outros
+// Módulo Usuario — UserRepository e UsuarioRepository
+if (class_exists(\Src\Modules\Usuario\Repositories\UsuarioRepository::class)) {
+    (static function () use ($container): void {
+        $container->bind(
+            \Src\Kernel\Contracts\UserRepositoryInterface::class,
+            static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+                \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+            ),
+            true
+        );
+        $container->bind(
+            \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
+            static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+                \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+            ),
+            true
+        );
+    })();
+}
+
+// Módulo Auth — TokenBlacklist
+if (class_exists(\Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class)) {
     $container->bind(
-        \Src\Kernel\Contracts\UserRepositoryInterface::class,
-        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
-            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
-        ),
+        \Src\Kernel\Contracts\TokenBlacklistInterface::class,
+        \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
         true
     );
-
-    // UsuarioRepositoryInterface (módulo) — usado pelo UsuarioService/UsuarioController
+} else {
+    // Fallback: blacklist nula — tokens nunca são revogados (sem módulo Auth)
     $container->bind(
-        \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
-        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
-            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
-        ),
+        \Src\Kernel\Contracts\TokenBlacklistInterface::class,
+        static fn() => new class implements \Src\Kernel\Contracts\TokenBlacklistInterface {
+            public function isRevoked(string $jti): bool { return false; }
+            public function revoke(string $jti, string $userUuid, \DateTimeImmutable $expiresAt): void {}
+            public function purgeExpired(): void {}
+        },
         true
     );
-})();
-
-$container->bind(
-    \Src\Kernel\Contracts\TokenBlacklistInterface::class,
-    \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
-    true
-);
+}
 
 // Registra MailerService se MAILER_HOST estiver configurado
 $container->bind(
@@ -425,57 +438,62 @@ $container->bind(
 );
 
 // Registra AuthController com todas as dependências injetadas via container
-// Elimina Service Locator e new() dentro do controller
-$container->bind(
-    \Src\Modules\Auth\Controllers\AuthController::class,
-    static function () use ($container) {
-        $pdo             = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Auth');
-        $userRepo        = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
-        $refreshRepo     = new \Src\Modules\Auth\Repositories\RefreshTokenRepository($pdo);
-        $blacklist        = new \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository($pdo);
-        $authService     = new \Src\Modules\Auth\Services\AuthService($userRepo, $refreshRepo);
-        $auditLogger     = $container->make(\Src\Kernel\Support\AuditLogger::class);
-        $threatScorer    = $container->make(\Src\Kernel\Support\ThreatScorer::class);
-        $emailService    = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
-        $requestContext  = $container->make(\Src\Kernel\Support\RequestContext::class);
-        return new \Src\Modules\Auth\Controllers\AuthController(
-            $authService,
-            $refreshRepo,
-            $blacklist,
-            $auditLogger,
-            $threatScorer,
-            $emailService,
-            $requestContext,
-        );
-    },
-    true
-);
+if (class_exists(\Src\Modules\Auth\Controllers\AuthController::class)) {
+    $container->bind(
+        \Src\Modules\Auth\Controllers\AuthController::class,
+        static function () use ($container) {
+            $pdo             = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Auth');
+            $userRepo        = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+            $refreshRepo     = new \Src\Modules\Auth\Repositories\RefreshTokenRepository($pdo);
+            $blacklist        = new \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository($pdo);
+            $authService     = new \Src\Modules\Auth\Services\AuthService($userRepo, $refreshRepo);
+            $auditLogger     = $container->make(\Src\Kernel\Support\AuditLogger::class);
+            $threatScorer    = $container->make(\Src\Kernel\Support\ThreatScorer::class);
+            $emailService    = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+            $requestContext  = $container->make(\Src\Kernel\Support\RequestContext::class);
+            return new \Src\Modules\Auth\Controllers\AuthController(
+                $authService,
+                $refreshRepo,
+                $blacklist,
+                $auditLogger,
+                $threatScorer,
+                $emailService,
+                $requestContext,
+            );
+        },
+        true
+    );
+}
 
 // Registra UsuarioController com EmailThrottle injetado
-$container->bind(
-    \Src\Modules\Usuario\Controllers\UsuarioController::class,
-    static function () use ($container) {
-        $pdo         = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
-        $service     = $container->make(\Src\Modules\Usuario\Services\UsuarioServiceInterface::class);
-        $emailSender = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
-        $emailThrottle = new \Src\Kernel\Support\EmailThrottle($pdo);
-        return new \Src\Modules\Usuario\Controllers\UsuarioController($service, $emailThrottle, $emailSender);
-    },
-    true
-);
+if (class_exists(\Src\Modules\Usuario\Controllers\UsuarioController::class)) {
+    $container->bind(
+        \Src\Modules\Usuario\Controllers\UsuarioController::class,
+        static function () use ($container) {
+            $pdo         = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario');
+            $service     = $container->make(\Src\Modules\Usuario\Services\UsuarioServiceInterface::class);
+            $emailSender = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
+            $emailThrottle = new \Src\Kernel\Support\EmailThrottle($pdo);
+            return new \Src\Modules\Usuario\Controllers\UsuarioController($service, $emailThrottle, $emailSender);
+        },
+        true
+    );
+}
 
 // Registra IdeProjectController com PDO injetado
-$container->bind(
-    \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController::class,
-    static function () use ($container) {
-        $pdo        = $container->make(\PDO::class);
-        $pdoModules = null;
-        try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
-        $service = new \Src\Modules\IdeModuleBuilder\Services\IdeProjectService($pdo, $container->make(\Src\Kernel\Nucleo\ModuleLoader::class));
-        return new \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController($service, $pdo, $pdoModules);
-    },
-    true
-);
+if (class_exists(\Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController::class)) {
+    $container->bind(
+        \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController::class,
+        static function () use ($container) {
+            $pdo        = $container->make(\PDO::class);
+            $pdoModules = null;
+            try { $pdoModules = $container->make('pdo.modules'); } catch (\Throwable) {}
+            $service = new \Src\Modules\IdeModuleBuilder\Services\IdeProjectService($pdo, $container->make(\Src\Kernel\Nucleo\ModuleLoader::class));
+            return new \Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController($service, $pdo, $pdoModules);
+        },
+        true
+    );
+}
 
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
@@ -509,15 +527,16 @@ $router->get('/modules/marketplace', [\Src\Kernel\Controllers\MarketplacePageCon
 $router->get('/ide/login', [\Src\Kernel\Controllers\IdeController::class, 'login']);
 $router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'index'], [
     static function ($request, $next) use ($container) {
-        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware(
-            $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class),
-            $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class),
-            false // qualquer usuário autenticado — não exige admin_system
-        );
+        try {
+            $userRepo  = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+            $blacklist = $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
+        } catch (\Throwable) {
+            // Módulo Usuario/Auth não instalado — IDE acessível sem autenticação
+            return $next($request);
+        }
+        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware($userRepo, $blacklist, false);
         return $mw->handle($request, $next);
     },
-    // Rate limit por usuário (extraído do JWT) — evita que IPs compartilhados
-    // (NAT, proxies corporativos) bloqueiem usuários diferentes entre si.
     static function ($request, $next) {
         $userId = null;
         $token  = \Src\Kernel\Support\TokenExtractor::fromRequest();
@@ -529,7 +548,6 @@ $router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'i
                 $userId  = $decoded['sub'] ?? null;
             } catch (\Throwable) {}
         }
-        // Chave por usuário se autenticado, por IP como fallback
         $key = $userId ? 'page.ide:user:' . $userId : 'page.ide:ip';
         $mw  = new \Src\Kernel\Middlewares\RateLimitMiddleware(60, 60, $key);
         return $mw->handle($request, $next);
@@ -537,11 +555,13 @@ $router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'i
 ]);
 $router->get('/dashboard/ide/editor', [\Src\Kernel\Controllers\IdeController::class, 'editor'], [
     static function ($request, $next) use ($container) {
-        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware(
-            $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class),
-            $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class),
-            false
-        );
+        try {
+            $userRepo  = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+            $blacklist = $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
+        } catch (\Throwable) {
+            return $next($request);
+        }
+        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware($userRepo, $blacklist, false);
         return $mw->handle($request, $next);
     },
 ]);

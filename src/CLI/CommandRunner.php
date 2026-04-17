@@ -35,6 +35,7 @@ class CommandRunner
         echo "  plugin:uninstall <plugin>\n";
         echo "  capability:list [capability]\n";
         echo "  plugin:provider:set <capability> <plugin>\n";
+        echo "  strip [--dry-run|--force]       # remove módulos nativos e frontend (modo esqueleto)\n";
     }
 
     private function dispatch(string $command, array $argv): int
@@ -56,6 +57,7 @@ class CommandRunner
                                            => $this->handlePluginLifecycle($command, $argv),
             $command === 'capability:list'     => (new CapabilityListCommand())->handle($argv[2] ?? null),
             $command === 'plugin:provider:set' => $this->handleProviderSet($argv),
+            $command === 'strip'               => $this->handleStrip($argv),
             default => null,
         };
 
@@ -115,5 +117,10 @@ class CommandRunner
         $name = $argv[3] ?? null;
         if (!$cap || !$name) { echo "Uso: plugin:provider:set <capability> <plugin>\n"; return; }
         (new PluginProviderSetCommand())->handle($cap, $name);
+    }
+
+    private function handleStrip(array $argv): void
+    {
+        (new StripCommand())->handle(array_slice($argv, 1));
     }
 }

@@ -20,13 +20,18 @@ use Src\Kernel\Support\TokenExtractor;
 class AuthPageMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private UserRepositoryInterface $usuarios,
-        private TokenBlacklistInterface $blacklistRepo,
+        private ?UserRepositoryInterface $usuarios,
+        private ?TokenBlacklistInterface $blacklistRepo,
         private bool $requireAdmin = true
     ) {}
 
     public function handle(Request $request, callable $next): Response
     {
+        // Se os módulos de autenticação não estão instalados, permite acesso livre
+        if ($this->usuarios === null || $this->blacklistRepo === null) {
+            return $next($request);
+        }
+
         $token = TokenExtractor::fromRequest();
         if ($token === '') {
             return $this->redirecionar(false);

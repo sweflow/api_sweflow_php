@@ -12,12 +12,16 @@ use Src\Kernel\Support\JwtDecoder;
 class AuthCookieMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private UserRepositoryInterface $usuarios,
-        private TokenBlacklistInterface $blacklistRepo
+        private ?UserRepositoryInterface $usuarios,
+        private ?TokenBlacklistInterface $blacklistRepo
     ) {}
 
     public function handle(Request $request, callable $next): Response
     {
+        if ($this->usuarios === null || $this->blacklistRepo === null) {
+            return $next($request);
+        }
+
         $token = $_COOKIE['auth_token'] ?? '';
         $token = is_string($token) ? trim($token) : '';
         if ($token === '') {

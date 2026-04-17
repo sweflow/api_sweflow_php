@@ -75,6 +75,7 @@ class SetupCommand
         echo "26) Recarregar Caddy (aplica mudanças no Caddyfile)\n";
         echo "27) Recarregar tudo (PHP-FPM + Caddy)\n";
         echo "28) Verificar e corrigir permissões do projeto\n";
+        echo "29) \033[1;35m[MODO ESQUELETO]\033[0m Remover módulos nativos e frontend (strip)\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -111,6 +112,7 @@ class SetupCommand
             '26' => fn() => $this->reloadCaddy(),
             '27' => fn() => $this->reloadAll(),
             '28' => fn() => $this->fixPermissions(),
+            '29' => fn() => $this->runStrip(),
         ];
 
         if ($choice === '0') {
@@ -179,6 +181,39 @@ class SetupCommand
         } elseif ($caddy === 'dev') {
             $this->startCaddyDev();
         }
+    }
+
+    private function runStrip(): void
+    {
+        echo "\n\033[1;35m╔══════════════════════════════════════════════════════╗\033[0m\n";
+        echo "\033[1;35m║         ⚠  MODO ESQUELETO — AÇÃO IRREVERSÍVEL        ║\033[0m\n";
+        echo "\033[1;35m╚══════════════════════════════════════════════════════╝\033[0m\n\n";
+
+        echo "\033[1;33mEste comando vai remover PERMANENTEMENTE:\033[0m\n";
+        echo "  • src/Modules/          — Auth, Usuario, IDE, Documentacao, LinkEncurtador\n";
+        echo "  • src/Kernel/Views/     — dashboard, IDE, home, marketplace, usuarios\n";
+        echo "  • src/Kernel/Controllers/ — DashboardController, HomeController, IdeController...\n";
+        echo "  • public/assets/        — todo o frontend (JS, CSS, imagens)\n";
+        echo "  • Documentacao/         — documentação HTML\n";
+        echo "  • storage/modules_state.json e capabilities_registry.json\n\n";
+
+        echo "\033[1;31mEsta ação NÃO PODE SER DESFEITA.\033[0m\n";
+        echo "Certifique-se de ter um backup antes de continuar.\n\n";
+
+        $confirm1 = $this->prompt('Digite "CONFIRMAR" para continuar (ou Enter para cancelar)');
+        if ($confirm1 !== 'CONFIRMAR') {
+            echo "\n\033[1;32m✔ Operação cancelada. Nenhum arquivo foi removido.\033[0m\n";
+            return;
+        }
+
+        $confirm2 = $this->prompt('Tem certeza? Digite "SIM" para executar');
+        if (strtoupper(trim($confirm2)) !== 'SIM') {
+            echo "\n\033[1;32m✔ Operação cancelada. Nenhum arquivo foi removido.\033[0m\n";
+            return;
+        }
+
+        echo "\n\033[1;31m▶ Executando limpeza...\033[0m\n\n";
+        (new \Src\CLI\StripCommand())->handle(['--force']);
     }
 
     private function fixPermissions(): void
@@ -728,6 +763,10 @@ class SetupCommand
         echo "Exemplos:\n";
         echo "  # Produção REAL (PHP-FPM + Caddy — recomendado):\n";
         echo "  php vupi setup --auto --server=fpm+caddy\n";
+        echo "\n";
+        echo "  # Modo esqueleto (remove módulos nativos e frontend):\n";
+        echo "  php vupi strip --dry-run    # visualiza o que seria removido\n";
+        echo "  php vupi strip --force      # executa a remoção\n";
         echo "\n";
         echo "  # Produção: PM2 + Caddy HTTPS automático:\n";
         echo "  php vupi setup --auto --server=pm2+caddy\n";

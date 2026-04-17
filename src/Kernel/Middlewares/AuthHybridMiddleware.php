@@ -13,12 +13,17 @@ use Src\Kernel\Support\TokenExtractor;
 class AuthHybridMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private UserRepositoryInterface $usuarios,
-        private TokenBlacklistInterface $blacklistRepo
+        private ?UserRepositoryInterface $usuarios,
+        private ?TokenBlacklistInterface $blacklistRepo
     ) {}
 
     public function handle(Request $request, callable $next): Response
     {
+        // Se os módulos de autenticação não estão instalados, permite acesso livre
+        if ($this->usuarios === null || $this->blacklistRepo === null) {
+            return $next($request);
+        }
+
         $token = TokenExtractor::fromApiRequest();
         if ($token === '') {
             return $this->responder(401, 'Não autenticado.');
