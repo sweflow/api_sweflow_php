@@ -235,14 +235,12 @@ class ModuleLoader
 
         // Detecção automática por convenção de nome — sem composer.json obrigatório.
         // Procura por Providers/{Module}ServiceProvider ou Providers/{Module}Provider
-        // Usa class_exists() com autoloader — nunca require_once direto (evita fatal errors)
+        // Usa wrapper para suportar providers com interface incompleta sem fatal errors.
         $conventionProviders = [
             'Src\\Modules\\' . $module . '\\Providers\\' . $module . 'ServiceProvider',
             'Src\\Modules\\' . $module . '\\Providers\\' . $module . 'Provider',
         ];
         foreach ($conventionProviders as $providerClass) {
-            // Verifica o arquivo fisicamente antes de tentar autoload
-            // para evitar fatal errors de classes com interface incompleta
             $providerFile = $moduleDir . DIRECTORY_SEPARATOR . 'Providers'
                 . DIRECTORY_SEPARATOR . basename(str_replace('\\', '/', $providerClass)) . '.php';
 
@@ -250,36 +248,22 @@ class ModuleLoader
                 continue;
             }
 
-            // Lê o arquivo para verificar se implementa ModuleProviderInterface
-            // Se sim, verifica se tem todos os métodos obrigatórios antes de incluir
-            $fileContent = (string) file_get_contents($providerFile);
-            if (str_contains($fileContent, 'ModuleProviderInterface')) {
-                $requiredMethods = ['registerRoutes', 'boot', 'describe', 'getName', 'setName',
-                                    'onInstall', 'onEnable', 'onDisable', 'onUninstall'];
-                foreach ($requiredMethods as $method) {
-                    if (!preg_match('/function\s+' . $method . '\s*\(/', $fileContent)) {
-                        // Método obrigatório ausente — não instancia, cai para SimpleModuleProvider
-                        error_log("[ModuleLoader] {$providerClass} não implementa '{$method}' — usando SimpleModuleProvider");
-                        continue 2;
-                    }
-                }
-            }
-
-            if (!class_exists($providerClass)) {
+            // Só tenta se o autoloader já conhece a classe (evita fatal errors)
+            if (!class_exists($providerClass, true)) {
                 continue;
             }
+
             try {
                 $ref = new \ReflectionClass($providerClass);
                 if (!$ref->isInstantiable()) continue;
-                if (!$ref->implementsInterface(ModuleProviderInterface::class)) continue;
 
-                $provider = $this->container->make($providerClass);
-                if ($provider instanceof ModuleProviderInterface) {
-                    $name = $provider->getName() ?: $module;
-                    $this->providers[$name] = $provider;
-                    $this->setEnabledIfNotExist($name);
-                    return;
-                }
+                $userProvider = $this->container->make($providerClass);
+                $wrapper = new SimpleModuleProvider($module, $moduleDir);
+                $wrapper->setDelegateBootProvider($userProvider);
+
+                $this->providers[$module] = $wrapper;
+                $this->setEnabledIfNotExist($module);
+                return;
             } catch (\Throwable $e) {
                 error_log("[ModuleLoader] Provider {$providerClass} falhou: " . $e->getMessage());
             }
@@ -395,10 +379,17 @@ class ModuleLoader
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
 
-            $container = $this->resolveContainerForProvider($provider);
+            $pref = $this->getProviderConnection($provider);
+            if ($pref === 'auto') {
+                $default = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+                $pref = in_array($default, ['core', 'modules'], true) ? $default : 'core';
+            }
 
-            // Módulos internos (protegidos) executam diretamente — erros devem subir
-            // Módulos externos são isolados — erros não derrubam o sistema
+            // Para módulos com connection=modules, passa o container principal
+            // e deixa o boot() rebindar PDO::class nele diretamente.
+            // Para módulos core, passa container derivado (isolamento).
+            $container = ($pref === 'modules') ? $this->container : $this->resolveContainerForProvider($provider);
+
             if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
                 $provider->boot($container);
             } else {
