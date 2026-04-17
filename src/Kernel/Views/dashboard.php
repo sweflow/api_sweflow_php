@@ -92,9 +92,9 @@
         </button>
         <a href="/" class="dash-brand">
             <?php if (!empty($logo_url)): ?>
-                <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" />
+                <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" fetchpriority="high" />
             <?php else: ?>
-                <img src="/favicon.ico" alt="Vupi.us" class="dash-brand-img" />
+                <img src="/favicon.ico" alt="Vupi.us" class="dash-brand-img" width="32" height="32" />
             <?php endif; ?>
             <span class="dash-brand-name">Vupi.us <span class="dash-brand-accent">API</span></span>
         </a>
