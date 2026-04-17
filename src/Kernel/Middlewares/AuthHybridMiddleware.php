@@ -2,7 +2,6 @@
 
 namespace Src\Kernel\Middlewares;
 
-use DomainException;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Contracts\TokenBlacklistInterface;
 use Src\Kernel\Contracts\UserRepositoryInterface;
@@ -22,7 +21,7 @@ class AuthHybridMiddleware implements MiddlewareInterface
     {
         $token = TokenExtractor::fromApiRequest();
         if ($token === '') {
-            return $this->responder(401, 'Não autenticado: token ausente.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
         // Token de API puro (tipo: 'api') — acesso sem usuário
@@ -33,31 +32,29 @@ class AuthHybridMiddleware implements MiddlewareInterface
         try {
             [$payload, $assinadoComApiSecret] = JwtDecoder::decodeUser($token);
             JwtDecoder::validateUserClaims($payload);
-        } catch (DomainException $e) {
-            $this->limparCookieAuth();
-            return $this->responder(401, $e->getMessage());
         } catch (\Throwable) {
             $this->limparCookieAuth();
-            return $this->responder(401, 'Token inválido ou expirado.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
         if ($this->blacklistRepo->isRevoked($payload->jti ?? '')) {
-            return $this->responder(401, 'Token revogado. Faça login novamente.');
+            $this->limparCookieAuth();
+            return $this->responder(401, 'Não autenticado.');
         }
 
         $sub = $payload->sub ?? '';
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sub)) {
-            return $this->responder(401, 'Token inválido: identificador de usuário malformado.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
         $usuario = $this->usuarios->buscarPorUuid($sub);
         if (!$usuario) {
-            return $this->responder(401, 'Usuário não encontrado.');
+            return $this->responder(401, 'Não autenticado.');
         }
 
-        // Verifica se o usuário está ativo — pode ter sido desativado após emissão do token
+        // 403 mantém mensagem específica — é uma decisão de negócio, não de autenticação
         if (method_exists($usuario, 'isAtivo') && !$usuario->isAtivo()) {
-            return $this->responder(403, 'Usuário desativado.');
+            return $this->responder(403, 'Acesso negado.');
         }
 
         return $next(

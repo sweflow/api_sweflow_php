@@ -344,13 +344,13 @@ class AuthController
 
             $usuario = $this->authService->buscarPorUuid($payload->sub ?? '');
             if (!$usuario) {
-                return Response::json(['error' => 'Usuário não encontrado.'], 404);
+                return Response::json(['error' => 'Não autenticado.'], 401);
             }
 
             // Verifica se o usuário ainda está ativo — pode ter sido desativado após emissão do token
             if (!$usuario->isAtivo()) {
                 $this->authService->revogarRefreshPorUsuario($payload->sub ?? '');
-                return Response::json(['error' => 'Usuário desativado.'], 403);
+                return Response::json(['error' => 'Acesso negado.'], 403);
             }
 
             // Verifica política de verificação de e-mail
@@ -366,7 +366,7 @@ class AuthController
             $tokenEmitidoEm  = $payload->iat ?? 0;
             if ($senhaAlteradaEm !== null && $tokenEmitidoEm < $senhaAlteradaEm) {
                 $this->authService->revogarRefreshPorUsuario($payload->sub ?? '');
-                return Response::json(['error' => 'Sessão expirada. Faça login novamente.'], 401);
+                return Response::json(['error' => 'Não autenticado.'], 401);
             }
 
             // Revoga ANTES de emitir — evita replay se a resposta for perdida
@@ -386,7 +386,7 @@ class AuthController
                 'expires_in'    => $tokens['access_expira_em'],
             ]);
         } catch (DomainException $e) {
-            return Response::json(['error' => $e->getMessage()], $e->getCode() ?: 401);
+            return Response::json(['error' => 'Não autenticado.'], 401);
         } catch (\Throwable) {
             return Response::json(['error' => 'Erro ao renovar token.'], 500);
         }

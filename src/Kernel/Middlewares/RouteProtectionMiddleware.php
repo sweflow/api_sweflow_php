@@ -25,7 +25,7 @@ class RouteProtectionMiddleware implements MiddlewareInterface
 
         $token = TokenExtractor::fromApiRequest();
         if ($token === '') {
-            return Response::json(['error' => 'Token ausente.'], 401);
+            return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
         // Token de API puro (tipo: 'api') — acesso sem usuário
@@ -41,12 +41,12 @@ class RouteProtectionMiddleware implements MiddlewareInterface
             [$payload] = JwtDecoder::decodeUser($token);
             JwtDecoder::validateUserClaims($payload);
         } catch (\Throwable) {
-            return Response::json(['error' => 'Token inválido ou expirado.'], 401);
+            return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
         // Verifica blacklist se disponível
         if ($this->blacklistRepo !== null && $this->blacklistRepo->isRevoked($payload->jti ?? '')) {
-            return Response::json(['error' => 'Token revogado. Faça login novamente.'], 401);
+            return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
         if (!empty($roles)) {
