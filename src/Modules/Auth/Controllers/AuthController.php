@@ -278,7 +278,10 @@ class AuthController
             $this->authService->limparTokenRecuperacaoSenha($usuario->getAuthId());
 
             return Response::json(['status' => 'success', 'message' => 'Senha redefinida com sucesso.']);
-        } catch (\Src\Modules\Usuario\Exceptions\InvalidPasswordException $e) {
+        } catch (\InvalidArgumentException $e) {
+            // Captura InvalidArgumentException genérica — compatível com qualquer módulo
+            return Response::json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        } catch (\DomainException $e) {
             return Response::json(['status' => 'error', 'message' => $e->getMessage()], 400);
         } catch (\Throwable $e) {
             return Response::json([
@@ -536,7 +539,7 @@ class AuthController
 
     // ── Helpers privados ──────────────────────────────────────────────────
 
-    private function resolverUsuarioAlvo(array $body): ?\Src\Modules\Usuario\Entities\Usuario
+    private function resolverUsuarioAlvo(array $body): ?\Src\Kernel\Contracts\AuthenticatableInterface
     {
         if (!empty($body['user_id'])) {
             return $this->authService->buscarPorUuid($body['user_id']);

@@ -101,12 +101,7 @@ class AuthService
     {
         $agora = time();
 
-        // Valida role contra whitelist antes de incluir no payload
         $role = $usuario->getAuthRole();
-        $rolesPermitidas = ['usuario', 'admin', 'moderador', 'admin_system'];
-        if (!in_array($role, $rolesPermitidas, true)) {
-            throw new DomainException("Role '{$role}' não é permitida.", 403);
-        }
 
         $accessJti = Uuid::uuid4()->toString();
         $accessExp = $agora + $this->accessTtl;
