@@ -414,6 +414,39 @@ class IdeProjectService
     }
 
     /**
+     * Envia sinal USR2 ao master do PHP-FPM para recarregar workers graciosamente.
+     * Isso limpa o OPcache em todos os workers sem derrubar conexões ativas.
+     */
+    private function reloadPhpFpm(): void
+    {
+        try {
+            // Tenta via arquivo PID do PHP-FPM
+            $pidFiles = [
+                '/run/php/php8.2-fpm.pid',
+                '/run/php/php8.3-fpm.pid',
+                '/run/php/php8.1-fpm.pid',
+                '/var/run/php/php8.2-fpm.pid',
+                '/var/run/php-fpm/php-fpm.pid',
+            ];
+            foreach ($pidFiles as $pidFile) {
+                if (is_file($pidFile) && is_readable($pidFile)) {
+                    $pid = (int) trim((string) file_get_contents($pidFile));
+                    if ($pid > 0 && function_exists('posix_kill')) {
+                        posix_kill($pid, SIGUSR2); // graceful reload
+                        return;
+                    }
+                }
+            }
+            // Fallback: opcache_reset no worker atual
+            if (function_exists('opcache_reset')) {
+                opcache_reset();
+            }
+        } catch (\Throwable) {
+            // Silencioso — reload é best-effort
+        }
+    }
+
+    /**
      * Gera composer.json para publicação no Packagist e retorna instruções.
      */
     public function deployPackagist(array $project, array $options): array
@@ -938,6 +971,9 @@ class IdeProjectService
         if (function_exists('opcache_reset')) {
             opcache_reset();
         }
+
+        // Recarrega PHP-FPM para que todos os workers reconheçam as novas rotas
+        $this->reloadPhpFpm();
 
         // Atualiza memória + persiste modules_state.json atomicamente
         $this->moduleLoader->setEnabled($moduleName, $enabled);
