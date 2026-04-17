@@ -477,6 +477,8 @@ class IdeProjectService
             $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
             $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
             $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+            // Garante que a tabela migrations existe antes de qualquer consulta
+            $this->ensureMigrationsTable($activePdo);
         }
 
         // Tabelas do módulo — lidas da tabela migrations (apenas as do módulo)
@@ -485,6 +487,7 @@ class IdeProjectService
         // Migrations e seeders pendentes — verificados no banco correto
         $pendingMigrations = $deployed ? $this->getPendingMigrations($moduleName, $moduleDir, $activePdo) : [];
         $pendingSeeders    = $deployed ? $this->getPendingSeeders($moduleName, $moduleDir, $activePdo) : [];
+        $ranSeeders        = $deployed ? $this->getRanSeeders($moduleName, $moduleDir, $activePdo) : [];
 
         return [
             'module_name'        => $moduleName,
@@ -494,6 +497,7 @@ class IdeProjectService
             'tables'             => $tables,
             'pending_migrations' => $pendingMigrations,
             'pending_seeders'    => $pendingSeeders,
+            'ran_seeders'        => $ranSeeders,
         ];
     }
 
@@ -1275,33 +1279,40 @@ class IdeProjectService
      */
     private function getModuleTables(string $moduleName, PDO $pdo): array
     {
-        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
-        $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
+        // Busca tabelas diretamente do banco via tabela migrations
+        // O $pdo já vem resolvido com a conexão correta do módulo (getModuleStatus faz isso)
+        try {
+            $stmt = $pdo->prepare(
+                "SELECT migration FROM migrations WHERE module = :mod ORDER BY executed_at ASC"
+            );
+            $stmt->execute([':mod' => $moduleName]);
+            $executedMigrations = $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        } catch (\Throwable) {
+            $executedMigrations = [];
+        }
 
-        // Descobre tabelas a partir dos arquivos de migration do módulo
-        $migrDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
+        if (empty($executedMigrations)) {
+            return [];
+        }
+
+        // Extrai nomes de tabelas dos arquivos de migration executados
+        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        $migrDir   = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Migrations';
         if (!is_dir($migrDir)) return [];
 
         $tables = [];
-        $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        $files  = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
 
         foreach ($files as $file) {
             $migName = basename($file, '.php');
-            $key = $moduleName . '/' . $migName;
+            $key     = $moduleName . '/' . $migName;
 
-            // Só lista tabelas de migrations executadas
-            try {
-                $stmt = $pdo->prepare("SELECT 1 FROM migrations WHERE migration = :m");
-                $stmt->execute([':m' => $key]);
-                if (!$stmt->fetchColumn()) continue;
-            } catch (\Throwable) {
+            if (!in_array($key, $executedMigrations, true)) {
                 continue;
             }
 
-            // Extrai nomes de tabelas do arquivo de migration via regex simples
-            $content = (string)file_get_contents($file);
-            preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?/i', $content, $matches);
+            $content = (string) file_get_contents($file);
+            preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"\']?(\w+)[`"\']?/i', $content, $matches);
             foreach ($matches[1] as $table) {
                 if (!in_array($table, $tables, true)) {
                     $tables[] = $table;
@@ -1362,6 +1373,32 @@ class IdeProjectService
         }
 
         return $pending;
+    }
+
+    private function getRanSeeders(string $moduleName, string $moduleDir, PDO $pdo): array
+    {
+        $seedDir = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'Seeders';
+        if (!is_dir($seedDir)) return [];
+
+        $ran   = [];
+        $files = glob($seedDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        sort($files, SORT_NATURAL);
+
+        foreach ($files as $file) {
+            $seedName = basename($file, '.php');
+            $key      = $moduleName . '/seeders/' . $seedName;
+            try {
+                $stmt = $pdo->prepare("SELECT 1 FROM migrations WHERE migration = :m");
+                $stmt->execute([':m' => $key]);
+                if ($stmt->fetchColumn()) {
+                    $ran[] = $seedName;
+                }
+            } catch (\Throwable) {
+                // silencioso
+            }
+        }
+
+        return $ran;
     }
 
     /**
