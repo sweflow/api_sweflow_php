@@ -237,6 +237,98 @@ class ModuleLoader
         $this->setEnabledIfNotExist($module);
     }
 
+    /**
+     * Retorna o container correto para o provider.
+     * Verifica preferredConnection() ou connection.php do módulo.
+     * Se usar 'modules', retorna container com PDO::class = pdo.modules.
+     */
+    private function resolveContainerForProvider(ModuleProviderInterface $provider): ContainerInterface
+    {
+        $pref = $this->getProviderConnection($provider);
+
+        // Resolve 'auto' usando DEFAULT_MODULE_CONNECTION
+        if ($pref === 'auto') {
+            $default = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+            $pref = in_array($default, ['core', 'modules'], true) ? $default : 'core';
+        }
+
+        if ($pref !== 'modules') {
+            return $this->container;
+        }
+
+        // Tenta obter pdo.modules
+        try {
+            $modulesPdo = $this->container->make('pdo.modules');
+        } catch (\Throwable) {
+            return $this->container;
+        }
+
+        // Verifica se é realmente diferente do core
+        try {
+            $corePdo = $this->container->make(\PDO::class);
+            if ($modulesPdo === $corePdo) {
+                return $this->container;
+            }
+        } catch (\Throwable) {}
+
+        $derived = clone $this->container;
+        $derived->bind(\PDO::class, static fn() => $modulesPdo, true);
+        return $derived;
+    }
+
+    /**
+     * Determina a conexão preferida do provider.
+     * Prioridade: preferredConnection() > connection.php > 'core'
+     */
+    private function getProviderConnection(ModuleProviderInterface $provider): string
+    {
+        // 1. Método preferredConnection() declarado no provider
+        if (method_exists($provider, 'preferredConnection')) {
+            try {
+                $pref = (string) $provider->preferredConnection();
+                if (in_array($pref, ['core', 'modules', 'auto'], true)) {
+                    return $pref;
+                }
+            } catch (\Throwable) {}
+        }
+
+        // 2. SimpleModuleProvider — lê connection.php do módulo
+        if ($provider instanceof SimpleModuleProvider) {
+            $connFile = $provider->getPath() . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+            if (is_file($connFile)) {
+                try {
+                    $val = (string)(include $connFile);
+                    if (in_array($val, ['core', 'modules', 'auto'], true)) {
+                        return $val;
+                    }
+                } catch (\Throwable) {}
+            }
+            return 'core';
+        }
+
+        // 3. Provider real (classe PHP) — tenta descobrir o path via Reflection
+        try {
+            $ref  = new \ReflectionClass($provider);
+            $file = $ref->getFileName() ?: '';
+            if ($file !== '') {
+                // Sobe até encontrar Database/connection.php
+                $dir = dirname($file);
+                for ($i = 0; $i < 5; $i++) {
+                    $connFile = $dir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+                    if (is_file($connFile)) {
+                        $val = (string)(include $connFile);
+                        if (in_array($val, ['core', 'modules', 'auto'], true)) {
+                            return $val;
+                        }
+                    }
+                    $dir = dirname($dir);
+                }
+            }
+        } catch (\Throwable) {}
+
+        return 'core';
+    }
+
     private function setEnabledIfNotExist(string $name): void
     {
         if (!array_key_exists($name, $this->enabled)) {
@@ -251,12 +343,14 @@ class ModuleLoader
             if (!$this->isEnabled($name)) continue;
             if (!$this->isProviderActive($provider, $resolver)) continue;
 
+            $container = $this->resolveContainerForProvider($provider);
+
             // Módulos internos (protegidos) executam diretamente — erros devem subir
             // Módulos externos são isolados — erros não derrubam o sistema
             if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
-                $provider->boot($this->container);
+                $provider->boot($container);
             } else {
-                ModuleGuard::safeBoot(fn() => $provider->boot($this->container), $name);
+                ModuleGuard::safeBoot(fn() => $provider->boot($container), $name);
             }
         }
     }
