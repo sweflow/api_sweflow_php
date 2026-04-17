@@ -82,10 +82,22 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function boot(ContainerInterface $container): void
     {
-        // Zero config: bindings são automáticos pelo container.
-        // ServiceProviders com ModuleProviderInterface são carregados pelo ModuleLoader
-        // via composer.json extra.vupi.us.providers — não instanciar aqui para evitar
-        // fatal errors de classes com interface incompleta.
+        // Se o módulo usa DB2 (connection.php = 'modules'), rebinda PDO::class
+        // para que repositórios instanciados pelo container usem a conexão correta.
+        $conn = $this->preferredConnection();
+        if ($conn !== 'modules') {
+            return;
+        }
+        try {
+            $modulesPdo = $container->make('pdo.modules');
+            $corePdo    = null;
+            try { $corePdo = $container->make(\PDO::class); } catch (\Throwable) {}
+            if ($modulesPdo !== $corePdo) {
+                $container->bind(\PDO::class, static fn() => $modulesPdo, true);
+            }
+        } catch (\Throwable) {
+            // pdo.modules não disponível — mantém core
+        }
     }
 
     public function registerRoutes(RouterInterface $router): void
