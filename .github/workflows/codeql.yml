@@ -1,12 +1,12 @@
-name: CodeQL Analysis
+name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [ "main" ]
   pull_request:
-    branches: [main, master]
+    branches: [ "main" ]
   schedule:
-    - cron: '0 6 * * 1'  # toda segunda às 06:00 UTC
+    - cron: '42 20 * * 5'
 
 jobs:
   analyze:
@@ -14,31 +14,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
+      packages: read
       actions: read
       contents: read
 
     strategy:
       fail-fast: false
       matrix:
-        # Apenas as linguagens realmente presentes no projeto
-        # PHP é analisado via phpstan/security-check no workflow separado
-        language: [javascript-typescript]
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          # Python removido — projeto não contém código Python
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          # Queries de segurança + qualidade
-          queries: security-extended
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
-          category: /language:${{ matrix.language }}
+          category: "/language:${{matrix.language}}"
