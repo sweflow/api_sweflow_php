@@ -1563,6 +1563,7 @@ async function renderDeployPanel() {
     var tables   = status.tables || [];
     var pendingM = status.pending_migrations || [];
     var pendingS = status.pending_seeders || [];
+    var ranS     = status.ran_seeders || [];
     var fc       = Object.keys(S.project.files || {}).length;
 
     // ── Seção: Módulo ──
@@ -1622,9 +1623,13 @@ async function renderDeployPanel() {
             ps.style.marginTop = '6px'; sec2.appendChild(ps);
             var sb = domBtn('ide-deploy-btn', 'fa-solid fa-seedling', 'Rodar Seeders', 'seed');
             sb.style.marginTop = '4px'; sec2.appendChild(sb);
-        } else if (tables.length > 0) {
-            var sok = domEl('div', 'dep-ok', [domIcon('fa-solid fa-check'), ' Seeders em dia']);
+        } else if (ranS.length > 0) {
+            var sok = domEl('div', 'dep-ok', [domIcon('fa-solid fa-check'), ' Seeders em dia (' + ranS.length + ' executado' + (ranS.length !== 1 ? 's' : '') + ')']);
             sok.style.marginTop = '4px'; sec2.appendChild(sok);
+        } else {
+            var sno = domEl('div', null, ['Nenhum seeder encontrado.']);
+            sno.style.cssText = 'font-size:.82rem;color:#6c7086;margin-top:6px;';
+            sec2.appendChild(sno);
         }
 
         if (tables.length > 0) {
