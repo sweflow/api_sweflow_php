@@ -1763,8 +1763,9 @@ class IdeProjectService
 
     private function tplConnection(): string
     {
-        // Lê DEFAULT_MODULE_CONNECTION do .env — padrão 'core' se não definido
-        $conn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+        // Lê DEFAULT_MODULE_CONNECTION diretamente do .env para garantir valor mais recente
+        // (evita usar $_ENV que pode estar desatualizado se o FPM não foi recarregado)
+        $conn = $this->readDefaultModuleConnection();
         if (!in_array($conn, ['core', 'modules', 'auto'], true)) {
             $conn = 'core';
         }
@@ -1777,6 +1778,26 @@ class IdeProjectService
             "return '{$conn}';",
             '',
         ]);
+    }
+
+    private function readDefaultModuleConnection(): string
+    {
+        // Tenta ler do $_ENV primeiro (já atualizado pelo EnvController na mesma request)
+        $fromEnv = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: ''));
+        if ($fromEnv !== '') {
+            return $fromEnv;
+        }
+        // Fallback: lê diretamente do .env no disco
+        $envFile = dirname(__DIR__, 4) . '/.env';
+        if (is_file($envFile)) {
+            foreach (file($envFile, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+                $line = trim($line);
+                if (str_starts_with($line, 'DEFAULT_MODULE_CONNECTION=')) {
+                    return trim(substr($line, strlen('DEFAULT_MODULE_CONNECTION=')), " \t\"'");
+                }
+            }
+        }
+        return 'core';
     }
 
     private function tplMigration(string $name): string

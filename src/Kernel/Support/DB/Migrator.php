@@ -397,11 +397,22 @@ class Migrator
         }
 
         $resolved = match ($connection) {
-            'auto'  => $isExternal ? 'modules' : 'core',
+            'auto'  => $this->resolveAutoConnection($isExternal),
             default => $connection,
         };
 
         return $this->connectionCache[$modulePath] = $resolved;
+    }
+
+    private function resolveAutoConnection(bool $isExternal): string
+    {
+        // Módulos externos sempre usam 'modules'
+        if ($isExternal) {
+            return 'modules';
+        }
+        // Módulos internos respeitam DEFAULT_MODULE_CONNECTION
+        $default = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
+        return in_array($default, ['core', 'modules'], true) ? $default : 'core';
     }
 
     private function readConnectionFile(string $modulePath): string
