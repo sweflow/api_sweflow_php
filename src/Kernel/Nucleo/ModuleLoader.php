@@ -235,7 +235,8 @@ class ModuleLoader
 
         // Detecção automática por convenção de nome — sem composer.json obrigatório.
         // Procura por Providers/{Module}ServiceProvider ou Providers/{Module}Provider
-        // Usa wrapper para suportar providers com interface incompleta sem fatal errors.
+        // NUNCA usa class_exists com autoload — pode causar fatal error se interface incompleta.
+        // Verifica o arquivo fisicamente e só carrega se seguro.
         $conventionProviders = [
             'Src\\Modules\\' . $module . '\\Providers\\' . $module . 'ServiceProvider',
             'Src\\Modules\\' . $module . '\\Providers\\' . $module . 'Provider',
@@ -248,9 +249,36 @@ class ModuleLoader
                 continue;
             }
 
-            // Só tenta se o autoloader já conhece a classe (evita fatal errors)
-            if (!class_exists($providerClass, true)) {
-                continue;
+            $fileContent = (string) file_get_contents($providerFile);
+
+            // Se implementa ModuleProviderInterface, verifica se tem TODOS os métodos
+            // antes de tentar carregar — evita fatal error de interface incompleta
+            if (str_contains($fileContent, 'ModuleProviderInterface')) {
+                $required = ['registerRoutes', 'boot', 'describe', 'getName', 'setName',
+                             'onInstall', 'onEnable', 'onDisable', 'onUninstall'];
+                foreach ($required as $method) {
+                    if (!preg_match('/function\s+' . $method . '\s*\(/', $fileContent)) {
+                        // Interface incompleta — usa SimpleModuleProvider sem delegate
+                        // O boot() do SimpleModuleProvider ainda rebinda PDO::class se necessário
+                        break 2;
+                    }
+                }
+            }
+
+            // Só usa class_exists SEM autoload (false) — não dispara o autoloader
+            // Se a classe não está carregada ainda, pula (será carregada pelo autoloader
+            // quando o router precisar instanciar o controller)
+            if (!class_exists($providerClass, false)) {
+                // Tenta carregar via autoloader apenas se o arquivo não implementa
+                // ModuleProviderInterface com interface incompleta (já verificado acima)
+                try {
+                    spl_autoload_call($providerClass);
+                } catch (\Throwable) {
+                    continue;
+                }
+                if (!class_exists($providerClass, false)) {
+                    continue;
+                }
             }
 
             try {
