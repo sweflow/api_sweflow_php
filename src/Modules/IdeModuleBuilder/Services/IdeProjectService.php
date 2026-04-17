@@ -247,6 +247,14 @@ class IdeProjectService
         ]);
 
         $this->syncFileToModule($project['module_name'], $path, $content);
+
+        // Invalida o arquivo específico no OPcache para que o kernel use a versão atualizada
+        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $project['module_name'];
+        $fullPath  = $moduleDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (function_exists('opcache_invalidate') && is_file($fullPath)) {
+            opcache_invalidate($fullPath, true);
+        }
+
         return true;
     }
 
@@ -880,15 +888,52 @@ class IdeProjectService
             return ['error' => 'Nome do módulo inválido.'];
         }
 
-        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
-        if (!is_dir($moduleDir)) {
-            return ['error' => 'Módulo não está publicado em src/Modules/.'];
+        // Ao ativar: sincroniza os arquivos do projeto para disco automaticamente.
+        // O projeto vive no banco de dados (IDE) — o kernel lê do disco.
+        // Não é necessário clicar em "Publicar" para ativar.
+        if ($enabled) {
+            $project = $this->findProjectByModuleName($moduleName);
+            if ($project !== null) {
+                $this->ensureModuleDir($moduleName);
+                foreach ($project['files'] as $path => $content) {
+                    $this->syncFileToModule($moduleName, $path, $content);
+                }
+            }
         }
 
-        // Usa ModuleLoader::setEnabled() — atualiza memória + persiste arquivo atomicamente
+        $moduleDir = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        if ($enabled && !is_dir($moduleDir)) {
+            return ['error' => 'Não foi possível criar o diretório do módulo. Verifique as permissões de src/Modules/.'];
+        }
+
+        // Invalida OPcache para que o kernel releia os arquivos do módulo imediatamente
+        if (function_exists('opcache_reset')) {
+            opcache_reset();
+        }
+
+        // Atualiza memória + persiste modules_state.json atomicamente
         $this->moduleLoader->setEnabled($moduleName, $enabled);
 
         return ['module_name' => $moduleName, 'enabled' => $enabled];
+    }
+
+    /**
+     * Busca o projeto IDE pelo nome do módulo para sincronizar arquivos ao ativar.
+     */
+    private function findProjectByModuleName(string $moduleName): ?array
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                "SELECT id, module_name, files FROM ide_projects WHERE module_name = :mn LIMIT 1"
+            );
+            $stmt->execute([':mn' => $moduleName]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$row) return null;
+            $row['files'] = json_decode((string) $row['files'], true) ?? [];
+            return $row;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
