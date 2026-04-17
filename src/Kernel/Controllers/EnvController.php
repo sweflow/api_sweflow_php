@@ -222,6 +222,13 @@ class EnvController
             $content .= "\n";
         }
 
+        // Adiciona chaves novas que não existiam no .env
+        foreach ($updates as $key => $val) {
+            if (!preg_match('/^' . preg_quote($key, '/') . '\s*=/m', $raw)) {
+                $content .= $key . '=' . $this->quoteValue((string) $val) . "\n";
+            }
+        }
+
         ftruncate($fp, 0);
         rewind($fp);
         fwrite($fp, $content);
