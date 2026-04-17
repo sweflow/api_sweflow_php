@@ -10,21 +10,14 @@ on:
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
+    name: Analyze (JavaScript & TypeScript)
     runs-on: ubuntu-latest
+
     permissions:
       security-events: write
-      packages: read
-      actions: read
       contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: javascript-typescript
-            build-mode: none
-          # Python removido — projeto não contém código Python
+      actions: read
+      packages: read
 
     steps:
       - name: Checkout repository
@@ -33,10 +26,17 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          languages: javascript-typescript
+          build-mode: none
+          # Exclui scripts Python utilitários — não fazem parte da aplicação
+          config: |
+            paths-ignore:
+              - scripts/**/*.py
+              - tests/**/*.py
+              - website/**
+              - frontend_test/**
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{matrix.language}}"
+          category: "/language:javascript-typescript"
