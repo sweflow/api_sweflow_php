@@ -300,7 +300,15 @@ class ModuleLoader
 
     public function isEnabled(string $module): bool
     {
-        return $this->enabled[$module] ?? true;
+        if (array_key_exists($module, $this->enabled)) {
+            return $this->enabled[$module];
+        }
+        // Módulo não descoberto ainda — lê o state persistido para não assumir true
+        $persisted = $this->loadState();
+        if (array_key_exists($module, $persisted)) {
+            return $persisted[$module];
+        }
+        return true; // nunca visto antes = habilitado por padrão
     }
 
     public function isProtected(string $module): bool
