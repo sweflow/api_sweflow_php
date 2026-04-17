@@ -84,30 +84,8 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
     public function boot(ContainerInterface $container): void
     {
-        // Se o módulo usa DB2 (connection.php = 'modules'), rebinda PDO::class
-        // para que repositórios instanciados pelo container usem a conexão correta.
-        $conn = $this->preferredConnection();
-        if ($conn === 'modules') {
-            try {
-                $modulesPdo = $container->make('pdo.modules');
-                $corePdo    = null;
-                try { $corePdo = $container->make(\PDO::class); } catch (\Throwable) {}
-                if ($modulesPdo !== $corePdo) {
-                    $container->bind(\PDO::class, static fn() => $modulesPdo, true);
-                }
-            } catch (\Throwable) {}
-        }
-
-        // Executa o boot do provider delegado (ex: AccountsServiceProvider)
-        if ($this->delegateBootProvider !== null) {
-            try {
-                if (method_exists($this->delegateBootProvider, 'boot')) {
-                    $this->delegateBootProvider->boot($container);
-                }
-            } catch (\Throwable $e) {
-                error_log("[SimpleModuleProvider] Erro no boot delegado de {$this->name}: " . $e->getMessage());
-            }
-        }
+        // Zero config: bindings são automáticos pelo container.
+        // Para usar DB2, implemente o ServiceProvider com boot() explícito.
     }
 
     public function setDelegateBootProvider(object $provider): void

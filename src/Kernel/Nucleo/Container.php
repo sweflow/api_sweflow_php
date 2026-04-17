@@ -19,8 +19,6 @@ class Container implements ContainerInterface
             'concrete' => $concrete,
             'singleton' => $singleton,
         ];
-        // Limpa instância em cache para que o novo binding seja usado
-        unset($this->instances[$abstract]);
     }
 
     /**
