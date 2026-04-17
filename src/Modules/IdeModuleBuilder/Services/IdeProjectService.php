@@ -423,30 +423,38 @@ class IdeProjectService
     private function reloadPhpFpm(): void
     {
         try {
-            // Tenta via arquivo PID do PHP-FPM
-            $pidFiles = [
-                '/run/php/php8.2-fpm.pid',
-                '/run/php/php8.3-fpm.pid',
-                '/run/php/php8.1-fpm.pid',
-                '/var/run/php/php8.2-fpm.pid',
-                '/var/run/php-fpm/php-fpm.pid',
-            ];
-            foreach ($pidFiles as $pidFile) {
-                if (is_file($pidFile) && is_readable($pidFile)) {
-                    $pid = (int) trim((string) file_get_contents($pidFile));
-                    if ($pid > 0 && function_exists('posix_kill')) {
-                        posix_kill($pid, SIGUSR2); // graceful reload
-                        return;
+            static $cachedPid = null;
+            static $pidChecked = false;
+
+            if (!$pidChecked) {
+                $pidChecked = true;
+                $pidFiles = [
+                    '/run/php/php8.2-fpm.pid',
+                    '/run/php/php8.3-fpm.pid',
+                    '/run/php/php8.1-fpm.pid',
+                    '/var/run/php/php8.2-fpm.pid',
+                    '/var/run/php-fpm/php-fpm.pid',
+                ];
+                foreach ($pidFiles as $pidFile) {
+                    if (is_file($pidFile) && is_readable($pidFile)) {
+                        $pid = (int) trim((string) file_get_contents($pidFile));
+                        if ($pid > 0) {
+                            $cachedPid = $pid;
+                            break;
+                        }
                     }
                 }
             }
-            // Fallback: opcache_reset no worker atual
+
+            if ($cachedPid !== null && function_exists('posix_kill')) {
+                posix_kill($cachedPid, SIGUSR2);
+                return;
+            }
+
             if (function_exists('opcache_reset')) {
                 opcache_reset();
             }
-        } catch (\Throwable) {
-            // Silencioso — reload é best-effort
-        }
+        } catch (\Throwable) {}
     }
 
     /**

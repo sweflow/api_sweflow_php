@@ -179,4 +179,9 @@ class Container implements ContainerInterface
     {
         $this->resolveContext = $context;
     }
+
+    public function getResolveContext(): ?ContainerInterface
+    {
+        return $this->resolveContext;
+    }
 }

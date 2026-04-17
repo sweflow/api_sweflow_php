@@ -40,18 +40,21 @@ final class ModuleContainerProxy implements ContainerInterface
 
     public function make(string $abstract): mixed
     {
-        // PDO::class → retorna pdo.modules
+        // PDO::class → retorna pdo.modules diretamente
         if ($abstract === \PDO::class) {
             return $this->modulesPdo;
         }
-        // Tudo mais → delega ao container principal
-        // mas injeta este proxy como contexto para que closures recebam o proxy como $c
+        // Tudo mais → delega ao container principal com este proxy como contexto
+        // para que closures recebam o proxy como $c (e resolvam PDO::class corretamente)
         if ($this->main instanceof \Src\Kernel\Nucleo\Container) {
-            $this->main->setResolveContext($this);
-            try {
-                return $this->main->make($abstract);
-            } finally {
-                $this->main->setResolveContext(null);
+            $prev = $this->main->getResolveContext();
+            if ($prev !== $this) {
+                $this->main->setResolveContext($this);
+                try {
+                    return $this->main->make($abstract);
+                } finally {
+                    $this->main->setResolveContext($prev);
+                }
             }
         }
         return $this->main->make($abstract);
