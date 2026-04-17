@@ -1063,9 +1063,10 @@ class IdeProjectService
             throw new \RuntimeException("Sua conta está impedida de criar novos projetos. Entre em contato com o suporte.");
         }
 
-        // N > 0 = conta apenas projetos criados APÓS a definição do limite
-        $limitSetAt = $this->getLimitSetAt($userId);
-        $count = $this->countProjectsSince($userId, $limitSetAt);
+        // N > 0 = conta todos os projetos do usuário contra o limite
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
+        $stmt->execute([':uid' => $userId]);
+        $count = (int)$stmt->fetchColumn();
 
         if ($count >= $limit) {
             throw new \RuntimeException("Limite de projetos atingido ({$count}/{$limit}). Exclua um projeto ou solicite aumento do limite.");
@@ -1159,21 +1160,19 @@ class IdeProjectService
      */
     public function getUserProjectStats(string $userId): array
     {
-        $stmtAll = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
-        $stmtAll->execute([':uid' => $userId]);
-        $totalCount = (int)$stmtAll->fetchColumn();
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
+        $stmt->execute([':uid' => $userId]);
+        $totalCount = (int)$stmt->fetchColumn();
 
         $limit = $this->getEffectiveLimit($userId);
-        $limitSetAt = $this->getLimitSetAt($userId);
-        $countSince = $this->countProjectsSince($userId, $limitSetAt);
 
         return [
-            'count'      => $totalCount,
-            'count_since' => $countSince,
-            'limit'      => $limit,
-            'unlimited'  => $limit < 0,
-            'blocked'    => $limit === 0,
-            'remaining'  => $limit <= 0 ? null : max(0, $limit - $countSince),
+            'count'       => $totalCount,
+            'count_since' => $totalCount,
+            'limit'       => $limit,
+            'unlimited'   => $limit < 0,
+            'blocked'     => $limit === 0,
+            'remaining'   => $limit <= 0 ? null : max(0, $limit - $totalCount),
         ];
     }
 
