@@ -23,10 +23,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: List JS/TS files (debug)
+        run: find . -type f \( -name "*.js" -o -name "*.ts" \) | grep -v node_modules | head -n 30
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: javascript, typescript
+          languages: javascript-typescript
           build-mode: none
 
       - name: Perform CodeQL Analysis
