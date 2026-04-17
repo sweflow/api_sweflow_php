@@ -22,6 +22,11 @@ class Container implements ContainerInterface
         ];
     }
 
+    public function hasBinding(string $abstract): bool
+    {
+        return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
+    }
+
     /**
      * Ao clonar o container (ex: para módulos externos com PDO diferente),
      * limpa as instâncias singleton para que sejam recriadas com os novos bindings.

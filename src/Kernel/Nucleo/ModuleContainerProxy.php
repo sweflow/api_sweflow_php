@@ -28,7 +28,13 @@ final class ModuleContainerProxy implements ContainerInterface
 
     public function bind(string $abstract, callable|object|string $concrete, bool $singleton = false): void
     {
-        // Propaga para o container principal — bindings ficam globais
+        // Não sobrescreve bindings já existentes no container principal.
+        // Isso evita que módulos externos sobrescrevam UserRepositoryInterface,
+        // PDO::class ou outros contratos do sistema core.
+        if ($this->main instanceof \Src\Kernel\Nucleo\Container
+            && $this->main->hasBinding($abstract)) {
+            return;
+        }
         $this->main->bind($abstract, $concrete, $singleton);
     }
 
