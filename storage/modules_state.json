@@ -3,5 +3,6 @@
     "Usuario": true,
     "Documentacao": true,
     "IdeModuleBuilder": true,
-    "LinkEncurtador": true
+    "LinkEncurtador": true,
+    "Email": false
 }
