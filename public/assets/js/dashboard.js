@@ -88,14 +88,26 @@ window.onload = function () {
         if (!el) return;
         if (!html) { el.innerHTML = ''; return; }
         el.innerHTML = window.DOMPurify
-            ? DOMPurify.sanitize(html, {
-                ALLOWED_TAGS: ['div','span','p','br','b','i','u','strong','em','h1','h2','h3','h4','h5','h6',
-                               'ul','ol','li','table','thead','tbody','tr','th','td','img','a','hr','blockquote'],
-                ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel'],
-                FORBID_ATTR:  ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
-                ALLOW_DATA_ATTR: false,
-              })
+            ? DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG)
             : '';
+    }
+
+    /**
+     * Sanitiza HTML do editor preservando formatação (style inline, cores, tamanhos).
+     * Usado no envio e no rascunho — mantém consistência com o que o usuário vê no editor.
+     */
+    const EDITOR_PURIFY_CONFIG = {
+        ALLOWED_TAGS: ['div','span','p','br','b','i','u','strong','em','s','h1','h2','h3','h4','h5','h6',
+                       'ul','ol','li','table','thead','tbody','tr','th','td','img','a','hr','blockquote',
+                       'pre','code','font'],
+        ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel','color','size','face'],
+        FORBID_ATTR:  ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
+        ALLOW_DATA_ATTR: false,
+    };
+
+    function sanitizeEditorHtml(raw) {
+        if (!raw) return '';
+        return window.DOMPurify ? DOMPurify.sanitize(raw, EDITOR_PURIFY_CONFIG) : raw;
     }
     const emailPreviewBtn = document.getElementById('email-preview-btn');
     const emailFullscreenBtn = document.getElementById('email-fullscreen-btn');
@@ -1029,6 +1041,37 @@ window.onload = function () {
             document.execCommand('formatBlock', false, value);
             return;
         }
+        if (cmd === 'insertCode') {
+            // Envolve a seleção em <code> inline
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+            const range = sel.getRangeAt(0);
+            const code = document.createElement('code');
+            if (sel.isCollapsed) {
+                // Sem seleção: insere <code> com placeholder e seleciona
+                code.textContent = 'código';
+                range.insertNode(code);
+                const r = document.createRange();
+                r.selectNodeContents(code);
+                sel.removeAllRanges();
+                sel.addRange(r);
+            } else {
+                try {
+                    range.surroundContents(code);
+                } catch (_) {
+                    // surroundContents falha se a seleção cruza nós parcialmente
+                    // Fallback: extrai o conteúdo e envolve
+                    const fragment = range.extractContents();
+                    code.appendChild(fragment);
+                    range.insertNode(code);
+                }
+                sel.removeAllRanges();
+                const r = document.createRange();
+                r.selectNodeContents(code);
+                sel.addRange(r);
+            }
+            return;
+        }
         document.execCommand(cmd, false, value);
     }
 
@@ -1183,13 +1226,17 @@ window.onload = function () {
     }
 
     function handleFontColorChange() {
+        restoreSelection();
         const v = emailFontColor?.value;
         if (v) document.execCommand('foreColor', false, v);
+        emailEditor?.focus();
     }
 
     function handleBgColorChange() {
+        restoreSelection();
         const v = emailBgColor?.value;
         if (v) document.execCommand('hiliteColor', false, v);
+        emailEditor?.focus();
     }
 
     function extractEmailsFromText(text) {
@@ -1211,8 +1258,8 @@ window.onload = function () {
             recipients,
             subject: emailSubject.value.trim(),
             logo_url: emailLogo?.value.trim() || '',
-            // Sanitiza o HTML do editor antes de enviar — previne Stored XSS
-            html: window.DOMPurify ? window.DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } }) : rawHtml,
+            // Sanitiza o HTML do editor antes de enviar preservando formatação (style inline)
+            html: sanitizeEditorHtml(rawHtml),
         };
 
         if (!payload.recipients.length || !payload.subject || !payload.html) {
@@ -1952,15 +1999,9 @@ window.onload = function () {
             return;
         }
         if (window.DOMPurify) {
-            frame.innerHTML = DOMPurify.sanitize(html, {
-                ALLOWED_TAGS: ['div','span','p','br','b','i','u','strong','em','h1','h2','h3','h4','h5','h6',
-                               'ul','ol','li','table','thead','tbody','tr','th','td','img','a','hr','blockquote'],
-                ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel'],
-                FORBID_ATTR:  ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
-                ALLOW_DATA_ATTR: false,
-            });
+            frame.innerHTML = DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG);
         } else {
-            frame.textContent = html; // fallback seguro: mostra como texto
+            frame.textContent = html;
         }
     }
 
@@ -2428,7 +2469,7 @@ window.onload = function () {
         const to      = emailTo?.value.trim()      || '';
         const subject = emailSubject?.value.trim() || '';
         const rawBody = emailEditor?.innerHTML      || '';
-        const body    = window.DOMPurify ? window.DOMPurify.sanitize(rawBody, { USE_PROFILES: { html: true } }) : rawBody;
+        const body    = sanitizeEditorHtml(rawBody);
         if (!to && !subject && !body) return;
 
         const drafts = getDrafts();
@@ -2460,8 +2501,17 @@ window.onload = function () {
         emailEditor.addEventListener('input', storeSelection);
     }
     if (emailFontSize) emailFontSize.addEventListener('change', handleFontSizeChange);
-    if (emailFontColor) emailFontColor.addEventListener('change', handleFontColorChange);
-    if (emailBgColor) emailBgColor.addEventListener('change', handleBgColorChange);
+    if (emailFontColor) {
+        // Salva seleção antes do foco ir para o color picker
+        emailFontColor.addEventListener('mousedown', storeSelection);
+        emailFontColor.addEventListener('focus', storeSelection);
+        emailFontColor.addEventListener('change', handleFontColorChange);
+    }
+    if (emailBgColor) {
+        emailBgColor.addEventListener('mousedown', storeSelection);
+        emailBgColor.addEventListener('focus', storeSelection);
+        emailBgColor.addEventListener('change', handleBgColorChange);
+    }
     if (emailPreviewBtn) emailPreviewBtn.addEventListener('click', (e) => { e.preventDefault(); togglePreview(); });
     if (emailFullscreenBtn) emailFullscreenBtn.addEventListener('click', (e) => { e.preventDefault(); toggleFullscreen(); });
     if (emailForm) emailForm.addEventListener('submit', submitEmail);
