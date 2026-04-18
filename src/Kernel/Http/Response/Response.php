@@ -157,7 +157,6 @@ class Response
 
     public function send(): void
     {
-        // Descarta qualquer output espúrio (warnings, notices) capturado pelo ob_start() do index.php
         if (ob_get_level() > 0) {
             ob_end_clean();
         }
@@ -177,14 +176,18 @@ class Response
 
         if (is_array($this->body) || is_object($this->body)) {
             try {
-                // JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP previnem XSS
-                // se o JSON for injetado em contexto HTML (ex: <script>var x = <?= json ?></script>)
-                echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
+                $flags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_THROW_ON_ERROR;
+                echo json_encode($this->body, $flags);
             } catch (\JsonException) {
-                echo json_encode(['error' => 'Erro interno ao serializar resposta.']);
+                echo '{"error":"Erro interno ao serializar resposta."}';
             }
         } else {
-            echo is_string($this->body) ? $this->body : (string) json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+            if (is_string($this->body)) {
+                echo $this->body;
+            } else {
+                $flags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP;
+                echo (string) json_encode($this->body, $flags);
+            }
         }
     }
 
