@@ -336,6 +336,8 @@ class SetupCommand
         $phpVer = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
         $svc    = "php{$phpVer}-fpm";
         echo "▶ Recarregando {$svc}...\n";
+        // daemon-reload primeiro — garante que o systemd leu as últimas alterações de unit files
+        (new Process(['sudo', 'systemctl', 'daemon-reload']))->passthru();
         $proc = new Process(['sudo', 'systemctl', 'reload', $svc]);
         $proc->passthru();
         if ($proc->isSuccessful()) {
