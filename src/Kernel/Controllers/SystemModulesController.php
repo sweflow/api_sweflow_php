@@ -338,6 +338,15 @@ class SystemModulesController
 
             return $this->createSuccessResponse('Módulo instalado com sucesso');
         } catch (\RuntimeException $e) {
+            // Trata erro estruturado de conflito de dependências
+            $decoded = json_decode($e->getMessage(), true);
+            if (is_array($decoded) && ($decoded['error'] ?? '') === 'dependency_conflict') {
+                return Response::json([
+                    'error'   => $decoded['error'],
+                    'message' => $decoded['message'],
+                    'details' => $decoded['details'] ?? [],
+                ], 422);
+            }
             return $this->createErrorResponse($e->getMessage(), 422);
         } catch (\Throwable $e) {
             return $this->createErrorResponse('Erro ao instalar: ' . $e->getMessage(), 500);
@@ -462,7 +471,71 @@ class SystemModulesController
 
         $this->registerModuleAutoload($moduleDir, $meta);
 
-        $toInstall = $this->resolvePackagesToInstall($meta['require'] ?? []);
+        // Remove restrições de plataforma
+        $require = array_filter(
+            $meta['require'] ?? [],
+            fn($dep) => $dep !== 'php'
+                && !str_starts_with($dep, 'ext-')
+                && !str_starts_with($dep, 'lib-'),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if (empty($require)) {
+            return;
+        }
+
+        // Lê composer.lock — fonte de verdade do que está instalado e em qual versão
+        $root      = dirname(__DIR__, 3);
+        $lockPath  = $root . '/composer.lock';
+        $installed = [];
+        if (is_file($lockPath)) {
+            $lock = json_decode((string) file_get_contents($lockPath), true) ?? [];
+            foreach (array_merge($lock['packages'] ?? [], $lock['packages-dev'] ?? []) as $pkg) {
+                // ltrim 'v' — composer.lock pode retornar "v7.8.1" ou "7.8.1"
+                $installed[$pkg['name']] = ltrim($pkg['version'], 'v');
+            }
+        }
+
+        $conflicts = [];
+        $toInstall = [];
+
+        foreach ($require as $package => $constraint) {
+            if (!isset($installed[$package])) {
+                $toInstall[$package] = $constraint;
+                continue;
+            }
+
+            $installedVersion = $installed[$package];
+            $satisfies        = true;
+            if (class_exists(\Composer\Semver\Semver::class)) {
+                try {
+                    $satisfies = \Composer\Semver\Semver::satisfies($installedVersion, $constraint);
+                } catch (\Throwable) {
+                    $satisfies = true;
+                }
+            }
+
+            if (!$satisfies) {
+                $installedMajor = explode('.', $installedVersion)[0] ?? '0';
+                $conflicts[] = [
+                    'package'    => $package,
+                    'installed'  => $installedVersion,
+                    'required'   => $constraint,
+                    'suggestion' => "^{$installedMajor}.0 || {$constraint}",
+                ];
+            }
+            // Se satisfaz → skip — zero efeito colateral
+        }
+
+        // Bloqueia instalação com erro estruturado — frontend pode tratar
+        if (!empty($conflicts)) {
+            throw new \RuntimeException(json_encode([
+                'error'   => 'dependency_conflict',
+                'message' => 'Conflito de dependências detectado 🚫',
+                'details' => $conflicts,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+
         if (empty($toInstall)) {
             return;
         }
@@ -472,12 +545,17 @@ class SystemModulesController
             return;
         }
 
-        $this->runComposerRequire($toInstall);
+        $packages = array_map(
+            fn($pkg, $ver) => $pkg . ':' . $ver,
+            array_keys($toInstall),
+            array_values($toInstall)
+        );
+        $this->runComposerRequire($packages);
     }
 
     /**
-     * Filtra as dependências do composer.json do módulo, removendo as que já estão
-     * instaladas no projeto ou que são restrições de plataforma (php, ext-*, lib-*).
+     * @deprecated Substituído pela lógica de detecção de conflito em installModuleDependencies.
+     * Mantido para compatibilidade com chamadas existentes.
      */
     private function resolvePackagesToInstall(array $require): array
     {

@@ -106,7 +106,23 @@
     </div>
 
     <div class="docs-nav-section">
+      <span class="docs-nav-label">Guias Práticos</span>
+      <a class="docs-nav-link" data-page="quickstart" href="#quickstart">
+        <i class="fa-solid fa-rocket"></i> Do zero ao módulo (5 min)
+      </a>
+      <a class="docs-nav-link" data-page="boas-praticas" href="#boas-praticas">
+        <i class="fa-solid fa-star"></i> Boas práticas
+      </a>
+      <a class="docs-nav-link" data-page="troubleshooting" href="#troubleshooting">
+        <i class="fa-solid fa-bug"></i> Troubleshooting
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
       <span class="docs-nav-label">Referência</span>
+      <a class="docs-nav-link" data-page="email" href="#email">
+        <i class="fa-solid fa-envelope"></i> Módulo de E-mail
+      </a>
       <a class="docs-nav-link" data-page="seguranca" href="#seguranca">
         <i class="fa-solid fa-shield-halved"></i> Segurança
       </a>
@@ -149,6 +165,9 @@
       </a>
       <a class="docs-nav-link" data-page="ide-analise" href="#ide-analise">
         <i class="fa-solid fa-magnifying-glass-chart"></i> Análise de Código
+      </a>
+      <a class="docs-nav-link" data-page="ide-dependencias" href="#ide-dependencias">
+        <i class="fa-solid fa-box-open"></i> Dependências Externas
       </a>
       <a class="docs-nav-link" data-page="ide-comunicacao" href="#ide-comunicacao">
         <i class="fa-solid fa-arrows-left-right"></i> Comunicação entre Módulos
@@ -4530,6 +4549,698 @@ class FaturaService
 
     </section>
 
+    <!-- PAGE: QUICKSTART -->
+    <section class="docs-page" id="page-quickstart">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-rocket"></i></div>
+        <div>
+          <h1>Do zero ao módulo em 5 minutos</h1>
+          <p>Clone → configure → crie um módulo → teste. Sem enrolação.</p>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Pré-requisito</strong>
+          <p>PHP 8.2+, Composer e Docker instalados. Veja a seção <a href="#instalacao" onclick="showPage('instalacao');return false;">Instalação</a> se precisar.</p>
+        </div>
+      </div>
+
+      <h2>Passo 1 — Clonar e instalar</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>git clone https://github.com/vupi.us/api_vupi.us_php.git minha-api
+cd minha-api
+composer install</code></pre>
+      </div>
+
+      <h2>Passo 2 — Configurar o ambiente</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>cp EXEMPLO.env .env</code></pre>
+      </div>
+      <p>Edite o <code>.env</code> e preencha no mínimo:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">env</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>DB_CONEXAO=postgresql
+DB_HOST=localhost
+DB_PORT=5432
+DB_NOME=minha_api_db
+DB_USUARIO=admin
+DB_SENHA=senha123
+
+JWT_SECRET=gere_com_openssl_rand_hex_32_aqui
+JWT_API_SECRET=outro_secret_diferente_aqui</code></pre>
+      </div>
+
+      <h2>Passo 3 — Subir o banco e rodar migrations</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>docker compose up -d postgres
+php vupi migrate --seed</code></pre>
+      </div>
+      <p>O seeder cria o usuário admin padrão. Credenciais definidas em <code>ADMIN_EMAIL</code> e <code>ADMIN_PASSWORD</code> no <code>.env</code>.</p>
+
+      <h2>Passo 4 — Subir o servidor</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php -S localhost:3005 index.php</code></pre>
+      </div>
+      <p>Acesse <a href="http://localhost:3005" target="_blank">http://localhost:3005</a> — o dashboard deve aparecer.</p>
+
+      <h2>Passo 5 — Criar seu primeiro módulo</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php vupi make:module Produto</code></pre>
+      </div>
+      <p>Isso cria a estrutura completa em <code>src/Modules/Produto/</code>. Abra o arquivo de rotas:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// src/Modules/Produto/Routes/web.php
+
+use Src\Kernel\Auth;
+use Src\Modules\Produto\Controllers\ProdutoController;
+
+/** @var \Src\Kernel\Contracts\RouterInterface $router */
+
+$router->get('/api/produtos',       [ProdutoController::class, 'listar']);
+$router->get('/api/produtos/{id}',  [ProdutoController::class, 'buscar'], Auth::limit(60));
+$router->post('/api/produtos',      [ProdutoController::class, 'criar'],  Auth::user());
+$router->delete('/api/produtos/{id}', [ProdutoController::class, 'deletar'], Auth::admin());</code></pre>
+      </div>
+
+      <h2>Passo 6 — Criar a migration</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// src/Modules/Produto/Database/Migrations/001_create_produtos.php
+
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS produtos (
+                id        UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+                nome      VARCHAR(255)  NOT NULL,
+                preco     NUMERIC(10,2) NOT NULL DEFAULT 0,
+                ativo     BOOLEAN       NOT NULL DEFAULT TRUE,
+                criado_em TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS produtos (
+                id        CHAR(36)      PRIMARY KEY,
+                nome      VARCHAR(255)  NOT NULL,
+                preco     DECIMAL(10,2) NOT NULL DEFAULT 0,
+                ativo     TINYINT(1)    NOT NULL DEFAULT 1,
+                criado_em DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    },
+    'down' => function (PDO $pdo): void {
+        $pdo->exec("DROP TABLE IF EXISTS produtos");
+    },
+];</code></pre>
+      </div>
+
+      <h2>Passo 7 — Rodar a migration e testar</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>php vupi migrate
+
+# Testar a rota pública
+curl http://localhost:3005/api/produtos
+
+# Fazer login para obter token
+curl -X POST http://localhost:3005/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login": "admin@admin.com", "senha": "Admin@123456"}'
+
+# Criar produto (com token)
+curl -X POST http://localhost:3005/api/produtos \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"nome": "Produto Teste", "preco": 49.90}'</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Pronto.</strong>
+          <p>Você tem uma API REST funcionando com autenticação JWT, rate limiting e banco de dados — em menos de 5 minutos. Agora implemente o <code>ProdutoController</code>, <code>ProdutoService</code> e <code>ProdutoRepository</code> seguindo os exemplos na seção <a href="#modulos" onclick="showPage('modulos');return false;">Módulos</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: BOAS PRÁTICAS -->
+    <section class="docs-page" id="page-boas-praticas">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-star"></i></div>
+        <div>
+          <h1>Boas práticas e anti-patterns</h1>
+          <p>O que fazer, o que evitar e por quê.</p>
+        </div>
+      </div>
+
+      <h2>✅ Boas práticas</h2>
+
+      <h3>1. Responsabilidade única por camada</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// ✅ CORRETO — Controller só orquestra, não tem lógica de negócio
+class ProdutoController
+{
+    public function criar(Request $request): Response
+    {
+        $body = $request->body ?? [];
+        $produto = $this->service->criar($body['nome'], (float) $body['preco']);
+        return Response::json(['data' => $produto], 201);
+    }
+}
+
+// ❌ ERRADO — Controller com lógica de negócio e SQL direto
+class ProdutoController
+{
+    public function criar(Request $request): Response
+    {
+        $stmt = $this->pdo->prepare("INSERT INTO produtos ...");
+        // validações, regras de negócio, SQL — tudo misturado
+    }
+}</code></pre>
+      </div>
+
+      <h3>2. Sempre use prepared statements</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// ✅ CORRETO — prepared statement
+$stmt = $this->pdo->prepare("SELECT * FROM produtos WHERE id = :id");
+$stmt->execute([':id' => $id]);
+
+// ❌ ERRADO — SQL injection
+$stmt = $this->pdo->query("SELECT * FROM produtos WHERE id = '$id'");</code></pre>
+      </div>
+
+      <h3>3. Suporte a múltiplos drivers na migration</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// ✅ CORRETO — suporta PostgreSQL e MySQL
+return [
+    'up' => function (PDO $pdo): void {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS itens (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS itens (
+                id CHAR(36) PRIMARY KEY,
+                criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+    },
+];</code></pre>
+      </div>
+
+      <h3>4. Use Auth:: para proteger rotas</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+// ✅ CORRETO — fachada Auth com composição clara
+$router->get('/api/produtos',         [Controller::class, 'listar']);           // pública
+$router->post('/api/produtos',        [Controller::class, 'criar'],  Auth::user());    // autenticada
+$router->delete('/api/produtos/{id}', [Controller::class, 'deletar'], Auth::admin()); // admin
+$router->post('/api/webhook',         [Controller::class, 'receber'], Auth::api());   // M2M
+
+// ✅ Rate limit sem autenticação
+$router->post('/api/contato', [Controller::class, 'enviar'], Auth::limit(5));</code></pre>
+      </div>
+
+      <h3>5. Dependências externas — constraints flexíveis</h3>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// ✅ CORRETO — aceita múltiplas versões
+{
+  "require": {
+    "guzzlehttp/guzzle": "^7.0 || ^6.5"
+  }
+}
+
+// ❌ ERRADO — versão rígida causa conflito
+{
+  "require": {
+    "guzzlehttp/guzzle": "7.8.1"
+  }
+}</code></pre>
+      </div>
+
+      <h2>❌ Anti-patterns</h2>
+      <table class="docs-table">
+        <thead><tr><th>Anti-pattern</th><th>Problema</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Editar <code>index.php</code> para adicionar rotas</td>
+            <td>Acoplamento com o kernel, difícil de manter</td>
+            <td>Crie um módulo com <code>Routes/web.php</code></td>
+          </tr>
+          <tr>
+            <td>Acessar tabela de outro módulo via SQL direto</td>
+            <td>Quebra o isolamento, cria dependência oculta</td>
+            <td>Use o Service do módulo via injeção de dependência</td>
+          </tr>
+          <tr>
+            <td>Usar <code>$_GET</code>, <code>$_POST</code>, <code>$_SESSION</code> diretamente</td>
+            <td>Bypassa o pipeline de segurança</td>
+            <td>Use <code>$request->body</code>, <code>$request->query</code>, <code>Auth::current($request)</code></td>
+          </tr>
+          <tr>
+            <td>Lançar exceções genéricas com mensagens técnicas</td>
+            <td>Vaza informações internas para o cliente</td>
+            <td>Use <code>throw new \DomainException('Mensagem amigável', 422)</code></td>
+          </tr>
+          <tr>
+            <td>Hardcodar credenciais no código</td>
+            <td>Segurança comprometida, impossível rotacionar</td>
+            <td>Use <code>$_ENV['MINHA_CHAVE']</code> e configure no <code>.env</code></td>
+          </tr>
+          <tr>
+            <td>Usar <code>die()</code> ou <code>exit()</code> em controllers</td>
+            <td>Interrompe o pipeline, headers não são enviados</td>
+            <td>Retorne <code>Response::json(['error' => '...'], 400)</code></td>
+          </tr>
+          <tr>
+            <td>Versões rígidas no <code>composer.json</code> do módulo</td>
+            <td>Conflito com outros módulos no mesmo projeto</td>
+            <td>Use constraints flexíveis: <code>^7.0 || ^6.5</code></td>
+          </tr>
+          <tr>
+            <td>Namespace errado no módulo</td>
+            <td>Autoloader não encontra a classe → 500</td>
+            <td>Use <code>Src\Modules\NomeModulo\Camada</code> exatamente</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Diagrama mental — como tudo se conecta</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>HTTP Request
+    │
+    ▼
+index.php ──── carrega .env, Container, Application
+    │
+    ▼
+Application::run()
+    ├── BotBlockerMiddleware      ← bloqueia scanners e IPs suspeitos
+    ├── HttpsEnforcerMiddleware   ← força HTTPS em produção
+    └── SecurityHeadersMiddleware ← CSP, HSTS, X-Frame-Options
+    │
+    ▼
+Router::dispatch()
+    │
+    ├── [RateLimitMiddleware]     ← limita requisições por IP/usuário
+    ├── [CircuitBreakerMiddleware]← protege o banco de falhas em cascata
+    ├── [AuthHybridMiddleware]    ← valida JWT, busca usuário no banco
+    ├── [AdminOnlyMiddleware]     ← verifica role admin_system
+    └── Controller::action()
+            │
+            ▼
+        Service (regras de negócio)
+            │
+            ▼
+        Repository (PDO → banco)
+            │
+            ▼
+        Response::json()
+    │
+    ▼
+AuditLogger ← registra 401/403/429 automaticamente
+    │
+    ▼
+Response::send() → cliente</code></pre>
+      </div>
+
+      <h2>Diagrama de módulos</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>src/Modules/
+    │
+    ├── Auth/          ← JWT, refresh tokens, recuperação de senha
+    │       └── usa → UserRepositoryInterface (implementado por Usuario)
+    │
+    ├── Usuario/       ← CRUD de usuários, perfil, upload de avatar
+    │       └── implementa → UserRepositoryInterface, AuthenticatableInterface
+    │
+    ├── SeuModulo/     ← sua regra de negócio aqui
+    │       ├── pode usar → EmailSenderInterface (injetado pelo container)
+    │       ├── pode usar → UsuarioService (injeção direta)
+    │       └── não deve → acessar tabelas de outros módulos via SQL
+    │
+    └── Email/         ← módulo externo (marketplace)
+            └── implementa → EmailSenderInterface
+                └── registrado no container via boot()</code></pre>
+      </div>
+    </section>
+
+    <!-- PAGE: TROUBLESHOOTING -->
+    <section class="docs-page" id="page-troubleshooting">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-bug"></i></div>
+        <div>
+          <h1>Troubleshooting</h1>
+          <p>Erros reais, causas reais, soluções reais.</p>
+        </div>
+      </div>
+
+      <h2>Erros de inicialização</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>JWT_SECRET deve ter pelo menos 32 caracteres</code></td>
+            <td><code>JWT_SECRET</code> ou <code>JWT_API_SECRET</code> muito curto no <code>.env</code></td>
+            <td>Gere com <code>openssl rand -hex 32</code> e cole no <code>.env</code></td>
+          </tr>
+          <tr>
+            <td><code>Configuração do banco incompleta</code></td>
+            <td><code>DB_HOST</code>, <code>DB_NOME</code> ou <code>DB_USUARIO</code> vazios</td>
+            <td>Preencha todas as variáveis <code>DB_*</code> no <code>.env</code></td>
+          </tr>
+          <tr>
+            <td>Página em branco / sem resposta</td>
+            <td><code>APP_DEBUG=false</code> esconde o erro</td>
+            <td>Mude para <code>APP_DEBUG=true</code> temporariamente e veja o log PHP</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Erros de módulo</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>NotFoundException: Não há binding ou classe para MinhaClasse</code></td>
+            <td>Namespace errado ou <code>composer dump-autoload</code> não foi rodado</td>
+            <td>Verifique o namespace (<code>Src\Modules\NomeModulo\Camada</code>) e rode <code>composer dump-autoload</code></td>
+          </tr>
+          <tr>
+            <td>Rota retorna 404 mesmo existindo</td>
+            <td>Módulo desativado ou arquivo de rotas não encontrado</td>
+            <td>Verifique <code>storage/modules_state.json</code> e se o arquivo é <code>Routes/web.php</code></td>
+          </tr>
+          <tr>
+            <td>Migration não executa</td>
+            <td>Arquivo em subpasta (<code>Migrations/1.0.0/</code>) ou nome sem prefixo numérico</td>
+            <td>Coloque o arquivo diretamente em <code>Database/Migrations/</code> com nome <code>001_nome.php</code></td>
+          </tr>
+          <tr>
+            <td><code>PDO null</code> no controller após instalar módulo</td>
+            <td>Provider não carregado — <code>extra.vupi.us</code> ausente no <code>composer.json</code> do módulo</td>
+            <td>Adicione <code>"extra": {"vupi.us": {"providers": ["SuaClasse"]}}</code> e rode <code>composer dump-autoload</code></td>
+          </tr>
+          <tr>
+            <td>Classe não encontrada após instalar módulo pelo marketplace</td>
+            <td>PHP-FPM usando OPcache antigo</td>
+            <td>O sistema recarrega automaticamente. Se persistir: <code>sudo systemctl reload php8.2-fpm</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Erros de autenticação</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>401 Não autenticado</code></td>
+            <td>Token ausente, expirado ou assinado com secret errado</td>
+            <td>Verifique o header <code>Authorization: Bearer TOKEN</code> e se o token não expirou</td>
+          </tr>
+          <tr>
+            <td><code>403 Acesso restrito</code></td>
+            <td>Rota admin acessada com token de usuário comum</td>
+            <td>Use token gerado com <code>JWT_API_SECRET</code> (admin_system). Gere via <code>php vupi setup</code> opção 11</td>
+          </tr>
+          <tr>
+            <td><code>Token inválido: Emissor do token inválido</code></td>
+            <td><code>JWT_ISSUER</code> no <code>.env</code> diferente do que está no token</td>
+            <td>Certifique-se que <code>JWT_ISSUER</code> é igual em todos os ambientes</td>
+          </tr>
+          <tr>
+            <td><code>429 Muitas requisições</code></td>
+            <td>Rate limit atingido</td>
+            <td>Aguarde o tempo indicado em <code>Retry-After</code>. Em dev, limpe <code>storage/ratelimit/</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Erros de banco de dados</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>SQLSTATE[42P01]: relation "tabela" does not exist</code></td>
+            <td>Migration não foi executada</td>
+            <td><code>php vupi migrate</code></td>
+          </tr>
+          <tr>
+            <td><code>O módulo está configurado para usar DB2 mas DB2 não está configurado</code></td>
+            <td><code>connection.php</code> retorna <code>'modules'</code> mas <code>DB2_*</code> não está no <code>.env</code></td>
+            <td>Configure <code>DB2_*</code> no <code>.env</code> ou mude <code>connection.php</code> para <code>'core'</code></td>
+          </tr>
+          <tr>
+            <td>Banco não conecta em produção</td>
+            <td><code>DB_HOST=localhost</code> mas banco está em container Docker</td>
+            <td>Use o nome do serviço Docker (<code>postgres</code>) ou o IP do host</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Erros de dependências de módulo</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>Conflito de dependências detectado 🚫</code></td>
+            <td>Versão instalada não satisfaz a constraint do módulo</td>
+            <td>Use constraint flexível: <code>"guzzle": "^7.0 || ^6.5"</code></td>
+          </tr>
+          <tr>
+            <td>Deploy bloqueado por conflito mas constraint parece correta</td>
+            <td>Versão no <code>composer.lock</code> tem prefixo <code>v</code> (ex: <code>v7.8.1</code>)</td>
+            <td>O sistema normaliza automaticamente. Se persistir, rode <code>composer update</code></td>
+          </tr>
+          <tr>
+            <td>Lib instalada mas não disponível no código</td>
+            <td>Namespace PSR-4 não registrado no <code>composer.json</code> do módulo</td>
+            <td>Adicione <code>"autoload": {"psr-4": {"Src\\Modules\\NomeModulo\\": ""}}</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Erros de e-mail</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>500 em /api/email/history</code></td>
+            <td>Tabela <code>email_history</code> não existe</td>
+            <td><code>php vupi migrate</code></td>
+          </tr>
+          <tr>
+            <td><code>503 SMTP não configurado</code></td>
+            <td><code>MAILER_HOST</code> vazio no <code>.env</code></td>
+            <td>Configure as variáveis <code>MAILER_*</code> no <code>.env</code></td>
+          </tr>
+          <tr>
+            <td>E-mail enviado mas não chega</td>
+            <td>Spam, SPF/DKIM não configurado ou senha de app incorreta</td>
+            <td>Use senha de app (não a senha da conta). Configure SPF/DKIM no DNS do domínio</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Dicas gerais de debug</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Ver logs de erro do PHP-FPM em produção
+tail -f /var/log/php-fpm/vupi.us-error.log
+
+# Ver logs em tempo real (docker)
+docker compose logs -f
+
+# Limpar cache de rate limit (dev)
+rm -f storage/ratelimit/*.json
+
+# Limpar cache de módulos
+rm -f storage/modules_cache.json
+
+# Verificar status das migrations
+php vupi migrate --status
+
+# Testar conexão com banco
+curl http://localhost:3005/api/db-status</code></pre>
+      </div>
+    </section>
+
+    <!-- PAGE: EMAIL -->
+    <section class="docs-page" id="page-email">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-envelope"></i></div>
+        <div>
+          <h1>Módulo de E-mail</h1>
+          <p>Envio de e-mails transacionais e personalizados via SMTP, com histórico, reenvio e painel no dashboard.</p>
+        </div>
+      </div>
+
+      <h2 id="email-instalacao">Instalação</h2>
+      <p>O módulo de e-mail (<code>sweflow/module-email</code>) é instalado pelo Marketplace do dashboard. Após a instalação:</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Configure o SMTP no .env</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">env</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>MAILER_HOST=smtp.gmail.com
+MAILER_PORT=587
+MAILER_USERNAME=seu@email.com
+MAILER_PASSWORD=sua_senha_de_app
+MAILER_ENCRYPTION=tls
+MAILER_FROM_EMAIL=no-reply@seudominio.com
+MAILER_FROM_NAME="Minha API"</code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Execute as migrations</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>php vupi migrate</code></pre>
+            </div>
+            <p>Cria a tabela <code>email_history</code> no banco configurado em <code>Database/connection.php</code> do módulo.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="email-endpoints">Endpoints</h2>
+      <p>Todos os endpoints exigem autenticação <code>admin_system</code>.</p>
+      <table class="docs-table">
+        <thead><tr><th>Método</th><th>Endpoint</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge post">POST</span></td><td><code>/api/email/custom</code></td><td>Envia e-mail personalizado e salva no histórico</td></tr>
+          <tr><td><span class="badge get">GET</span></td><td><code>/api/email/history</code></td><td>Lista histórico de e-mails (<code>?q=busca</code>)</td></tr>
+          <tr><td><span class="badge get">GET</span></td><td><code>/api/email/history/{id}</code></td><td>Detalhe de um e-mail do histórico</td></tr>
+          <tr><td><span class="badge delete">DELETE</span></td><td><code>/api/email/history/{id}</code></td><td>Remove um registro do histórico</td></tr>
+          <tr><td><span class="badge post">POST</span></td><td><code>/api/email/history/{id}/resend</code></td><td>Reenvia um e-mail do histórico</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="email-envio">Enviando um e-mail</h2>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>curl -X POST https://api.vupi.us/api/email/custom \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "recipients": [
+      { "email": "usuario@exemplo.com", "name": "João Silva" }
+    ],
+    "subject": "Bem-vindo!",
+    "html": "&lt;h1&gt;Olá, João!&lt;/h1&gt;&lt;p&gt;Sua conta foi criada com sucesso.&lt;/p&gt;",
+    "logo_url": "https://api.vupi.us/assets/imgs/logo.png"
+  }'</code></pre>
+      </div>
+
+      <p>Múltiplos destinatários:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "recipients": [
+    { "email": "a@exemplo.com", "name": "Ana" },
+    { "email": "b@exemplo.com", "name": "Bruno" }
+  ],
+  "subject": "Novidade importante",
+  "html": "&lt;p&gt;Temos uma novidade para você!&lt;/p&gt;"
+}</code></pre>
+      </div>
+
+      <h2 id="email-historico">Histórico de e-mails</h2>
+      <p>Todos os e-mails enviados (com sucesso ou com erro) são salvos na tabela <code>email_history</code>. O dashboard exibe o histórico com busca, reenvio e exclusão.</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">bash</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Listar histórico
+curl https://api.vupi.us/api/email/history \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# Buscar por assunto ou status
+curl "https://api.vupi.us/api/email/history?q=bem-vindo" \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"
+
+# Reenviar e-mail
+curl -X POST https://api.vupi.us/api/email/history/abc123/resend \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN"</code></pre>
+      </div>
+
+      <h2 id="email-modulo-proprio">Usando em seu próprio módulo</h2>
+      <p>Injete <code>EmailSenderInterface</code> no construtor do seu service. O container resolve automaticamente para o <code>EmailService</code> do módulo instalado:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+namespace Src\Modules\Pedido\Services;
+
+use Src\Kernel\Contracts\EmailSenderInterface;
+
+class PedidoService
+{
+    public function __construct(
+        private readonly PedidoRepository $repository,
+        private readonly ?EmailSenderInterface $email = null  // opcional
+    ) {}
+
+    public function criar(array $data): array
+    {
+        $pedido = $this->repository->create($data);
+
+        // Envia confirmação se o módulo de e-mail estiver instalado
+        $this->email?->sendCustom(
+            $data['email'],
+            'Pedido confirmado',
+            "&lt;p&gt;Seu pedido #{$pedido['id']} foi criado!&lt;/p&gt;"
+        );
+
+        return $pedido;
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="email-troubleshoot">Solução de problemas</h2>
+      <table class="docs-table">
+        <thead><tr><th>Erro</th><th>Causa</th><th>Solução</th></tr></thead>
+        <tbody>
+          <tr><td>500 em <code>/api/email/history</code></td><td>Tabela <code>email_history</code> não existe</td><td>Execute <code>php vupi migrate</code></td></tr>
+          <tr><td>503 ao enviar</td><td><code>MAILER_HOST</code> vazio no .env</td><td>Configure as variáveis <code>MAILER_*</code></td></tr>
+          <tr><td>Classe não encontrada após instalar</td><td>OPcache desatualizado</td><td>Execute <code>sudo systemctl reload php8.2-fpm</code></td></tr>
+          <tr><td>Conflito de dependências</td><td>Versão do PHPMailer incompatível</td><td>Ajuste a constraint no <code>composer.json</code> do módulo</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Reload automático do PHP-FPM</strong>
+          <p>Ao instalar ou desinstalar módulos pelo Marketplace, o sistema invalida o OPcache e recarrega o PHP-FPM automaticamente via <code>SIGUSR2</code> (graceful reload — sem derrubar conexões ativas). Em servidores com <code>sudoers</code> configurado, usa <code>systemctl reload php8.2-fpm</code> como fallback.</p>
+        </div>
+      </div>
+    </section>
+
     <!-- PAGE: SEGURANCA -->
     <section class="docs-page" id="page-seguranca">
       <div class="docs-page-intro">
@@ -5089,11 +5800,10 @@ $router->get('/api/tarefa/{id}',  [TarefaController::class, 'buscar'],    $auth)
 $router->put('/api/tarefa/{id}',  [TarefaController::class, 'atualizar'], $auth);
 $router->delete('/api/tarefa/{id}', [TarefaController::class, 'deletar'], $auth);</code></pre>
 
-      <h2>6. Publicar e ativar</h2>
+      <h2>6. Ativar o módulo</h2>
       <ol>
         <li>No painel lateral, clique em <strong>"Analisar código"</strong> — deve aparecer "Módulo aprovado"</li>
-        <li>Clique em <strong>"Publicar em src/Modules/"</strong> — a tabela <code>tarefas</code> é criada automaticamente</li>
-        <li>Clique em <strong>"Ativar"</strong> — as rotas ficam disponíveis</li>
+        <li>Clique em <strong>"Ativar"</strong> — instala deps, roda migrations e ativa as rotas</li>
       </ol>
 
       <h2>7. Testar as rotas</h2>
@@ -5573,8 +6283,7 @@ Response::json()      ← retorna JSON para o cliente</code></pre>
         <li>Crie o projeto na IDE com nome do módulo <code>Nota</code></li>
         <li>Substitua cada arquivo pelo código acima</li>
         <li>Clique em <strong>"Analisar código"</strong> — deve aparecer "Módulo aprovado"</li>
-        <li>Clique em <strong>"Publicar em src/Modules/"</strong></li>
-        <li>Clique em <strong>"Ativar"</strong></li>
+        <li>Clique em <strong>"Ativar"</strong> — instala deps, roda migrations e ativa as rotas</li>
         <li>Pressione <code>Ctrl + T</code> e teste:</li>
       </ol>
 <pre><code>// 1. Login
@@ -6040,13 +6749,8 @@ Authorization: Bearer {token}
         </div>
         <div class="kernel-card">
           <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><span style="font-size:1.4rem;font-weight:800;color:#3fb950">4</span></div>
-          <h3>Publicar</h3>
-          <p>Clique em "Publicar em src/Modules/". Migrations e seeders rodam automaticamente.</p>
-        </div>
-        <div class="kernel-card">
-          <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><span style="font-size:1.4rem;font-weight:800;color:#3fb950">5</span></div>
           <h3>Ativar</h3>
-          <p>Clique em "Ativar" no painel lateral. As rotas ficam disponíveis imediatamente.</p>
+          <p>Clique em "Ativar". Instala deps, roda migrations e ativa as rotas imediatamente.</p>
         </div>
         <div class="kernel-card">
           <div class="kernel-card-icon" style="background:rgba(63,185,80,.12)"><span style="font-size:1.4rem;font-weight:800;color:#3fb950">6</span></div>
@@ -6115,22 +6819,16 @@ $router->delete('/api/produto/{id}', [ProdutoController::class, 'deletar'], $adm
         <li>Repita até não haver erros bloqueantes</li>
       </ol>
 
-      <h2>Passo 5 — Publicar o módulo</h2>
+      <h2>Passo 5 — Ativar o módulo</h2>
+      <p>O módulo já existe em <code>src/Modules/Produto/</code> desde a criação — cada arquivo salvo é sincronizado automaticamente. Quando estiver pronto, clique em <strong>"Ativar"</strong> no painel lateral. O sistema:</p>
       <ol>
-        <li>Clique em <strong>"Publicar em src/Modules/"</strong> no painel lateral</li>
-        <li>O sistema copia os arquivos para <code>src/Modules/Produto/</code></li>
-        <li>As migrations são executadas automaticamente — a tabela <code>produtos</code> é criada</li>
-        <li>Os seeders são executados automaticamente</li>
+        <li>Instala dependências declaradas no <code>composer.json</code> do módulo</li>
+        <li>Executa as migrations — a tabela <code>produtos</code> é criada</li>
+        <li>Executa os seeders automaticamente</li>
+        <li>Ativa as rotas — ficam disponíveis imediatamente na API</li>
       </ol>
 
-      <h2>Passo 6 — Ativar o módulo</h2>
-      <ol>
-        <li>Clique em <strong>"Ativar"</strong> no painel lateral</li>
-        <li>As rotas <code>/api/produto</code> ficam disponíveis imediatamente</li>
-        <li>Para desativar, clique em <strong>"Desativar"</strong> — as rotas somem sem apagar os dados</li>
-      </ol>
-
-      <h2>Passo 7 — Testar as rotas</h2>
+      <h2>Passo 6 — Testar as rotas</h2>
       <ol>
         <li>Pressione <code>Ctrl + T</code> para abrir o API Route Tester</li>
         <li>Na aba <strong>"Rotas"</strong>, clique em <code>GET /api/produto</code></li>
@@ -6147,7 +6845,7 @@ $router->delete('/api/produto/{id}', [ProdutoController::class, 'deletar'], $adm
         </div>
       </div>
 
-      <h2>Passo 8 — Conectar ao frontend (opcional)</h2>
+      <h2>Passo 6 — Conectar ao frontend (opcional)</h2>
       <p>Se precisar conectar uma aplicação frontend externa, envie um e-mail para <a href="mailto:contato@vupi.us">contato@vupi.us</a> com a URL do seu frontend. O admin adicionará ao CORS e sua aplicação poderá fazer requisições à API.</p>
     </section>
 
@@ -6200,19 +6898,44 @@ $router->delete('/api/produto/{id}', [ProdutoController::class, 'deletar'], $adm
 │   ├── Migrations/...                — Criação de tabelas
 │   └── Seeders/TaskSeeder.php        — Dados iniciais
 ├── Routes/web.php                    — Definição de rotas
+├── composer.json                     — Dependências externas do módulo
 └── README.md                         — Documentação</code></pre>
 
-      <h2>3. Publicar o módulo</h2>
-      <p>No painel lateral da IDE, clique em <strong>"Publicar em src/Modules/"</strong>. O sistema:</p>
-      <ol>
-        <li>Analisa o código automaticamente (erros bloqueiam a publicação)</li>
-        <li>Copia os arquivos para <code>src/Modules/NomeDoModulo/</code></li>
-        <li>Executa as migrations automaticamente</li>
-        <li>Executa os seeders automaticamente</li>
-      </ol>
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-box-open"></i></div>
+        <div class="callout-body">
+          <strong>composer.json por módulo</strong>
+          <p>Cada módulo tem seu próprio <code>composer.json</code>. Declare dependências externas (PHPMailer, Guzzle, Stripe SDK, etc.) na seção <code>require</code>. Ao publicar, o sistema instala automaticamente apenas os pacotes novos, detecta conflitos de versão antes de qualquer mudança e recarrega o PHP-FPM graciosamente.</p>
+        </div>
+      </div>
+
+      <h2>3. Dependency Health — verificação antes do deploy</h2>
+      <p>O painel lateral da IDE exibe automaticamente o status das dependências do módulo:</p>
+      <table class="docs-table">
+        <thead><tr><th>Status</th><th>Significado</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge pub">🟢 OK</span></td><td>Tudo instalado e compatível</td><td>Pode publicar</td></tr>
+          <tr><td><span class="badge" style="background:rgba(249,226,175,.15);color:#f9e2af">🟡 Warning</span></td><td>Lib não instalada ainda</td><td>Será instalada no deploy</td></tr>
+          <tr><td><span class="badge" style="background:rgba(243,139,168,.15);color:#f38ba8">🔴 Critical</span></td><td>Conflito de versão</td><td>Ajuste a constraint no <code>composer.json</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>4. Publicar o módulo</h2>
+      <p>O módulo já existe em <code>src/Modules/</code> desde a criação. Cada arquivo salvo é sincronizado automaticamente para o disco. Quando estiver pronto para disponibilizar as rotas:</p>
 
       <h2>4. Ativar o módulo</h2>
-      <p>Módulos são criados <strong>desativados</strong> por padrão. Para ativar, clique em <strong>"Ativar"</strong> no painel lateral da IDE. Após ativar, as rotas do módulo ficam disponíveis na API.</p>
+      <p>No painel lateral da IDE, clique em <strong>"Ativar"</strong>. O sistema executa automaticamente:</p>
+      <ol>
+        <li>Analisa o código (erros bloqueiam a ativação)</li>
+        <li>Verifica conflitos de dependências — bloqueia se houver incompatibilidade</li>
+        <li>Instala dependências novas via <code>composer require</code></li>
+        <li>Executa as migrations automaticamente</li>
+        <li>Executa os seeders automaticamente</li>
+        <li>Ativa as rotas — ficam disponíveis imediatamente na API</li>
+      </ol>
+
+      <h2>5. Desativar o módulo</h2>
+      <p>Módulos são criados <strong>desativados</strong> por padrão. Para desativar um módulo ativo, clique em <strong>"Desativar"</strong> no painel lateral. As rotas somem mas os dados e arquivos são preservados.</p>
     </section>
 
     <!-- ══════════════════════════════════════════════════════
@@ -6947,6 +7670,321 @@ return function (PDO $pdo): void {
     </section>
 
     <!-- ══════════════════════════════════════════════════════
+         PAGE: IDE — DEPENDÊNCIAS EXTERNAS
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-ide-dependencias">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-box-open"></i></div>
+        <div>
+          <h1>Dependências Externas</h1>
+          <p>Declare bibliotecas externas no <code>composer.json</code> do seu módulo. A IDE instala tudo automaticamente no deploy.</p>
+        </div>
+      </div>
+
+      <h2 id="dep-como-funciona">Como funciona</h2>
+      <p>Cada módulo criado na IDE já vem com um <code>composer.json</code> próprio. Você declara as dependências que precisa — como PHPMailer, Guzzle, Stripe SDK — e ao clicar em <strong>Publicar</strong>, o sistema:</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><h3>Verifica conflitos</h3><p>Compara as versões requeridas com o <code>composer.lock</code> do projeto usando <code>Composer\Semver</code>. Se houver conflito, o deploy é bloqueado com erro claro antes de qualquer mudança.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><h3>Instala apenas o que falta</h3><p>Pacotes já instalados e compatíveis são ignorados — zero efeito colateral. Apenas pacotes novos são instalados via <code>composer require</code>.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><h3>Registra o namespace</h3><p>O namespace PSR-4 do módulo é adicionado ao <code>composer.json</code> do projeto e o autoloader é regenerado.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body"><h3>Recarrega o PHP-FPM</h3><p>O OPcache é invalidado e o PHP-FPM recarregado graciosamente. As classes ficam disponíveis imediatamente na próxima requisição.</p></div>
+        </div>
+      </div>
+
+      <h2 id="dep-exemplo">Exemplo: módulo com PHPMailer</h2>
+      <p>Edite o <code>composer.json</code> do seu módulo na IDE e declare a dependência:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "name": "meu-vendor/modulo-notificacao",
+  "description": "Módulo de notificações por e-mail",
+  "require": {
+    "php": ">=8.1",
+    "phpmailer/phpmailer": "^6.9"
+  },
+  "autoload": {
+    "psr-4": {
+      "Src\\Modules\\Notificacao\\": ""
+    }
+  },
+  "extra": {
+    "vupi.us": {
+      "provides": ["email-sender"]
+    }
+  }
+}</code></pre>
+      </div>
+
+      <p>No seu Service, use normalmente:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+namespace Src\Modules\Notificacao\Services;
+
+use PHPMailer\PHPMailer\PHPMailer;
+
+class NotificacaoService
+{
+    public function enviar(string $para, string $assunto, string $html): void
+    {
+        $mail = new PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host     = $_ENV['MAILER_HOST'];
+        $mail->Username = $_ENV['MAILER_USERNAME'];
+        $mail->Password = $_ENV['MAILER_PASSWORD'];
+        $mail->Port     = (int) $_ENV['MAILER_PORT'];
+        $mail->SMTPAuth = true;
+        $mail->setFrom($_ENV['MAILER_FROM_EMAIL'], $_ENV['MAILER_FROM_NAME']);
+        $mail->addAddress($para);
+        $mail->isHTML(true);
+        $mail->Subject = $assunto;
+        $mail->Body    = $html;
+        $mail->send();
+    }
+}</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Prefira libs já presentes no projeto</strong>
+          <p>O projeto já inclui <code>phpmailer/phpmailer</code>, <code>firebase/php-jwt</code>, <code>ramsey/uuid</code> e <code>vlucas/phpdotenv</code>. Reutilize-as sempre que possível para evitar conflitos de versão.</p>
+        </div>
+      </div>
+
+      <h2 id="dep-health">Dependency Health Report e botão de instalação</h2>
+      <p>O painel lateral da IDE exibe automaticamente o status de saúde das dependências do módulo aberto. Quando há pacotes ausentes, aparece o botão <strong>"Instalar dependências"</strong> — sem precisar fazer deploy:</p>
+
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(166,227,161,.12)"><i class="fa-solid fa-circle-check" style="color:#a6e3a1"></i></div>
+          <h3>🟢 OK</h3>
+          <p>Tudo instalado e compatível. Pode publicar.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(249,226,175,.12)"><i class="fa-solid fa-triangle-exclamation" style="color:#f9e2af"></i></div>
+          <h3>🟡 Warning + botão</h3>
+          <p>Pacote ausente. O botão <strong>"Instalar dependências"</strong> aparece. Clique para instalar sem precisar fazer deploy.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(243,139,168,.12)"><i class="fa-solid fa-circle-xmark" style="color:#f38ba8"></i></div>
+          <h3>🔴 Critical</h3>
+          <p>Conflito de versão. Deploy bloqueado. A IDE mostra versão instalada, requerida e sugestão de fix.</p>
+        </div>
+      </div>
+
+      <h2 id="dep-instalar">Como instalar dependências na IDE</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><h3>Edite o composer.json</h3><p>Abra <code>composer.json</code> na IDE e adicione o pacote na seção <code>require</code>. Salve com <kbd>Ctrl+S</kbd>.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><h3>Veja o status no painel</h3><p>O painel lateral atualiza automaticamente. O pacote aparece com status 🟡 <em>não instalado</em> e o botão <strong>"Instalar dependências"</strong> aparece.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><h3>Clique em "Instalar dependências"</h3><p>O sistema roda <code>composer require</code> em background. Ao terminar, o status muda para 🟢 e a lib fica disponível no terminal e no código.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body"><h3>Use no terminal para testar</h3><p>Abra o terminal da IDE (<kbd>Ctrl+`</kbd>) e teste a lib diretamente: <code>$mail = new PHPMailer\PHPMailer\PHPMailer();</code></p></div>
+        </div>
+      </div>
+
+      <h2 id="dep-erros">O que acontece quando algo dá errado</h2>
+      <table class="docs-table">
+        <thead><tr><th>Situação</th><th>O que a IDE mostra</th><th>O que fazer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Pacote não existe no Packagist</td>
+            <td>Modal com: <em>"Pacote(s) não encontrado(s): vendor/pacote — verifique o nome em packagist.org"</em></td>
+            <td>Corrija o nome no <code>composer.json</code>. Formato: <code>vendor/pacote</code></td>
+          </tr>
+          <tr>
+            <td>Versão incompatível com o PHP do servidor</td>
+            <td>Modal com: <em>"Versão incompatível com o PHP atual do servidor"</em></td>
+            <td>Use uma versão mais antiga do pacote que suporte seu PHP</td>
+          </tr>
+          <tr>
+            <td>Conflito com pacote já instalado</td>
+            <td>Modal com lista de conflitos, versão instalada, requerida e sugestão</td>
+            <td>Use constraint flexível: <code>"^7.0 || ^6.5"</code></td>
+          </tr>
+          <tr>
+            <td>Sem conexão com a internet</td>
+            <td>Modal com: <em>"Sem conexão com o Packagist"</em></td>
+            <td>Verifique a conexão do servidor</td>
+          </tr>
+          <tr>
+            <td>Módulo não publicado ainda</td>
+            <td>Erro: <em>"O módulo ainda não foi publicado. Clique em Publicar primeiro."</em></td>
+            <td>Publique o módulo antes de instalar dependências separadamente</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="dep-conflito">Resolvendo conflitos de versão</h2>
+      <p>Quando o deploy é bloqueado por conflito, a IDE exibe um modal com os detalhes e a sugestão automática:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">text</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>Conflito de dependências detectado 🚫
+
+📦 guzzlehttp/guzzle
+   Instalado:  7.8.1
+   Requerido:  ^6.0
+   💡 Sugestão: ^7.0 || ^6.0</code></pre>
+      </div>
+      <p>Ajuste a constraint no <code>composer.json</code> do módulo:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>"require": {
+  "guzzlehttp/guzzle": "^7.0 || ^6.0"
+}</code></pre>
+      </div>
+
+      <h2 id="dep-kernel">Recursos do sistema disponíveis no seu módulo</h2>
+      <p>Antes de adicionar dependências externas, verifique o que o kernel já oferece gratuitamente via injeção de dependência:</p>
+      <table class="docs-table">
+        <thead><tr><th>Interface / Classe</th><th>O que faz</th><th>Como usar no construtor</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>EmailSenderInterface</code></td>
+            <td>Envia e-mails via SMTP (PHPMailer já configurado)</td>
+            <td><code>private ?EmailSenderInterface $email = null</code></td>
+          </tr>
+          <tr>
+            <td><code>UserRepositoryInterface</code></td>
+            <td>Busca usuários por UUID, e-mail ou username</td>
+            <td><code>private UserRepositoryInterface $usuarios</code></td>
+          </tr>
+          <tr>
+            <td><code>TokenBlacklistInterface</code></td>
+            <td>Verifica se um JWT foi revogado</td>
+            <td><code>private TokenBlacklistInterface $blacklist</code></td>
+          </tr>
+          <tr>
+            <td><code>PDO</code></td>
+            <td>Conexão com o banco de dados (core ou modules)</td>
+            <td><code>private PDO $pdo</code></td>
+          </tr>
+          <tr>
+            <td><code>AuditLogger</code></td>
+            <td>Registra eventos de segurança no banco e stderr</td>
+            <td><code>private AuditLogger $audit</code></td>
+          </tr>
+          <tr>
+            <td><code>ThreatScorer</code></td>
+            <td>Acumula score de comportamento suspeito por IP</td>
+            <td><code>private ThreatScorer $threat</code></td>
+          </tr>
+          <tr>
+            <td><code>IdempotencyLock</code></td>
+            <td>Distributed lock para operações críticas (evita race condition)</td>
+            <td>Uso estático: <code>IdempotencyLock::acquire('chave', 30)</code></td>
+          </tr>
+          <tr>
+            <td><code>IpResolver</code></td>
+            <td>Resolve IP real do cliente (respeita TRUST_PROXY)</td>
+            <td>Uso estático: <code>IpResolver::resolve()</code></td>
+          </tr>
+          <tr>
+            <td><code>Sanitizer</code></td>
+            <td>Sanitiza inputs: string, email, uuid, url, search...</td>
+            <td>Uso estático: <code>Sanitizer::string($input)</code></td>
+          </tr>
+          <tr>
+            <td><code>OwnershipGuard</code></td>
+            <td>Verifica se o usuário autenticado é dono do recurso (previne IDOR)</td>
+            <td>Uso estático: <code>OwnershipGuard::check($userId, $resourceOwnerId)</code></td>
+          </tr>
+          <tr>
+            <td><code>RelogioTimeZone</code></td>
+            <td>Retorna DateTimeImmutable com timezone do APP_TIMEZONE</td>
+            <td>Uso estático: <code>RelogioTimeZone::agora()</code></td>
+          </tr>
+          <tr>
+            <td><code>ImageProcessor</code></td>
+            <td>Redimensiona e salva imagens (JPEG, PNG, WebP)</td>
+            <td><code>private ImageProcessor $images</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Exemplo usando <code>EmailSenderInterface</code> e <code>AuditLogger</code> juntos:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>&lt;?php
+
+namespace Src\Modules\Pedido\Services;
+
+use Src\Kernel\Contracts\EmailSenderInterface;
+use Src\Kernel\Support\AuditLogger;
+use Src\Kernel\Http\Request\Request;
+
+class PedidoService
+{
+    public function __construct(
+        private readonly PedidoRepository $repository,
+        private readonly ?EmailSenderInterface $email = null,  // opcional
+        private readonly ?AuditLogger $audit = null            // opcional
+    ) {}
+
+    public function criar(array $data, Request $request): array
+    {
+        $pedido = $this->repository->create($data);
+
+        // Envia e-mail de confirmação (se módulo de e-mail instalado)
+        $this->email?->sendCustom(
+            $data['email'],
+            'Pedido confirmado',
+            "&lt;p&gt;Pedido #{$pedido['id']} criado!&lt;/p&gt;"
+        );
+
+        // Registra no audit log
+        $this->audit?->registrar('pedido.criado', $data['user_id'], [
+            'pedido_id' => $pedido['id'],
+        ]);
+
+        return $pedido;
+    }
+}</code></pre>
+      </div>
+
+      <h2 id="dep-regras">Boas práticas</h2>
+      <table class="docs-table">
+        <thead><tr><th>Regra</th><th>Exemplo</th></tr></thead>
+        <tbody>
+          <tr><td>✅ Use o que o kernel já oferece</td><td><code>EmailSenderInterface</code>, <code>AuditLogger</code>, <code>Sanitizer</code></td></tr>
+          <tr><td>✅ Constraints flexíveis</td><td><code>"^7.0 || ^6.5"</code></td></tr>
+          <tr><td>⚠️ Evite novas dependências desnecessárias</td><td>Implemente funções simples diretamente</td></tr>
+          <tr><td>❌ Nunca fixe versões rígidas</td><td><code>"guzzle": "7.8.1"</code> → use <code>"^7.0"</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-terminal"></i></div>
+        <div class="callout-body">
+          <strong>Testando no terminal da IDE</strong>
+          <p>Após instalar uma dependência, abra o terminal (<kbd>Ctrl+`</kbd>) e teste diretamente. O sandbox carrega o <code>vendor/autoload.php</code> do projeto, então todas as libs instaladas ficam disponíveis imediatamente — sem precisar fazer deploy.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
          PAGE: IDE — COMUNICAÇÃO ENTRE MÓDULOS
     ══════════════════════════════════════════════════════ -->
     <section class="docs-page" id="page-ide-comunicacao">
@@ -7046,3 +8084,4 @@ final class PedidoService
 <script src="assets/js/docs.js?v=2"></script>
 </body>
 </html>
+

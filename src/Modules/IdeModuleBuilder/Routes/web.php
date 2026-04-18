@@ -35,6 +35,8 @@ $router->post('/api/ide/scaffold',                   [IdeProjectController::clas
 $router->get('/api/ide/constraints',                 [IdeProjectController::class, 'constraints'],   $protected);
 $router->get('/api/ide/check-module/{name}',         [IdeProjectController::class, 'checkModuleName'], $protected);
 $router->post('/api/ide/projects/{id}/analyze',      [IdeProjectController::class, 'analyze'],       $protected);
+$router->get('/api/ide/projects/{id}/dependencies',  [IdeProjectController::class, 'dependencyHealth'],    $protected);
+$router->post('/api/ide/projects/{id}/dependencies', [IdeProjectController::class, 'installDependencies'],  $protected);
 $router->post('/api/ide/projects/{id}/lint',         [IdeProjectController::class, 'lint'],          $protected);
 $router->post('/api/ide/projects/{id}/autofix',      [IdeProjectController::class, 'autofix'],      $protected);
 $router->post('/api/ide/projects/{id}/run',          [IdeProjectController::class, 'run'],          $runProtected);

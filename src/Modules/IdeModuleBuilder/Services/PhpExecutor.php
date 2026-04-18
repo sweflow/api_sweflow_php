@@ -394,7 +394,16 @@ final class PhpExecutor
         // Gera o código do RestrictedPDO inline no wrapper
         $restrictedPdoCode = $this->buildRestrictedPdoCode($modulePrefix, $moduleName);
 
-        // Wrapper: configura sandbox + define RestrictedPDO + inclui o arquivo do usuário
+        // Caminho do autoloader do projeto — disponibiliza dependências externas (PHPMailer, etc.)
+        $projectRoot  = dirname($this->modulesBase);
+        $autoloadPath = $projectRoot . '/vendor/autoload.php';
+        $vendorDir    = $projectRoot . '/vendor';
+
+        // Wrapper: configura sandbox + carrega autoloader + define RestrictedPDO + inclui arquivo do usuário
+        $autoloadLine = is_file($autoloadPath)
+            ? "if (is_file(" . var_export($autoloadPath, true) . ")) { require_once " . var_export($autoloadPath, true) . "; }\n"
+            : '';
+
         $wrapperCode = "<?php\n"
             . "ini_set('display_errors','1');\n"
             . "ini_set('error_reporting'," . E_ALL . ");\n"
@@ -403,6 +412,7 @@ final class PhpExecutor
             . "ini_set('allow_url_fopen','0');\n"
             . "ini_set('allow_url_include','0');\n"
             . "ini_set('log_errors','0');\n"
+            . $autoloadLine
             . $restrictedPdoCode . "\n"
             . "require " . var_export($filePath, true) . ";\n";
 
@@ -418,7 +428,7 @@ final class PhpExecutor
         $cmdArray = [
             $phpBin,
             '-d', 'disable_functions=' . $disabled,
-            '-d', 'open_basedir=' . $moduleDir . PATH_SEPARATOR . $tmpDir,
+            '-d', 'open_basedir=' . $moduleDir . PATH_SEPARATOR . $tmpDir . PATH_SEPARATOR . $vendorDir,
             $wrapperPhp,
         ];
 

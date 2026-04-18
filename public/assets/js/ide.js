@@ -1578,32 +1578,50 @@ async function renderDeployPanel() {
     info.appendChild(domEl('span', null, [fc + ' arquivo' + (fc !== 1 ? 's' : '')]));
     sec1.appendChild(info);
 
-    if (!deployed) {
-        sec1.appendChild(domBtn('ide-deploy-btn primary', 'fa-solid fa-rocket', 'Publicar em src/Modules/', 'deploy'));
-        sec1.appendChild(domBtn('ide-deploy-btn dep-btn-ok', 'fa-solid fa-magnifying-glass-chart', 'Analisar código', 'analyze'));
-    } else {
-        var badge = domEl('div', 'dep-status-badge');
-        badge.style.color = enabled ? '#a6e3a1' : '#f38ba8';
-        badge.appendChild(domIcon('fa-solid ' + (enabled ? 'fa-circle-check' : 'fa-circle-xmark')));
-        badge.appendChild(document.createTextNode(' ' + (enabled ? 'Ativo' : 'Inativo')));
-        var loc = domEl('span', null, [' em src/Modules/' + S.project.module_name]);
-        loc.style.cssText = 'color:#6c7086;font-size:.8rem;margin-left:4px;';
-        badge.appendChild(loc);
-        sec1.appendChild(badge);
+    // Badge de status ativo/inativo
+    var badge = domEl('div', 'dep-status-badge');
+    badge.style.color = enabled ? '#a6e3a1' : '#f38ba8';
+    badge.appendChild(domIcon('fa-solid ' + (enabled ? 'fa-circle-check' : 'fa-circle-xmark')));
+    badge.appendChild(document.createTextNode(' ' + (enabled ? 'Ativo — rotas disponíveis' : 'Inativo — rotas desativadas')));
+    sec1.appendChild(badge);
 
-        var row = domEl('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
-        row.appendChild(domBtn('ide-deploy-btn ' + (enabled ? 'dep-btn-warn' : 'dep-btn-ok'),
-            'fa-solid ' + (enabled ? 'fa-power-off' : 'fa-play'),
-            enabled ? 'Desativar' : 'Ativar', 'toggle', { enabled: String(!enabled) }));
-        row.appendChild(domBtn('ide-deploy-btn dep-btn-danger', 'fa-solid fa-trash', 'Excluir Projeto', 'remove-module'));
-        sec1.appendChild(row);
-
-        var b1 = domBtn('ide-deploy-btn', 'fa-solid fa-arrows-rotate', 'Atualizar Arquivos', 'deploy');
-        b1.style.marginTop = '4px'; sec1.appendChild(b1);
-        var b2 = domBtn('ide-deploy-btn dep-btn-ok', 'fa-solid fa-magnifying-glass-chart', 'Analisar código', 'analyze');
-        b2.style.marginTop = '4px'; sec1.appendChild(b2);
+    // Botões de ação
+    var row = domEl('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;';
+    var toggleBtn = domBtn(
+        'ide-deploy-btn ' + (enabled ? 'dep-btn-warn' : 'dep-btn-ok'),
+        'fa-solid ' + (enabled ? 'fa-power-off' : 'fa-play'),
+        enabled ? 'Desativar' : 'Ativar',
+        'toggle',
+        { enabled: String(!enabled) }
+    );
+    if (!enabled) {
+        toggleBtn.title = 'Instala dependências, roda migrations e ativa as rotas do módulo';
     }
+    row.appendChild(toggleBtn);
+    row.appendChild(domBtn('ide-deploy-btn dep-btn-danger', 'fa-solid fa-trash', 'Excluir Projeto', 'remove-module'));
+    sec1.appendChild(row);
+
+    var b2 = domBtn('ide-deploy-btn dep-btn-ok', 'fa-solid fa-magnifying-glass-chart', 'Analisar código', 'analyze');
+    b2.style.marginTop = '4px'; sec1.appendChild(b2);
+
     c.appendChild(sec1);
+
+    // ── Seção: Dependency Health ──
+    var secDep = domEl('div', 'dep-section');
+    secDep.appendChild(domEl('div', 'dep-section-title', [domIcon('fa-solid fa-box-open'), ' Dependências']));
+    var depBody = domEl('div', 'dep-health-body');
+    depBody.appendChild(domEl('span', 'dep-health-loading', [domIcon('fa-solid fa-spinner fa-spin'), ' Verificando...']));
+    secDep.appendChild(depBody);
+    c.appendChild(secDep);
+
+    // Carrega o health report em paralelo (não bloqueia o render)
+    api('GET', '/api/ide/projects/' + S.project.id + '/dependencies')
+        .then(function (report) { renderDepHealth(depBody, report); })
+        .catch(function () {
+            depBody.textContent = '';
+            var err = domEl('span', 'dep-health-note', ['Não foi possível verificar dependências.']);
+            depBody.appendChild(err);
+        });
 
     // ── Seção: Banco de Dados ──
     if (deployed) {
@@ -1671,13 +1689,91 @@ async function renderDeployPanel() {
     c.appendChild(sec3);
 }
 
+// ── Dependency Health Panel ───────────────────────────────────────────────
+function renderDepHealth(container, report) {
+    container.textContent = '';
+
+    var statusMeta = {
+        ok:       { icon: 'fa-solid fa-circle-check',     color: '#a6e3a1', label: 'Tudo compatível'    },
+        warning:  { icon: 'fa-solid fa-triangle-exclamation', color: '#f9e2af', label: 'Libs faltando'  },
+        critical: { icon: 'fa-solid fa-circle-xmark',     color: '#f38ba8', label: 'Conflito detectado' },
+    };
+    var s = statusMeta[report.status] || statusMeta.ok;
+
+    // Badge de status geral
+    var badge = domEl('div', 'dep-health-badge');
+    badge.style.color = s.color;
+    badge.appendChild(domIcon(s.icon));
+    badge.appendChild(document.createTextNode(' ' + s.label));
+    container.appendChild(badge);
+
+    var deps = report.dependencies || [];
+    if (deps.length === 0) {
+        var note = domEl('span', 'dep-health-note', [report.note || 'Nenhuma dependência declarada.']);
+        container.appendChild(note);
+        return;
+    }
+
+    // Lista de dependências
+    var list = domEl('div', 'dep-health-list');
+    deps.forEach(function (dep) {
+        var row = domEl('div', 'dep-health-row dep-health-' + dep.status);
+
+        var iconMap = { ok: 'fa-solid fa-check', warning: 'fa-solid fa-triangle-exclamation', conflict: 'fa-solid fa-xmark', missing: 'fa-solid fa-circle-question' };
+        var colorMap = { ok: '#a6e3a1', conflict: '#f38ba8', missing: '#f9e2af' };
+        var ic = domIcon(iconMap[dep.status] || 'fa-solid fa-circle-question');
+        ic.style.color = colorMap[dep.status] || '#cdd6f4';
+        ic.style.flexShrink = '0';
+        row.appendChild(ic);
+
+        var info = domEl('div', 'dep-health-info');
+        var pkg = domEl('span', 'dep-health-pkg', [dep.package]);
+        info.appendChild(pkg);
+
+        var ver = domEl('span', 'dep-health-ver');
+        if (dep.installed) {
+            ver.textContent = dep.installed + ' (req: ' + dep.required + ')';
+        } else {
+            ver.textContent = 'req: ' + dep.required + ' — não instalado';
+        }
+        info.appendChild(ver);
+
+        if (dep.suggestion && dep.status !== 'ok') {
+            var sug = domEl('span', 'dep-health-suggestion');
+            sug.appendChild(domIcon('fa-solid fa-lightbulb'));
+            sug.appendChild(document.createTextNode(' ' + dep.suggestion));
+            info.appendChild(sug);
+        }
+
+        row.appendChild(info);
+        list.appendChild(row);
+    });
+    container.appendChild(list);
+
+    // Botão de re-verificar
+    var recheck = domBtn('ide-deploy-btn dep-btn-sm', 'fa-solid fa-arrows-rotate', 'Re-verificar', 'check-deps');
+    recheck.style.marginTop = '8px';
+    container.appendChild(recheck);
+
+    // Botão de instalar — só aparece quando há pacotes missing e sem conflito
+    var hasMissing  = deps.some(function(d) { return d.status === 'missing'; });
+    var hasConflict = deps.some(function(d) { return d.status === 'conflict'; });
+    if (hasMissing && !hasConflict) {
+        var installBtn = domBtn('ide-deploy-btn dep-btn-ok', 'fa-solid fa-download', 'Instalar dependências', 'install-deps');
+        installBtn.style.marginTop = '4px';
+        installBtn.title = 'Instala os pacotes ausentes via composer require';
+        container.appendChild(installBtn);
+    }
+}
+
 // ── Deploy panel event delegation ─────────────────────────────────────────
 $('ide-deploy-content').addEventListener('click', function (e) {
     var btn = e.target.closest('[data-action]');
     if (!btn) return;
     var action = btn.dataset.action;
-    if (action === 'deploy')        doDeploy();
-    else if (action === 'analyze')  doAnalyze();
+    if (action === 'analyze')       doAnalyze();
+    else if (action === 'check-deps')   renderDeployPanel();
+    else if (action === 'install-deps') doInstallDeps(btn);
     else if (action === 'toggle')   doToggleModule(btn.dataset.enabled === 'true');
     else if (action === 'remove-module') doRemoveModule();
     else if (action === 'migrate')  doMigrate();
@@ -1692,8 +1788,7 @@ async function doDeploy() {
     if (!S.project) return;
     await saveAll();
     const btn = event?.target?.closest('button');
-    var origText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Analisando...'); }
+    if (btn) { btn.disabled = true; setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Publicando...'); }
     try {
         const data = await api('POST', `/api/ide/projects/${S.project.id}/deploy`, { target: 'local' });
         if (data.error) { toast('Erro: ' + data.error); return; }
@@ -1707,14 +1802,142 @@ async function doDeploy() {
             await renderDeployPanel();
         }
     } catch (e) {
+        // Conflito de dependências — modal detalhado
+        if (e.data?.error === 'dependency_conflict') {
+            showDepConflictError(e.data);
+            return;
+        }
+        // Erros de análise de código — modal de análise
         if (e.data?.analysis) {
             showAnalysisResult(e.data.analysis, null);
             return;
         }
-        toast('Erro: ' + e.message);
+        // Qualquer outro erro (pacote inexistente, sem internet, etc.) — modal com detalhe completo
+        showDeployError(e.message || 'Erro desconhecido ao publicar.');
     } finally {
         if (btn) { btn.disabled = false; renderDeployPanel(); }
     }
+}
+
+function showDeployError(message) {
+    var title   = document.getElementById('deploy-result-title');
+    var body    = document.getElementById('deploy-result-body');
+    var overlay = document.getElementById('modal-deploy-result');
+    if (!title || !body || !overlay) { toast('Erro: ' + message); return; }
+
+    title.textContent = '❌ Falha ao publicar';
+    body.textContent  = '';
+
+    var pre = document.createElement('pre');
+    pre.style.cssText = 'white-space:pre-wrap;font-size:.82rem;color:#f38ba8;'
+                      + 'background:rgba(243,139,168,.08);padding:14px 16px;'
+                      + 'border-radius:8px;border:1px solid rgba(243,139,168,.25);'
+                      + 'margin:0;line-height:1.6;';
+    pre.textContent = message;
+    body.appendChild(pre);
+
+    var hint = domEl('p', 'dep-conflict-hint');
+    hint.appendChild(domIcon('fa-solid fa-lightbulb'));
+    hint.appendChild(document.createTextNode(
+        ' Verifique o painel de Dependências no sidebar e corrija os problemas antes de tentar novamente.'
+    ));
+    body.appendChild(hint);
+
+    overlay.removeAttribute('aria-hidden');
+    overlay.classList.add('show');
+}
+
+async function doInstallDeps(btn) {
+    if (!S.project) return;
+    if (btn) { btn.disabled = true; setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Instalando...'); }
+    try {
+        await saveAll(); // garante que o composer.json editado está salvo
+        const data = await api('POST', `/api/ide/projects/${S.project.id}/dependencies`);
+        if (data.error === 'dependency_conflict') {
+            showDepConflictError(data);
+            return;
+        }
+        toast('✓ ' + (data.message || 'Dependências instaladas.'), 4000);
+        await renderDeployPanel(); // atualiza o health report
+    } catch (e) {
+        if (e.data?.error === 'dependency_conflict') {
+            showDepConflictError(e.data);
+            return;
+        }
+        // Mostra erro detalhado no modal de resultado
+        var title = document.getElementById('deploy-result-title');
+        var body  = document.getElementById('deploy-result-body');
+        var overlay = document.getElementById('modal-deploy-result');
+        if (title && body && overlay) {
+            title.textContent = '❌ Falha ao instalar dependências';
+            body.textContent = '';
+            var pre = document.createElement('pre');
+            pre.style.cssText = 'white-space:pre-wrap;font-size:.82rem;color:#f38ba8;background:rgba(243,139,168,.08);padding:12px;border-radius:8px;';
+            pre.textContent = e.message || 'Erro desconhecido.';
+            body.appendChild(pre);
+            overlay.removeAttribute('aria-hidden');
+            overlay.classList.add('show');
+        } else {
+            toast('Erro: ' + e.message);
+        }
+    } finally {
+        if (btn) { btn.disabled = false; renderDeployPanel(); }
+    }
+}
+
+function showDepConflictError(data) {
+    var title = document.getElementById('deploy-result-title');
+    var body  = document.getElementById('deploy-result-body');
+    var overlay = document.getElementById('modal-deploy-result');
+    if (!title || !body || !overlay) { toast('Conflito de dependências: ' + (data.message || '')); return; }
+
+    title.textContent = '🚫 ' + (data.message || 'Conflito de dependências');
+    body.textContent = '';
+
+    var details = data.details || [];
+    if (details.length === 0) {
+        body.appendChild(domEl('p', null, ['Conflito detectado. Verifique o composer.json do módulo.']));
+    } else {
+        var list = domEl('div', 'dep-conflict-list');
+        details.forEach(function (dep) {
+            var item = domEl('div', 'dep-conflict-item');
+
+            var header = domEl('div', 'dep-conflict-header');
+            header.appendChild(domIcon('fa-solid fa-box'));
+            header.appendChild(domEl('strong', null, [dep.package]));
+            item.appendChild(header);
+
+            var rows = domEl('div', 'dep-conflict-rows');
+            var r1 = domEl('div', 'dep-conflict-row');
+            r1.appendChild(domEl('span', 'dep-conflict-label', ['Instalado:']));
+            r1.appendChild(domEl('code', 'dep-conflict-ver installed', [dep.installed || '—']));
+            rows.appendChild(r1);
+
+            var r2 = domEl('div', 'dep-conflict-row');
+            r2.appendChild(domEl('span', 'dep-conflict-label', ['Requerido:']));
+            r2.appendChild(domEl('code', 'dep-conflict-ver required', [dep.required || '—']));
+            rows.appendChild(r2);
+
+            if (dep.suggestion) {
+                var r3 = domEl('div', 'dep-conflict-row');
+                r3.appendChild(domEl('span', 'dep-conflict-label', ['Sugestão:']));
+                var sug = domEl('code', 'dep-conflict-ver suggestion', [dep.suggestion]);
+                r3.appendChild(sug);
+                rows.appendChild(r3);
+            }
+            item.appendChild(rows);
+            list.appendChild(item);
+        });
+        body.appendChild(list);
+
+        var hint = domEl('p', 'dep-conflict-hint');
+        hint.appendChild(domIcon('fa-solid fa-lightbulb'));
+        hint.appendChild(document.createTextNode(' Ajuste as constraints no composer.json do módulo e tente publicar novamente.'));
+        body.appendChild(hint);
+    }
+
+    overlay.removeAttribute('aria-hidden');
+    overlay.classList.add('show');
 }
 
 async function doAnalyze() {
@@ -2099,11 +2322,58 @@ async function doToggleModule(enable) {
         okIcon: enable ? 'fa-solid fa-play' : 'fa-solid fa-power-off',
     });
     if (!ok) return;
+
+    const btn = document.querySelector('[data-action="toggle"]');
+    if (btn) { btn.disabled = true; setBtn(btn, 'fa-solid fa-spinner fa-spin', enable ? 'Ativando...' : 'Desativando...'); }
+
     try {
+        // Ao ativar: instala dependências e roda migrations antes de habilitar as rotas
+        if (enable) {
+            await saveAll();
+
+            // 1. Instala dependências declaradas no composer.json
+            try {
+                const depData = await api('POST', `/api/ide/projects/${S.project.id}/dependencies`);
+                if (depData.error === 'dependency_conflict') {
+                    showDepConflictError(depData);
+                    return;
+                }
+                if (depData.installed && depData.installed.length) {
+                    toast('📦 ' + depData.installed.length + ' dependência(s) instalada(s).', 3000);
+                }
+            } catch (e) {
+                if (e.data?.error === 'dependency_conflict') {
+                    showDepConflictError(e.data);
+                    return;
+                }
+                // Erro de instalação de deps — mostra mas não bloqueia a ativação
+                showDeployError(e.message || 'Erro ao instalar dependências.');
+                return;
+            }
+
+            // 2. Roda migrations pendentes automaticamente
+            try {
+                const migData = await api('POST', `/api/ide/projects/${S.project.id}/migrate`);
+                if (migData.errors && migData.errors.length) {
+                    toast('⚠ Migrations com erros: ' + migData.errors.join('; '), 5000);
+                } else if (migData.ran && migData.ran.length) {
+                    toast('🗄 ' + migData.ran.length + ' migration(s) executada(s).', 3000);
+                }
+            } catch (e) {
+                // Erro de migration — mostra mas não bloqueia a ativação
+                toast('⚠ Migrations: ' + e.message, 4000);
+            }
+        }
+
+        // 3. Ativa ou desativa o módulo
         await api('PATCH', `/api/ide/projects/${S.project.id}/module`, { enabled: enable });
-        toast(`✓ Módulo ${enable ? 'ativado' : 'desativado'}`);
+        toast('✓ Módulo ' + (enable ? 'ativado — rotas disponíveis.' : 'desativado.'), 3000);
         await renderDeployPanel();
-    } catch (e) { toast('Erro: ' + e.message); }
+    } catch (e) {
+        toast('Erro: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; }
+    }
 }
 
 async function doRemoveModule() {
@@ -2209,34 +2479,52 @@ function showDeployResult(data) {
     if (data.target === 'packagist') {
         var title = $('deploy-result-title');
         var body  = $('deploy-result-body');
-        setTitleIcon(title, 'fa-solid fa-info-circle', '#89dceb', 'Instruções para Packagist');
+        setTitleIcon(title, 'fa-brands fa-php', '#89dceb', 'Publicar no Packagist / Marketplace');
         body.textContent = '';
 
-        var wrap = domEl('div');
-        wrap.style.cssText = 'background:rgba(255,255,255,.04);border-radius:10px;padding:16px;font-size:.9rem;color:#94a3b8;line-height:1.7;';
+        // Cabeçalho com nome do pacote
+        var pkgHeader = domEl('div', 'dep-conflict-item');
+        pkgHeader.style.cssText = 'background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3);margin-bottom:16px;';
+        var pkgRow = domEl('div', 'dep-conflict-header');
+        pkgRow.appendChild(domIcon('fa-brands fa-php'));
+        pkgRow.appendChild(domEl('strong', null, [data.package_name || '']));
+        pkgHeader.appendChild(pkgRow);
+        var pkgNote = domEl('p', null, ['O composer.json foi gerado e salvo no projeto. Siga os passos abaixo para publicar.']);
+        pkgNote.style.cssText = 'font-size:.82rem;color:var(--ide-muted);margin:6px 0 0;';
+        pkgHeader.appendChild(pkgNote);
+        body.appendChild(pkgHeader);
 
-        var pkgP = domEl('p', null, ['Pacote: ']);
-        pkgP.style.marginBottom = '10px';
-        var pkgCode = domEl('code', null, [data.package_name || '']);
-        pkgCode.style.cssText = 'background:rgba(255,255,255,.08);padding:2px 7px;border-radius:4px;color:#818cf8;';
-        pkgP.appendChild(pkgCode);
-        wrap.appendChild(pkgP);
-
+        // Passos numerados
         var ol = document.createElement('ol');
-        ol.style.cssText = 'margin:0 0 0 18px;';
+        ol.style.cssText = 'margin:0 0 0 20px;display:flex;flex-direction:column;gap:10px;';
         (data.instructions || []).forEach(function (step) {
             var li = document.createElement('li');
-            li.style.marginBottom = '8px';
+            li.style.cssText = 'font-size:.9rem;color:var(--ide-text);line-height:1.6;';
             li.textContent = step;
             ol.appendChild(li);
         });
-        wrap.appendChild(ol);
+        body.appendChild(ol);
 
-        var note = domEl('p', null, ['O composer.json foi salvo no projeto IDE.']);
-        note.style.cssText = 'margin-top:12px;font-size:.82rem;color:#6c7086;';
-        wrap.appendChild(note);
+        // Link direto para o Packagist
+        var linkWrap = domEl('div');
+        linkWrap.style.cssText = 'margin-top:16px;padding:12px 14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;display:flex;align-items:center;gap:10px;';
+        linkWrap.appendChild(domIcon('fa-solid fa-arrow-up-right-from-square', '#818cf8'));
+        var link = document.createElement('a');
+        link.href = 'https://packagist.org/packages/submit';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Abrir packagist.org/packages/submit';
+        link.style.cssText = 'color:#818cf8;font-size:.88rem;text-decoration:none;';
+        linkWrap.appendChild(link);
+        body.appendChild(linkWrap);
 
-        body.appendChild(wrap);
+        // Nota sobre o Marketplace
+        var mktNote = domEl('p', 'dep-conflict-hint');
+        mktNote.appendChild(domIcon('fa-solid fa-store'));
+        mktNote.appendChild(document.createTextNode(
+            ' Após aprovação no Packagist, o módulo ficará disponível no Marketplace da Vupi.us API para outros desenvolvedores instalarem.'
+        ));
+        body.appendChild(mktNote);
     }
     showModal('modal-deploy-result');
 }

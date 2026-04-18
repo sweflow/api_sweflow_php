@@ -406,6 +406,9 @@ class IdeProjectService
         // Recarrega PHP-FPM para que todos os workers reconheçam os arquivos atualizados
         $this->reloadPhpFpm();
 
+        // Instala dependências declaradas no composer.json do módulo (se existir)
+        $this->installModuleDependencies($targetDir);
+
         return [
             'deployed'     => true,
             'target'       => 'local',
@@ -455,6 +458,353 @@ class IdeProjectService
                 opcache_reset();
             }
         } catch (\Throwable) {}
+    }
+
+    /**
+     * Instala dependências do módulo de forma explícita (chamado pelo botão da IDE).
+     * Retorna relatório detalhado com o que foi instalado, o que falhou e por quê.
+     */
+    public function installDependenciesForModule(string $moduleDir): array
+    {
+        $report = $this->analyzeDependencies($moduleDir);
+
+        // Conflito — bloqueia antes de qualquer mudança
+        if ($report['status'] === 'critical') {
+            $conflicts = array_values(array_filter(
+                $report['dependencies'],
+                fn($dep) => $dep['status'] === 'conflict'
+            ));
+            throw new \RuntimeException(json_encode([
+                'error'   => 'dependency_conflict',
+                'message' => 'Conflito de dependências detectado 🚫',
+                'details' => array_map(fn($dep) => [
+                    'package'    => $dep['package'],
+                    'installed'  => $dep['installed'],
+                    'required'   => $dep['required'],
+                    'suggestion' => $dep['suggestion'],
+                ], $conflicts),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+
+        $toInstall = array_values(array_filter(
+            $report['dependencies'],
+            fn($dep) => $dep['status'] === 'missing'
+        ));
+
+        if (empty($toInstall)) {
+            return [
+                'status'   => 'ok',
+                'message'  => 'Todas as dependências já estão instaladas.',
+                'installed' => [],
+                'report'   => $report,
+            ];
+        }
+
+        $root     = dirname($this->modulesBase);
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+        $packages = array_map(
+            fn($dep) => $dep['package'] . ':' . $dep['required'],
+            $toInstall
+        );
+
+        $proc = new \Src\CLI\Process(array_merge(
+            [$composer, 'require'],
+            $packages,
+            ['--no-interaction', '--no-scripts', '--working-dir=' . $root]
+        ));
+
+        $success = $proc->run();
+        $output  = trim($proc->getOutput());
+
+        if (!$success) {
+            // Analisa o output do Composer para dar mensagem específica
+            $error = $this->parseComposerError($output, array_column($toInstall, 'package'));
+            throw new \RuntimeException($error);
+        }
+
+        // Regenera autoload e invalida OPcache
+        (new \Src\CLI\Process([$composer, 'dump-autoload', '--working-dir=' . $root]))->run();
+        if (function_exists('opcache_invalidate')) {
+            foreach (glob($root . '/vendor/composer/autoload_*.php') ?: [] as $f) {
+                opcache_invalidate($f, true);
+            }
+            opcache_invalidate($root . '/vendor/autoload.php', true);
+        }
+
+        return [
+            'status'    => 'ok',
+            'message'   => count($toInstall) . ' dependência(s) instalada(s) com sucesso.',
+            'installed' => array_column($toInstall, 'package'),
+            'report'    => $this->analyzeDependencies($moduleDir), // relatório atualizado
+        ];
+    }
+
+    /**
+     * Analisa o output do Composer para retornar mensagem de erro amigável.
+     * Detecta pacote inexistente, versão incompatível, sem conexão, etc.
+     */
+    private function parseComposerError(string $output, array $packages): string
+    {
+        $outputLower = strtolower($output);
+
+        // Pacote não encontrado no Packagist
+        if (str_contains($outputLower, 'could not find a matching version')
+            || str_contains($outputLower, 'package not found')
+            || str_contains($outputLower, 'no matching package')
+            || str_contains($outputLower, 'does not exist')) {
+            $notFound = [];
+            foreach ($packages as $pkg) {
+                if (str_contains($outputLower, strtolower($pkg))) {
+                    $notFound[] = $pkg;
+                }
+            }
+            $list = !empty($notFound) ? implode(', ', $notFound) : implode(', ', $packages);
+            return "Pacote(s) não encontrado(s) no Packagist: {$list}\n\n"
+                 . "Verifique se o nome está correto (ex: vendor/pacote) e se existe em https://packagist.org";
+        }
+
+        // Versão incompatível com o PHP atual
+        if (str_contains($outputLower, 'your php version')
+            || str_contains($outputLower, 'requires php')) {
+            return "Versão incompatível com o PHP atual do servidor.\n\n"
+                 . "Verifique os requisitos de PHP do pacote e ajuste a constraint.";
+        }
+
+        // Sem conexão com a internet
+        if (str_contains($outputLower, 'could not connect')
+            || str_contains($outputLower, 'network')
+            || str_contains($outputLower, 'curl error')) {
+            return "Sem conexão com o Packagist. Verifique a conexão do servidor com a internet.";
+        }
+
+        // Conflito de dependências transitivas (detectado pelo Composer)
+        if (str_contains($outputLower, 'conflict')
+            || str_contains($outputLower, 'incompatible')) {
+            return "Conflito de dependências transitivas detectado pelo Composer.\n\n"
+                 . "Detalhes:\n" . substr($output, 0, 500);
+        }
+
+        // Erro genérico — retorna o output do Composer truncado
+        return "Falha ao instalar dependências.\n\nDetalhes do Composer:\n" . substr($output, 0, 600);
+    }
+
+    /**
+     * Instala dependências externas declaradas no composer.json do módulo.
+     * Usa analyzeDependencies() para detectar conflitos antes de qualquer instalação.
+     * Chamado automaticamente no deploy local.
+     */
+    private function installModuleDependencies(string $moduleDir): void
+    {
+        $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
+        if (!is_file($composerFile)) {
+            return;
+        }
+
+        $meta = json_decode((string) file_get_contents($composerFile), true);
+        if (!is_array($meta)) {
+            return;
+        }
+
+        $root = dirname($this->modulesBase);
+
+        // 1. Registra namespace PSR-4 no composer.json do projeto
+        $psr4 = $meta['autoload']['psr-4'] ?? [];
+        if (!empty($psr4)) {
+            $projectComposerPath = $root . '/composer.json';
+            if (is_file($projectComposerPath)) {
+                $projectComposer = json_decode((string) file_get_contents($projectComposerPath), true);
+                if (is_array($projectComposer)) {
+                    $changed = false;
+                    $relBase = 'src/Modules/' . basename($moduleDir) . '/';
+                    foreach ($psr4 as $namespace => $srcPath) {
+                        $relPath = rtrim($relBase . ltrim(str_replace(['\\', '/'], '/', $srcPath), '/'), '/') . '/';
+                        if (($projectComposer['autoload']['psr-4'][$namespace] ?? null) !== $relPath) {
+                            $projectComposer['autoload']['psr-4'][$namespace] = $relPath;
+                            $changed = true;
+                        }
+                    }
+                    if ($changed) {
+                        $json = json_encode($projectComposer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                        file_put_contents($projectComposerPath, $json);
+                    }
+                }
+            }
+        }
+
+        // 2. Analisa dependências — detecta conflitos e resolve o que instalar
+        $report = $this->analyzeDependencies($moduleDir);
+
+        // Bloqueia deploy se houver conflito — erro estruturado para o frontend tratar
+        if ($report['status'] === 'critical') {
+            $details = array_values(array_filter(
+                $report['dependencies'],
+                fn($dep) => $dep['status'] === 'conflict'
+            ));
+            throw new \RuntimeException(json_encode([
+                'error'   => 'dependency_conflict',
+                'message' => 'Conflito de dependências detectado 🚫',
+                'details' => array_map(fn($dep) => [
+                    'package'    => $dep['package'],
+                    'installed'  => $dep['installed'],
+                    'required'   => $dep['required'],
+                    'suggestion' => $dep['suggestion'],
+                ], $details),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+
+        // 3. Instala apenas pacotes ausentes
+        $toInstall = array_filter(
+            $report['dependencies'],
+            fn($dep) => $dep['status'] === 'missing'
+        );
+
+        if (!empty($toInstall)) {
+            $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+            $packages = array_map(
+                fn($dep) => $dep['package'] . ':' . $dep['required'],
+                array_values($toInstall)
+            );
+            $proc = new \Src\CLI\Process(array_merge(
+                [$composer, 'require'],
+                $packages,
+                ['--no-interaction', '--no-scripts', '--working-dir=' . $root]
+            ));
+            if (!$proc->run()) {
+                throw new \RuntimeException(
+                    "Falha ao instalar dependências: " .
+                    implode(', ', array_column($toInstall, 'package')) .
+                    "\n" . $proc->getOutput()
+                );
+            }
+        }
+
+        // 4. Regenera autoload e invalida OPcache
+        $composer = is_file($root . '/vendor/bin/composer') ? $root . '/vendor/bin/composer' : 'composer';
+        (new \Src\CLI\Process([$composer, 'dump-autoload', '--working-dir=' . $root]))->run();
+
+        if (function_exists('opcache_invalidate')) {
+            foreach (glob($root . '/vendor/composer/autoload_*.php') ?: [] as $f) {
+                opcache_invalidate($f, true);
+            }
+            opcache_invalidate($root . '/vendor/autoload.php', true);
+        }
+    }
+
+    /**
+     * Analisa as dependências declaradas no composer.json do módulo contra o composer.lock do projeto.
+     *
+     * Status por pacote:
+     *   'ok'       — instalado e versão satisfaz a constraint
+     *   'conflict' — instalado mas versão NÃO satisfaz (bloqueia deploy)
+     *   'missing'  — não instalado (será instalado no deploy)
+     *
+     * Status geral (regra clara de agregação):
+     *   'ok'       — tudo compatível 🟢
+     *   'warning'  — pacotes ausentes, sem conflito 🟡
+     *   'critical' — conflito de versão detectado 🔴
+     *
+     * Nota: dependências transitivas (pacotes que dependem de outros pacotes) não são
+     * analisadas aqui — isso é Fase futura. Apenas o require direto do módulo é verificado.
+     */
+    public function analyzeDependencies(string $moduleDir): array
+    {
+        $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
+        if (!is_file($composerFile)) {
+            return ['status' => 'ok', 'dependencies' => [], 'note' => 'Sem composer.json — nenhuma dependência declarada.'];
+        }
+
+        $meta = json_decode((string) file_get_contents($composerFile), true);
+        if (!is_array($meta)) {
+            return ['status' => 'ok', 'dependencies' => [], 'note' => 'composer.json inválido.'];
+        }
+
+        // Filtra restrições de plataforma — não são pacotes instaláveis
+        $require = array_filter(
+            $meta['require'] ?? [],
+            fn($dep) => $dep !== 'php'
+                && !str_starts_with($dep, 'ext-')
+                && !str_starts_with($dep, 'lib-'),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if (empty($require)) {
+            return ['status' => 'ok', 'dependencies' => [], 'note' => 'Nenhuma dependência de pacote declarada.'];
+        }
+
+        // Lê composer.lock — cache estático para evitar I/O repetido na mesma requisição
+        // Não persiste entre requests (correto — cada request lê o estado atual do lock)
+        static $lockData = null;
+        if ($lockData === null) {
+            $root     = dirname($this->modulesBase);
+            $lockPath = $root . '/composer.lock';
+            $lockData = [];
+            if (is_file($lockPath)) {
+                $lock = json_decode((string) file_get_contents($lockPath), true) ?? [];
+                foreach (array_merge($lock['packages'] ?? [], $lock['packages-dev'] ?? []) as $pkg) {
+                    // ltrim 'v' — composer.lock pode retornar "v7.8.1" ou "7.8.1"
+                    $lockData[$pkg['name']] = ltrim($pkg['version'], 'v');
+                }
+            }
+        }
+
+        $dependencies = [];
+        $status       = 'ok';
+
+        foreach ($require as $package => $constraint) {
+            if (!isset($lockData[$package])) {
+                $dependencies[] = [
+                    'package'    => $package,
+                    'required'   => $constraint,
+                    'installed'  => null,
+                    'status'     => 'missing',
+                    'suggestion' => 'Execute o deploy para instalar automaticamente.',
+                ];
+                // missing só eleva para warning se ainda não for critical
+                if ($status !== 'critical') {
+                    $status = 'warning';
+                }
+                continue;
+            }
+
+            $installedVersion = $lockData[$package];
+            $satisfies        = true;
+
+            if (class_exists(\Composer\Semver\Semver::class)) {
+                try {
+                    $satisfies = \Composer\Semver\Semver::satisfies($installedVersion, $constraint);
+                } catch (\Throwable) {
+                    $satisfies = true; // constraint inválida — deixa o composer rejeitar
+                }
+            }
+
+            if (!$satisfies) {
+                // Sugestão inteligente: usa a versão instalada como base
+                // Exemplo: instalado 7.8.1, requerido ^6.0 → sugestão: ^7.0 || ^6.0
+                $installedMajor = explode('.', $installedVersion)[0] ?? '0';
+                $suggestion     = "^{$installedMajor}.0 || {$constraint}";
+
+                $dependencies[] = [
+                    'package'    => $package,
+                    'required'   => $constraint,
+                    'installed'  => $installedVersion,
+                    'status'     => 'conflict',
+                    'suggestion' => $suggestion,
+                ];
+                $status = 'critical'; // conflict sempre vira critical — sem downgrade
+            } else {
+                $dependencies[] = [
+                    'package'   => $package,
+                    'required'  => $constraint,
+                    'installed' => $installedVersion,
+                    'status'    => 'ok',
+                ];
+            }
+        }
+
+        return [
+            'status'       => $status,
+            'dependencies' => $dependencies,
+        ];
     }
 
     /**
@@ -1623,6 +1973,8 @@ class IdeProjectService
             "Database/Seeders/{$moduleName}Seeder.php" => $this->tplSeeder($moduleName),
             // Routes
             "Routes/web.php"                          => $this->tplRoutes($ns, $moduleName),
+            // Composer (dependências externas)
+            "composer.json"                           => $this->tplComposer($moduleName),
             // Docs
             "README.md"                               => $this->tplReadme($moduleName),
         ];
@@ -2094,10 +2446,40 @@ class IdeProjectService
             '| POST | `/api/' . $lower . '` | Criar |',
             '| PUT | `/api/' . $lower . '/{id}` | Atualizar |',
             '| DELETE | `/api/' . $lower . '/{id}` | Deletar (admin) |', '',
+            '## Dependencias externas', '',
+            'Para adicionar bibliotecas externas (ex: PHPMailer, Guzzle), edite o `composer.json`',
+            'deste modulo e declare na secao `require`. Ao fazer deploy, as dependencias serao',
+            'instaladas automaticamente no projeto.', '',
             '## Conectar aplicacao externa', '',
             '1. Solicite ao suporte da Vupi.us API a liberacao no CORS da URL do frontend.',
             '2. O admin adicionara a URL via Dashboard > Configuracoes > CORS.',
             '3. Apos aprovacao, sua aplicacao podera fazer requisicoes a API.', '',
+        ]);
+    }
+
+    private function tplComposer(string $name): string
+    {
+        $lower   = strtolower(preg_replace('/[A-Z]/', '-$0', lcfirst($name)) ?? $name);
+        $ns      = 'Src\\\\Modules\\\\' . $name . '\\\\';
+        return implode("\n", [
+            '{',
+            '    "name": "meu-vendor/modulo-' . $lower . '",',
+            '    "description": "Modulo ' . $name . ' para a Vupi.us API.",',
+            '    "type": "library",',
+            '    "require": {',
+            '        "php": ">=8.1"',
+            '    },',
+            '    "autoload": {',
+            '        "psr-4": {',
+            '            "' . $ns . '": ""',
+            '        }',
+            '    },',
+            '    "extra": {',
+            '        "vupi.us": {',
+            '            "provides": []',
+            '        }',
+            '    }',
+            '}',
         ]);
     }
 

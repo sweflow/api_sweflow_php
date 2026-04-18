@@ -244,6 +244,56 @@ final class IdeProjectController
         return Response::json(['analysis' => $analyzer->analyze()]);
     }
 
+    public function dependencyHealth(Request $request): Response
+    {
+        [, $project, $err] = $this->requireProject($request);
+        if ($err) return $err;
+
+        $moduleName = $project['module_name'];
+        $moduleDir  = dirname(__DIR__, 4) . '/src/Modules/' . $moduleName;
+
+        $report = $this->service->analyzeDependencies($moduleDir);
+
+        return Response::json($report);
+    }
+
+    public function installDependencies(Request $request): Response
+    {
+        [, $project, $err] = $this->requireProject($request);
+        if ($err) return $err;
+
+        $moduleName = $project['module_name'];
+        $moduleDir  = dirname(__DIR__, 4) . '/src/Modules/' . $moduleName;
+
+        // Módulo precisa estar deployado para instalar dependências
+        if (!is_dir($moduleDir)) {
+            return Response::json([
+                'error' => 'O módulo ainda não foi publicado. Clique em "Publicar" primeiro para copiar os arquivos para src/Modules/.',
+            ], 422);
+        }
+
+        // Sincroniza o composer.json do projeto IDE para o disco antes de instalar
+        $composerContent = $project['files']['composer.json'] ?? null;
+        if ($composerContent !== null) {
+            file_put_contents($moduleDir . '/composer.json', $composerContent);
+        }
+
+        try {
+            $result = $this->service->installDependenciesForModule($moduleDir);
+            return Response::json($result);
+        } catch (\RuntimeException $e) {
+            $decoded = json_decode($e->getMessage(), true);
+            if (is_array($decoded) && ($decoded['error'] ?? '') === 'dependency_conflict') {
+                return Response::json([
+                    'error'   => $decoded['error'],
+                    'message' => $decoded['message'],
+                    'details' => $decoded['details'] ?? [],
+                ], 422);
+            }
+            return Response::json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     public function autofix(Request $request): Response
     {
         [$userId, $project, $err] = $this->requireProject($request);
@@ -306,7 +356,21 @@ final class IdeProjectController
             return Response::json(['error' => 'Publicacao bloqueada.', 'analysis' => $report], 422);
         }
 
-        $result = $this->service->deployLocal($project);
+        try {
+            $result = $this->service->deployLocal($project);
+        } catch (\RuntimeException $e) {
+            // Tenta decodificar erro estruturado de conflito de dependências
+            $decoded = json_decode($e->getMessage(), true);
+            if (is_array($decoded) && ($decoded['error'] ?? '') === 'dependency_conflict') {
+                return Response::json([
+                    'error'   => $decoded['error'],
+                    'message' => $decoded['message'],
+                    'details' => $decoded['details'] ?? [],
+                ], 422);
+            }
+            return $this->errorResponse($e->getMessage(), 422);
+        }
+
         $result['analysis'] = $report;
 
         $result['migrations'] = $this->service->runMigrations($project, $this->pdo, $this->pdoModules);

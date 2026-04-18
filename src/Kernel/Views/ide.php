@@ -58,9 +58,9 @@
             <i class="fa-solid fa-bolt" aria-hidden="true"></i>
             <span class="ide-topbar-btn-label">Rotas</span>
         </button>
-        <button class="ide-topbar-btn ide-topbar-btn-deploy" id="btn-deploy-top" title="Publicar no Packagist" aria-label="Publicar no Packagist">
+        <button class="ide-topbar-btn ide-topbar-btn-deploy" id="btn-deploy-top" title="Publicar no Packagist — disponibiliza seu módulo no Marketplace da Vupi.us API" aria-label="Publicar no Packagist">
             <i class="fa-brands fa-php" aria-hidden="true"></i>
-            <span class="ide-topbar-btn-label">Publicar</span>
+            <span class="ide-topbar-btn-label">Publicar no Packagist</span>
         </button>
         <div class="ide-topbar-divider" aria-hidden="true"></div>
         <button class="ide-topbar-icon" id="btn-settings" title="Configurações da IDE" aria-label="Configurações da IDE">
@@ -207,7 +207,7 @@
             </button>
             <span class="ide-panel-title">
                 <i class="fa-solid fa-rocket" aria-hidden="true"></i>
-                <span>Publicar</span>
+                <span>Deploy</span>
             </span>
         </div>
         <div class="ide-panel-body" id="panel-deploy-body">
