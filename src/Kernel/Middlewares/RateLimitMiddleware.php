@@ -149,12 +149,24 @@ class RateLimitMiddleware implements MiddlewareInterface
 
     private function extractSubFromToken(string $token): ?string
     {
+        // Extrai sub sem validar assinatura — usado apenas para rate limit por usuário,
+        // não para autenticação. Limita tamanho para evitar DoS.
+        if (strlen($token) > 2048) {
+            return null;
+        }
         $parts = explode('.', $token);
         if (count($parts) !== 3) {
             return null;
         }
-        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/'), true), true);
+        if (!is_array($payload)) {
+            return null;
+        }
         $sub = $payload['sub'] ?? null;
-        return is_string($sub) && $sub !== '' ? $sub : null;
+        // Valida formato UUID para evitar chaves de rate limit arbitrárias
+        if (!is_string($sub) || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sub)) {
+            return null;
+        }
+        return $sub;
     }
 }

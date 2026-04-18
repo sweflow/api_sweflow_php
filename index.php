@@ -102,6 +102,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
         echo json_encode(['error' => 'Configuração inválida: DB_SENHA deve ter ao menos 16 caracteres em produção com banco remoto.']);
         exit(1);
     }
+
+    // APP_DEBUG nunca deve ser true em produção — força false silenciosamente
+    if (in_array(strtolower(trim($_ENV['APP_DEBUG'] ?? 'false')), ['1', 'true', 'on', 'yes'], true)) {
+        $_ENV['APP_DEBUG'] = 'false';
+        putenv('APP_DEBUG=false');
+    }
 })();
 
 // Serve arquivos estáticos diretamente de /public

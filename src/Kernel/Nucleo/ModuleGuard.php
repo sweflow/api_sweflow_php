@@ -149,19 +149,13 @@ final class ModuleGuard
      */
     private static function assertNoForbiddenNamespaces(string $moduleName, string $realPath): void
     {
-        // Verifica apenas os arquivos PHP de primeiro nível e subpastas diretas
-        // para não tornar o boot lento em módulos grandes
-        $phpFiles = array_merge(
-            glob($realPath . '/*.php') ?: [],
-            glob($realPath . '/*/*.php') ?: [],
-            glob($realPath . '/*/*/*.php') ?: []
-        );
+        // Verifica recursivamente todos os arquivos PHP do módulo
+        $phpFiles = self::findPhpFilesRecursive($realPath);
 
         foreach ($phpFiles as $file) {
             $content = @file_get_contents($file);
             if ($content === false) continue;
 
-            // Extrai declarações de namespace
             if (!preg_match('/^\s*namespace\s+([A-Za-z\\\\]+)\s*;/m', $content, $m)) {
                 continue;
             }
@@ -177,6 +171,21 @@ final class ModuleGuard
                 }
             }
         }
+    }
+
+    private static function findPhpFilesRecursive(string $dir, int $depth = 0): array
+    {
+        if ($depth > 6) return []; // limite de profundidade para evitar loops
+        $files = [];
+        foreach (glob($dir . '/*.php') ?: [] as $f) {
+            $files[] = $f;
+        }
+        foreach (glob($dir . '/*/') ?: [] as $subDir) {
+            foreach (self::findPhpFilesRecursive(rtrim($subDir, '/'), $depth + 1) as $f) {
+                $files[] = $f;
+            }
+        }
+        return $files;
     }
 
     /**

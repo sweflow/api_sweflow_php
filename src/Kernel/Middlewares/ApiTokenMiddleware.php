@@ -27,6 +27,16 @@ class ApiTokenMiddleware implements MiddlewareInterface
             return Response::json(['error' => 'JWT_API_SECRET não configurado no servidor.'], 500);
         }
 
+        // Valida algoritmo antes de decodificar — previne alg confusion attack
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            return Response::json(['error' => 'Token de API inválido ou expirado.'], 401);
+        }
+        $header = json_decode(base64_decode(strtr($parts[0], '-_', '+/'), true), true);
+        if (!is_array($header) || ($header['alg'] ?? '') !== 'HS256') {
+            return Response::json(['error' => 'Token de API inválido ou expirado.'], 401);
+        }
+
         try {
             $payload = JWT::decode($token, new Key($secret, 'HS256'));
         } catch (\Throwable) {

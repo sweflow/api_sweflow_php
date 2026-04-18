@@ -433,7 +433,7 @@ class SecurityAuditTest extends TestCase
     {
         // O limite de profundidade está no RequestFactory, não no AuthController
         $source = $this->sourceOf(\Src\Kernel\Http\Request\RequestFactory::class);
-        $this->assertStringContainsString('json_decode($rawBody, true, 32)',
+        $this->assertStringContainsString('json_decode($rawBody, true, 16)',
             $source,
             'RequestFactory deve limitar profundidade do json_decode para evitar DoS');
     }

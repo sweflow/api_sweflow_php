@@ -414,15 +414,17 @@ final class PhpExecutor
         @unlink($wrapperFile);
         file_put_contents($wrapperPhp, $wrapperCode);
 
-        $cmd = escapeshellarg($phpBin)
-            . ' -d disable_functions=' . escapeshellarg($disabled)
-            . ' -d open_basedir=' . escapeshellarg($moduleDir . PATH_SEPARATOR . $tmpDir)
-            . ' ' . escapeshellarg($wrapperPhp)
-            . ' 2>&1';
+        // Usa array syntax para proc_open — mais seguro que string (sem shell intermediário)
+        $cmdArray = [
+            $phpBin,
+            '-d', 'disable_functions=' . $disabled,
+            '-d', 'open_basedir=' . $moduleDir . PATH_SEPARATOR . $tmpDir,
+            $wrapperPhp,
+        ];
 
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $start = hrtime(true);
-        $proc  = proc_open($cmd, $descriptors, $pipes, $moduleDir);
+        $proc  = proc_open($cmdArray, $descriptors, $pipes, $moduleDir);
 
         if (!is_resource($proc)) {
             @unlink($wrapperPhp);

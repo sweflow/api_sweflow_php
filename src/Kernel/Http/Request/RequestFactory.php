@@ -30,9 +30,12 @@ class RequestFactory
         $contentType = $headers['Content-Type'] ?? ($headers['content-type'] ?? '');
 
         if (stripos($contentType, 'application/json') !== false && $rawBody !== '') {
-            $json = json_decode($rawBody, true, 32);
+            $json = json_decode($rawBody, true, 16); // profundidade 16 — previne DoS via JSON profundo
             if (is_array($json)) {
                 $body = $json;
+            } elseif ($json !== null) {
+                // JSON válido mas não é objeto/array — ignora
+                $body = [];
             }
         } elseif (stripos($contentType, 'application/x-www-form-urlencoded') !== false && $rawBody !== '') {
             parse_str($rawBody, $formData);

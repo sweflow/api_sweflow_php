@@ -39,13 +39,8 @@ class AuthPageMiddleware implements MiddlewareInterface
 
         try {
             [$payload, $assinadoComApiSecret] = JwtDecoder::decodeUser($token);
+            JwtDecoder::validateUserClaims($payload);
 
-            if (!isset($payload->tipo) || $payload->tipo !== 'user') {
-                return $this->redirecionar(true);
-            }
-            if (empty($payload->jti)) {
-                return $this->redirecionar(true);
-            }
             if ($this->blacklistRepo->isRevoked($payload->jti)) {
                 return $this->redirecionar(true);
             }

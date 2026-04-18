@@ -96,15 +96,25 @@ final class SecurityEventLogger
             return;
         }
 
+        // Sanitiza URI — remove tokens de query string antes de logar
+        $rawUri = ($_SERVER['REQUEST_METHOD'] ?? '') . ' ' . ($_SERVER['REQUEST_URI'] ?? '');
+        $safeUri = (string) preg_replace('/([?&])(token|access_token|api_key|key|secret|password|senha)=[^&\s]*/i', '$1$2=[REDACTED]', $rawUri);
+
+        // Remove campos sensíveis dos details antes de logar
+        $safeDetails = $details;
+        foreach (['senha', 'password', 'token', 'secret', 'hash', 'api_key'] as $k) {
+            unset($safeDetails[$k]);
+        }
+
         $line = json_encode(array_filter([
             'timestamp'  => date('Y-m-d\TH:i:sP'),
             'type'       => $type,
             'event'      => $event,
             'ip'         => $ip,
             'request_id' => self::requestId(),
-            'endpoint'   => ($_SERVER['REQUEST_METHOD'] ?? '') . ' ' . ($_SERVER['REQUEST_URI'] ?? ''),
+            'endpoint'   => $safeUri,
             'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200),
-        ] + $details, static fn($v) => $v !== null), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        ] + $safeDetails, static fn($v) => $v !== null), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         file_put_contents('php://stderr', $line . PHP_EOL, FILE_APPEND);
     }

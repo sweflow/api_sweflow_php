@@ -112,7 +112,9 @@ class Router implements RouterInterface
 
     private function compilePattern(string $uri): string
     {
-        $pattern = preg_replace('#\{([a-zA-Z_][a-zA-Z0-9_-]*)\}#', '(?P<$1>[^/]+)', $uri);
+        // Parâmetros de rota: exclui apenas / e caracteres de controle/null bytes
+        // Permite UUIDs, tokens hex, usernames, slugs, etc.
+        $pattern = preg_replace('#\{([a-zA-Z_][a-zA-Z0-9_-]*)\}#', '(?P<$1>[^/\x00-\x1F\x7F]+)', $uri);
         return '#^' . $pattern . '$#';
     }
 

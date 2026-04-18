@@ -177,12 +177,14 @@ class Response
 
         if (is_array($this->body) || is_object($this->body)) {
             try {
-                echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+                // JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP previnem XSS
+                // se o JSON for injetado em contexto HTML (ex: <script>var x = <?= json ?></script>)
+                echo json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
             } catch (\JsonException) {
                 echo json_encode(['error' => 'Erro interno ao serializar resposta.']);
             }
         } else {
-            echo is_string($this->body) ? $this->body : (string) json_encode($this->body, JSON_UNESCAPED_UNICODE);
+            echo is_string($this->body) ? $this->body : (string) json_encode($this->body, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
         }
     }
 

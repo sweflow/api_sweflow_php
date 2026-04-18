@@ -241,6 +241,11 @@ class AuditLogger
         if ($this->pdo === null) {
             return;
         }
+        // Remove campos sensíveis do contexto antes de persistir
+        $sensitiveKeys = ['senha', 'password', 'token', 'secret', 'hash', 'credit_card', 'cvv'];
+        foreach ($sensitiveKeys as $key) {
+            unset($contexto[$key]);
+        }
         try {
             $sql = "INSERT INTO audit_logs
                         (evento, usuario_uuid, contexto, ip, user_agent, endpoint, criado_em)

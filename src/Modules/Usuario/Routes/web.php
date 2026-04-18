@@ -18,7 +18,7 @@ $dbCircuit = [CircuitBreakerMiddleware::class, ['service' => 'database', 'thresh
 // Rate limits
 $registroRateLimit  = [RateLimitMiddleware::class, ['limit' => 5,  'window' => 60,  'key' => 'usuario.registro']];
 $reenvioRateLimit   = [RateLimitMiddleware::class, ['limit' => 3,  'window' => 300, 'key' => 'usuario.reenvio']];
-$perfilRateLimit    = [RateLimitMiddleware::class, ['limit' => 30, 'window' => 60,  'key' => 'usuario.perfil']];
+$perfilRateLimit    = [RateLimitMiddleware::class, ['limit' => 10, 'window' => 60,  'key' => 'usuario.perfil']];
 $verificaRateLimit  = [RateLimitMiddleware::class, ['limit' => 10, 'window' => 60,  'key' => 'usuario.verifica']];
 
 // Registro público de usuário

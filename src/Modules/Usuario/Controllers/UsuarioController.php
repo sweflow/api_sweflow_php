@@ -226,6 +226,10 @@ class UsuarioController
     public function buscar(Request $request, string $uuid): Response
     {
         try {
+            $uuid = \Src\Kernel\Utils\Sanitizer::uuid($uuid);
+            if ($uuid === '') {
+                return Response::json(['status' => 'error', 'message' => 'Usuário não encontrado.'], 404);
+            }
             $usuario = $this->service->buscarPorUuid($uuid);
             if (!$usuario) {
                 return Response::json(['status' => 'error', 'message' => 'Usuário não encontrado.'], 404);
@@ -530,7 +534,18 @@ class UsuarioController
         if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
             return Response::json(['status' => 'error', 'message' => 'Imagem muito grande. Máximo 5MB.'], 422);
         }
-        // Validação real de conteúdo — mime_content_type é falsificável
+
+        // Validação de conteúdo via finfo (mais confiável que mime_content_type)
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $realMime = $finfo ? (finfo_file($finfo, $file['tmp_name']) ?: '') : '';
+        if ($finfo) finfo_close($finfo);
+
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if ($realMime !== '' && !in_array($realMime, $allowedMimes, true)) {
+            return Response::json(['status' => 'error', 'message' => 'Arquivo inválido: não é uma imagem permitida.'], 422);
+        }
+
+        // Dupla validação: getimagesize verifica estrutura interna do arquivo
         set_error_handler(static function (): bool { return true; });
         $imageInfo = getimagesize($file['tmp_name']);
         restore_error_handler();
