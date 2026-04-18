@@ -24,7 +24,7 @@ class AuthCookieMiddleware implements MiddlewareInterface
 
         $token = $_COOKIE['auth_token'] ?? '';
         $token = is_string($token) ? trim($token) : '';
-        if ($token === '') {
+        if ($token === '' || strlen($token) > 2048) {
             return $this->responder(401, 'Não autenticado.');
         }
 

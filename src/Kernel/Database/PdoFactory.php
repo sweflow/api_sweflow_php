@@ -105,16 +105,21 @@ class PdoFactory
             if ($driver === 'pgsql') {
                 $adminDsn = "pgsql:host={$host};port={$port};dbname=postgres;connect_timeout={$connectTimeout}";
                 $admin    = new PDO($adminDsn, $user, $pass, $options);
-                // Usa formato seguro — pg_catalog.quote_ident não disponível via PDO, usa aspas duplas
-                $safeName = str_replace('"', '', $name); // sanitiza
-                $admin->exec("CREATE DATABASE \"{$safeName}\"");
+                // Valida nome do banco — apenas alfanumérico, underscore e hífen
+                if (!preg_match('/^[a-zA-Z0-9_-]+$/', $name)) {
+                    throw new RuntimeException("Nome de banco inválido: '{$name}'.");
+                }
+                $admin->exec("CREATE DATABASE \"{$name}\"");
                 error_log("[PdoFactory] Banco PostgreSQL '{$name}' criado automaticamente.");
             } else {
                 // MySQL: conecta sem banco para criar
                 $adminDsn = "mysql:host={$host};port={$port};charset={$charset}";
                 $admin    = new PDO($adminDsn, $user, $pass, $options);
-                $safeName = str_replace('`', '', $name); // sanitiza
-                $admin->exec("CREATE DATABASE IF NOT EXISTS `{$safeName}` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
+                // Valida nome do banco — apenas alfanumérico, underscore e hífen
+                if (!preg_match('/^[a-zA-Z0-9_-]+$/', $name)) {
+                    throw new RuntimeException("Nome de banco inválido: '{$name}'.");
+                }
+                $admin->exec("CREATE DATABASE IF NOT EXISTS `{$name}` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
                 error_log("[PdoFactory] Banco MySQL '{$name}' criado automaticamente.");
             }
         } catch (Throwable $e) {

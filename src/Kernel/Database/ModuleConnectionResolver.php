@@ -78,6 +78,11 @@ class ModuleConnectionResolver
      */
     public static function readConnectionFile(string $moduleName): string
     {
+        // Valida nome do módulo — apenas PascalCase alfanumérico (previne path traversal)
+        if (!preg_match('/^[A-Za-z][A-Za-z0-9]{0,63}$/', $moduleName)) {
+            return 'core';
+        }
+
         $candidates = [
             dirname(__DIR__, 3) . '/src/Modules/' . $moduleName . '/Database/connection.php',
             dirname(__DIR__, 3) . '/src/Modules/' . $moduleName . '/src/Database/connection.php',

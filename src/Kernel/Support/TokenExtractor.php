@@ -17,7 +17,12 @@ final class TokenExtractor
     {
         $cookie = $_COOKIE['auth_token'] ?? '';
         if (is_string($cookie) && trim($cookie) !== '') {
-            return trim($cookie);
+            $token = trim($cookie);
+            // Limite de tamanho — JWTs válidos têm no máximo ~2KB
+            if (strlen($token) > 2048) {
+                return '';
+            }
+            return $token;
         }
         return self::fromBearer();
     }
@@ -27,7 +32,12 @@ final class TokenExtractor
     {
         $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
         if (preg_match('/Bearer\s+(.+)/i', $auth, $m)) {
-            return trim($m[1]);
+            $token = trim($m[1]);
+            // Limite de tamanho
+            if (strlen($token) > 2048) {
+                return '';
+            }
+            return $token;
         }
         return '';
     }
@@ -35,7 +45,8 @@ final class TokenExtractor
     /** Retorna o token do header X-API-KEY, ou string vazia. */
     public static function fromApiKey(): string
     {
-        return trim((string) ($_SERVER['HTTP_X_API_KEY'] ?? ''));
+        $key = trim((string) ($_SERVER['HTTP_X_API_KEY'] ?? ''));
+        return strlen($key) <= 2048 ? $key : '';
     }
 
     /**
