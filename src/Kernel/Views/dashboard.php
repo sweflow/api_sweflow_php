@@ -653,7 +653,8 @@
                     <button type="button" data-cmd="insertOrderedList" title="Lista numerada"><i class="fa-solid fa-list-ol"></i></button>
                     <button type="button" data-cmd="insertUnorderedList" title="Lista"><i class="fa-solid fa-list-ul"></i></button>
                     <button type="button" data-cmd="formatBlock" data-value="blockquote" title="Citação"><i class="fa-solid fa-quote-left"></i></button>
-                    <button type="button" data-cmd="formatBlock" data-value="pre" title="Código"><i class="fa-solid fa-code"></i></button>
+                    <button type="button" data-cmd="formatBlock" data-value="pre" title="Bloco de código"><i class="fa-solid fa-code"></i></button>
+                    <button type="button" data-cmd="insertCode" title="Código inline"><i class="fa-solid fa-terminal"></i></button>
                 </div>
                 <div class="email-toolbar-sep"></div>
                 <div class="email-toolbar-group">
