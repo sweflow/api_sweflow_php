@@ -280,27 +280,45 @@ class SystemModulesController
 
     private function reloadPhpFpm(): void
     {
-        $pidFile = '/run/php/php8.2-fpm.pid';
-
-        // Estratégia 1: SIGUSR2 direto ao master process via PID file (graceful reload)
-        if (function_exists('posix_kill') && defined('SIGUSR2') && is_file($pidFile)) {
-            $pid = trim((string) @file_get_contents($pidFile));
-            if ($pid !== '' && ctype_digit($pid)) {
-                @posix_kill((int) $pid, SIGUSR2);
-                return;
+        // Estratégia 1: invalida o OPcache dos arquivos de autoload gerados pelo Composer.
+        // Não requer sudo nem reinicialização — funciona em qualquer servidor.
+        if (function_exists('opcache_invalidate')) {
+            $root          = dirname(__DIR__, 3);
+            $autoloadFiles = glob($root . '/vendor/composer/autoload_*.php') ?: [];
+            $autoloadFiles[] = $root . '/vendor/autoload.php';
+            foreach ($autoloadFiles as $file) {
+                if (is_file($file)) {
+                    opcache_invalidate($file, true);
+                }
             }
         }
 
-        // Estratégia 2: systemctl reload (requer sudo sem senha configurado)
+        // Estratégia 2: SIGUSR2 via PID file (graceful reload sem sudo).
+        // Funciona quando o PHP-FPM roda com o mesmo usuário do processo web.
+        $pidCandidates = [
+            '/run/php/php8.2-fpm.pid',
+            '/run/php/php8.1-fpm.pid',
+            '/run/php/php8.0-fpm.pid',
+            '/var/run/php-fpm/php-fpm.pid',
+        ];
+        if (function_exists('posix_kill') && defined('SIGUSR2')) {
+            foreach ($pidCandidates as $pidFile) {
+                if (!is_file($pidFile)) continue;
+                $pid = trim((string) @file_get_contents($pidFile));
+                if ($pid !== '' && ctype_digit($pid)) {
+                    if (@posix_kill((int) $pid, SIGUSR2)) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Estratégia 3: systemctl reload em background via sudo (requer sudoers configurado).
+        // Não bloqueia a requisição — dispara e retorna imediatamente.
         foreach (['php8.2-fpm', 'php8.1-fpm', 'php8.0-fpm', 'php-fpm'] as $service) {
-            $proc = new Process(['sudo', '-n', 'systemctl', 'reload', $service]);
-            if ($proc->run()) {
-                return;
-            }
+            @shell_exec('nohup sudo -n systemctl reload ' . escapeshellarg($service) . ' > /dev/null 2>&1 &'); // NOSONAR
+            return;
         }
-
-        // Estratégia 3: pkill -USR2 (último recurso)
-        (new Process(['pkill', '-USR2', '-f', 'php-fpm']))->run();
     }
 
     public function install(Request $request): Response
