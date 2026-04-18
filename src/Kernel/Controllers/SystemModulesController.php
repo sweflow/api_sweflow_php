@@ -272,6 +272,35 @@ class SystemModulesController
         if (is_file($cacheFile)) {
             unlink($cacheFile);
         }
+
+        // Recarrega PHP-FPM para que o novo autoloader seja lido pelos workers em execução.
+        // Tenta os sockets/serviços mais comuns — falha silenciosa se não encontrar.
+        $this->reloadPhpFpm();
+    }
+
+    private function reloadPhpFpm(): void
+    {
+        $pidFile = '/run/php/php8.2-fpm.pid';
+
+        // Estratégia 1: SIGUSR2 direto ao master process via PID file (graceful reload)
+        if (function_exists('posix_kill') && defined('SIGUSR2') && is_file($pidFile)) {
+            $pid = trim((string) @file_get_contents($pidFile));
+            if ($pid !== '' && ctype_digit($pid)) {
+                @posix_kill((int) $pid, SIGUSR2);
+                return;
+            }
+        }
+
+        // Estratégia 2: systemctl reload (requer sudo sem senha configurado)
+        foreach (['php8.2-fpm', 'php8.1-fpm', 'php8.0-fpm', 'php-fpm'] as $service) {
+            $proc = new Process(['sudo', '-n', 'systemctl', 'reload', $service]);
+            if ($proc->run()) {
+                return;
+            }
+        }
+
+        // Estratégia 3: pkill -USR2 (último recurso)
+        (new Process(['pkill', '-USR2', '-f', 'php-fpm']))->run();
     }
 
     public function install(Request $request): Response
