@@ -8,6 +8,10 @@
 .env.docker
 .env.docker.local
 
+# ── Módulos ignorados no commit
+
+src/Modules/Email/
+
 # ── Storage (runtime — manter .gitkeep, ignorar conteúdo) ─────────────────
 /storage/ratelimit/*
 !/storage/ratelimit/.gitkeep
@@ -21,7 +25,17 @@
 /storage/server.log
 /storage/server.pid
 /storage/modules_cache.php
+/storage/modules_cache.json
 /storage/security_results.txt
+/storage/modules_state.json
+/storage/plugins_registry.json
+/storage/marketplace_stats.json
+/storage/capabilities_registry.json
+
+# ── src/storage (runtime interno — mesmo padrão) ──────────────────────────
+/src/storage/ratelimit/*
+!/src/storage/ratelimit/.gitkeep
+/src/storage/modules_state.json
 
 # ── Cache ─────────────────────────────────────────────────────────────────
 /cache/*
