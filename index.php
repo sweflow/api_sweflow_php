@@ -1113,6 +1113,14 @@ $router->post('/api/modules/connection', function ($request) use ($modules) {
         return Response::json(['error' => 'Arquivo escrito mas conteúdo não confere. Verifique permissões.'], 500);
     }
 
+    // Invalida OPcache do connection.php para que o novo valor seja lido imediatamente
+    if (function_exists('opcache_invalidate')) {
+        opcache_invalidate($connFile, true);
+    }
+
+    // Limpa cache estático do ModuleConnectionResolver para forçar re-leitura
+    \Src\Kernel\Database\ModuleConnectionResolver::clearCache();
+
     return Response::json(['ok' => true, 'name' => $name, 'connection' => $conn]);
 }, [AuthHybridMiddleware::class, AdminOnlyMiddleware::class]);
 

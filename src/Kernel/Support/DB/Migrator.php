@@ -423,6 +423,13 @@ class Migrator
         ];
         foreach ($candidates as $file) {
             if (is_file($file)) {
+                // Usa file_get_contents + regex em vez de include para evitar cache do OPcache
+                // O include cachearia o valor antigo após uma troca de conexão via dashboard
+                $raw = @file_get_contents($file);
+                if ($raw !== false && preg_match("/return\s+'(core|modules|auto)'\s*;/", $raw, $m)) {
+                    return $m[1];
+                }
+                // Fallback para include se o formato não for o padrão
                 $value = include $file;
                 if (is_string($value)) return trim($value);
             }

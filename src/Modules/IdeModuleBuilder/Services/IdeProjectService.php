@@ -868,8 +868,18 @@ class IdeProjectService
         // Resolve o PDO correto para este módulo (core ou DB2)
         $activePdo = $pdo;
         if ($deployed) {
-            $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-            $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
+            $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+            $conn     = 'core';
+            if (is_file($connFile)) {
+                // Usa file_get_contents + regex para evitar cache do OPcache
+                // (include cachearia o valor antigo após troca via dashboard)
+                $raw = @file_get_contents($connFile);
+                if ($raw !== false && preg_match("/return\s+'(core|modules|auto)'\s*;/", $raw, $m)) {
+                    $conn = $m[1];
+                } else {
+                    $conn = (string)(include $connFile); // fallback
+                }
+            }
             $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
             // Garante que a tabela migrations existe antes de qualquer consulta
             $this->ensureMigrationsTable($activePdo);
