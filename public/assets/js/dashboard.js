@@ -525,16 +525,19 @@ window.onload = function () {
 
             let routesHtml = '';
             mod.routes.forEach((route, idx) => {
-                const m = methodMeta[route.method] || { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', label: route.method };
+                const method = route.method || '';
+                const uri    = route.uri    || '';
+                if (!method || !uri) return; // descarta rotas malformadas
+                const m = methodMeta[method] || { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', label: method };
                 const priv = route.tipo === 'privada' || route.protected;
                 const hasFields = Array.isArray(route.fields) && route.fields.length > 0;
                 const routeId = `route-${modKey}-${idx}`;
                 window._routeData[routeId] = { ...route, moduleName: mod.name ?? mod.nome };
 
                 routesHtml += `<div class="rt-row" data-route-id="${routeId}" role="button" tabindex="0"
-                                    aria-label="Ver detalhes de ${route.method} ${route.uri}">
+                                    aria-label="Ver detalhes de ${method} ${uri}">
                     <span class="rt-method" style="color:${m.color};background:${m.bg}">${m.label}</span>
-                    <span class="rt-uri">${route.uri}</span>
+                    <span class="rt-uri">${uri}</span>
                     <div class="rt-badges">
                         ${priv
                             ? '<span class="rt-badge rt-badge-private"><i class="fa-solid fa-lock"></i> Privada</span>'

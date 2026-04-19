@@ -151,6 +151,51 @@ class SimpleModuleProvider implements ModuleProviderInterface
         }
     }
 
+    /**
+     * Extrai rotas de um arquivo de rotas via regex, sem executar o PHP.
+     * Fallback quando o include falha (ex: classe do controller não existe no autoloader).
+     */
+    private function extractRoutesFromSource(string $file, object $collector): void
+    {
+        $src = @file_get_contents($file);
+        if ($src === false) return;
+
+        $authMiddlewares = ['AuthHybridMiddleware', 'AdminOnlyMiddleware', 'AuthCookieMiddleware',
+                            'RouteProtectionMiddleware', 'ApiTokenMiddleware'];
+
+        preg_match_all(
+            '/\$router\s*->\s*(get|post|put|patch|delete)\s*\(\s*[\'"]([^\'"]+)[\'"]/i',
+            $src,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        foreach ($matches as $m) {
+            $method = strtoupper($m[1]);
+            $uri    = $m[2];
+            if ($method === '' || $uri === '') continue;
+
+            // Detecta se a chamada tem middleware de autenticação na mesma linha/bloco
+            $pos  = strpos($src, $m[0]);
+            $line = substr($src, max(0, $pos - 20), strlen($m[0]) + 200);
+
+            $isProtected = false;
+            foreach ($authMiddlewares as $mw) {
+                if (str_contains($line, $mw)) {
+                    $isProtected = true;
+                    break;
+                }
+            }
+
+            $collector->collected[] = [
+                'method'      => $method,
+                'uri'         => $uri,
+                'handler'     => null,
+                'middlewares' => $isProtected ? ['AuthHybridMiddleware'] : [],
+            ];
+        }
+    }
+
     /** Retorna os caminhos candidatos de arquivos de rota deste módulo. */
     private function routeCandidates(): array
     {
@@ -195,7 +240,12 @@ class SimpleModuleProvider implements ModuleProviderInterface
                         try {
                             $router = $collector;
                             include $realFile;
-                        } catch (\Throwable) {}
+                        } catch (\Throwable $e) {
+                            // include falhou (ex: classe do controller não existe no autoloader)
+                            // Fallback: extrai rotas via regex sem executar o PHP
+                            error_log('[SimpleModuleProvider] describe() include falhou para ' . $this->name . ', usando fallback regex: ' . $e->getMessage());
+                            $this->extractRoutesFromSource($realFile, $collector);
+                        }
                     }
                 }
             $this->routes = $collector->collected;
@@ -214,6 +264,14 @@ class SimpleModuleProvider implements ModuleProviderInterface
             'description' => $this->metadata['description'] ?? '',
             'version'     => $this->metadata['version'] ?? '1.0.0',
             'routes'      => array_map(function ($route) use ($authMiddlewares) {
+                // Garante que method e uri sempre existem — evita undefined no frontend
+                $method = strtoupper($route['method'] ?? '');
+                $uri    = $route['uri'] ?? '';
+
+                if ($method === '' || $uri === '') {
+                    return null; // descarta entradas malformadas
+                }
+
                 $isProtected = false;
                 foreach ($route['middlewares'] ?? [] as $mw) {
                     $def = is_array($mw) ? ($mw[0] ?? '') : $mw;
@@ -227,15 +285,15 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
                 // Enriquece com inspeção automática de campos
                 $inspected = RouteInspector::inspect(
-                    $route['method'] ?? 'GET',
-                    $route['uri']    ?? '',
+                    $method,
+                    $uri,
                     $route['handler'] ?? null,
                     $route['middlewares'] ?? []
                 );
 
                 return [
-                    'method'      => strtoupper($route['method'] ?? 'GET'),
-                    'uri'         => $route['uri'] ?? '',
+                    'method'      => $method,
+                    'uri'         => $uri,
                     'protected'   => $isProtected,
                     'tipo'        => $isProtected ? 'privada' : 'pública',
                     'description' => $inspected['description'],
@@ -247,6 +305,11 @@ class SimpleModuleProvider implements ModuleProviderInterface
                 ];
             }, $this->routes),
         ];
+
+        // Remove entradas nulas (rotas malformadas)
+        $this->describeCache['routes'] = array_values(
+            array_filter($this->describeCache['routes'], fn($r) => $r !== null)
+        );
 
         // connection é lido fora do cache — pode mudar em runtime via /api/modules/connection
         return array_merge($this->describeCache, ['connection' => $this->preferredConnection()]);
