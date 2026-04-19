@@ -1,0 +1,60 @@
+# ═══════════════════════════════════════════════════════════
+# .gitignore do Módulo Authenticador
+# ═══════════════════════════════════════════════════════════
+# 
+# IMPORTANTE: Este módulo é ISOLADO do sistema principal.
+# Desenvolvedores criam seus próprios .env e composer.json
+# sem afetar o sistema vupi.us api.
+# ═══════════════════════════════════════════════════════════
+
+# ── Arquivos de Ambiente ──────────────────────────────────
+# Cada desenvolvedor cria seu próprio .env
+.env
+.env.local
+.env.*.local
+.env.backup
+
+# ── Dependências do Módulo ────────────────────────────────
+# Instaladas localmente no módulo, não no sistema principal
+vendor/
+composer.lock
+
+# ── Logs do Módulo ────────────────────────────────────────
+*.log
+logs/
+debug.log
+error.log
+
+# ── Cache do Módulo ───────────────────────────────────────
+cache/
+*.cache
+.cache/
+
+# ── Arquivos Temporários ──────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ── IDE/Editor ────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Sistema Operacional ───────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Testes do Módulo ──────────────────────────────────────
+.phpunit.result.cache
+.phpunit.cache/
+coverage/
+
+# ── Arquivos de Debug (nunca commitar) ────────────────────
+_debug_*.php
+_test_*.php
+_check_*.php
+*.debug.txt

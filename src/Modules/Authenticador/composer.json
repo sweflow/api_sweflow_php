@@ -1,0 +1,40 @@
+{
+    "name": "sweflow/authenticador",
+    "description": "Módulo de Autenticação e Autorização com suporte a OAuth2",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Desenvolvedor do Módulo",
+            "email": "dev@example.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "firebase/php-jwt": "^7.0",
+        "league/oauth2-google": "^4.0",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Src\\Modules\\Authenticador\\": ""
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "vendor-dir": "vendor",
+        "bin-dir": "vendor/bin"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "post-install-cmd": [
+            "@php -r \"echo '\\n✅ Dependências do módulo Authenticador instaladas com sucesso!\\n';\""
+        ],
+        "post-update-cmd": [
+            "@php -r \"echo '\\n✅ Dependências do módulo Authenticador atualizadas com sucesso!\\n';\""
+        ]
+    }
+}

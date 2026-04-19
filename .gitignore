@@ -68,6 +68,7 @@ src/Modules/Email/
 
 # ── Storage (runtime — manter .gitkeep, ignorar conteúdo) ─────────────────
 /storage/ratelimit/*
+src/storage/ratelimit/*.json
 !/storage/ratelimit/.gitkeep
 /storage/threat/*
 !/storage/threat/.gitkeep
