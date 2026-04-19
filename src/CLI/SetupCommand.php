@@ -1195,15 +1195,31 @@ class SetupCommand
             unlink($pidFile);
             return false;
         }
-        // Verifica se o processo ainda existe
-        $check = new Process(['kill', '-0', $pid]);
-        $check->run();
-        if (!$check->isSuccessful()) {
-            unlink($pidFile);
-            return false;
+        
+        // Windows usa taskkill, Unix usa kill
+        if (PHP_OS_FAMILY === 'Windows') {
+            // Verifica se o processo existe
+            $check = new Process(['tasklist', '/FI', "PID eq {$pid}", '/NH']);
+            $check->run();
+            if (!str_contains($check->getOutput(), $pid)) {
+                unlink($pidFile);
+                return false;
+            }
+            // Mata o processo
+            $kill = new Process(['taskkill', '/F', '/PID', $pid]);
+            $kill->run();
+        } else {
+            // Verifica se o processo ainda existe
+            $check = new Process(['kill', '-0', $pid]);
+            $check->run();
+            if (!$check->isSuccessful()) {
+                unlink($pidFile);
+                return false;
+            }
+            $kill = new Process(['kill', $pid]);
+            $kill->run();
         }
-        $kill = new Process(['kill', $pid]);
-        $kill->run();
+        
         unlink($pidFile);
         echo "✔ Servidor PHP (PID {$pid}) parado.\n";
         return true;
