@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Kernel;
 
-use Src\Kernel\Contracts\AuthenticatableInterface;
+use Src\Kernel\Contracts\AuthContextInterface;
+use Src\Kernel\Contracts\AuthIdentityInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Middlewares\AdminOnlyMiddleware;
 use Src\Kernel\Middlewares\ApiTokenMiddleware;
@@ -12,179 +15,156 @@ use Src\Kernel\Middlewares\OptionalAuthHybridMiddleware;
 use Src\Kernel\Middlewares\RateLimitMiddleware;
 
 /**
- * Fachada de autenticação — simplifica o uso do Auth nas rotas dos módulos.
+ * Fachada de autenticação — simplifica o uso do Auth nas rotas e controllers.
  *
  * Uso nas rotas (Routes/web.php):
  *
- *   use Src\Kernel\Auth;
- *
- *   // Rota pública
- *   $router->get('/api/produtos', [Controller::class, 'listar']);
- *
- *   // Rota privada (qualquer usuário logado)
- *   $router->get('/api/perfil', [Controller::class, 'perfil'], Auth::user());
- *
- *   // Rota admin
- *   $router->post('/api/admin/produtos', [Controller::class, 'criar'], Auth::admin());
- *
- *   // Rota com rate limit
- *   $router->post('/api/produtos', [Controller::class, 'criar'], Auth::user(limit: 10));
- *
- *   // Rota com proteção de banco
- *   $router->post('/api/produtos', [Controller::class, 'criar'], Auth::admin(db: true));
+ *   $router->get('/api/perfil',  [Controller::class, 'perfil'],  Auth::user());
+ *   $router->post('/api/admin',  [Controller::class, 'criar'],   Auth::admin());
+ *   $router->post('/api/webhook',[Controller::class, 'receber'], Auth::api());
+ *   $router->get('/api/feed',    [Controller::class, 'feed'],    Auth::optional());
+ *   $router->post('/api/contato',[Controller::class, 'enviar'],  Auth::limit(5));
  *
  * Uso nos Controllers:
  *
- *   $user = Auth::current($request);   // retorna AuthenticatableInterface ou null
- *   $id   = Auth::id($request);        // retorna o UUID do usuário logado ou null
- *   $role = Auth::role($request);      // retorna o nível de acesso ou null
- *   Auth::check($request);             // lança 401 se não autenticado
- *   Auth::checkAdmin($request);        // lança 403 se não for admin_system
+ *   $identity = Auth::identity($request);  // AuthIdentityInterface|null
+ *   $user     = Auth::current($request);   // mixed — o objeto de usuário
+ *   $id       = Auth::id($request);        // string|null — UUID ou ID
+ *   $role     = Auth::role($request);      // string|null — nível de acesso
+ *   Auth::check($request);                 // lança 401 se não autenticado
+ *   Auth::checkAdmin($request);            // lança 403 se não for admin
  */
 final class Auth
 {
     // ── Middlewares para rotas ────────────────────────────────────────────
 
-    /**
-     * Rota privada — exige qualquer usuário autenticado.
-     *
-     * @param int    $limit  Máximo de requisições por minuto (0 = sem limite)
-     * @param string $key    Chave do rate limit (padrão: gerada automaticamente)
-     * @param bool   $db     Adiciona circuit breaker para proteção do banco
-     * @return list<string|array<string, mixed>>
-     */
+    /** Rota privada — exige qualquer usuário autenticado. */
     public static function user(int $limit = 0, string $key = '', bool $db = false): array
     {
         return self::build([AuthHybridMiddleware::class], $limit, $key, $db);
     }
 
-    /**
-     * Rota admin — exige admin_system com JWT_API_SECRET.
-     *
-     * @param int    $limit  Máximo de requisições por minuto (0 = sem limite)
-     * @param string $key    Chave do rate limit
-     * @param bool   $db     Adiciona circuit breaker
-     * @return list<string|array<string, mixed>>
-     */
+    /** Rota admin — exige admin_system com JWT_API_SECRET. */
     public static function admin(int $limit = 0, string $key = '', bool $db = false): array
     {
         return self::build([AuthHybridMiddleware::class, AdminOnlyMiddleware::class], $limit, $key, $db);
     }
 
-    /**
-     * Rota de API — exige token de API (JWT_API_SECRET, tipo: 'api').
-     * Usado para integrações machine-to-machine.
-     *
-     * @return list<string|array<string, mixed>>
-     */
+    /** Rota de API — exige token de API (machine-to-machine). */
     public static function api(int $limit = 0, string $key = ''): array
     {
         return self::build([ApiTokenMiddleware::class], $limit, $key, false);
     }
 
-    /**
-     * Rota com autenticação opcional — injeta o usuário se logado, mas não bloqueia.
-     * Útil para conteúdo diferente para logados/não logados.
-     *
-     * @return list<string>
-     */
+    /** Rota com autenticação opcional — injeta identidade se autenticado, não bloqueia. */
     public static function optional(): array
     {
         return [OptionalAuthHybridMiddleware::class];
     }
 
-    /**
-     * Apenas rate limit — sem autenticação.
-     * Útil para rotas públicas que precisam de proteção contra abuso.
-     *
-     * @return list<array{0: class-string, 1: array<string, mixed>}>
-     */
+    /** Apenas rate limit — sem autenticação. */
     public static function limit(int $limit, int $window = 60, string $key = ''): array
     {
-        return [[RateLimitMiddleware::class, [
-            'limit'  => $limit,
-            'window' => $window,
-            'key'    => $key,
-        ]]];
+        return [[RateLimitMiddleware::class, ['limit' => $limit, 'window' => $window, 'key' => $key]]];
     }
 
-    /**
-     * Apenas circuit breaker — sem autenticação.
-     *
-     * @return list<array{0: class-string, 1: array<string, mixed>}>
-     */
+    /** Apenas circuit breaker — sem autenticação. */
     public static function db(int $threshold = 5, int $cooldown = 20): array
     {
         return [[CircuitBreakerMiddleware::class, [
-            'service'   => 'database',
-            'threshold' => $threshold,
-            'cooldown'  => $cooldown,
+            'service' => 'database', 'threshold' => $threshold, 'cooldown' => $cooldown,
         ]]];
     }
 
     // ── Helpers para Controllers ──────────────────────────────────────────
 
-    public static function current(Request $request): ?AuthenticatableInterface
+    /**
+     * Retorna a identidade tipada do Request.
+     * Fonte única de verdade — sem strings mágicas.
+     */
+    public static function identity(Request $request): ?AuthIdentityInterface
     {
-        $user = $request->attribute('auth_user');
-        return ($user instanceof AuthenticatableInterface) ? $user : null;
+        $identity = $request->attribute(AuthContextInterface::IDENTITY_KEY);
+        return $identity instanceof AuthIdentityInterface ? $identity : null;
     }
 
-    public static function id(Request $request): ?string
+    /**
+     * Retorna o objeto de usuário autenticado, ou null.
+     */
+    public static function current(Request $request): mixed
     {
-        return self::current($request)?->getAuthId();
+        return self::identity($request)?->user();
     }
 
+    /**
+     * Retorna o ID do usuário autenticado, ou null.
+     */
+    public static function id(Request $request): string|int|null
+    {
+        return self::identity($request)?->id();
+    }
+
+    /**
+     * Retorna o role/nível de acesso do usuário, ou null.
+     */
     public static function role(Request $request): ?string
     {
-        return self::current($request)?->getAuthRole();
+        return self::identity($request)?->role();
     }
 
     /**
-     * Verifica se o usuário está autenticado.
+     * Retorna o tipo da identidade: 'user', 'api_token', 'guest', 'inactive', etc.
+     */
+    public static function type(Request $request): string
+    {
+        return self::identity($request)?->type() ?? 'guest';
+    }
+
+    /**
+     * Garante que o usuário está autenticado.
      * @throws \DomainException 401 se não autenticado
      */
-    public static function check(Request $request): AuthenticatableInterface
+    public static function check(Request $request): AuthIdentityInterface
     {
-        $user = self::current($request);
-        if ($user === null) {
+        $identity = self::identity($request);
+        if ($identity === null || !$identity->isAuthenticated()) {
             throw new \DomainException('Não autenticado.', 401);
         }
-        return $user;
+        return $identity;
     }
 
     /**
-     * Verifica se o usuário é admin_system.
-     * @throws \DomainException 403 se não for admin
+     * Garante que o usuário é admin.
+     * @throws \DomainException 401 se não autenticado, 403 se não for admin
      */
-    public static function checkAdmin(Request $request): AuthenticatableInterface
+    public static function checkAdmin(Request $request): AuthIdentityInterface
     {
-        $user = self::check($request);
-        if ($user->getAuthRole() !== 'admin_system') {
+        $identity = self::check($request);
+
+        if (!$identity->hasRole('admin_system')) {
             throw new \DomainException('Acesso restrito.', 403);
         }
-        return $user;
+
+        return $identity;
     }
 
     /**
-     * Verifica se o usuário tem um dos papéis informados.
-     * @throws \DomainException 403 se não tiver o papel
+     * Garante que o usuário tem um dos papéis informados.
+     * @throws \DomainException 401 se não autenticado, 403 se não tiver o papel
      */
-    public static function checkRole(Request $request, string ...$roles): AuthenticatableInterface
+    public static function checkRole(Request $request, string ...$roles): AuthIdentityInterface
     {
-        $user = self::check($request);
-        if (!in_array($user->getAuthRole(), $roles, true)) {
+        $identity = self::check($request);
+
+        if (!$identity->hasRole(...$roles)) {
             throw new \DomainException('Acesso restrito.', 403);
         }
-        return $user;
+
+        return $identity;
     }
 
     // ── Interno ───────────────────────────────────────────────────────────
 
-    /**
-     * @param list<string> $middlewares
-     * @return list<string|array<string, mixed>>
-     */
     private static function build(array $middlewares, int $limit, string $key, bool $db): array
     {
         $stack = [];
@@ -199,9 +179,7 @@ final class Auth
 
         if ($db) {
             $stack[] = [CircuitBreakerMiddleware::class, [
-                'service'   => 'database',
-                'threshold' => 5,
-                'cooldown'  => 20,
+                'service' => 'database', 'threshold' => 5, 'cooldown' => 20,
             ]];
         }
 

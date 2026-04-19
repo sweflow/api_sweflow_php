@@ -137,7 +137,7 @@ class SystemModulesController
         }
     }
 
-    private function fetchPackagistDetail(string $name, $context, string $baseUrl = 'https://packagist.org'): ?array
+    private function fetchPackagistDetail(string $name, mixed $context, string $baseUrl = 'https://packagist.org'): ?array
     {
         // Valida que o nome do pacote tem formato vendor/package (sem path traversal)
         if (!preg_match('/^[a-z0-9_\-]+\/[a-z0-9_\-]+$/i', $name)) {

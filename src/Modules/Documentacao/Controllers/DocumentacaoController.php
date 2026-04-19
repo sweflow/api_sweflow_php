@@ -2,6 +2,7 @@
 
 namespace Src\Modules\Documentacao\Controllers;
 
+use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 
 class DocumentacaoController
@@ -30,35 +31,49 @@ class DocumentacaoController
         return Response::html($html);
     }
 
-    public function asset(): Response
+    public function assetCss(Request $request): Response
     {
-        $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+        $file = $request->param('file') ?? '';
+        // Remove query string parameters (e.g., ?v=3)
+        $file = preg_replace('/\?.*$/', '', $file);
+        return $this->serveAsset('css/' . $file);
+    }
 
-        // Extrai o caminho após /doc/
-        $relative = preg_replace('#^/doc/#', '', $requestUri);
+    public function assetJs(Request $request): Response
+    {
+        $file = $request->param('file') ?? '';
+        // Remove query string parameters
+        $file = preg_replace('/\?.*$/', '', $file);
+        return $this->serveAsset('js/' . $file);
+    }
 
-        // Proteção contra path traversal — normaliza sem depender de realpath
-        // (realpath falha silenciosamente se www-data não tiver permissão de traversal)
-        $relative = str_replace(['../', '..\\', "\0"], '', $relative);
-        $relative = ltrim($relative, '/');
+    public function assetImg(Request $request): Response
+    {
+        $file = $request->param('file') ?? '';
+        // Remove query string parameters
+        $file = preg_replace('/\?.*$/', '', $file);
+        return $this->serveAsset('imgs/' . $file);
+    }
 
-        $targetPath = $this->docRoot . '/' . $relative;
+    private function serveAsset(string $relativePath): Response
+    {
+        // Proteção contra path traversal
+        $relativePath = str_replace(['../', '..\\', "\0"], '', $relativePath);
+        $relativePath = ltrim($relativePath, '/');
 
-        // Verifica containment sem realpath: normaliza manualmente
-        $normalizedDoc    = rtrim(str_replace('\\', '/', $this->docRoot), '/');
-        $normalizedTarget = str_replace('\\', '/', $targetPath);
-
-        // Remove segmentos .. após normalização
-        $parts  = explode('/', $normalizedTarget);
-        $stack  = [];
-        foreach ($parts as $part) {
-            if ($part === '..') { array_pop($stack); }
-            elseif ($part !== '.' && $part !== '') { $stack[] = $part; }
+        if (empty($relativePath)) {
+            return Response::html('Asset path required', 400);
         }
-        $normalizedTarget = '/' . implode('/', $stack);
 
-        if (!str_starts_with($normalizedTarget, $normalizedDoc . '/') || !is_file($normalizedTarget)) {
-            return Response::html('', 404);
+        $targetPath = $this->docRoot . '/assets/' . $relativePath;
+
+        // Normaliza caminhos para comparação (Windows/Unix)
+        $normalizedDoc    = rtrim(str_replace('\\', '/', realpath($this->docRoot) ?: $this->docRoot), '/');
+        $normalizedTarget = str_replace('\\', '/', realpath($targetPath) ?: $targetPath);
+
+        // Verifica se o arquivo existe e está dentro do diretório permitido
+        if (!is_file($normalizedTarget) || !str_starts_with($normalizedTarget, $normalizedDoc . '/')) {
+            return Response::html('Asset not found: ' . htmlspecialchars($relativePath), 404);
         }
 
         $ext = strtolower(pathinfo($normalizedTarget, PATHINFO_EXTENSION));
@@ -77,12 +92,12 @@ class DocumentacaoController
         ];
 
         if (!isset($mimeMap[$ext])) {
-            return Response::html('', 403);
+            return Response::html('Forbidden file type', 403);
         }
 
         $content = @file_get_contents($normalizedTarget);
         if ($content === false) {
-            return Response::html('', 500);
+            return Response::html('Error reading file', 500);
         }
 
         return new Response($content, 200, [

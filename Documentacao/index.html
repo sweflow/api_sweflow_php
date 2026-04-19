@@ -94,6 +94,9 @@
       <a class="docs-nav-link" data-page="auth-modulo" href="#auth-modulo">
         <i class="fa-solid fa-key"></i> Módulo Auth
       </a>
+      <a class="docs-nav-link" data-page="auth-plugavel" href="#auth-plugavel">
+        <i class="fa-solid fa-plug"></i> Autenticação Plugável
+      </a>
       <a class="docs-nav-link" data-page="usuario-customizado" href="#usuario-customizado">
         <i class="fa-solid fa-user-gear"></i> Usuário Customizado
       </a>
@@ -208,15 +211,150 @@
       </div>
 
       <h2 id="o-que-e">O que é a Vupi.us API?</h2>
-      <p>A Vupi.us API é um framework PHP modular de alta performance, projetado para construir APIs REST robustas sem a complexidade de frameworks pesados. Cada funcionalidade vive em um <strong>módulo independente</strong> — uma pasta em <code>src/Modules/</code>.</p>
+      <p>A Vupi.us API é um <strong>framework PHP modular de alta performance</strong>, projetado para construir APIs REST robustas sem a complexidade de frameworks pesados como Laravel ou Symfony. Desenvolvido em <strong>PHP puro 8.2+</strong>, combina a simplicidade de uso com recursos enterprise-grade.</p>
+
+      <h3 id="filosofia">Filosofia do Projeto</h3>
+      <p>O projeto nasceu da necessidade de ter um framework que seja:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>Simples de entender</strong> — código limpo, sem "mágica" excessiva</li>
+        <li><strong>Modular por natureza</strong> — cada funcionalidade é um módulo isolado</li>
+        <li><strong>Seguro por padrão</strong> — proteções OWASP Top 10 integradas</li>
+        <li><strong>Rápido de desenvolver</strong> — convenções inteligentes reduzem boilerplate</li>
+        <li><strong>Fácil de manter</strong> — estrutura clara e previsível</li>
+      </ul>
+
+      <h3 id="arquitetura-modular">Arquitetura Modular</h3>
+      <p>Cada funcionalidade vive em um <strong>módulo independente</strong> — uma pasta em <code>src/Modules/</code>. Um módulo pode conter:</p>
+      
+      <div class="file-tree">src/Modules/
+├── Usuario/
+│   ├── Controllers/
+│   │   └── UsuarioController.php
+│   ├── Models/
+│   │   └── Usuario.php
+│   ├── Migrations/
+│   │   └── 001_create_usuarios_table.php
+│   ├── Routes/
+│   │   ├── api.php
+│   │   └── web.php
+│   └── Middlewares/
+│       └── ValidarUsuario.php
+└── Produto/
+    ├── Controllers/
+    ├── Models/
+    └── Routes/</div>
+
+      <p>Cada módulo é <strong>autocontido</strong>: possui suas próprias rotas, controllers, models, migrations e middlewares. Você pode:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li>Adicionar um módulo criando uma pasta</li>
+        <li>Remover um módulo deletando a pasta</li>
+        <li>Compartilhar módulos entre projetos</li>
+        <li>Desenvolver módulos de forma isolada</li>
+      </ul>
 
       <div class="callout note">
         <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
         <div class="callout-body">
           <strong>Filosofia Zero Config</strong>
-          <p>Crie uma pasta em <code>src/Modules/</code> e o sistema a detecta automaticamente. Sem registro manual, sem arquivos de configuração centralizados.</p>
+          <p>Crie uma pasta em <code>src/Modules/</code> e o sistema a detecta automaticamente. Sem registro manual, sem arquivos de configuração centralizados. O Kernel escaneia o diretório e carrega todos os módulos encontrados.</p>
         </div>
       </div>
+
+      <h3 id="kernel-vs-modulos">Kernel vs Módulos</h3>
+      <p>O sistema é dividido em duas camadas principais:</p>
+      
+      <table class="docs-table">
+        <thead><tr><th>Camada</th><th>Responsabilidade</th><th>Localização</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Kernel</strong></td>
+            <td>Infraestrutura base: roteamento, autenticação, banco de dados, container DI, middlewares core, segurança</td>
+            <td><code>src/Kernel/</code></td>
+          </tr>
+          <tr>
+            <td><strong>Módulos</strong></td>
+            <td>Lógica de negócio: funcionalidades específicas da aplicação (usuários, produtos, pedidos, etc.)</td>
+            <td><code>src/Modules/</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>O <strong>Kernel</strong> fornece os serviços fundamentais que todos os módulos podem usar. Os <strong>Módulos</strong> implementam as funcionalidades específicas do seu projeto.</p>
+
+      <h3 id="para-quem">Para quem é este framework?</h3>
+      <p>A Vupi.us API é ideal para:</p>
+      
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-solid fa-code" style="color:#4f46e5"></i></div>
+          <h3>Desenvolvedores PHP</h3>
+          <p>Que querem produtividade sem abrir mão de controle e simplicidade.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-rocket" style="color:#16a34a"></i></div>
+          <h3>Startups e MVPs</h3>
+          <p>Que precisam desenvolver rápido com código limpo e escalável.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-building" style="color:#d97706"></i></div>
+          <h3>Projetos Enterprise</h3>
+          <p>Que exigem segurança, auditoria e arquitetura modular.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(96,165,250,0.12)"><i class="fa-solid fa-graduation-cap" style="color:#2563eb"></i></div>
+          <h3>Aprendizado</h3>
+          <p>Código limpo e bem documentado, ideal para estudar arquitetura de APIs.</p>
+        </div>
+      </div>
+
+      <h3 id="diferenciais">O que torna a Vupi.us API diferente?</h3>
+      
+      <table class="docs-table">
+        <thead><tr><th>Característica</th><th>Vupi.us API</th><th>Frameworks tradicionais</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Curva de aprendizado</strong></td>
+            <td>Baixa — estrutura simples e previsível</td>
+            <td>Alta — muitas abstrações e conceitos</td>
+          </tr>
+          <tr>
+            <td><strong>Modularidade</strong></td>
+            <td>Nativa — módulos são cidadãos de primeira classe</td>
+            <td>Opcional — geralmente via packages</td>
+          </tr>
+          <tr>
+            <td><strong>Configuração</strong></td>
+            <td>Zero config — convenções inteligentes</td>
+            <td>Muitos arquivos de configuração</td>
+          </tr>
+          <tr>
+            <td><strong>Performance</strong></td>
+            <td>Alta — código enxuto, sem overhead</td>
+            <td>Variável — frameworks pesados têm overhead</td>
+          </tr>
+          <tr>
+            <td><strong>Segurança</strong></td>
+            <td>Integrada — OWASP Top 10 por padrão</td>
+            <td>Requer configuração manual</td>
+          </tr>
+          <tr>
+            <td><strong>Tamanho</strong></td>
+            <td>Leve — apenas o essencial</td>
+            <td>Pesado — muitas features não utilizadas</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 id="casos-uso">Casos de Uso</h3>
+      <p>A Vupi.us API é perfeita para:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:20px;line-height:2">
+        <li><strong>APIs REST</strong> — backend para aplicações web e mobile</li>
+        <li><strong>Microserviços</strong> — serviços independentes e escaláveis</li>
+        <li><strong>Sistemas SaaS</strong> — multi-tenant com isolamento de dados</li>
+        <li><strong>Integrações</strong> — conectar sistemas legados com aplicações modernas</li>
+        <li><strong>Dashboards administrativos</strong> — interface web incluída</li>
+        <li><strong>Protótipos rápidos</strong> — do zero ao deploy em minutos</li>
+      </ul>
 
       <h2 id="recursos">Recursos principais</h2>
       <div class="kernel-grid">
@@ -561,6 +699,22 @@ sudo bash install.sh</code></pre>
         </tbody>
       </table>
 
+      <h3 id="variaveis-db-avancado">Configurações Avançadas de Banco</h3>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>DEFAULT_MODULE_CONNECTION</code></td><td><code>modules</code></td><td><code>core</code> ou <code>modules</code>. Define qual banco os módulos usam por padrão.</td></tr>
+          <tr><td><code>MIGRATE_LOCK_TIMEOUT</code></td><td><code>300</code></td><td>Timeout em segundos para lock de migrations (evita execução simultânea).</td></tr>
+        </tbody>
+      </table>
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Quando usar dois bancos?</strong>
+          <p>Use <code>DB2_*</code> quando quiser separar dados do kernel (usuários, auth, auditoria) dos dados dos módulos (produtos, pedidos, etc.). Útil para compliance, backup seletivo ou performance.</p>
+        </div>
+      </div>
+
       <h2 id="variaveis-jwt">JWT e Segurança</h2>
       <div class="callout danger">
         <div class="callout-icon"><i class="fa-solid fa-lock"></i></div>
@@ -582,6 +736,29 @@ sudo bash install.sh</code></pre>
           <tr><td><code>COOKIE_SAMESITE</code></td><td><code>Lax</code></td><td><code>Lax</code> (mesmo domínio) ou <code>None</code> (domínios diferentes, requer Secure=true).</td></tr>
         </tbody>
       </table>
+
+      <h3 id="variaveis-jwt-rotation">Key Rotation (Avançado)</h3>
+      <p>O sistema suporta rotação de secrets JWT sem downtime. Tokens assinados com secrets antigos continuam válidos enquanto novos tokens usam o secret atual.</p>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWT_SECRET_KID</code></td><td><code>v2</code></td><td>ID da chave ativa (v1, v2, v3...). Define qual secret usar para novos tokens.</td></tr>
+          <tr><td><code>JWT_SECRET_v1</code></td><td><code>secret_antigo</code></td><td>Secret anterior. Tokens assinados com v1 ainda são válidos.</td></tr>
+          <tr><td><code>JWT_SECRET_v2</code></td><td><code>secret_atual</code></td><td>Secret atual. Usado para assinar novos tokens quando KID=v2.</td></tr>
+          <tr><td><code>JWT_SECRET_v3</code></td><td><code>secret_futuro</code></td><td>Secret futuro (opcional). Permite preparar próxima rotação.</td></tr>
+          <tr><td><code>REVOCATION_STORAGE</code></td><td><code>database</code></td><td><code>database</code> ou <code>redis</code>. Define onde armazenar tokens revogados.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Como fazer key rotation</strong>
+          <p>1. Adicione <code>JWT_SECRET_v2</code> com novo secret<br>
+          2. Defina <code>JWT_SECRET_KID=v2</code><br>
+          3. Aguarde expiração dos tokens v1 (padrão: 15 min)<br>
+          4. Remova <code>JWT_SECRET_v1</code> do .env</p>
+        </div>
+      </div>
 
       <h2 id="variaveis-mail">E-mail (SMTP)</h2>
       <table class="docs-table">
@@ -625,6 +802,38 @@ sudo bash install.sh</code></pre>
           <tr><td><code>REDIS_PREFIX</code></td><td><code>vupi:</code></td><td>Prefixo das chaves no Redis.</td></tr>
         </tbody>
       </table>
+
+      <h2 id="variaveis-ide">Vupi.us IDE</h2>
+      <p>Configurações da IDE integrada para criação de módulos no navegador.</p>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Padrão</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>IDE_MAX_PROJECTS_PER_USER</code></td><td><code>10</code></td><td>Máximo de projetos por usuário na IDE.</td></tr>
+          <tr><td><code>IDE_MAX_FILES_PER_PROJECT</code></td><td><code>50</code></td><td>Máximo de arquivos por projeto.</td></tr>
+          <tr><td><code>IDE_MAX_FILE_SIZE_KB</code></td><td><code>500</code></td><td>Tamanho máximo de arquivo em KB.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="variaveis-integracoes">Integrações Externas</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variável</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>Client ID do Google Cloud Console (para OAuth no módulo LinkEncurtador).</td></tr>
+          <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td>Client Secret do Google (para OAuth no módulo LinkEncurtador).</td></tr>
+          <tr><td><code>SECURITY_ALERT_WEBHOOK</code></td><td>URL do webhook para alertas de segurança (Slack, Discord, etc.). Opcional.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Configurar Google OAuth</strong>
+          <p>1. Acesse <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a><br>
+          2. Crie um projeto ou selecione existente<br>
+          3. Ative a API "Google+ API"<br>
+          4. Crie credenciais OAuth 2.0<br>
+          5. Adicione <code>https://seudominio.com</code> nas origens autorizadas</p>
+        </div>
+      </div>
 
       <h2 id="gerar-secrets">Gerar secrets JWT</h2>
       <div class="code-block">
@@ -3869,6 +4078,544 @@ $container-&gt;bind(
     </section>
 
 
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: AUTENTICAÇÃO PLUGÁVEL
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-auth-plugavel">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-plug"></i></div>
+        <div>
+          <h1>Autenticação Plugável</h1>
+          <p>Sistema completamente plugável baseado em contratos. Substitua JWT por OAuth2, LDAP ou qualquer estratégia sem modificar o kernel.</p>
+        </div>
+      </div>
+
+      <h2 id="auth-plug-visao">Visão Geral</h2>
+      <p>A Vupi.us API implementa um sistema de autenticação completamente plugável baseado em <strong>contratos (interfaces)</strong>. Isso significa que desenvolvedores podem substituir <strong>qualquer parte</strong> do pipeline de autenticação — desde a extração do token até a resolução do usuário — sem modificar o kernel.</p>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Arquitetura Hexagonal</strong>
+          <p>O sistema segue os princípios de <strong>Ports & Adapters</strong> e <strong>Dependency Inversion</strong>: o kernel define portas (contratos), os módulos fornecem adaptadores (implementações), e módulos de negócio consomem as portas sem saber qual adaptador está ativo.</p>
+        </div>
+      </div>
+
+      <h3 id="auth-plug-cenarios">Cenários possíveis</h3>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li>Substituir JWT por OAuth2, SAML, magic link ou sessão PHP</li>
+        <li>Usar LDAP, Active Directory ou API externa para resolver usuários</li>
+        <li>Implementar autorização baseada em ACL, RBAC ou ABAC</li>
+        <li>Integrar múltiplos módulos de autenticação diferentes no mesmo projeto</li>
+      </ul>
+
+      <h2 id="auth-plug-pipeline">Pipeline de Autenticação</h2>
+      <p>O pipeline é composto por <strong>8 contratos independentes</strong>, cada um com uma responsabilidade única:</p>
+
+      <div class="file-tree">
+Request
+    ↓
+TokenResolverInterface      → De onde vem o token?
+    ↓
+TokenValidatorInterface     → O token é válido?
+    ↓
+UserResolverInterface       → Quem é o usuário?
+    ↓
+IdentityFactoryInterface    → Como montar a identidade?
+    ↓
+AuthContextInterface        → Orquestrador do pipeline
+    ↓
+AuthorizationInterface      → O usuário pode fazer isso?
+    ↓
+AuthIdentityInterface       → Objeto de identidade tipado
+      </div>
+
+      <p>Cada contrato pode ser substituído <strong>independentemente</strong> por um módulo externo.</p>
+
+      <h2 id="auth-plug-contratos">Os 8 Contratos</h2>
+
+      <h3 id="auth-plug-context">1. AuthContextInterface</h3>
+      <p><strong>Responsabilidade:</strong> Orquestrar o pipeline completo de autenticação.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface AuthContextInterface
+{
+    // Constantes para atributos do Request
+    public const IDENTITY_KEY       = 'auth_identity';
+    public const LEGACY_USER_KEY    = 'auth_user';
+    public const LEGACY_PAYLOAD_KEY = 'auth_payload';
+
+    /**
+     * Resolve a identidade a partir do Request.
+     * Retorna AuthIdentityInterface se autenticado, null se não há credencial válida.
+     */
+    public function resolve(Request $request): ?AuthIdentityInterface;
+
+    /**
+     * Extrai a identidade já resolvida de um Request.
+     */
+    public function identity(Request $request): ?AuthIdentityInterface;
+}</code></pre>
+      </div>
+      <p><strong>Implementação nativa:</strong> <code>JwtAuthContext</code></p>
+
+      <h3 id="auth-plug-identity">2. AuthIdentityInterface</h3>
+      <p><strong>Responsabilidade:</strong> Representar a identidade autenticada de forma tipada e imutável.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface AuthIdentityInterface
+{
+    // Identificação
+    public function id(): string|int|null;
+    public function role(): ?string;
+    public function type(): string; // 'user', 'api_token', 'guest', 'inactive', etc.
+
+    // Verificações de estado
+    public function isAuthenticated(): bool;
+    public function isApiToken(): bool;
+    public function isGuest(): bool;
+    public function hasRole(string ...$roles): bool;
+
+    // Escape hatches (low-level)
+    public function user(): mixed;
+    public function payload(): ?TokenPayloadInterface;
+}</code></pre>
+      </div>
+      <p><strong>Implementações nativas:</strong> <code>AuthIdentity</code>, <code>InactiveAuthIdentity</code>, <code>NotFoundAuthIdentity</code></p>
+
+      <h3 id="auth-plug-tipos">Tipos de identidade</h3>
+      <table class="docs-table">
+        <thead><tr><th>Tipo</th><th>Descrição</th><th>Status HTTP</th></tr></thead>
+        <tbody>
+          <tr><td><code>user</code></td><td>Usuário humano autenticado e ativo</td><td>200</td></tr>
+          <tr><td><code>api_token</code></td><td>Token machine-to-machine</td><td>200</td></tr>
+          <tr><td><code>guest</code></td><td>Sem credencial válida</td><td>401</td></tr>
+          <tr><td><code>inactive</code></td><td>Credencial válida, conta inativa</td><td>403</td></tr>
+          <tr><td><code>not_found</code></td><td>Token válido, usuário não existe</td><td>401</td></tr>
+        </tbody>
+      </table>
+      <p>Módulos podem definir tipos adicionais: <code>service</code>, <code>bot</code>, <code>impersonated</code>, etc.</p>
+
+      <h3 id="auth-plug-authorization">3. AuthorizationInterface</h3>
+      <p><strong>Responsabilidade:</strong> Decidir se uma identidade tem permissão para realizar uma ação.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface AuthorizationInterface
+{
+    /**
+     * Verifica se a identidade tem permissão de administrador do sistema.
+     */
+    public function isAdmin(AuthIdentityInterface $identity, Request $request): bool;
+
+    /**
+     * Verifica se a identidade possui um dos papéis informados.
+     */
+    public function hasRole(AuthIdentityInterface $identity, string ...$roles): bool;
+}</code></pre>
+      </div>
+
+      <h3 id="auth-plug-resolver">4. TokenResolverInterface</h3>
+      <p><strong>Responsabilidade:</strong> Extrair o token bruto do Request.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface TokenResolverInterface
+{
+    /**
+     * Extrai o token bruto do Request.
+     * Retorna string vazia se não encontrar token.
+     */
+    public function resolve(Request $request): string;
+}</code></pre>
+      </div>
+      <p><strong>Implementações nativas:</strong> <code>BearerTokenResolver</code>, <code>CookieTokenResolver</code>, <code>CompositeTokenResolver</code></p>
+
+      <h3 id="auth-plug-validator">5. TokenValidatorInterface</h3>
+      <p><strong>Responsabilidade:</strong> Validar o token e retornar o payload tipado.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface TokenValidatorInterface
+{
+    /**
+     * Valida o token e retorna o payload tipado, ou null se inválido.
+     */
+    public function validate(string $token): ?TokenPayloadInterface;
+
+    /**
+     * Indica se o token é um token de API puro (machine-to-machine).
+     */
+    public function isApiToken(string $token): bool;
+}</code></pre>
+      </div>
+      <p><strong>Implementação nativa:</strong> <code>JwtTokenValidator</code></p>
+
+      <h3 id="auth-plug-payload">6. TokenPayloadInterface</h3>
+      <p><strong>Responsabilidade:</strong> Encapsular o payload do token de forma tipada.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface TokenPayloadInterface
+{
+    public function getSubject(): ?string;
+    public function getRole(): ?string;
+    public function isSignedWithApiSecret(): bool;
+    public function get(string $key): mixed;
+    public function raw(): mixed;
+}</code></pre>
+      </div>
+
+      <h3 id="auth-plug-user-resolver">7. UserResolverInterface</h3>
+      <p><strong>Responsabilidade:</strong> Buscar o usuário pelo identificador extraído do payload.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface UserResolverInterface
+{
+    /**
+     * Resolve o usuário pelo identificador do payload.
+     * Retorna null se não encontrado.
+     */
+    public function resolve(string $identifier, TokenPayloadInterface $payload): mixed;
+}</code></pre>
+      </div>
+      <p><strong>Implementação nativa:</strong> <code>DatabaseUserResolver</code></p>
+
+      <h3 id="auth-plug-factory">8. IdentityFactoryInterface</h3>
+      <p><strong>Responsabilidade:</strong> Criar objetos <code>AuthIdentityInterface</code> a partir de usuário e payload.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>interface IdentityFactoryInterface
+{
+    /**
+     * Cria uma identidade para um usuário autenticado.
+     */
+    public function forUser(mixed $user, TokenPayloadInterface $payload): AuthIdentityInterface;
+
+    /**
+     * Cria uma identidade para um token de API puro (machine-to-machine).
+     */
+    public function forApiToken(): AuthIdentityInterface;
+}</code></pre>
+      </div>
+      <p><strong>Implementação nativa:</strong> <code>DefaultIdentityFactory</code></p>
+
+      <h2 id="auth-plug-exemplo-oauth2">Exemplo: Substituir JWT por OAuth2</h2>
+      <p>Um desenvolvedor quer usar OAuth2 em vez de JWT. Veja como fazer:</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Criar o módulo OAuth2Auth</h3>
+            <div class="file-tree">
+<span class="dir">src/Modules/OAuth2Auth/</span>
+├── <span class="file">OAuth2TokenValidator.php</span>
+├── <span class="file">OAuth2Payload.php</span>
+├── <span class="file">OAuth2AuthContext.php</span>
+└── <span class="file">OAuth2AuthProvider.php</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Implementar TokenValidatorInterface</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>final class OAuth2TokenValidator implements TokenValidatorInterface
+{
+    public function __construct(
+        private string $introspectionEndpoint,
+        private string $clientId,
+        private string $clientSecret
+    ) {}
+
+    public function validate(string $token): ?TokenPayloadInterface
+    {
+        // Chama o endpoint de introspecção do OAuth2
+        $response = $this-&gt;introspect($token);
+        
+        if (!$response['active']) {
+            return null;
+        }
+
+        return new OAuth2Payload($response);
+    }
+
+    public function isApiToken(string $token): bool
+    {
+        return str_starts_with($token, 'client_');
+    }
+
+    private function introspect(string $token): array
+    {
+        // Implementação da chamada HTTP ao servidor OAuth2
+        // ...
+    }
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Registrar no provider</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>// OAuth2Auth/OAuth2AuthProvider.php
+public function boot(ContainerInterface $container): void
+{
+    // Substitui o validator
+    $container-&gt;bind(
+        TokenValidatorInterface::class,
+        OAuth2TokenValidator::class,
+        true
+    );
+
+    // Substitui o context
+    $container-&gt;bind(
+        AuthContextInterface::class,
+        OAuth2AuthContext::class,
+        true
+    );
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Resultado</strong>
+          <p>Todos os módulos que usam <code>Auth::user()</code>, <code>Auth::admin()</code>, <code>Auth::identity()</code> continuam funcionando — agora com OAuth2 em vez de JWT.</p>
+        </div>
+      </div>
+
+      <h2 id="auth-plug-exemplo-ldap">Exemplo: Usar LDAP para resolver usuários</h2>
+      <p>Um desenvolvedor quer autenticar usuários via LDAP em vez do banco de dados.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Criar o módulo LdapAuth</h3>
+            <div class="file-tree">
+<span class="dir">src/Modules/LdapAuth/</span>
+├── <span class="file">LdapUserResolver.php</span>
+├── <span class="file">LdapUser.php</span>
+└── <span class="file">LdapAuthProvider.php</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Implementar UserResolverInterface</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>final class LdapUserResolver implements UserResolverInterface
+{
+    public function __construct(private LdapConnection $ldap) {}
+
+    public function resolve(string $identifier, TokenPayloadInterface $payload): mixed
+    {
+        $dn = "uid={$identifier},ou=users,dc=example,dc=com";
+        $result = ldap_read($this-&gt;ldap-&gt;connection(), $dn, "(objectClass=*)");
+        
+        if (!$result) {
+            return null;
+        }
+
+        $entries = ldap_get_entries($this-&gt;ldap-&gt;connection(), $result);
+        $entry = $entries[0] ?? [];
+
+        return new LdapUser(
+            uid:   $entry['uid'][0] ?? '',
+            name:  $entry['cn'][0] ?? '',
+            email: $entry['mail'][0] ?? '',
+            role:  $entry['role'][0] ?? 'user'
+        );
+    }
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Registrar no provider</h3>
+            <div class="code-block">
+              <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+              <pre><code>// LdapAuth/LdapAuthProvider.php
+public function boot(ContainerInterface $container): void
+{
+    $container-&gt;bind(
+        UserResolverInterface::class,
+        LdapUserResolver::class,
+        true
+    );
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Resultado</strong>
+          <p>O JWT continua sendo usado para validar tokens, mas os usuários são buscados no LDAP em vez do banco de dados.</p>
+        </div>
+      </div>
+
+      <h2 id="auth-plug-integracao">Integração de Múltiplos Módulos</h2>
+      <p>Um desenvolvedor cria três módulos independentes:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>MeuAuth</strong> — módulo de autenticação com OAuth2</li>
+        <li><strong>MeuUsers</strong> — módulo de usuários com tabela própria</li>
+        <li><strong>MeuEcommerce</strong> — módulo de e-commerce que precisa de autenticação</li>
+      </ul>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// MeuAuth/MeuAuthProvider.php
+public function boot(ContainerInterface $container): void
+{
+    $container-&gt;bind(AuthContextInterface::class, OAuth2AuthContext::class, true);
+    $container-&gt;bind(TokenValidatorInterface::class, OAuth2TokenValidator::class, true);
+}
+
+// MeuUsers/MeuUsersProvider.php
+public function boot(ContainerInterface $container): void
+{
+    $container-&gt;bind(UserRepositoryInterface::class, MeuUserRepository::class, true);
+    $container-&gt;bind(UserResolverInterface::class, MeuUserResolver::class, true);
+}
+
+// MeuEcommerce/Routes/web.php
+use Src\Kernel\Auth;
+
+$router-&gt;get('/api/pedidos', [PedidoController::class, 'listar'], Auth::user());
+$router-&gt;post('/api/pedidos', [PedidoController::class, 'criar'], Auth::user());
+
+// MeuEcommerce/Controllers/PedidoController.php
+public function criar(Request $request): Response
+{
+    $identity = Auth::identity($request);
+    $userId   = Auth::id($request);
+    $role     = Auth::role($request);
+
+    // Funciona independente de qual módulo de auth está ativo
+    $pedido = $this-&gt;service-&gt;criar($userId, $request-&gt;body());
+    return Response::json(['data' =&gt; $pedido], 201);
+}</code></pre>
+      </div>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-info-circle"></i></div>
+        <div class="callout-body">
+          <strong>Desacoplamento total</strong>
+          <p><code>MeuEcommerce</code> não sabe nada sobre <code>MeuAuth</code> ou <code>MeuUsers</code>. Ele só usa os contratos do kernel. Se amanhã o desenvolvedor trocar <code>MeuAuth</code> por outra solução, <code>MeuEcommerce</code> não muda uma linha.</p>
+        </div>
+      </div>
+
+      <h2 id="auth-plug-boas-praticas">Boas Práticas</h2>
+
+      <h3>1. Sempre use os contratos, nunca as implementações</h3>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(220,38,38,0.12)"><i class="fa-solid fa-xmark" style="color:#dc2626"></i></div>
+          <h3>Errado</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">php</span></div>
+            <pre><code>use Src\Kernel\Auth\JwtAuthContext;
+
+$auth = new JwtAuthContext(...);</code></pre>
+          </div>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-check" style="color:#16a34a"></i></div>
+          <h3>Correto</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">php</span></div>
+            <pre><code>use Src\Kernel\Contracts\AuthContextInterface;
+
+public function __construct(
+    private AuthContextInterface $auth
+) {}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <h3>2. Use a fachada Auth nos controllers</h3>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(220,38,38,0.12)"><i class="fa-solid fa-xmark" style="color:#dc2626"></i></div>
+          <h3>Errado</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">php</span></div>
+            <pre><code>$identity = $request-&gt;attribute('auth_identity');
+$user = $request-&gt;attribute('auth_user');</code></pre>
+          </div>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-check" style="color:#16a34a"></i></div>
+          <h3>Correto</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">php</span></div>
+            <pre><code>$identity = Auth::identity($request);
+$user = Auth::current($request);</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <h3>3. Use type() em vez de instanceof</h3>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(220,38,38,0.12)"><i class="fa-solid fa-xmark" style="color:#dc2626"></i></div>
+          <h3>Errado</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">php</span></div>
+            <pre><code>if ($identity instanceof InactiveAuthIdentity) {
+    return Response::json(['error' =&gt; 'Conta inativa.'], 403);
+}</code></pre>
+          </div>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-check" style="color:#16a34a"></i></div>
+          <h3>Correto</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">php</span></div>
+            <pre><code>if ($identity-&gt;type() === 'inactive') {
+    return Response::json(['error' =&gt; 'Conta inativa.'], 403);
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="auth-plug-resumo">Resumo</h2>
+      <p>A arquitetura de autenticação plugável da Vupi.us API permite que desenvolvedores:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>Substituam qualquer parte do pipeline</strong> — token resolver, validator, user resolver, identity factory, authorization</li>
+        <li><strong>Integrem múltiplos módulos</strong> — um módulo de auth + um módulo de users + N módulos de negócio</li>
+        <li><strong>Usem qualquer estratégia de autenticação</strong> — JWT, OAuth2, SAML, LDAP, sessão, magic link, etc.</li>
+        <li><strong>Implementem autorização customizada</strong> — ACL, RBAC, ABAC, policies, etc.</li>
+        <li><strong>Mantenham compatibilidade</strong> — módulos de negócio usam contratos, não implementações</li>
+      </ul>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Liberdade total</strong>
+          <p>Tudo isso sem modificar uma linha do kernel. Desenvolvedores possuem total liberdade para criar módulos de autenticação próprios e integrá-los com outros módulos sem acoplamento.</p>
+        </div>
+      </div>
+
+    </section>
+
+
     <!-- PAGE: BANCO -->
     <section class="docs-page" id="page-banco">
       <div class="docs-page-intro">
@@ -5245,10 +5992,11 @@ class PedidoService
     <section class="docs-page" id="page-seguranca">
       <div class="docs-page-intro">
         <div class="docs-page-intro-icon"><i class="fa-solid fa-shield-halved"></i></div>
-        <div><h1>Segurança</h1><p>O sistema foi construído com segurança em cada camada.</p></div>
+        <div><h1>Segurança</h1><p>O sistema foi construído com segurança em cada camada — OWASP Top 10, detecção de ameaças e auditoria completa.</p></div>
       </div>
+
       <h2 id="jwt">Autenticação JWT</h2>
-      <p>O sistema usa dois secrets JWT distintos:</p>
+      <p>O sistema usa dois secrets JWT distintos com suporte a key rotation:</p>
       <table class="docs-table">
         <thead><tr><th>Secret</th><th>Usado para</th></tr></thead>
         <tbody>
@@ -5257,30 +6005,181 @@ class PedidoService
         </tbody>
       </table>
       <p>Todo token é validado com: assinatura, expiração, <code>iss</code>, <code>aud</code>, <code>jti</code> (blacklist) e UUID do usuário.</p>
-      <h2 id="rate-limiting">Rate Limiting</h2>
-      <p>Dupla camada: por IP e por usuário autenticado. Usa Redis (distribuído) ou File (servidor único). Configurável por rota.</p>
-      <h2 id="threat-scorer">ThreatScorer</h2>
-      <p>Acumula pontos de comportamento suspeito por IP:</p>
+
+      <h3 id="jwt-key-rotation">Key Rotation</h3>
+      <p>O sistema suporta rotação de secrets sem downtime usando múltiplas versões:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">env</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code># Configuração para key rotation
+JWT_SECRET_KID=v2              # Chave ativa para novos tokens
+JWT_SECRET_v1=secret_antigo    # Ainda válido para tokens existentes
+JWT_SECRET_v2=secret_novo      # Usado para novos tokens</code></pre>
+      </div>
+      <p>Tokens assinados com <code>v1</code> continuam válidos enquanto novos tokens usam <code>v2</code>. Após expiração completa (15 min padrão), remova <code>JWT_SECRET_v1</code>.</p>
+
+      <h2 id="threat-scorer">ThreatScorer — Sistema de Pontuação de Ameaças</h2>
+      <p>O ThreatScorer detecta comportamento suspeito acumulando pontos por IP. Quando o score atinge um threshold, o sistema aplica delays progressivos ou bloqueia o acesso.</p>
+
+      <h3 id="threat-pontuacao">Pontuação de Eventos</h3>
       <table class="docs-table">
-        <thead><tr><th>Evento</th><th>Pontos</th></tr></thead>
+        <thead><tr><th>Evento</th><th>Pontos</th><th>Descrição</th></tr></thead>
         <tbody>
-          <tr><td>Acesso a honeypot</td><td>+100</td></tr>
-          <tr><td>User-Agent malicioso</td><td>+50</td></tr>
-          <tr><td>Falha de login</td><td>+30</td></tr>
-          <tr><td>Rate limit excedido</td><td>+20</td></tr>
-          <tr><td>Sem User-Agent</td><td>+15</td></tr>
+          <tr><td>Honeypot hit</td><td>+100</td><td>Acesso a rota falsa (armadilha para bots)</td></tr>
+          <tr><td>User-Agent malicioso</td><td>+50</td><td>Scanner, bot malicioso detectado</td></tr>
+          <tr><td>Falha de login</td><td>+30</td><td>Tentativa de login com credenciais inválidas</td></tr>
+          <tr><td>Rate limit excedido</td><td>+20</td><td>Excedeu limite de requisições</td></tr>
+          <tr><td>Sem User-Agent</td><td>+15</td><td>Requisição sem header User-Agent</td></tr>
         </tbody>
       </table>
-      <p>Score ≥ 50: delay progressivo. Score ≥ 150: bloqueio (403). TTL: 1 hora.</p>
-      <h2 id="boas-praticas">Boas práticas</h2>
+
+      <h3 id="threat-thresholds">Thresholds e Ações</h3>
+      <table class="docs-table">
+        <thead><tr><th>Score</th><th>Ação</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>0-49</td><td>Normal</td><td>Requisições processadas normalmente</td></tr>
+          <tr><td>50-99</td><td>Delay 2s</td><td>Adiciona delay de 2 segundos</td></tr>
+          <tr><td>100-149</td><td>Delay 5s</td><td>Adiciona delay de 5 segundos</td></tr>
+          <tr><td>150+</td><td>Bloqueio</td><td>Retorna 403 Forbidden</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-clock"></i></div>
+        <div class="callout-body">
+          <strong>TTL Automático</strong>
+          <p>O score expira automaticamente após <strong>1 hora</strong>. Após esse período, o IP volta ao score 0. Isso permite que IPs legítimos se recuperem de falsos positivos.</p>
+        </div>
+      </div>
+
+      <h3 id="threat-storage">Storage</h3>
+      <p>O ThreatScorer usa Redis quando disponível (distribuído entre múltiplos servidores) ou file storage (servidor único). A configuração é automática baseada na presença de <code>REDIS_HOST</code> no .env.</p>
+
+      <h2 id="auditoria">Sistema de Auditoria</h2>
+      <p>O sistema registra automaticamente eventos de segurança na tabela <code>audit_logs</code> e emite logs estruturados para stderr (compatível com Fail2Ban, Datadog, CloudWatch).</p>
+
+      <h3 id="audit-eventos">Eventos Registrados</h3>
+      <table class="docs-table">
+        <thead><tr><th>Evento</th><th>Descrição</th><th>Contexto</th></tr></thead>
+        <tbody>
+          <tr><td><code>auth.login.success</code></td><td>Login bem-sucedido</td><td>IP, user-agent, usuário</td></tr>
+          <tr><td><code>auth.login.failed</code></td><td>Tentativa de login falhou</td><td>IP, user-agent, email tentado</td></tr>
+          <tr><td><code>auth.logout</code></td><td>Logout</td><td>IP, usuário</td></tr>
+          <tr><td><code>auth.token.refresh</code></td><td>Token renovado</td><td>IP, usuário</td></tr>
+          <tr><td><code>auth.password.reset</code></td><td>Senha redefinida</td><td>IP, usuário</td></tr>
+          <tr><td><code>user.created</code></td><td>Usuário criado</td><td>IP, admin que criou, dados do usuário</td></tr>
+          <tr><td><code>user.updated</code></td><td>Usuário atualizado</td><td>IP, campos alterados</td></tr>
+          <tr><td><code>user.deleted</code></td><td>Usuário deletado</td><td>IP, admin que deletou</td></tr>
+          <tr><td><code>user.role.changed</code></td><td>Papel do usuário alterado</td><td>IP, papel anterior e novo</td></tr>
+          <tr><td><code>module.toggled</code></td><td>Módulo ativado/desativado</td><td>IP, módulo, estado</td></tr>
+          <tr><td><code>admin.action</code></td><td>Ação administrativa</td><td>IP, ação específica</td></tr>
+          <tr><td><code>http.unauthorized</code></td><td>Resposta 401</td><td>IP, URI, user-agent</td></tr>
+          <tr><td><code>http.forbidden</code></td><td>Resposta 403</td><td>IP, URI, user-agent</td></tr>
+          <tr><td><code>http.rate_limited</code></td><td>Resposta 429</td><td>IP, URI, limite excedido</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="audit-deteccao">Detecção de Comportamento Suspeito</h3>
+      <p>O sistema detecta automaticamente padrões suspeitos e emite alertas:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;line-height:2">
+        <li><strong>Força bruta</strong>: 10+ falhas de login em 5 minutos do mesmo IP</li>
+        <li><strong>Scanning</strong>: Múltiplos 404 em rotas diferentes</li>
+        <li><strong>Honeypot hits</strong>: Acesso a rotas falsas</li>
+        <li><strong>Anomalias de user-agent</strong>: Padrões de bots maliciosos</li>
+      </ul>
+
+      <h3 id="audit-alertas">Webhook de Alertas</h3>
+      <p>Configure <code>SECURITY_ALERT_WEBHOOK</code> no .env para receber alertas em tempo real:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">env</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>SECURITY_ALERT_WEBHOOK=https://hooks.slack.com/services/YOUR/WEBHOOK/URL</code></pre>
+      </div>
+      <p>Payload enviado:</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">json</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>{
+  "alert": "BRUTE_FORCE_DETECTED",
+  "dados": {
+    "ip": "192.168.1.100",
+    "falhas_5min": 12,
+    "threshold": 10,
+    "acao_sugerida": "Bloquear IP temporariamente"
+  },
+  "timestamp": "2026-04-19T14:30:00+00:00"
+}</code></pre>
+      </div>
+
+      <h3 id="audit-endpoints">Endpoints de Auditoria (Admin)</h3>
+      <table class="docs-table">
+        <thead><tr><th>Método</th><th>URI</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/api/audit/logs</code></td><td>Lista logs de auditoria (paginado)</td></tr>
+          <tr><td>GET</td><td><code>/api/audit/stats</code></td><td>Estatísticas de eventos</td></tr>
+          <tr><td>DELETE</td><td><code>/api/audit/logs</code></td><td>Limpa logs antigos</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="rate-limiting">Rate Limiting</h2>
+      <p>Dupla camada: por IP e por usuário autenticado. Usa Redis (distribuído) ou File (servidor único). Configurável por rota com middleware <code>RateLimitMiddleware</code>.</p>
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">php</span><button class="code-copy-btn"><i class="fa-solid fa-copy"></i> Copiar</button></div>
+        <pre><code>// 5 requisições por minuto por IP
+$rateLimit = [RateLimitMiddleware::class, ['limit' => 5, 'window' => 60]];
+$router->post('/api/register', [Controller::class, 'register'], [$rateLimit]);</code></pre>
+      </div>
+
+      <h2 id="middlewares-seguranca">Middlewares de Segurança</h2>
+      <p>Middlewares aplicados automaticamente pelo Kernel:</p>
+      <table class="docs-table">
+        <thead><tr><th>Middleware</th><th>Aplicação</th><th>Função</th></tr></thead>
+        <tbody>
+          <tr><td><code>BotBlockerMiddleware</code></td><td>Global</td><td>Bloqueia scanners e ferramentas maliciosas</td></tr>
+          <tr><td><code>HttpsEnforcerMiddleware</code></td><td>Produção</td><td>Bloqueia HTTP quando HTTPS é obrigatório</td></tr>
+          <tr><td><code>SecurityHeadersMiddleware</code></td><td>Global</td><td>Adiciona headers de segurança (CSP, HSTS, etc.)</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="security-headers">Headers de Segurança</h3>
+      <p>Headers adicionados automaticamente em todas as respostas:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;line-height:2">
+        <li><code>X-Content-Type-Options: nosniff</code></li>
+        <li><code>X-Frame-Options: DENY</code></li>
+        <li><code>X-XSS-Protection: 1; mode=block</code></li>
+        <li><code>Referrer-Policy: strict-origin-when-cross-origin</code></li>
+        <li><code>Content-Security-Policy</code> (configurável)</li>
+        <li><code>Strict-Transport-Security</code> (HTTPS apenas)</li>
+      </ul>
+
+      <h2 id="owasp-top10">Proteção OWASP Top 10</h2>
+      <table class="docs-table">
+        <thead><tr><th>Vulnerabilidade</th><th>Proteção Implementada</th></tr></thead>
+        <tbody>
+          <tr><td>A01: Broken Access Control</td><td>Middlewares de auth, OwnershipGuard, validação de papéis</td></tr>
+          <tr><td>A02: Cryptographic Failures</td><td>JWT com secrets fortes, HTTPS enforcer, cookies seguros</td></tr>
+          <tr><td>A03: Injection</td><td>Prepared statements obrigatórios, validação de input</td></tr>
+          <tr><td>A04: Insecure Design</td><td>Arquitetura modular, princípio do menor privilégio</td></tr>
+          <tr><td>A05: Security Misconfiguration</td><td>Headers de segurança automáticos, configuração segura por padrão</td></tr>
+          <tr><td>A06: Vulnerable Components</td><td>Composer audit, dependências mínimas</td></tr>
+          <tr><td>A07: Identity/Auth Failures</td><td>Rate limiting, ThreatScorer, auditoria de login</td></tr>
+          <tr><td>A08: Software/Data Integrity</td><td>Validação de input, sanitização, CSP</td></tr>
+          <tr><td>A09: Logging/Monitoring</td><td>AuditLogger, SecurityEventLogger, alertas automáticos</td></tr>
+          <tr><td>A10: Server-Side Request Forgery</td><td>Validação de URLs, whitelist de hosts</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="boas-praticas">Boas Práticas</h2>
       <ul style="color:var(--text-sub);padding-left:24px;line-height:2.2;font-size:1.05rem">
         <li>Sempre use <code>APP_DEBUG=false</code> em produção.</li>
+        <li>Configure <code>APP_ENV=production</code> para ativar validações extras.</li>
         <li>Nunca concatene variáveis em SQL — use prepared statements.</li>
         <li>Nunca acesse tabelas de outros módulos diretamente.</li>
         <li>Valide todos os inputs no Controller ou Service.</li>
         <li>Use <code>OwnershipGuard</code> para verificar posse de recursos.</li>
-        <li>Gere secrets JWT com <code>openssl rand -hex 32</code>.</li>
-        <li>Configure <code>COOKIE_SECURE=true</code> e <code>COOKIE_HTTPONLY=true</code> em produção.</li>
+        <li>Gere secrets JWT com <code>openssl rand -hex 32</code> (mínimo 32 chars).</li>
+        <li>Configure <code>COOKIE_SECURE=true</code> e <code>COOKIE_SAMESITE=Lax</code> em produção.</li>
+        <li>Use HTTPS em produção — configure <code>TRUST_PROXY=true</code> com proxy reverso.</li>
+        <li>Configure <code>SECURITY_ALERT_WEBHOOK</code> para monitoramento em tempo real.</li>
+        <li>Monitore logs de auditoria regularmente via <code>/api/audit/logs</code>.</li>
+        <li>Implemente rate limiting em todas as rotas públicas.</li>
       </ul>
     </section>
 

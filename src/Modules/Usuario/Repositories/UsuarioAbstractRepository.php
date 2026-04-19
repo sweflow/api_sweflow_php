@@ -52,7 +52,7 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
      * Executa uma operação de banco e converte PDOException
      * em DatabaseQueryException
      */
-    protected function executarQuery(callable $operacao, string $mensagemErro = 'Erro na operação de banco')
+    protected function executarQuery(callable $operacao, string $mensagemErro = 'Erro na operação de banco'): mixed
     {
         try {
             return $operacao();
@@ -138,7 +138,7 @@ abstract class UsuarioAbstractRepository implements UsuarioRepositoryInterface
     }
 
 
-    protected function buscarUmPor(string $coluna, $valor): ?Usuario
+    protected function buscarUmPor(string $coluna, mixed $valor): ?Usuario
     {
         $colunaBanco = $this->resolverColuna($coluna);
 

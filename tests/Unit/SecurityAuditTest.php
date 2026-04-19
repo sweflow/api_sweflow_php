@@ -46,6 +46,60 @@ class SecurityAuditTest extends TestCase
         return fn(Request $r) => Response::json(['ok' => true]);
     }
 
+    private function makeIdentity(string $nivel, bool $apiSecret): \Src\Kernel\Contracts\AuthIdentityInterface
+    {
+        $payload = new class($nivel, $apiSecret) implements \Src\Kernel\Contracts\TokenPayloadInterface {
+            public function __construct(private string $n, private bool $a) {}
+            public function getSubject(): string|int|null { return 'f47ac10b-58cc-4372-a567-0e02b2c3d479'; }
+            public function getRole(): ?string { return $this->n; }
+            public function isSignedWithApiSecret(): bool { return $this->a; }
+            public function get(string $key): mixed { return null; }
+            public function raw(): mixed { return null; }
+        };
+        $user = new class($nivel) {
+            public function __construct(private string $n) {}
+            public function getNivelAcesso(): string { return $this->n; }
+        };
+        return \Src\Kernel\Auth\AuthIdentity::forUser($user, $payload);
+    }
+
+    private function identityReq(string $uri, string $nivel, bool $apiSecret): Request
+    {
+        $identity = $this->makeIdentity($nivel, $apiSecret);
+        return $this->buildRequest($uri)
+            ->withAttribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY, $identity);
+    }
+
+    private function apiTokenReq(string $uri): Request
+    {
+        $identity = \Src\Kernel\Auth\AuthIdentity::forApiToken();
+        return $this->buildRequest($uri)
+            ->withAttribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY, $identity);
+    }
+
+    private function adminOnly(): AdminOnlyMiddleware
+    {
+        $authContext = new class implements \Src\Kernel\Contracts\AuthContextInterface {
+            public function resolve(Request $r): ?\Src\Kernel\Contracts\AuthIdentityInterface { return null; }
+            public function identity(Request $r): ?\Src\Kernel\Contracts\AuthIdentityInterface {
+                $raw = $r->attribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY);
+                return $raw instanceof \Src\Kernel\Contracts\AuthIdentityInterface ? $raw : null;
+            }
+        };
+        $authorization = new class implements \Src\Kernel\Contracts\AuthorizationInterface {
+            public function isAdmin(\Src\Kernel\Contracts\AuthIdentityInterface $identity, Request $request): bool {
+                if ($identity->isApiToken()) return true;
+                $p = $identity->payload();
+                return $identity->hasRole('admin_system') && $p !== null && $p->isSignedWithApiSecret();
+            }
+            public function hasRole(\Src\Kernel\Contracts\AuthIdentityInterface $identity, string ...$roles): bool {
+                $role = $identity->role();
+                return $role !== null && in_array($role, $roles, true);
+            }
+        };
+        return new AdminOnlyMiddleware($authContext, $authorization);
+    }
+
     private function sourceOf(string $class): string
     {
         return file_get_contents((new \ReflectionClass($class))->getFileName());
@@ -55,44 +109,34 @@ class SecurityAuditTest extends TestCase
 
     public function test_admin_only_bloqueia_sem_autenticacao(): void
     {
-        $res = (new AdminOnlyMiddleware())->handle($this->buildRequest('/api/admin'), $this->next());
+        $res = $this->adminOnly()->handle($this->buildRequest('/api/admin'), $this->next());
         $this->assertSame(401, $res->getStatusCode());
     }
 
     public function test_admin_only_bloqueia_usuario_comum(): void
     {
-        $req = $this->buildRequest('/api/admin')
-            ->withAttribute('auth_payload', (object)['nivel_acesso' => 'usuario'])
-            ->withAttribute('auth_user', new class { public function getNivelAcesso(): string { return 'usuario'; } })
-            ->withAttribute('token_signed_with_api_secret', false);
-        $this->assertSame(403, (new AdminOnlyMiddleware())->handle($req, $this->next())->getStatusCode());
+        $req = $this->identityReq('/api/admin', 'usuario', false);
+        $this->assertSame(403, $this->adminOnly()->handle($req, $this->next())->getStatusCode());
     }
 
     public function test_admin_only_bloqueia_admin_sem_api_secret(): void
     {
-        // admin_system com token assinado com JWT_SECRET (não JWT_API_SECRET) deve ser bloqueado
-        $req = $this->buildRequest('/api/admin')
-            ->withAttribute('auth_payload', (object)['nivel_acesso' => 'admin_system'])
-            ->withAttribute('auth_user', new class { public function getNivelAcesso(): string { return 'admin_system'; } })
-            ->withAttribute('token_signed_with_api_secret', false);
-        $this->assertSame(403, (new AdminOnlyMiddleware())->handle($req, $this->next())->getStatusCode(),
+        $req = $this->identityReq('/api/admin', 'admin_system', false);
+        $this->assertSame(403, $this->adminOnly()->handle($req, $this->next())->getStatusCode(),
             'admin_system sem JWT_API_SECRET deve ser bloqueado — previne escalada de privilégio');
     }
 
     public function test_admin_only_bloqueia_moderador(): void
     {
-        $req = $this->buildRequest('/api/admin')
-            ->withAttribute('auth_payload', (object)['nivel_acesso' => 'moderador'])
-            ->withAttribute('auth_user', new class { public function getNivelAcesso(): string { return 'moderador'; } })
-            ->withAttribute('token_signed_with_api_secret', false);
-        $this->assertSame(403, (new AdminOnlyMiddleware())->handle($req, $this->next())->getStatusCode());
+        $req = $this->identityReq('/api/admin', 'moderador', false);
+        $this->assertSame(403, $this->adminOnly()->handle($req, $this->next())->getStatusCode());
     }
 
     public function test_admin_only_permite_api_token_puro(): void
     {
-        $req    = $this->buildRequest('/api/admin')->withAttribute('api_token', true);
+        $req    = $this->apiTokenReq('/api/admin');
         $passed = false;
-        (new AdminOnlyMiddleware())->handle($req, function ($r) use (&$passed) {
+        $this->adminOnly()->handle($req, function ($r) use (&$passed) {
             $passed = true;
             return Response::json(['ok' => true]);
         });
@@ -101,12 +145,9 @@ class SecurityAuditTest extends TestCase
 
     public function test_admin_only_permite_admin_system_com_api_secret(): void
     {
-        $req = $this->buildRequest('/api/admin')
-            ->withAttribute('auth_payload', (object)['nivel_acesso' => 'admin_system'])
-            ->withAttribute('auth_user', new class { public function getNivelAcesso(): string { return 'admin_system'; } })
-            ->withAttribute('token_signed_with_api_secret', true);
+        $req = $this->identityReq('/api/admin', 'admin_system', true);
         $passed = false;
-        (new AdminOnlyMiddleware())->handle($req, function ($r) use (&$passed) {
+        $this->adminOnly()->handle($req, function ($r) use (&$passed) {
             $passed = true;
             return Response::json(['ok' => true]);
         });
@@ -135,15 +176,16 @@ class SecurityAuditTest extends TestCase
     public function test_auth_middleware_verifica_blacklist(): void
     {
         $this->assertStringContainsString('isRevoked',
-            $this->sourceOf(\Src\Kernel\Middlewares\AuthHybridMiddleware::class),
-            'AuthHybridMiddleware deve verificar blacklist de tokens');
+            $this->sourceOf(\Src\Kernel\Auth\JwtTokenValidator::class),
+            'JwtTokenValidator deve verificar blacklist de tokens');
     }
 
     public function test_auth_middleware_valida_uuid_com_regex(): void
     {
-        $this->assertStringContainsString('preg_match',
-            $this->sourceOf(\Src\Kernel\Middlewares\AuthHybridMiddleware::class),
-            'AuthHybridMiddleware deve validar UUID com regex antes de buscar no banco');
+        // UUID é validado pelo JwtDecoder::validateUserClaims via Ramsey\Uuid::isValid()
+        $this->assertStringContainsString('Uuid::isValid',
+            $this->sourceOf(\Src\Kernel\Support\JwtDecoder::class),
+            'JwtDecoder deve validar UUID antes de buscar no banco');
     }
 
     // ── 3. EXPOSIÇÃO DE DADOS SENSÍVEIS ──────────────────────────────

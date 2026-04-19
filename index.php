@@ -28,6 +28,10 @@ require __DIR__ . '/vendor/autoload.php';
 header_remove('X-Powered-By');
 ini_set('expose_php', '0');
 
+// Aumenta o limite de memória para 256MB (padrão é 128MB)
+// Previne erros em ambientes com muitos módulos ou operações pesadas
+ini_set('memory_limit', '256M');
+
 // ── Carrega .env antes de qualquer validação ──────────────────────────────
 if (file_exists(__DIR__ . '/.env')) {
     $dotenv = Dotenv::createImmutable(__DIR__);
@@ -388,46 +392,10 @@ $container->bind(AuditLogger::class, static function () use ($container) {
 // Todos os bindings são condicionais — o sistema funciona mesmo sem os módulos nativos.
 // Se os módulos Auth, Usuario ou IdeModuleBuilder não existirem, o servidor continua
 // funcionando sem autenticação, gerenciamento de usuários ou IDE.
-
-// Módulo Usuario — UserRepository e UsuarioRepository
-if (class_exists(\Src\Modules\Usuario\Repositories\UsuarioRepository::class)) {
-    (static function () use ($container): void {
-        $container->bind(
-            \Src\Kernel\Contracts\UserRepositoryInterface::class,
-            static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
-                \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
-            ),
-            true
-        );
-        $container->bind(
-            \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
-            static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
-                \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
-            ),
-            true
-        );
-    })();
-}
-
-// Módulo Auth — TokenBlacklist
-if (class_exists(\Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class)) {
-    $container->bind(
-        \Src\Kernel\Contracts\TokenBlacklistInterface::class,
-        \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
-        true
-    );
-} else {
-    // Fallback: blacklist nula — tokens nunca são revogados (sem módulo Auth)
-    $container->bind(
-        \Src\Kernel\Contracts\TokenBlacklistInterface::class,
-        static fn() => new class implements \Src\Kernel\Contracts\TokenBlacklistInterface {
-            public function isRevoked(string $jti): bool { return false; }
-            public function revoke(string $jti, string $userUuid, \DateTimeImmutable $expiresAt): void {}
-            public function purgeExpired(): void {}
-        },
-        true
-    );
-}
+//
+// IMPORTANTE: UserRepositoryInterface, TokenBlacklistInterface e AuthContextInterface
+// são registrados APÓS o app->boot() (mais abaixo), para que módulos externos possam
+// sobrescrevê-los no boot() do seu provider antes do fallback nativo entrar.
 
 // Registra MailerService se MAILER_HOST estiver configurado
 $container->bind(
@@ -511,6 +479,230 @@ $container->bind(ModuleLoader::class, $modules, true);
 $app = new Application($container, $router, $modules);
 $app->boot();
 
+// ── Fallbacks de Auth — registrados APÓS o boot dos módulos ──────────────
+// Módulos externos podem sobrescrever UserRepositoryInterface,
+// TokenBlacklistInterface e AuthContextInterface no boot() do seu provider.
+// Só registramos o nativo se nenhum módulo externo já o fez.
+
+// Módulo Usuario — UserRepository (fallback nativo)
+if (!$container->hasBinding(\Src\Kernel\Contracts\UserRepositoryInterface::class)) {
+    if (class_exists(\Src\Modules\Usuario\Repositories\UsuarioRepository::class)) {
+        $container->bind(
+            \Src\Kernel\Contracts\UserRepositoryInterface::class,
+            static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+                \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+            ),
+            true
+        );
+    }
+}
+
+// UsuarioRepositoryInterface — sempre nativo (interface interna do módulo Usuario)
+if (class_exists(\Src\Modules\Usuario\Repositories\UsuarioRepository::class)
+    && !$container->hasBinding(\Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class)) {
+    $container->bind(
+        \Src\Modules\Usuario\Repositories\UsuarioRepositoryInterface::class,
+        static fn() => new \Src\Modules\Usuario\Repositories\UsuarioRepository(
+            \Src\Kernel\Database\ModuleConnectionResolver::forModule('Usuario')
+        ),
+        true
+    );
+}
+
+// Módulo Auth — TokenBlacklist (fallback nativo ou null)
+if (!$container->hasBinding(\Src\Kernel\Contracts\TokenBlacklistInterface::class)) {
+    if (class_exists(\Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class)) {
+        $container->bind(
+            \Src\Kernel\Contracts\TokenBlacklistInterface::class,
+            \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
+            true
+        );
+    } else {
+        // Blacklist nula — tokens nunca são revogados (sem módulo Auth)
+        $container->bind(
+            \Src\Kernel\Contracts\TokenBlacklistInterface::class,
+            static fn() => new class implements \Src\Kernel\Contracts\TokenBlacklistInterface {
+                public function isRevoked(string $jti): bool { return false; }
+                public function revoke(string $jti, string $userUuid, \DateTimeImmutable $expiresAt): void {}
+                public function purgeExpired(): void {}
+            },
+            true
+        );
+    }
+}
+
+// ── Auth pipeline — registrado APÓS o boot dos módulos ───────────────────
+// Cada contrato pode ser substituído independentemente por módulos externos.
+// A ordem importa: os colaboradores são registrados antes do orquestrador.
+
+// TokenResolverInterface — de onde vem o token?
+if (!$container->hasBinding(\Src\Kernel\Contracts\TokenResolverInterface::class)) {
+    $container->bind(
+        \Src\Kernel\Contracts\TokenResolverInterface::class,
+        \Src\Kernel\Auth\BearerTokenResolver::class,
+        true
+    );
+}
+
+// TokenValidatorInterface — o token é válido?
+if (!$container->hasBinding(\Src\Kernel\Contracts\TokenValidatorInterface::class)) {
+    if ($container->hasBinding(\Src\Kernel\Contracts\TokenBlacklistInterface::class)) {
+        $container->bind(
+            \Src\Kernel\Contracts\TokenValidatorInterface::class,
+            static function () use ($container) {
+                return new \Src\Kernel\Auth\JwtTokenValidator(
+                    $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class)
+                );
+            },
+            true
+        );
+    }
+}
+
+// UserResolverInterface — quem é o usuário?
+if (!$container->hasBinding(\Src\Kernel\Contracts\UserResolverInterface::class)) {
+    if ($container->hasBinding(\Src\Kernel\Contracts\UserRepositoryInterface::class)) {
+        $container->bind(
+            \Src\Kernel\Contracts\UserResolverInterface::class,
+            static function () use ($container) {
+                return new \Src\Kernel\Auth\DatabaseUserResolver(
+                    $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class)
+                );
+            },
+            true
+        );
+    }
+}
+
+// AuthorizationInterface — o usuário pode fazer isso?
+if (!$container->hasBinding(\Src\Kernel\Contracts\AuthorizationInterface::class)) {
+    $container->bind(
+        \Src\Kernel\Contracts\AuthorizationInterface::class,
+        static function () use ($container) {
+            // Reutiliza JwtAuthContext se já registrado — implementa os dois contratos
+            if ($container->hasBinding(\Src\Kernel\Contracts\AuthContextInterface::class)) {
+                return $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
+            }
+            return null;
+        },
+        true
+    );
+}
+
+// IdentityFactoryInterface — como montar a identidade?
+if (!$container->hasBinding(\Src\Kernel\Contracts\IdentityFactoryInterface::class)) {
+    $container->bind(
+        \Src\Kernel\Contracts\IdentityFactoryInterface::class,
+        static function () use ($container) {
+            // Lazy resolution: não resolve AuthorizationInterface agora, apenas quando necessário
+            return new \Src\Kernel\Auth\DefaultIdentityFactory(
+                // Passa uma closure que resolve sob demanda, quebrando a dependência circular
+                static fn() => $container->hasBinding(\Src\Kernel\Contracts\AuthorizationInterface::class)
+                    ? $container->make(\Src\Kernel\Contracts\AuthorizationInterface::class)
+                    : null
+            );
+        },
+        true
+    );
+}
+
+// AuthContextInterface — orquestrador do pipeline
+if (!$container->hasBinding(\Src\Kernel\Contracts\AuthContextInterface::class)) {
+    if ($container->hasBinding(\Src\Kernel\Contracts\TokenValidatorInterface::class)
+        && $container->hasBinding(\Src\Kernel\Contracts\UserResolverInterface::class)) {
+        $container->bind(
+            \Src\Kernel\Contracts\AuthContextInterface::class,
+            static function () use ($container) {
+                return new \Src\Kernel\Auth\JwtAuthContext(
+                    $container->make(\Src\Kernel\Contracts\TokenResolverInterface::class),
+                    $container->make(\Src\Kernel\Contracts\TokenValidatorInterface::class),
+                    $container->make(\Src\Kernel\Contracts\UserResolverInterface::class),
+                    $container->make(\Src\Kernel\Contracts\IdentityFactoryInterface::class)
+                );
+            },
+            true
+        );
+    }
+}
+// auth.page — AuthContextInterface pré-configurado com CookieTokenResolver.
+// Usado por AuthPageMiddleware e AuthCookieMiddleware para rotas de página (HTML).
+// Registrado sempre que AuthContextInterface estiver disponível.
+if (!$container->hasBinding('auth.page')
+    && $container->hasBinding(\Src\Kernel\Contracts\AuthContextInterface::class)) {
+    $container->bind(
+        'auth.page',
+        static function () use ($container) {
+            $auth = $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
+            return $auth instanceof \Src\Kernel\Auth\JwtAuthContext
+                ? $auth->withResolver(new \Src\Kernel\Auth\CookieTokenResolver())
+                : $auth;
+        },
+        true
+    );
+}
+
+// AuthPageMiddleware — pré-configurado com auth.page (cookie-aware)
+if (!$container->hasBinding(\Src\Kernel\Middlewares\AuthPageMiddleware::class)) {
+    $container->bind(
+        \Src\Kernel\Middlewares\AuthPageMiddleware::class,
+        static function () use ($container) {
+            try {
+                $auth = $container->hasBinding('auth.page')
+                    ? $container->make('auth.page')
+                    : $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
+            } catch (\Throwable) {
+                $auth = null;
+            }
+            return new \Src\Kernel\Middlewares\AuthPageMiddleware($auth);
+        },
+        true
+    );
+}
+
+// AuthCookieMiddleware — pré-configurado com auth.page (cookie-aware)
+if (!$container->hasBinding(\Src\Kernel\Middlewares\AuthCookieMiddleware::class)) {
+    $container->bind(
+        \Src\Kernel\Middlewares\AuthCookieMiddleware::class,
+        static function () use ($container) {
+            try {
+                $auth = $container->hasBinding('auth.page')
+                    ? $container->make('auth.page')
+                    : $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
+            } catch (\Throwable) {
+                $auth = null;
+            }
+            return new \Src\Kernel\Middlewares\AuthCookieMiddleware($auth);
+        },
+        true
+    );
+}
+
+// AuthHybridMiddleware — usa CompositeTokenResolver (cookie + bearer)
+// Aceita tanto cookie quanto Authorization: Bearer para máxima compatibilidade
+if (!$container->hasBinding(\Src\Kernel\Middlewares\AuthHybridMiddleware::class)) {
+    $container->bind(
+        \Src\Kernel\Middlewares\AuthHybridMiddleware::class,
+        static function () use ($container) {
+            try {
+                $auth = $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
+                // Usa CompositeTokenResolver: tenta cookie primeiro, depois Bearer
+                if ($auth instanceof \Src\Kernel\Auth\JwtAuthContext) {
+                    $compositeResolver = new \Src\Kernel\Auth\CompositeTokenResolver([
+                        new \Src\Kernel\Auth\CookieTokenResolver(),
+                        new \Src\Kernel\Auth\BearerTokenResolver(),
+                    ]);
+                    $auth = $auth->withResolver($compositeResolver);
+                }
+            } catch (\Throwable) {
+                $auth = null;
+            }
+            return new \Src\Kernel\Middlewares\AuthHybridMiddleware($auth);
+        },
+        true
+    );
+}
+// ─────────────────────────────────────────────────────────────────────────
+
 // Core routes
 $router->get('/', [\Src\Kernel\Controllers\HomeController::class, 'index']);
 $router->get('/index.php', [\Src\Kernel\Controllers\HomeController::class, 'index']);
@@ -534,13 +726,14 @@ $router->get('/ide/login', [\Src\Kernel\Controllers\IdeController::class, 'login
 $router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'index'], [
     static function ($request, $next) use ($container) {
         try {
-            $userRepo  = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
-            $blacklist = $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
+            $auth = $container->hasBinding('auth.page')
+                ? $container->make('auth.page')
+                : $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
         } catch (\Throwable) {
-            // Módulo Usuario/Auth não instalado — IDE acessível sem autenticação
+            // Auth não instalado — IDE acessível sem autenticação
             return $next($request);
         }
-        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware($userRepo, $blacklist, false);
+        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware($auth);
         return $mw->handle($request, $next);
     },
     static function ($request, $next) {
@@ -562,12 +755,13 @@ $router->get('/dashboard/ide', [\Src\Kernel\Controllers\IdeController::class, 'i
 $router->get('/dashboard/ide/editor', [\Src\Kernel\Controllers\IdeController::class, 'editor'], [
     static function ($request, $next) use ($container) {
         try {
-            $userRepo  = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
-            $blacklist = $container->make(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
+            $auth = $container->hasBinding('auth.page')
+                ? $container->make('auth.page')
+                : $container->make(\Src\Kernel\Contracts\AuthContextInterface::class);
         } catch (\Throwable) {
             return $next($request);
         }
-        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware($userRepo, $blacklist, false);
+        $mw = new \Src\Kernel\Middlewares\AuthPageMiddleware($auth);
         return $mw->handle($request, $next);
     },
 ]);

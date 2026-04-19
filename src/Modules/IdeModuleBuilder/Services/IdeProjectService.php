@@ -1542,38 +1542,6 @@ class IdeProjectService
     }
 
     /**
-     * Retorna a data em que o limite foi definido para o usuário.
-     * Se não tem limite individual, retorna null (usa global, conta todos).
-     */
-    private function getLimitSetAt(string $userId): ?string
-    {
-        try {
-            $stmt = $this->pdo->prepare("SELECT updated_at FROM ide_user_limits WHERE user_id = :uid");
-            $stmt->execute([':uid' => $userId]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row !== false) {
-                return $row['updated_at'];
-            }
-        } catch (\Throwable) {}
-        return null;
-    }
-
-    /**
-     * Conta projetos criados após uma data. Se data é null, conta todos.
-     */
-    private function countProjectsSince(string $userId, ?string $since): int
-    {
-        if ($since === null) {
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid");
-            $stmt->execute([':uid' => $userId]);
-        } else {
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = :uid AND created_at >= :since");
-            $stmt->execute([':uid' => $userId, ':since' => $since]);
-        }
-        return (int)$stmt->fetchColumn();
-    }
-
-    /**
      * Define o limite de projetos para um usuário específico.
      * -1 = ilimitado, 0 = bloqueado, N = limite.
      */
@@ -1915,28 +1883,6 @@ class IdeProjectService
         }
 
         return $pdo;
-    }
-
-    /**
-     * Atualiza o connection.php do módulo para refletir DEFAULT_MODULE_CONNECTION.
-     * Chamado automaticamente ao rodar migrations quando o arquivo está desatualizado.
-     */
-    private function syncConnectionFile(string $moduleDir, string $conn): void
-    {
-        $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        if (!is_dir(dirname($connFile))) {
-            return;
-        }
-        $content = implode("\n", [
-            '<?php',
-            "// Define qual banco de dados este módulo usa.",
-            "// 'core'    → usa DB_* do .env (banco principal)",
-            "// 'modules' → usa DB2_* do .env (banco secundário)",
-            "// 'auto'    → o Kernel decide baseado na origem do módulo",
-            "return '{$conn}';",
-            '',
-        ]);
-        file_put_contents($connFile, $content);
     }
 
     private function ensureMigrationsTable(PDO $pdo): void

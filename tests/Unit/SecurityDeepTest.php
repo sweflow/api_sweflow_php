@@ -722,7 +722,8 @@ class SecurityDeepTest extends TestCase
     {
         \Src\Kernel\Nonce::reset();
         $mw  = new SecurityHeadersMiddleware();
-        $res = $mw->handle($this->req('/dashboard'), $this->next());
+        // Usa resposta sem CSP pré-definido para que o middleware injete o CSP de página
+        $res = $mw->handle($this->req('/dashboard'), fn($r) => new \Src\Kernel\Http\Response\Response('<p>ok</p>', 200, ['Content-Type' => 'text/html']));
         $this->assertStringContainsString("'nonce-",
             $res->getHeaders()['Content-Security-Policy']);
     }
@@ -1052,21 +1053,44 @@ class SecurityDeepTest extends TestCase
 
     public function test_admin_only_nao_vaza_info_de_nivel_em_resposta(): void
     {
-        $req = $this->req('/api/admin')
-            ->withAttribute('auth_payload', (object)['nivel_acesso' => 'usuario'])
-            ->withAttribute('auth_user', new class {
-                public function getNivelAcesso(): string { return 'usuario'; }
-            })
-            ->withAttribute('token_signed_with_api_secret', false);
+        $tokenPayload = new class implements \Src\Kernel\Contracts\TokenPayloadInterface {
+            public function getSubject(): string|int|null { return 'f47ac10b-58cc-4372-a567-0e02b2c3d479'; }
+            public function getRole(): ?string { return 'usuario'; }
+            public function isSignedWithApiSecret(): bool { return false; }
+            public function get(string $key): mixed { return null; }
+            public function raw(): mixed { return null; }
+        };
+        $user     = new class { public function getNivelAcesso(): string { return 'usuario'; } };
+        $identity = \Src\Kernel\Auth\AuthIdentity::forUser($user, $tokenPayload);
+        $req      = $this->req('/api/admin')
+            ->withAttribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY, $identity);
 
-        $res  = (new AdminOnlyMiddleware())->handle($req, $this->next());
+        $authContext = new class implements \Src\Kernel\Contracts\AuthContextInterface {
+            public function resolve(Request $r): ?\Src\Kernel\Contracts\AuthIdentityInterface { return null; }
+            public function identity(Request $r): ?\Src\Kernel\Contracts\AuthIdentityInterface {
+                $raw = $r->attribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY);
+                return $raw instanceof \Src\Kernel\Contracts\AuthIdentityInterface ? $raw : null;
+            }
+        };
+        $authorization = new class implements \Src\Kernel\Contracts\AuthorizationInterface {
+            public function isAdmin(\Src\Kernel\Contracts\AuthIdentityInterface $identity, Request $request): bool {
+                if ($identity->isApiToken()) return true;
+                $p = $identity->payload();
+                return $identity->hasRole('admin_system') && $p !== null && $p->isSignedWithApiSecret();
+            }
+            public function hasRole(\Src\Kernel\Contracts\AuthIdentityInterface $identity, string ...$roles): bool {
+                $role = $identity->role();
+                return $role !== null && in_array($role, $roles, true);
+            }
+        };
+
+        $res  = (new AdminOnlyMiddleware($authContext, $authorization))->handle($req, $this->next());
         $body = $res->getBody();
         $json = is_array($body) ? $body : (json_decode(json_encode($body), true) ?? []);
 
         $this->assertSame(403, $res->getStatusCode());
-        // Resposta não deve vazar o nível de acesso do usuário
         $this->assertStringNotContainsString('usuario',
             json_encode($json),
-            'Resposta 403 não deve revelar o nível de acesso do usuário');
+            'Resposta 403 nao deve revelar o nivel de acesso do usuario');
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Kernel\Contracts;
 
 use Src\Kernel\Http\Request\Request;

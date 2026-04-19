@@ -170,7 +170,11 @@ class JwtDecoderTest extends TestCase
 
     public function test_valida_claims_corretos(): void
     {
-        $payload = (object)['sub' => 'uuid', 'tipo' => 'user', 'jti' => 'jti-ok'];
+        $payload = (object)[
+            'sub'  => 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+            'tipo' => 'user',
+            'jti'  => 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+        ];
         JwtDecoder::validateUserClaims($payload); // não deve lançar
         $this->assertTrue(true);
     }
@@ -178,25 +182,40 @@ class JwtDecoderTest extends TestCase
     public function test_rejeita_claims_sem_sub(): void
     {
         $this->expectException(DomainException::class);
-        JwtDecoder::validateUserClaims((object)['tipo' => 'user', 'jti' => 'jti']);
+        JwtDecoder::validateUserClaims((object)[
+            'tipo' => 'user',
+            'jti'  => 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+        ]);
     }
 
     public function test_rejeita_claims_tipo_errado(): void
     {
         $this->expectException(DomainException::class);
-        JwtDecoder::validateUserClaims((object)['sub' => 'uuid', 'tipo' => 'api', 'jti' => 'jti']);
+        JwtDecoder::validateUserClaims((object)[
+            'sub'  => 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+            'tipo' => 'api',
+            'jti'  => 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+        ]);
     }
 
     public function test_rejeita_claims_sem_jti(): void
     {
         $this->expectException(DomainException::class);
-        JwtDecoder::validateUserClaims((object)['sub' => 'uuid', 'tipo' => 'user']);
+        JwtDecoder::validateUserClaims((object)[
+            'sub'  => 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+            'tipo' => 'user',
+        ]);
     }
 
     public function test_valida_issuer_quando_configurado(): void
     {
         $_ENV['JWT_ISSUER'] = 'https://api.example.com';
-        $payload = (object)['sub' => 'uuid', 'tipo' => 'user', 'jti' => 'jti', 'iss' => 'https://api.example.com'];
+        $payload = (object)[
+            'sub'  => 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+            'tipo' => 'user',
+            'jti'  => 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+            'iss'  => 'https://api.example.com',
+        ];
         JwtDecoder::validateUserClaims($payload);
         $this->assertTrue(true);
     }
@@ -205,7 +224,12 @@ class JwtDecoderTest extends TestCase
     {
         $_ENV['JWT_ISSUER'] = 'https://api.example.com';
         $this->expectException(DomainException::class);
-        JwtDecoder::validateUserClaims((object)['sub' => 'uuid', 'tipo' => 'user', 'jti' => 'jti', 'iss' => 'https://evil.com']);
+        JwtDecoder::validateUserClaims((object)[
+            'sub'  => 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+            'tipo' => 'user',
+            'jti'  => 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+            'iss'  => 'https://evil.com',
+        ]);
     }
 
     public function test_rejeita_audience_incorreta(): void

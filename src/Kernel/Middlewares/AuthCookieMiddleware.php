@@ -1,67 +1,55 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Kernel\Middlewares;
 
+use Src\Kernel\Contracts\AuthContextInterface;
 use Src\Kernel\Contracts\MiddlewareInterface;
-use Src\Kernel\Contracts\TokenBlacklistInterface;
-use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
-use Src\Kernel\Support\JwtDecoder;
 
-class AuthCookieMiddleware implements MiddlewareInterface
+/**
+ * Variante do AuthHybridMiddleware que aceita apenas cookie.
+ *
+ * Recebe um AuthContextInterface já configurado com CookieTokenResolver.
+ * O wiring correto é feito no container (index.php ou provider do módulo):
+ *
+ *   $container->bind(AuthCookieMiddleware::class, fn($c) =>
+ *       new AuthCookieMiddleware(
+ *           $c->make(AuthContextInterface::class)
+ *               ->withResolver(new CookieTokenResolver())
+ *       )
+ *   );
+ *
+ * Se o AuthContextInterface não suportar withResolver(), use um
+ * CompositeTokenResolver que inclua CookieTokenResolver como primeira fonte.
+ */
+final class AuthCookieMiddleware implements MiddlewareInterface
 {
-    public function __construct(
-        private ?UserRepositoryInterface $usuarios,
-        private ?TokenBlacklistInterface $blacklistRepo
-    ) {}
+    public function __construct(private readonly ?AuthContextInterface $auth) {}
 
     public function handle(Request $request, callable $next): Response
     {
-        if ($this->usuarios === null || $this->blacklistRepo === null) {
+        if ($this->auth === null) {
             return $next($request);
         }
 
-        $token = $_COOKIE['auth_token'] ?? '';
-        $token = is_string($token) ? trim($token) : '';
-        if ($token === '' || strlen($token) > 2048) {
-            return $this->responder(401, 'Não autenticado.');
+        $identity = $this->auth->resolve($request);
+
+        if ($identity === null || $identity->type() === 'not_found') {
+            return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
-        try {
-            [$payload] = JwtDecoder::decodeUser($token);
-            JwtDecoder::validateUserClaims($payload);
-        } catch (\Throwable) {
-            return $this->responder(401, 'Não autenticado.');
-        }
-
-        if ($this->blacklistRepo->isRevoked($payload->jti ?? '')) {
-            return $this->responder(401, 'Não autenticado.');
-        }
-
-        $sub = $payload->sub ?? '';
-        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $sub)) {
-            return $this->responder(401, 'Não autenticado.');
-        }
-
-        $usuario = $this->usuarios->buscarPorUuid($sub);
-        if (!$usuario) {
-            return $this->responder(401, 'Não autenticado.');
-        }
-
-        if (method_exists($usuario, 'isAtivo') && !$usuario->isAtivo()) {
-            return $this->responder(403, 'Acesso negado.');
+        if ($identity->type() === 'inactive') {
+            return Response::json(['error' => 'Acesso negado.'], 403);
         }
 
         return $next(
             $request
-                ->withAttribute('auth_user', $usuario)
-                ->withAttribute('auth_payload', $payload)
+                ->withAttribute(AuthContextInterface::IDENTITY_KEY, $identity)
+                ->withAttribute(AuthContextInterface::LEGACY_USER_KEY, $identity->user())
+                ->withAttribute(AuthContextInterface::LEGACY_PAYLOAD_KEY, $identity->payload())
         );
-    }
-
-    private function responder(int $status, string $mensagem): Response
-    {
-        return Response::json(['error' => $mensagem], $status);
     }
 }

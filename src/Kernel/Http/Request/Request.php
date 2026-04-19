@@ -14,7 +14,8 @@ class Request
         public array $headers = [],
         public ?string $method = null,
         public ?string $path = null,
-        public ?string $rawBody = null
+        public ?string $rawBody = null,
+        public array $cookies = []
     ) {}
 
     public function withParams(array $params): self
@@ -24,14 +25,14 @@ class Request
         return $clone;
     }
 
-    public function withAttribute(string $key, $value): self
+    public function withAttribute(string $key, mixed $value): self
     {
         $clone = clone $this;
         $clone->attributes[$key] = $value;
         return $clone;
     }
 
-    public function attribute(string $key, $default = null)
+    public function attribute(string $key, mixed $default = null): mixed
     {
         return $this->attributes[$key] ?? $default;
     }

@@ -17,3 +17,19 @@ use Src\Kernel\Support\OwnershipGuard;
 use Src\Kernel\Support\ThreatScorer;
 use Src\Kernel\Support\Storage\FileRateLimitStorage;
 use Src\Kernel\Utils\Sanitizer;
+
+/**
+ * Testes de resistência a ataques — placeholder para implementação futura.
+ * Os testes de ataque estão distribuídos em DefenseTest, SecurityAuditTest e SecurityDeepTest.
+ */
+class AttackResistanceTest extends TestCase
+{
+    public function test_placeholder(): void
+    {
+        // Testes de resistência a ataques estão em:
+        // - DefenseTest (mecanismos de defesa)
+        // - SecurityAuditTest (auditoria OWASP)
+        // - SecurityDeepTest (testes aprofundados)
+        $this->assertTrue(true);
+    }
+}

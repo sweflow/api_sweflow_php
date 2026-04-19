@@ -18,32 +18,32 @@ class Router implements RouterInterface
         $this->container = $container;
     }
 
-    public function get(string $uri, $handler, array $middlewares = []): void
+    public function get(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('GET', $uri, $handler, $middlewares);
     }
 
-    public function post(string $uri, $handler, array $middlewares = []): void
+    public function post(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('POST', $uri, $handler, $middlewares);
     }
 
-    public function put(string $uri, $handler, array $middlewares = []): void
+    public function put(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('PUT', $uri, $handler, $middlewares);
     }
 
-    public function patch(string $uri, $handler, array $middlewares = []): void
+    public function patch(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('PATCH', $uri, $handler, $middlewares);
     }
 
-    public function delete(string $uri, $handler, array $middlewares = []): void
+    public function delete(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('DELETE', $uri, $handler, $middlewares);
     }
 
-    public function add(string $method, string $uri, $handler, array $middlewares = []): void
+    public function add(string $method, string $uri, mixed $handler, array $middlewares = []): void
     {
         $normalizedMiddlewares = array_map([$this, 'normalizeMiddleware'], $middlewares);
         $this->routes[] = [
@@ -118,7 +118,7 @@ class Router implements RouterInterface
         return '#^' . $pattern . '$#';
     }
 
-    private function invokeHandler($handler, Request $request, array $params)
+    private function invokeHandler(mixed $handler, Request $request, array $params): mixed
     {
         if (is_array($handler) && isset($handler[0], $handler[1])) {
             $class = $handler[0];
@@ -134,7 +134,7 @@ class Router implements RouterInterface
         throw new \RuntimeException('Handler inválido para a rota.');
     }
 
-    private function invokeMiddleware(array $middleware, Request $request, callable $next)
+    private function invokeMiddleware(array $middleware, Request $request, callable $next): mixed
     {
         $definition = $middleware['definition'];
         $args = $middleware['args'];
@@ -185,7 +185,7 @@ class Router implements RouterInterface
         return $next($request);
     }
 
-    private function normalizeMiddleware($middleware): array
+    private function normalizeMiddleware(mixed $middleware): array
     {
         if (is_array($middleware) && isset($middleware['class'])) {
             return [
@@ -207,7 +207,7 @@ class Router implements RouterInterface
         ];
     }
 
-    private function callHandle(ReflectionMethod $method, callable $callable, Request $request, callable $next, array $args)
+    private function callHandle(ReflectionMethod $method, callable $callable, Request $request, callable $next, array $args): mixed
     {
         $params = $method->getParameters();
         $paramsCount = count($params);
@@ -234,7 +234,7 @@ class Router implements RouterInterface
         return $response instanceof Response ? $response : $next($request);
     }
 
-    private function normalizeResponse($result): Response
+    private function normalizeResponse(mixed $result): Response
     {
         if ($result instanceof Response) {
             return $result;

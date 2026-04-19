@@ -185,7 +185,7 @@
             .map(k => {
                 const v = ctx[k];
                 const label = { reason: 'motivo', identifier: 'login', username: 'usuário', nivel_acesso: 'nível', email: 'e-mail', user_id: 'uuid' }[k] || k;
-                return `<span style="color:#94a3b8;">${esc(label)}:</span> <strong style="color:#e2e8f0;">${esc(String(v))}</strong>`;
+                return `<span class="audit-detail-label">${esc(label)}:</span> <strong class="audit-detail-value">${esc(String(v))}</strong>`;
             })
             .join(' &nbsp;·&nbsp; ');
 
@@ -198,19 +198,35 @@
             .map(([k, v]) => `${k}: ${String(v)}`)
             .join('\n');
 
-        // All user data is escaped via esc() — safe against XSS
-        // lgtm[js/xss]
-        tr.innerHTML = `
-            <td style="white-space:nowrap;color:#94a3b8;font-size:0.9rem;">${fmtDate(log.criado_em)}</td>
-            <td>
-                <span class="audit-badge ${badge}">
-                    <i class="fa-solid ${icon}"></i>
-                    ${esc(log.evento)}
-                </span>
-            </td>
-            <td style="font-family:monospace;font-size:0.92rem;color:#94a3b8;white-space:nowrap;">${esc(log.ip || '—')}</td>
-            <td style="font-size:0.9rem;color:#64748b;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(log.endpoint || '')}">${esc(ep || '—')}</td>
-            <td style="font-size:0.88rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(tooltipCtx)}">${details || '<span style="color:#475569;">—</span>'}</td>`;
+        // Cria as células com padding e alinhamento consistentes
+        const tdData = document.createElement('td');
+        tdData.className = 'audit-cell-date';
+        tdData.textContent = fmtDate(log.criado_em);
+
+        const tdEvento = document.createElement('td');
+        tdEvento.className = 'audit-cell-evento';
+        tdEvento.innerHTML = `<span class="audit-badge ${badge}" style="font-size:1rem;padding:8px 14px;"><i class="fa-solid ${icon}" style="font-size:1.1rem;"></i> ${esc(log.evento)}</span>`;
+
+        const tdIp = document.createElement('td');
+        tdIp.className = 'audit-cell-ip';
+        tdIp.textContent = log.ip || '—';
+
+        const tdEndpoint = document.createElement('td');
+        tdEndpoint.className = 'audit-cell-endpoint';
+        tdEndpoint.title = log.endpoint || '';
+        tdEndpoint.textContent = ep || '—';
+
+        const tdDetalhes = document.createElement('td');
+        tdDetalhes.className = 'audit-cell-detalhes';
+        tdDetalhes.title = tooltipCtx;
+        tdDetalhes.innerHTML = details || '<span class="audit-empty">—</span>';
+
+        tr.appendChild(tdData);
+        tr.appendChild(tdEvento);
+        tr.appendChild(tdIp);
+        tr.appendChild(tdEndpoint);
+        tr.appendChild(tdDetalhes);
+
         return tr;
     }
 

@@ -61,6 +61,27 @@ class RouteSecurityTest extends TestCase
         $userRepo->method('buscarPorUuid')->willReturn(null);
         $this->container->bind(\Src\Kernel\Contracts\UserRepositoryInterface::class, $userRepo, true);
 
+        // Registra o pipeline de auth para que AuthHybridMiddleware e AdminOnlyMiddleware funcionem
+        $tokenValidator = new \Src\Kernel\Auth\JwtTokenValidator($blacklist);
+        $this->container->bind(\Src\Kernel\Contracts\TokenValidatorInterface::class, $tokenValidator, true);
+
+        $userResolver = new \Src\Kernel\Auth\DatabaseUserResolver($userRepo);
+        $this->container->bind(\Src\Kernel\Contracts\UserResolverInterface::class, $userResolver, true);
+
+        $this->container->bind(\Src\Kernel\Contracts\TokenResolverInterface::class, \Src\Kernel\Auth\BearerTokenResolver::class, true);
+
+        $identityFactory = new \Src\Kernel\Auth\DefaultIdentityFactory();
+        $this->container->bind(\Src\Kernel\Contracts\IdentityFactoryInterface::class, $identityFactory, true);
+
+        $authContext = new \Src\Kernel\Auth\JwtAuthContext(
+            $this->container->make(\Src\Kernel\Contracts\TokenResolverInterface::class),
+            $tokenValidator,
+            $userResolver,
+            $identityFactory
+        );
+        $this->container->bind(\Src\Kernel\Contracts\AuthContextInterface::class, $authContext, true);
+        $this->container->bind(\Src\Kernel\Contracts\AuthorizationInterface::class, $authContext, true);
+
         $svc = $this->createMock(\Src\Modules\Usuario\Services\UsuarioServiceInterface::class);
         $svc->method('buscarPorUsername')->willReturn(null);
         $svc->method('buscarPorUuid')->willReturn(null);

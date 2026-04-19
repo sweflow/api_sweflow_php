@@ -20,7 +20,11 @@ class UsuarioControllerTest extends TestCase
 
     private function makeController(?UsuarioServiceInterface $service = null): UsuarioController
     {
-        return new UsuarioController($service ?? $this->makeService());
+        $pdo = $this->createStub(\PDO::class);
+        $pdo->method('getAttribute')->willReturn('mysql');
+        $pdo->method('prepare')->willReturn($this->createStub(\PDOStatement::class));
+        $emailThrottle = new \Src\Kernel\Support\EmailThrottle($pdo);
+        return new UsuarioController($service ?? $this->makeService(), $emailThrottle);
     }
 
     private function makeUsuario(): Usuario
@@ -135,8 +139,8 @@ class UsuarioControllerTest extends TestCase
         $service = $this->makeService();
         $service->method('buscarPorUuid')->willReturn($this->makeUsuario());
         $ctrl = $this->makeController($service);
-        $req  = $this->makeRequest('GET', '/api/usuario/some-uuid');
-        $res  = $ctrl->buscar($req, 'some-uuid');
+        $req  = $this->makeRequest('GET', '/api/usuario/f47ac10b-58cc-4372-a567-0e02b2c3d479');
+        $res  = $ctrl->buscar($req, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
         $this->assertStatusCode($res, 200);
         $this->assertJsonStatus($res, 'success');
     }

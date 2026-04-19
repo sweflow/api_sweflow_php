@@ -42,7 +42,7 @@ class RequestFactory
             $body = array_merge($_POST, $formData);
         }
 
-        return new Request($body, $_GET, $headers, $method, $uri, $rawBody);
+        return new Request($body, $_GET, $headers, $method, $uri, $rawBody, $_COOKIE);
     }
 
     private static function headers(): array

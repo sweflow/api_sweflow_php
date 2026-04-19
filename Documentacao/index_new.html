@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vupi.us API — Documentação Completa</title>
+  <link rel="icon" href="assets/imgs/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/imgs/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/css/docs.css?v=4">
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header class="docs-topbar">
+  <div class="docs-topbar-left">
+    <button class="docs-menu-btn" id="menu-btn" aria-label="Menu">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <a href="#introducao" class="docs-logo" onclick="showPage('introducao');return false;">
+      <div class="docs-logo-icon">
+        <img src="assets/imgs/favicon.png" alt="Vupi.us" style="width:28px;height:28px;object-fit:contain;">
+      </div>
+      <span class="docs-logo-name">Vupi.us <span>API</span></span>
+    </a>
+    <span class="docs-version">v2.0</span>
+  </div>
+  <div class="docs-topbar-right">
+    <a href="/" class="docs-back-btn" title="Acessar Vupi.us API" aria-label="Acessar Vupi.us API">
+      <span class="docs-back-btn-icon"><i class="fa-solid fa-bolt"></i></span>
+      <span class="docs-back-btn-text">Acessar api.vupi.us</span>
+      <i class="fa-solid fa-arrow-up-right-from-square docs-back-btn-arrow"></i>
+    </a>
+    <button class="docs-theme-btn" id="theme-btn" aria-label="Alternar tema">
+      <i class="fa-solid fa-moon" id="theme-icon"></i>
+    </button>
+  </div>
+</header>
+
+<!-- ── OVERLAY mobile ── -->
+<div class="docs-overlay" id="docs-overlay"></div>
+
+<!-- ── LAYOUT ── -->
+<div class="docs-layout">
+
+  <!-- SIDEBAR -->
+  <nav class="docs-sidebar" id="docs-sidebar" aria-label="Navegação da documentação">
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Primeiros Passos</span>
+      <a class="docs-nav-link" data-page="introducao" href="#introducao">
+        <i class="fa-solid fa-house"></i> Introdução
+      </a>
+      <a class="docs-nav-link" data-page="instalacao" href="#instalacao">
+        <i class="fa-solid fa-download"></i> Instalação
+      </a>
+      <a class="docs-nav-link" data-page="configuracao" href="#configuracao">
+        <i class="fa-solid fa-gear"></i> Configuração (.env)
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Arquitetura</span>
+      <a class="docs-nav-link" data-page="arquitetura" href="#arquitetura">
+        <i class="fa-solid fa-sitemap"></i> Visão Geral
+      </a>
+      <a class="docs-nav-link" data-page="kernel" href="#kernel">
+        <i class="fa-solid fa-microchip"></i> Camada Kernel
+      </a>
+      <a class="docs-nav-link" data-page="modulos" href="#modulos">
+        <i class="fa-solid fa-puzzle-piece"></i> Módulos
+      </a>
+      <a class="docs-nav-link" data-page="contratos" href="#contratos">
+        <i class="fa-solid fa-handshake"></i> Contratos (Interfaces)
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Autenticação Plugável</span>
+      <a class="docs-nav-link" data-page="auth-plugavel" href="#auth-plugavel">
+        <i class="fa-solid fa-plug"></i> Visão Geral
+      </a>
+      <a class="docs-nav-link" data-page="auth-contratos" href="#auth-contratos">
+        <i class="fa-solid fa-key"></i> Contratos de Auth
+      </a>
+      <a class="docs-nav-link" data-page="auth-oauth2" href="#auth-oauth2">
+        <i class="fa-brands fa-openid"></i> Exemplo: OAuth2
+      </a>
+      <a class="docs-nav-link" data-page="auth-ldap" href="#auth-ldap">
+        <i class="fa-solid fa-server"></i> Exemplo: LDAP
+      </a>
+      <a class="docs-nav-link" data-page="auth-integracao" href="#auth-integracao">
+        <i class="fa-solid fa-arrows-left-right"></i> Integração de Módulos
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Desenvolvimento</span>
+      <a class="docs-nav-link" data-page="criar-modulo" href="#criar-modulo">
+        <i class="fa-solid fa-code"></i> Criar um Módulo
+      </a>
+      <a class="docs-nav-link" data-page="rotas" href="#rotas">
+        <i class="fa-solid fa-route"></i> Rotas e Middlewares
+      </a>
+      <a class="docs-nav-link" data-page="middlewares" href="#middlewares">
+        <i class="fa-solid fa-shield-halved"></i> Middlewares
+      </a>
+      <a class="docs-nav-link" data-page="banco" href="#banco">
+        <i class="fa-solid fa-database"></i> Banco de Dados
+      </a>
+      <a class="docs-nav-link" data-page="comunicacao" href="#comunicacao">
+        <i class="fa-solid fa-arrows-left-right"></i> Entre Módulos
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Guias Práticos</span>
+      <a class="docs-nav-link" data-page="quickstart" href="#quickstart">
+        <i class="fa-solid fa-rocket"></i> Do zero ao módulo (5 min)
+      </a>
+      <a class="docs-nav-link" data-page="boas-praticas" href="#boas-praticas">
+        <i class="fa-solid fa-star"></i> Boas práticas
+      </a>
+      <a class="docs-nav-link" data-page="troubleshooting" href="#troubleshooting">
+        <i class="fa-solid fa-bug"></i> Troubleshooting
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Referência</span>
+      <a class="docs-nav-link" data-page="seguranca" href="#seguranca">
+        <i class="fa-solid fa-shield-halved"></i> Segurança
+      </a>
+      <a class="docs-nav-link" data-page="comandos" href="#comandos">
+        <i class="fa-solid fa-terminal"></i> Comandos CLI
+      </a>
+      <a class="docs-nav-link" data-page="testes" href="#testes">
+        <i class="fa-solid fa-flask"></i> Testes
+      </a>
+    </div>
+
+    <div class="docs-nav-section">
+      <span class="docs-nav-label">Vupi.us IDE</span>
+      <a class="docs-nav-link" data-page="ide-intro" href="#ide-intro">
+        <i class="fa-solid fa-code"></i> Introdução à IDE
+      </a>
+      <a class="docs-nav-link" data-page="ide-quickstart" href="#ide-quickstart">
+        <i class="fa-solid fa-rocket"></i> Início Rápido
+      </a>
+      <a class="docs-nav-link" data-page="ide-modulos" href="#ide-modulos">
+        <i class="fa-solid fa-cube"></i> Criando Módulos
+      </a>
+    </div>
+
+  </nav>
+
+  <!-- MAIN -->
+  <main class="docs-main" id="docs-main">
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: INTRODUÇÃO
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page active" id="page-introducao">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div>
+          <h1>Bem-vindo à Vupi.us API</h1>
+          <p>Uma plataforma modular, segura e moderna desenvolvida em PHP puro. Simplicidade por fora, poder por dentro.</p>
+        </div>
+      </div>
+
+      <h2 id="o-que-e">O que é a Vupi.us API?</h2>
+      <p>A Vupi.us API é um framework PHP modular de alta performance, projetado para construir APIs REST robustas sem a complexidade de frameworks pesados. Cada funcionalidade vive em um <strong>módulo independente</strong> — uma pasta em <code>src/Modules/</code>.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>Filosofia Zero Config</strong>
+          <p>Crie uma pasta em <code>src/Modules/</code> e o sistema a detecta automaticamente. Sem registro manual, sem arquivos de configuração centralizados.</p>
+        </div>
+      </div>
+
+      <h2 id="recursos">Recursos principais</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-solid fa-puzzle-piece" style="color:#4f46e5"></i></div>
+          <h3>Arquitetura Modular</h3>
+          <p>Cada módulo é independente. Adicione, remova ou desative sem afetar o restante do sistema.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(34,197,94,0.12)"><i class="fa-solid fa-plug" style="color:#22c55e"></i></div>
+          <h3>Autenticação Plugável</h3>
+          <p>Substitua JWT por OAuth2, SAML, LDAP ou qualquer estratégia customizada sem modificar o kernel.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-shield-halved" style="color:#16a34a"></i></div>
+          <h3>Segurança por Padrão</h3>
+          <p>JWT com rotação de chaves, rate limiting, ThreatScorer, CSP, HSTS e proteção contra OWASP Top 10.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-database" style="color:#d97706"></i></div>
+          <h3>Multi-banco</h3>
+          <p>Suporte nativo a PostgreSQL e MySQL. Dois bancos simultâneos: core e módulos externos.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(96,165,250,0.12)"><i class="fa-solid fa-syringe" style="color:#2563eb"></i></div>
+          <h3>Injeção de Dependência</h3>
+          <p>Container automático com resolução recursiva. Declare no construtor, o sistema entrega.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(167,139,250,0.12)"><i class="fa-solid fa-bolt" style="color:#7c3aed"></i></div>
+          <h3>CLI Poderosa</h3>
+          <p>Setup automático, geração de módulos, migrations, seeds e gerenciamento de plugins via terminal.</p>
+        </div>
+      </div>
+
+      <h2 id="stack">Stack tecnológica</h2>
+      <table class="docs-table">
+        <thead><tr><th>Componente</th><th>Tecnologia</th></tr></thead>
+        <tbody>
+          <tr><td>Linguagem</td><td>PHP 8.2+</td></tr>
+          <tr><td>Banco de dados</td><td>PostgreSQL 15+ / MySQL 8+</td></tr>
+          <tr><td>Cache / Rate Limit</td><td>Redis (opcional) / File storage</td></tr>
+          <tr><td>Proxy reverso</td><td>Caddy (TLS automático)</td></tr>
+          <tr><td>Autenticação</td><td>JWT (nativo) / OAuth2 / LDAP / Customizado</td></tr>
+          <tr><td>Gerenciador de deps</td><td>Composer</td></tr>
+          <tr><td>Testes</td><td>PHPUnit (897 testes, 1269 assertions)</td></tr>
+          <tr><td>Análise estática</td><td>PHPStan nível 6 (zero erros)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="novidades">🎉 Novidades da v2.0</h2>
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-sparkles"></i></div>
+        <div class="callout-body">
+          <strong>Autenticação Completamente Plugável</strong>
+          <p>A v2.0 introduz um sistema de autenticação baseado em <strong>contratos (interfaces)</strong>, permitindo que desenvolvedores substituam qualquer parte do pipeline de autenticação sem modificar o kernel. Veja a seção <a href="#auth-plugavel" onclick="showPage('auth-plugavel');return false;">Autenticação Plugável</a> para detalhes.</p>
+        </div>
+      </div>
+
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>8 contratos independentes</strong> — AuthContextInterface, AuthorizationInterface, TokenResolverInterface, TokenValidatorInterface, UserResolverInterface, IdentityFactoryInterface, TokenPayloadInterface, AuthIdentityInterface</li>
+        <li><strong>Substituição total do pipeline</strong> — troque JWT por OAuth2, SAML, LDAP ou qualquer estratégia customizada</li>
+        <li><strong>Integração de múltiplos módulos</strong> — um módulo de auth + um módulo de users + N módulos de negócio</li>
+        <li><strong>Compatibilidade garantida</strong> — módulos de negócio usam contratos, não implementações</li>
+        <li><strong>Exemplos práticos completos</strong> — OAuth2, LDAP e integração multi-módulo documentados passo a passo</li>
+      </ul>
+
+      <h2 id="documentacao">Estrutura da Documentação</h2>
+      <p>Esta documentação está organizada para facilitar tanto o aprendizado quanto a consulta rápida:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>Primeiros Passos</strong> — Instalação, configuração e conceitos básicos</li>
+        <li><strong>Arquitetura</strong> — Como o sistema funciona internamente</li>
+        <li><strong>Autenticação Plugável</strong> — Sistema de contratos, exemplos OAuth2 e LDAP</li>
+        <li><strong>Desenvolvimento</strong> — Criar módulos, rotas, middlewares e banco de dados</li>
+        <li><strong>Guias Práticos</strong> — Tutoriais passo a passo e boas práticas</li>
+        <li><strong>Referência</strong> — Segurança, comandos CLI e testes</li>
+        <li><strong>Vupi.us IDE</strong> — Desenvolvimento visual de módulos</li>
+      </ul>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Começando do zero?</strong>
+          <p>Siga a ordem: <a href="#instalacao" onclick="showPage('instalacao');return false;">Instalação</a> → <a href="#configuracao" onclick="showPage('configuracao');return false;">Configuração</a> → <a href="#quickstart" onclick="showPage('quickstart');return false;">Quickstart</a> → <a href="#criar-modulo" onclick="showPage('criar-modulo');return false;">Criar um Módulo</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: AUTH PLUGÁVEL
+    ══════════════════════════════════════════════════════ -->
+    <section class="docs-page" id="page-auth-plugavel">
+      <div class="docs-page-intro">
+        <div class="docs-page-intro-icon"><i class="fa-solid fa-plug"></i></div>
+        <div>
+          <h1>Autenticação Plugável</h1>
+          <p>Sistema de autenticação completamente substituível baseado em contratos (interfaces).</p>
+        </div>
+      </div>
+
+      <h2 id="visao-geral">Visão Geral</h2>
+      <p>A Vupi.us API v2.0 implementa um sistema de autenticação baseado em <strong>Ports & Adapters (Hexagonal Architecture)</strong>. O kernel define <strong>portas (contratos/interfaces)</strong>, os módulos fornecem <strong>adaptadores (implementações)</strong>, e os módulos de negócio consomem as portas sem saber qual adaptador está ativo.</p>
+
+      <div class="callout note">
+        <div class="callout-icon"><i class="fa-solid fa-lightbulb"></i></div>
+        <div class="callout-body">
+          <strong>O que isso significa na prática?</strong>
+          <p>Você pode criar um módulo <code>MeuAuth</code> que implementa OAuth2, outro módulo <code>MeuUsers</code> que busca usuários no LDAP, e um módulo <code>MeuEcommerce</code> que usa <code>Auth::user()</code> nas rotas. O <code>MeuEcommerce</code> não sabe nada sobre OAuth2 ou LDAP — ele só usa os contratos do kernel.</p>
+        </div>
+      </div>
+
+      <h2 id="pipeline">Pipeline de Autenticação</h2>
+      <p>O pipeline é composto por <strong>8 contratos independentes</strong>, cada um com uma responsabilidade única:</p>
+
+      <div class="code-block">
+        <div class="code-block-header"><span class="code-lang">text</span></div>
+        <pre><code>Request
+    ↓
+TokenResolverInterface      → De onde vem o token?
+    ↓
+TokenValidatorInterface     → O token é válido?
+    ↓
+UserResolverInterface       → Quem é o usuário?
+    ↓
+IdentityFactoryInterface    → Como montar a identidade?
+    ↓
+AuthContextInterface        → Orquestrador do pipeline
+    ↓
+AuthorizationInterface      → O usuário pode fazer isso?
+    ↓
+AuthIdentityInterface       → Objeto de identidade tipado</code></pre>
+      </div>
+
+      <p>Cada contrato pode ser substituído <strong>independentemente</strong> por um módulo externo.</p>
+
+      <h2 id="contratos-lista">Os 8 Contratos</h2>
+      <table class="docs-table">
+        <thead><tr><th>Contrato</th><th>Responsabilidade</th><th>Implementação Nativa</th></tr></thead>
+        <tbody>
+          <tr><td><code>AuthContextInterface</code></td><td>Orquestrar o pipeline completo</td><td><code>JwtAuthContext</code></td></tr>
+          <tr><td><code>AuthIdentityInterface</code></td><td>Representar a identidade autenticada</td><td><code>AuthIdentity</code></td></tr>
+          <tr><td><code>AuthorizationInterface</code></td><td>Decidir permissões</td><td><code>JwtAuthContext</code></td></tr>
+          <tr><td><code>TokenResolverInterface</code></td><td>Extrair o token do Request</td><td><code>BearerTokenResolver</code></td></tr>
+          <tr><td><code>TokenValidatorInterface</code></td><td>Validar o token</td><td><code>JwtTokenValidator</code></td></tr>
+          <tr><td><code>TokenPayloadInterface</code></td><td>Encapsular o payload tipado</td><td><code>JwtPayload</code></td></tr>
+          <tr><td><code>UserResolverInterface</code></td><td>Buscar o usuário</td><td><code>DatabaseUserResolver</code></td></tr>
+          <tr><td><code>IdentityFactoryInterface</code></td><td>Criar objetos de identidade</td><td><code>DefaultIdentityFactory</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="cenarios">Cenários de Uso</h2>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-brands fa-openid" style="color:#4f46e5"></i></div>
+          <h3>Substituir JWT por OAuth2</h3>
+          <p>Crie um módulo que implementa <code>TokenValidatorInterface</code> e <code>AuthContextInterface</code> com OAuth2. Todos os módulos que usam <code>Auth::user()</code> continuam funcionando.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(34,197,94,0.12)"><i class="fa-solid fa-server" style="color:#22c55e"></i></div>
+          <h3>Usar LDAP para usuários</h3>
+          <p>Crie um módulo que implementa <code>UserResolverInterface</code> buscando usuários no LDAP. O JWT continua funcionando, mas os usuários vêm do LDAP.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-arrows-left-right" style="color:#d97706"></i></div>
+          <h3>Integrar múltiplos módulos</h3>
+          <p>Um módulo de auth + um módulo de users + N módulos de negócio. Cada um substitui um contrato diferente, todos funcionam juntos.</p>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Próximos passos</strong>
+          <p>Veja <a href="#auth-contratos" onclick="showPage('auth-contratos');return false;">Contratos de Auth</a> para detalhes de cada interface, <a href="#auth-oauth2" onclick="showPage('auth-oauth2');return false;">Exemplo: OAuth2</a> para um módulo completo, e <a href="#auth-integracao" onclick="showPage('auth-integracao');return false;">Integração de Módulos</a> para cenários multi-módulo.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+
+<script src="assets/js/docs.js?v=4"></script>
+</body>
+</html>

@@ -407,6 +407,12 @@
 
                 // O cookie auth_token já foi setado pelo servidor via Set-Cookie (HttpOnly, Secure)
                 // O JS não precisa e não deve setar cookies de autenticação
+                
+                // Limpa contador de redirects de autenticação (previne loop infinito)
+                try {
+                    sessionStorage.removeItem('auth_redirect_count');
+                } catch (e) {}
+                
                 setBtn(btn, 'fa-solid fa-check', 'Sucesso!');
                 setTimeout(function () { window.location.replace('/dashboard/ide'); }, 300);
 

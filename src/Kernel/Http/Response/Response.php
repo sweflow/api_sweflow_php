@@ -16,8 +16,13 @@ class Response
         $this->headers = $headers;
     }
 
-    public static function json($data, int $status = 200): self
+    public static function json(mixed $data, int $status = 200): self
     {
+        // null é convertido para false — representa "sem corpo" (204 No Content semantics)
+        if ($data === null) {
+            $data = false;
+        }
+
         $origin = self::resolveOrigin();
         // Headers de segurança são adicionados aqui como fallback para respostas que
         // escapem do SecurityHeadersMiddleware (ex: erros de roteamento, 404, etc).
@@ -107,10 +112,10 @@ class Response
         } else {
             $nonce = \Src\Kernel\Nonce::get();
             // Página HTML: scripts via nonce + SRI para CDN externo.
-            // SRI (Subresource Integrity) garante que scripts externos não foram adulterados.
-            // require-sri-for bloqueia scripts/styles sem integrity attribute.
             // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
-            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+            //   - require-trusted-types-for 'script' bloqueia innerHTML com strings não-TrustedHTML
+            //   - trusted-types default dompurify monaco-editor: políticas aceitas pelo dashboard
+            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify monaco-editor";
         }
 
         $headers = [

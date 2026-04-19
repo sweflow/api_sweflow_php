@@ -107,13 +107,13 @@ class SimpleModuleProvider implements ModuleProviderInterface
                             private readonly string $moduleName
                         ) {}
 
-                        public function get(string $uri, $handler, array $mw = []): void    { $this->add('GET',    $uri, $handler, $mw); }
-                        public function post(string $uri, $handler, array $mw = []): void   { $this->add('POST',   $uri, $handler, $mw); }
-                        public function put(string $uri, $handler, array $mw = []): void    { $this->add('PUT',    $uri, $handler, $mw); }
-                        public function patch(string $uri, $handler, array $mw = []): void  { $this->add('PATCH',  $uri, $handler, $mw); }
-                        public function delete(string $uri, $handler, array $mw = []): void { $this->add('DELETE', $uri, $handler, $mw); }
+                        public function get(string $uri, mixed $handler, array $mw = []): void    { $this->add('GET',    $uri, $handler, $mw); }
+                        public function post(string $uri, mixed $handler, array $mw = []): void   { $this->add('POST',   $uri, $handler, $mw); }
+                        public function put(string $uri, mixed $handler, array $mw = []): void    { $this->add('PUT',    $uri, $handler, $mw); }
+                        public function patch(string $uri, mixed $handler, array $mw = []): void  { $this->add('PATCH',  $uri, $handler, $mw); }
+                        public function delete(string $uri, mixed $handler, array $mw = []): void { $this->add('DELETE', $uri, $handler, $mw); }
 
-                        public function add(string $method, string $uri, $handler, array $mw = []): void
+                        public function add(string $method, string $uri, mixed $handler, array $mw = []): void
                         {
                             if (!\Src\Kernel\Nucleo\ModuleGuard::isUriAllowed($uri, $this->moduleName)) {
                                 return; // URI reservada — bloqueia silenciosamente
@@ -231,12 +231,12 @@ class SimpleModuleProvider implements ModuleProviderInterface
         if (empty($this->routes)) {
             $collector = new class implements RouterInterface {
                 public array $collected = [];
-                public function get(string $uri, $handler, array $middlewares = []): void    { $this->add('GET',    $uri, $handler, $middlewares); }
-                public function post(string $uri, $handler, array $middlewares = []): void   { $this->add('POST',   $uri, $handler, $middlewares); }
-                public function put(string $uri, $handler, array $middlewares = []): void    { $this->add('PUT',    $uri, $handler, $middlewares); }
-                public function patch(string $uri, $handler, array $middlewares = []): void  { $this->add('PATCH',  $uri, $handler, $middlewares); }
-                public function delete(string $uri, $handler, array $middlewares = []): void { $this->add('DELETE', $uri, $handler, $middlewares); }
-                public function add(string $method, string $uri, $handler, array $middlewares = []): void {
+                public function get(string $uri, mixed $handler, array $middlewares = []): void    { $this->add('GET',    $uri, $handler, $middlewares); }
+                public function post(string $uri, mixed $handler, array $middlewares = []): void   { $this->add('POST',   $uri, $handler, $middlewares); }
+                public function put(string $uri, mixed $handler, array $middlewares = []): void    { $this->add('PUT',    $uri, $handler, $middlewares); }
+                public function patch(string $uri, mixed $handler, array $middlewares = []): void  { $this->add('PATCH',  $uri, $handler, $middlewares); }
+                public function delete(string $uri, mixed $handler, array $middlewares = []): void { $this->add('DELETE', $uri, $handler, $middlewares); }
+                public function add(string $method, string $uri, mixed $handler, array $middlewares = []): void {
                     $this->collected[] = ['method'=>$method, 'uri'=>$uri, 'handler'=>$handler, 'middlewares'=>$middlewares];
                 }
                 public function dispatch(\Src\Kernel\Http\Request\Request $request): \Src\Kernel\Http\Response\Response { return \Src\Kernel\Http\Response\Response::json([]); }

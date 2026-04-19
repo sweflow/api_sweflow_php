@@ -418,7 +418,7 @@ final class ModuleAnalyzer
 
         foreach ($dangerous as $check) {
             if (preg_match($check['pattern'], $content, $m, PREG_OFFSET_CAPTURE)) {
-                $offset = (int)($m[0][1] ?? 0);
+                $offset = (int)$m[0][1];
                 $line   = substr_count(substr($content, 0, $offset), "\n") + 1;
                 $found  = $m[1][0] ?? $m[0][0];
                 $msg    = str_contains($check['msg'], '%s') ? sprintf($check['msg'], $found) : $check['msg'];

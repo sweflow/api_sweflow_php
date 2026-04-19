@@ -23,32 +23,32 @@ class ModuleScopedRouter implements RouterInterface
         $this->module = $module;
     }
 
-    public function get(string $uri, $handler, array $middlewares = []): void
+    public function get(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('GET', $uri, $handler, $middlewares);
     }
 
-    public function post(string $uri, $handler, array $middlewares = []): void
+    public function post(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('POST', $uri, $handler, $middlewares);
     }
 
-    public function put(string $uri, $handler, array $middlewares = []): void
+    public function put(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('PUT', $uri, $handler, $middlewares);
     }
 
-    public function patch(string $uri, $handler, array $middlewares = []): void
+    public function patch(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('PATCH', $uri, $handler, $middlewares);
     }
 
-    public function delete(string $uri, $handler, array $middlewares = []): void
+    public function delete(string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->add('DELETE', $uri, $handler, $middlewares);
     }
 
-    public function add(string $method, string $uri, $handler, array $middlewares = []): void
+    public function add(string $method, string $uri, mixed $handler, array $middlewares = []): void
     {
         $this->router->add($method, $uri, $handler, $this->withGuard($middlewares));
         // Guarda os middlewares ORIGINAIS (sem o guard interno do módulo)

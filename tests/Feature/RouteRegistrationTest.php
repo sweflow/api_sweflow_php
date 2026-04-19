@@ -55,16 +55,42 @@ class RouteRegistrationTest extends TestCase
 
         $this->container->bind(\Src\Kernel\Support\AuditLogger::class, new \Src\Kernel\Support\AuditLogger(null), true);
 
-        $this->container->bind(
-            \Src\Kernel\Contracts\UserRepositoryInterface::class,
-            $this->createMock(\Src\Kernel\Contracts\UserRepositoryInterface::class),
-            true
-        );
+        $blacklist = $this->createMock(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
+        $blacklist->method('isRevoked')->willReturn(false);
         $this->container->bind(
             \Src\Kernel\Contracts\TokenBlacklistInterface::class,
-            $this->createMock(\Src\Kernel\Contracts\TokenBlacklistInterface::class),
+            $blacklist,
             true
         );
+
+        $userRepo = $this->createMock(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+        $userRepo->method('buscarPorUuid')->willReturn(null);
+        $this->container->bind(
+            \Src\Kernel\Contracts\UserRepositoryInterface::class,
+            $userRepo,
+            true
+        );
+
+        // Registra o pipeline de auth para que AuthHybridMiddleware e AdminOnlyMiddleware funcionem
+        $tokenValidator = new \Src\Kernel\Auth\JwtTokenValidator($blacklist);
+        $this->container->bind(\Src\Kernel\Contracts\TokenValidatorInterface::class, $tokenValidator, true);
+
+        $userResolver = new \Src\Kernel\Auth\DatabaseUserResolver($userRepo);
+        $this->container->bind(\Src\Kernel\Contracts\UserResolverInterface::class, $userResolver, true);
+
+        $this->container->bind(\Src\Kernel\Contracts\TokenResolverInterface::class, \Src\Kernel\Auth\BearerTokenResolver::class, true);
+
+        $identityFactory = new \Src\Kernel\Auth\DefaultIdentityFactory();
+        $this->container->bind(\Src\Kernel\Contracts\IdentityFactoryInterface::class, $identityFactory, true);
+
+        $authContext = new \Src\Kernel\Auth\JwtAuthContext(
+            $this->container->make(\Src\Kernel\Contracts\TokenResolverInterface::class),
+            $tokenValidator,
+            $userResolver,
+            $identityFactory
+        );
+        $this->container->bind(\Src\Kernel\Contracts\AuthContextInterface::class, $authContext, true);
+        $this->container->bind(\Src\Kernel\Contracts\AuthorizationInterface::class, $authContext, true);
 
         // Stub UsuarioService — evita que UsuarioController tente conectar ao banco
         $usuarioService = $this->createMock(\Src\Modules\Usuario\Services\UsuarioServiceInterface::class);

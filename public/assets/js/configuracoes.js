@@ -624,147 +624,257 @@ async function testDb2Connection(body) {
 // ── Link Limits (custom section) ──────────────────────────────────────────────
 function renderLinkLimitsBody(body) {
     body.textContent = '';
-    body.style.padding = '28px 32px';
+    body.style.padding = '32px 36px';
 
-    // ── Botão Editar próprio ──────────────────────────────────────────────
-    const editBar = document.createElement('div');
-    editBar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:20px;';
-    const editBtn = document.createElement('button');
-    editBtn.id = 'll-edit-btn';
-    editBtn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:9px;background:transparent;border:1.5px solid var(--cfg-accent,#818cf8);color:var(--cfg-accent,#818cf8);font-size:1rem;font-weight:700;cursor:pointer;transition:background .15s,color .15s;';
-    editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
-    editBar.appendChild(editBtn);
-    body.appendChild(editBar);
-
-    // Descrição
+    // ── Header com descrição ──────────────────────────────────────────────
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-bottom:32px;';
+    
+    const title = document.createElement('div');
+    title.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
+    title.innerHTML = '<i class="fa-solid fa-link" style="font-size:1.8rem;color:#22d3ee;"></i><h2 style="font-size:1.6rem;font-weight:800;color:var(--cfg-text-primary);margin:0;">Limites de Links Encurtados</h2>';
+    
     const desc = document.createElement('p');
-    desc.style.cssText = 'color:var(--cfg-text-secondary);font-size:1rem;margin-bottom:24px;line-height:1.65;';
-    desc.textContent = 'Defina quantos links cada usuário pode criar. -1 = ilimitado, 0 = bloqueado. Aplique para um usuário específico ou para todos os usuários.';
-    body.appendChild(desc);
+    desc.style.cssText = 'color:var(--cfg-text-secondary);font-size:1.05rem;margin:0;line-height:1.7;max-width:700px;';
+    desc.textContent = 'Controle quantos links encurtados cada usuário pode criar. Configure limites individuais ou aplique um limite padrão para todos os usuários.';
+    
+    header.appendChild(title);
+    header.appendChild(desc);
+    body.appendChild(header);
 
-    // ── Limite por usuário ────────────────────────────────────────────────
-    const h3user = document.createElement('h3');
-    h3user.style.cssText = 'font-size:.95rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cfg-accent,#818cf8);margin-bottom:14px;';
-    h3user.textContent = 'Limite por usuário';
-    body.appendChild(h3user);
+    // ── Cards Container ───────────────────────────────────────────────────
+    const cardsContainer = document.createElement('div');
+    cardsContainer.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:24px;';
 
-    const rowUser = document.createElement('div');
-    rowUser.style.cssText = 'display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:20px;';
+    // ── Card 1: Limite por usuário ────────────────────────────────────────
+    const cardUser = createLimitCard({
+        id: 'user',
+        icon: 'fa-user',
+        iconColor: '#818cf8',
+        title: 'Limite por Usuário',
+        description: 'Configure o limite de links para um usuário específico',
+        fields: [
+            { type: 'text', id: 'll-user-id', label: 'UUID do Usuário', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', icon: 'fa-fingerprint' },
+            { type: 'select', id: 'll-max-links', label: 'Limite de Links', options: limitOptions(), icon: 'fa-hashtag' }
+        ],
+        buttonText: 'Salvar Limite',
+        buttonIcon: 'fa-floppy-disk',
+        buttonId: 'll-save-btn'
+    });
 
-    const fgUid = mkField('UUID do usuário', 'text', 'll-user-id', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
-    fgUid.style.flex = '1';
-    const fgSel = mkSelectField('Limite', 'll-max-links', limitOptions());
-    fgSel.style.minWidth = '200px';
-    const btnSave = mkButton('Salvar', 'fa-floppy-disk', 'll-save-btn');
+    // ── Card 2: Limite global ─────────────────────────────────────────────
+    const cardGlobal = createLimitCard({
+        id: 'global',
+        icon: 'fa-users',
+        iconColor: '#22d3ee',
+        title: 'Limite Global',
+        description: 'Define o limite padrão para todos os usuários sem configuração individual',
+        fields: [
+            { type: 'select', id: 'll-global-max', label: 'Limite Padrão', options: limitOptions(), icon: 'fa-globe' }
+        ],
+        buttonText: 'Aplicar para Todos',
+        buttonIcon: 'fa-check-double',
+        buttonId: 'll-global-save',
+        warning: true
+    });
 
-    rowUser.appendChild(fgUid);
-    rowUser.appendChild(fgSel);
-    rowUser.appendChild(btnSave);
-    body.appendChild(rowUser);
+    cardsContainer.appendChild(cardUser);
+    cardsContainer.appendChild(cardGlobal);
+    body.appendChild(cardsContainer);
 
+    // ── Feedback areas ────────────────────────────────────────────────────
     const fbUser = document.createElement('div');
     fbUser.id = 'll-feedback';
-    fbUser.style.cssText = 'display:none;margin-bottom:16px;padding:12px 16px;border-radius:9px;font-size:1rem;font-weight:600;';
-    body.appendChild(fbUser);
+    fbUser.className = 'll-feedback-box';
+    fbUser.style.display = 'none';
+    cardUser.appendChild(fbUser);
 
     const currentDiv = document.createElement('div');
     currentDiv.id = 'll-current';
-    currentDiv.style.cssText = 'display:none;margin-bottom:24px;padding:16px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:10px;font-size:1rem;';
-    body.appendChild(currentDiv);
+    currentDiv.className = 'll-current-box';
+    currentDiv.style.display = 'none';
+    cardUser.appendChild(currentDiv);
 
-    // ── Limite global ─────────────────────────────────────────────────────
-    const sep = document.createElement('hr');
-    sep.style.cssText = 'border:none;border-top:1px solid var(--cfg-border);margin:24px 0;';
-    body.appendChild(sep);
+    const fbGlobal = document.createElement('div');
+    fbGlobal.id = 'll-global-feedback';
+    fbGlobal.className = 'll-feedback-box';
+    fbGlobal.style.display = 'none';
+    cardGlobal.appendChild(fbGlobal);
 
-    const h3all = document.createElement('h3');
-    h3all.style.cssText = 'font-size:.95rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cfg-accent,#818cf8);margin-bottom:14px;';
-    h3all.textContent = 'Limite global (todos os usuários)';
-    body.appendChild(h3all);
-
-    const descAll = document.createElement('p');
-    descAll.style.cssText = 'color:var(--cfg-text-secondary);font-size:.95rem;margin-bottom:16px;line-height:1.55;';
-    descAll.textContent = 'Define o limite padrão para TODOS os usuários que não têm limite individual configurado.';
-    body.appendChild(descAll);
-
-    const rowAll = document.createElement('div');
-    rowAll.style.cssText = 'display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:16px;';
-
-    const fgAllSel = mkSelectField('Limite padrão', 'll-global-max', limitOptions());
-    fgAllSel.style.minWidth = '220px';
-    const btnAllSave = mkButton('Aplicar para todos', 'fa-users', 'll-global-save');
-
-    rowAll.appendChild(fgAllSel);
-    rowAll.appendChild(btnAllSave);
-    body.appendChild(rowAll);
-
-    const fbAll = document.createElement('div');
-    fbAll.id = 'll-global-feedback';
-    fbAll.style.cssText = 'display:none;padding:12px 16px;border-radius:9px;font-size:1rem;font-weight:600;';
-    body.appendChild(fbAll);
-
-    // ── Estado inicial: tudo desabilitado ─────────────────────────────────
-    setLLEditing(false);
-
-    // ── Botão Editar / Cancelar ───────────────────────────────────────────
-    editBtn.addEventListener('click', function () {
-        const editing = editBtn.dataset.editing === '1';
-        setLLEditing(!editing);
-    });
-
-    // ── Wire up save events ───────────────────────────────────────────────
+    // ── Wire up events ────────────────────────────────────────────────────
     setTimeout(() => initLinkLimitsEvents(), 50);
 }
 
-function setLLEditing(editing) {
-    const editBtn   = document.getElementById('ll-edit-btn');
-    const userIdInp = document.getElementById('ll-user-id');
-    const maxSel    = document.getElementById('ll-max-links');
-    const saveBtn   = document.getElementById('ll-save-btn');
-    const globalSel = document.getElementById('ll-global-max');
-    const globalBtn = document.getElementById('ll-global-save');
+function createLimitCard(config) {
+    const card = document.createElement('div');
+    card.className = 'll-card';
+    card.id = `ll-card-${config.id}`;
+    
+    const isDark = document.body.classList.contains('dark');
+    const bgColor = isDark ? 'rgba(255,255,255,0.03)' : '#ffffff';
+    const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    
+    card.style.cssText = `
+        background:${bgColor};
+        border:1.5px solid ${borderColor};
+        border-radius:16px;
+        padding:28px;
+        transition:all 0.3s ease;
+        position:relative;
+        overflow:hidden;
+    `;
 
-    if (!editBtn) return;
+    // ── Card Header ───────────────────────────────────────────────────────
+    const cardHeader = document.createElement('div');
+    cardHeader.style.cssText = 'margin-bottom:24px;';
+    
+    const iconTitle = document.createElement('div');
+    iconTitle.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;';
+    iconTitle.innerHTML = `
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(${hexToRgb(config.iconColor)},0.12);display:flex;align-items:center;justify-content:center;">
+            <i class="fa-solid ${config.icon}" style="font-size:1.4rem;color:${config.iconColor};"></i>
+        </div>
+        <h3 style="font-size:1.3rem;font-weight:800;color:var(--cfg-text-primary);margin:0;">${config.title}</h3>
+    `;
+    
+    const cardDesc = document.createElement('p');
+    cardDesc.style.cssText = 'color:var(--cfg-text-secondary);font-size:1rem;margin:0;line-height:1.6;';
+    cardDesc.textContent = config.description;
+    
+    cardHeader.appendChild(iconTitle);
+    cardHeader.appendChild(cardDesc);
+    card.appendChild(cardHeader);
+
+    // ── Edit Button (top right) ───────────────────────────────────────────
+    const editBtn = document.createElement('button');
+    editBtn.className = 'll-edit-btn';
+    editBtn.dataset.cardId = config.id;
+    editBtn.style.cssText = `
+        position:absolute;
+        top:20px;
+        right:20px;
+        padding:10px 18px;
+        border-radius:10px;
+        background:transparent;
+        border:1.5px solid ${config.iconColor};
+        color:${config.iconColor};
+        font-size:0.95rem;
+        font-weight:700;
+        cursor:pointer;
+        transition:all 0.2s ease;
+        display:flex;
+        align-items:center;
+        gap:8px;
+    `;
+    editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
+    card.appendChild(editBtn);
+
+    // ── Fields Container ──────────────────────────────────────────────────
+    const fieldsContainer = document.createElement('div');
+    fieldsContainer.className = 'll-fields-container';
+    fieldsContainer.style.cssText = 'display:none;margin-top:20px;';
+    
+    config.fields.forEach(field => {
+        const fieldEl = field.type === 'select' 
+            ? mkSelectFieldEnhanced(field.label, field.id, field.options, field.icon)
+            : mkFieldEnhanced(field.label, field.type, field.id, field.placeholder, field.icon);
+        fieldEl.style.marginBottom = '18px';
+        fieldsContainer.appendChild(fieldEl);
+    });
+
+    card.appendChild(fieldsContainer);
+
+    // ── Action Button ─────────────────────────────────────────────────────
+    const actionBtn = document.createElement('button');
+    actionBtn.id = config.buttonId;
+    actionBtn.className = 'll-action-btn';
+    actionBtn.style.cssText = `
+        width:100%;
+        padding:14px 24px;
+        border-radius:10px;
+        background:${config.iconColor};
+        border:none;
+        color:#ffffff;
+        font-size:1.05rem;
+        font-weight:700;
+        cursor:pointer;
+        transition:all 0.2s ease;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        gap:10px;
+        margin-top:20px;
+        box-shadow:0 4px 12px rgba(${hexToRgb(config.iconColor)},0.3);
+    `;
+    actionBtn.innerHTML = `<i class="fa-solid ${config.buttonIcon}"></i> ${config.buttonText}`;
+    
+    if (config.warning) {
+        actionBtn.style.background = '#f59e0b';
+        actionBtn.style.boxShadow = '0 4px 12px rgba(245,158,11,0.3)';
+    }
+    
+    card.appendChild(actionBtn);
+
+    // ── Edit Button Logic ─────────────────────────────────────────────────
+    editBtn.addEventListener('click', function() {
+        const isEditing = editBtn.dataset.editing === '1';
+        toggleCardEditing(card, config, !isEditing);
+    });
+
+    return card;
+}
+
+function toggleCardEditing(card, config, editing) {
+    const editBtn = card.querySelector('.ll-edit-btn');
+    const fieldsContainer = card.querySelector('.ll-fields-container');
+    const actionBtn = card.querySelector('.ll-action-btn');
+    const inputs = card.querySelectorAll('input, select');
 
     editBtn.dataset.editing = editing ? '1' : '0';
 
     if (editing) {
+        // Modo edição
         editBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancelar';
-        editBtn.style.background = 'rgba(239,68,68,.1)';
+        editBtn.style.background = 'rgba(239,68,68,0.1)';
         editBtn.style.borderColor = '#ef4444';
         editBtn.style.color = '#ef4444';
+        
+        fieldsContainer.style.display = 'block';
+        actionBtn.style.display = 'flex';
+        
+        inputs.forEach(inp => {
+            inp.disabled = false;
+            inp.style.opacity = '1';
+        });
+
+        // Animação de entrada
+        fieldsContainer.style.animation = 'slideDown 0.3s ease';
+        actionBtn.style.animation = 'fadeIn 0.3s ease';
+        
+        // Limpa feedbacks
+        const feedbacks = card.querySelectorAll('.ll-feedback-box, .ll-current-box');
+        feedbacks.forEach(fb => fb.style.display = 'none');
+        
     } else {
+        // Modo visualização
         editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar';
         editBtn.style.background = 'transparent';
-        editBtn.style.borderColor = 'var(--cfg-accent,#818cf8)';
-        editBtn.style.color = 'var(--cfg-accent,#818cf8)';
-        // Limpa feedbacks ao cancelar
-        const fb1 = document.getElementById('ll-feedback');
-        const fb2 = document.getElementById('ll-global-feedback');
-        const cur = document.getElementById('ll-current');
-        if (fb1) fb1.style.display = 'none';
-        if (fb2) fb2.style.display = 'none';
-        if (cur) cur.style.display = 'none';
+        editBtn.style.borderColor = config.iconColor;
+        editBtn.style.color = config.iconColor;
+        
+        fieldsContainer.style.display = 'none';
+        actionBtn.style.display = 'none';
+        
+        inputs.forEach(inp => {
+            inp.disabled = true;
+            inp.style.opacity = '0.5';
+        });
     }
+}
 
-    const disabledStyle = 'opacity:.45;cursor:not-allowed;pointer-events:none;';
-    const enabledStyle  = 'opacity:1;cursor:pointer;pointer-events:auto;';
-
-    [userIdInp, maxSel, globalSel].forEach(el => {
-        if (!el) return;
-        el.disabled = !editing;
-        el.style.opacity = editing ? '1' : '.45';
-        el.style.cursor  = editing ? '' : 'not-allowed';
-    });
-
-    [saveBtn, globalBtn].forEach(el => {
-        if (!el) return;
-        el.disabled = !editing;
-        el.style.cssText = el.style.cssText.replace(/opacity:[^;]+;?/g, '');
-        el.style.opacity = editing ? '1' : '.45';
-        el.style.cursor  = editing ? 'pointer' : 'not-allowed';
-        el.style.pointerEvents = editing ? 'auto' : 'none';
-    });
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}` : '0,0,0';
 }
 
 function limitOptions() {
@@ -782,99 +892,114 @@ function limitOptions() {
     ];
 }
 
-function mkField(label, type, id, placeholder) {
+function mkFieldEnhanced(label, type, id, placeholder, icon) {
     const fg = document.createElement('div');
+    fg.style.cssText = 'position:relative;';
+    
     const lbl = document.createElement('label');
     lbl.textContent = label;
     lbl.setAttribute('for', id);
-    lbl.style.cssText = 'display:block;font-size:1rem;font-weight:700;color:var(--cfg-text-secondary);margin-bottom:8px;';
+    lbl.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:1.05rem;font-weight:700;color:var(--cfg-text-secondary);margin-bottom:10px;';
+    if (icon) {
+        lbl.innerHTML = `<i class="fa-solid ${icon}" style="color:var(--cfg-accent);"></i> ${label}`;
+    }
 
     const isDark = document.body.classList.contains('dark');
     const bgColor = isDark ? '#1e2235' : '#f8fafc';
     const textColor = isDark ? '#f1f5f9' : '#0f172a';
-    const borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.14)';
+    const borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
 
     const inp = document.createElement('input');
-    inp.type = type; inp.id = id; inp.placeholder = placeholder || '';
-    inp.autocomplete = 'off'; inp.spellcheck = false;
-    inp.style.cssText = [
-        'width:100%',
-        'padding:13px 16px',
-        'border-radius:10px',
-        'border:1.5px solid ' + borderColor,
-        'background:' + bgColor,
-        'color:' + textColor,
-        'font-size:1rem',
-        'outline:none',
-        'font-family:inherit',
-        'transition:border-color .2s',
-        'min-height:50px',
-    ].join(';') + ';';
-    inp.addEventListener('focus', () => inp.style.borderColor = 'var(--cfg-accent,#818cf8)');
-    inp.addEventListener('blur',  () => inp.style.borderColor = borderColor);
-    fg.appendChild(lbl); fg.appendChild(inp);
+    inp.type = type;
+    inp.id = id;
+    inp.placeholder = placeholder || '';
+    inp.autocomplete = 'off';
+    inp.spellcheck = false;
+    inp.style.cssText = `
+        width:100%;
+        padding:14px 16px;
+        border-radius:10px;
+        border:1.5px solid ${borderColor};
+        background:${bgColor};
+        color:${textColor};
+        font-size:1.05rem;
+        outline:none;
+        font-family:inherit;
+        transition:all 0.2s ease;
+        min-height:52px;
+    `;
+    
+    inp.addEventListener('focus', () => {
+        inp.style.borderColor = 'var(--cfg-accent,#818cf8)';
+        inp.style.boxShadow = '0 0 0 3px rgba(129,140,248,0.1)';
+    });
+    inp.addEventListener('blur', () => {
+        inp.style.borderColor = borderColor;
+        inp.style.boxShadow = 'none';
+    });
+    
+    fg.appendChild(lbl);
+    fg.appendChild(inp);
     return fg;
 }
 
-function mkSelectField(label, id, options) {
+function mkSelectFieldEnhanced(label, id, options, icon) {
     const fg = document.createElement('div');
     fg.style.cssText = 'position:relative;';
+    
     const lbl = document.createElement('label');
     lbl.textContent = label;
     lbl.setAttribute('for', id);
-    lbl.style.cssText = 'display:block;font-size:1rem;font-weight:700;color:var(--cfg-text-secondary);margin-bottom:8px;';
+    lbl.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:1.05rem;font-weight:700;color:var(--cfg-text-secondary);margin-bottom:10px;';
+    if (icon) {
+        lbl.innerHTML = `<i class="fa-solid ${icon}" style="color:var(--cfg-accent);"></i> ${label}`;
+    }
 
-    // Detecta o tema atual para aplicar a cor correta
     const isDark = document.body.classList.contains('dark');
     const bgColor = isDark ? '#1e2235' : '#f8fafc';
     const textColor = isDark ? '#f1f5f9' : '#0f172a';
-    const borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.14)';
-
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:relative;';
+    const borderColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
 
     const sel = document.createElement('select');
     sel.id = id;
-    sel.style.cssText = [
-        'width:100%',
-        'padding:13px 40px 13px 16px',
-        'border-radius:10px',
-        'border:1.5px solid ' + borderColor,
-        'background:' + bgColor,
-        'color:' + textColor,
-        'font-size:1rem',
-        'outline:none',
-        'font-family:inherit',
-        'cursor:pointer',
-        'min-height:50px',
-        'transition:border-color .2s',
-        '-webkit-appearance:none',
-        '-moz-appearance:none',
-        'appearance:none',
-    ].join(';') + ';';
-
-    sel.addEventListener('focus', () => sel.style.borderColor = 'var(--cfg-accent,#818cf8)');
-    sel.addEventListener('blur',  () => sel.style.borderColor = borderColor);
-
-    options.forEach(o => {
-        const opt = document.createElement('option');
-        opt.value = o.value; opt.textContent = o.label;
-        // Força cor de fundo nas options também
-        opt.style.background = bgColor;
-        opt.style.color = textColor;
-        sel.appendChild(opt);
+    sel.style.cssText = `
+        width:100%;
+        padding:14px 16px;
+        border-radius:10px;
+        border:1.5px solid ${borderColor};
+        background:${bgColor};
+        color:${textColor};
+        font-size:1.05rem;
+        outline:none;
+        font-family:inherit;
+        cursor:pointer;
+        min-height:52px;
+        transition:all 0.2s ease;
+        appearance:none;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23818cf8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat:no-repeat;
+        background-position:right 16px center;
+        padding-right:44px;
+    `;
+    
+    sel.addEventListener('focus', () => {
+        sel.style.borderColor = 'var(--cfg-accent,#818cf8)';
+        sel.style.boxShadow = '0 0 0 3px rgba(129,140,248,0.1)';
     });
-
-    // Seta customizada
-    const arrow = document.createElement('span');
-    arrow.setAttribute('aria-hidden', 'true');
-    arrow.style.cssText = 'position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:' + (isDark ? '#94a3b8' : '#64748b') + ';font-size:.85rem;';
-    arrow.innerHTML = '&#9660;';
-
-    wrap.appendChild(sel);
-    wrap.appendChild(arrow);
+    sel.addEventListener('blur', () => {
+        sel.style.borderColor = borderColor;
+        sel.style.boxShadow = 'none';
+    });
+    
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        sel.appendChild(option);
+    });
+    
     fg.appendChild(lbl);
-    fg.appendChild(wrap);
+    fg.appendChild(sel);
     return fg;
 }
 
@@ -895,13 +1020,21 @@ function mkButton(text, icon, id) {
 function showLLFeedback(id, msg, ok) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.textContent = msg;
-    el.style.display = 'block';
-    el.style.background = ok ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)';
-    el.style.border = ok ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(239,68,68,.25)';
-    el.style.color = ok ? '#22c55e' : '#ef4444';
+    
+    // Remove classes antigas
+    el.classList.remove('success', 'error');
+    
+    // Adiciona classe apropriada
+    el.classList.add(ok ? 'success' : 'error');
+    
+    // Adiciona ícone e mensagem
+    const icon = ok ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-circle-exclamation"></i>';
+    el.innerHTML = icon + ' ' + msg;
+    
+    el.style.display = 'flex';
+    
     clearTimeout(el._t);
-    el._t = setTimeout(() => { el.style.display = 'none'; }, 4000);
+    el._t = setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
 
 function initLinkLimitsEvents() {
@@ -921,14 +1054,21 @@ function initLinkLimitsEvents() {
             if (!res.ok) return;
             const data = await res.json();
             if (currentDiv) {
-                currentDiv.style.display = 'block';
+                currentDiv.style.display = 'flex';
                 const limit = data.max_links;
                 const total = data.total ?? 0;
-                currentDiv.textContent = limit === -1
-                    ? 'Limite atual: Ilimitado | Links criados: ' + total
-                    : limit === 0
-                        ? 'Limite atual: Bloqueado (0) | Links criados: ' + total
-                        : 'Limite atual: ' + limit + ' | Links criados: ' + total + ' | Restante: ' + Math.max(0, limit - total);
+                
+                let limitText = '';
+                if (limit === -1) {
+                    limitText = '<i class="fa-solid fa-infinity"></i> Limite atual: <strong>Ilimitado</strong> | Links criados: <strong>' + total + '</strong>';
+                } else if (limit === 0) {
+                    limitText = '<i class="fa-solid fa-ban"></i> Limite atual: <strong>Bloqueado (0)</strong> | Links criados: <strong>' + total + '</strong>';
+                } else {
+                    const remaining = Math.max(0, limit - total);
+                    limitText = '<i class="fa-solid fa-chart-simple"></i> Limite atual: <strong>' + limit + '</strong> | Links criados: <strong>' + total + '</strong> | Restante: <strong>' + remaining + '</strong>';
+                }
+                
+                currentDiv.innerHTML = limitText;
             }
             const val = String(data.max_links ?? -1);
             if (maxSel.querySelector('option[value="' + val + '"]')) maxSel.value = val;

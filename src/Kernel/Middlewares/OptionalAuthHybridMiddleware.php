@@ -1,51 +1,40 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Kernel\Middlewares;
 
+use Src\Kernel\Contracts\AuthContextInterface;
+use Src\Kernel\Contracts\AuthIdentityInterface;
 use Src\Kernel\Contracts\MiddlewareInterface;
-use Src\Kernel\Contracts\TokenBlacklistInterface;
-use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
-use Src\Kernel\Support\JwtDecoder;
-use Src\Kernel\Support\TokenExtractor;
 
-class OptionalAuthHybridMiddleware implements MiddlewareInterface
+final class OptionalAuthHybridMiddleware implements MiddlewareInterface
 {
-    public function __construct(
-        private ?UserRepositoryInterface $usuarios,
-        private ?TokenBlacklistInterface $blacklistRepo
-    ) {}
+    public function __construct(private readonly ?AuthContextInterface $auth) {}
 
     public function handle(Request $request, callable $next): Response
     {
-        if ($this->usuarios === null || $this->blacklistRepo === null) {
-            return $next($request);
-        }
-
-        $token = TokenExtractor::fromRequest();
-        if ($token === '') {
-            return $next($request);
-        }
-
-        try {
-            [$payload] = JwtDecoder::decodeUser($token);
-            JwtDecoder::validateUserClaims($payload);
-
-            if ($this->blacklistRepo->isRevoked($payload->jti ?? '')) {
-                return $next($request);
-            }
-
-            $usuario = $this->usuarios->buscarPorUuid($payload->sub ?? '');
-            if ($usuario) {
+        if ($this->auth !== null) {
+            $identity = $this->auth->resolve($request);
+            if ($this->isUsable($identity)) {
                 $request = $request
-                    ->withAttribute('auth_user', $usuario)
-                    ->withAttribute('auth_payload', $payload);
+                    ->withAttribute(AuthContextInterface::IDENTITY_KEY, $identity)
+                    ->withAttribute(AuthContextInterface::LEGACY_USER_KEY, $identity->user())
+                    ->withAttribute(AuthContextInterface::LEGACY_PAYLOAD_KEY, $identity->payload());
             }
-        } catch (\Throwable) {
-            // Token inválido ou ausente — continua sem autenticação
         }
 
         return $next($request);
+    }
+
+    private function isUsable(?AuthIdentityInterface $identity): bool
+    {
+        if ($identity === null) {
+            return false;
+        }
+        $type = $identity->type();
+        return $type !== 'inactive' && $type !== 'not_found';
     }
 }

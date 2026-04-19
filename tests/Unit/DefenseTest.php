@@ -266,27 +266,34 @@ class DefenseTest extends TestCase
 
     public function test_auth_middleware_verifica_blacklist_no_source(): void
     {
-        $source = file_get_contents((new \ReflectionClass(AuthHybridMiddleware::class))->getFileName());
+        $source = file_get_contents((new \ReflectionClass(\Src\Kernel\Auth\JwtTokenValidator::class))->getFileName());
         $this->assertStringContainsString('isRevoked', $source,
-            'AuthHybridMiddleware deve verificar blacklist');
+            'JwtTokenValidator deve verificar blacklist');
     }
 
     public function test_auth_middleware_valida_uuid_com_regex_no_source(): void
     {
-        $source = file_get_contents((new \ReflectionClass(AuthHybridMiddleware::class))->getFileName());
-        $this->assertStringContainsString('preg_match', $source,
-            'AuthHybridMiddleware deve validar UUID com regex');
+        // UUID é validado pelo JwtDecoder::validateUserClaims via Ramsey\Uuid::isValid()
+        $source = file_get_contents((new \ReflectionClass(\Src\Kernel\Support\JwtDecoder::class))->getFileName());
+        $this->assertStringContainsString('Uuid::isValid', $source,
+            'JwtDecoder deve validar UUID antes de buscar no banco');
     }
 
     public function test_auth_middleware_rejeita_sem_token_via_extractor(): void
     {
-        // Testa apenas o caminho sem token — não envolve JWT/Firebase
         unset($_COOKIE['auth_token'], $_SERVER['HTTP_AUTHORIZATION'], $_SERVER['HTTP_X_API_KEY']);
 
-        $bl = $this->createStub(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
-        $ur = $this->createStub(\Src\Kernel\Contracts\UserRepositoryInterface::class);
-        $mw = new AuthHybridMiddleware($ur, $bl);
+        $blacklist = $this->createStub(\Src\Kernel\Contracts\TokenBlacklistInterface::class);
+        $blacklist->method('isRevoked')->willReturn(false);
 
+        $validator = new \Src\Kernel\Auth\JwtTokenValidator($blacklist);
+        $resolver  = new \Src\Kernel\Auth\BearerTokenResolver();
+        $userRepo  = $this->createStub(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+        $userResolver = new \Src\Kernel\Auth\DatabaseUserResolver($userRepo);
+        $factory   = new \Src\Kernel\Auth\DefaultIdentityFactory();
+        $auth      = new \Src\Kernel\Auth\JwtAuthContext($resolver, $validator, $userResolver, $factory);
+
+        $mw  = new AuthHybridMiddleware($auth);
         $res = $mw->handle($this->req('/api/me'), $this->next());
 
         $this->assertSame(401, $res->getStatusCode(), 'Sem token deve retornar 401');
@@ -314,51 +321,87 @@ class DefenseTest extends TestCase
 
     // AdminOnlyMiddleware — escalada de privilégio
 
+    private function makeTokenPayload(string $nivel, bool $apiSecret): \Src\Kernel\Contracts\TokenPayloadInterface
+    {
+        return new class($nivel, $apiSecret) implements \Src\Kernel\Contracts\TokenPayloadInterface {
+            public function __construct(private string $n, private bool $a) {}
+            public function getSubject(): string|int|null { return 'f47ac10b-58cc-4372-a567-0e02b2c3d479'; }
+            public function getRole(): ?string { return $this->n; }
+            public function isSignedWithApiSecret(): bool { return $this->a; }
+            public function get(string $key): mixed { return null; }
+            public function raw(): mixed { return null; }
+        };
+    }
+
+    private function adminOnlyMiddleware(): AdminOnlyMiddleware
+    {
+        $authContext = new class implements \Src\Kernel\Contracts\AuthContextInterface {
+            public function resolve(\Src\Kernel\Http\Request\Request $r): ?\Src\Kernel\Contracts\AuthIdentityInterface { return null; }
+            public function identity(\Src\Kernel\Http\Request\Request $r): ?\Src\Kernel\Contracts\AuthIdentityInterface {
+                $raw = $r->attribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY);
+                return $raw instanceof \Src\Kernel\Contracts\AuthIdentityInterface ? $raw : null;
+            }
+        };
+        $authorization = new class implements \Src\Kernel\Contracts\AuthorizationInterface {
+            public function isAdmin(\Src\Kernel\Contracts\AuthIdentityInterface $identity, \Src\Kernel\Http\Request\Request $request): bool {
+                if ($identity->isApiToken()) return true;
+                $p = $identity->payload();
+                return $identity->hasRole('admin_system') && $p !== null && $p->isSignedWithApiSecret();
+            }
+            public function hasRole(\Src\Kernel\Contracts\AuthIdentityInterface $identity, string ...$roles): bool {
+                $role = $identity->role();
+                return $role !== null && in_array($role, $roles, true);
+            }
+        };
+        return new AdminOnlyMiddleware($authContext, $authorization);
+    }
+
     private function adminReq(string $nivel, bool $apiSecret): Request
     {
+        $payload  = $this->makeTokenPayload($nivel, $apiSecret);
+        $user     = new class($nivel) {
+            public function __construct(private string $n) {}
+            public function getNivelAcesso(): string { return $this->n; }
+        };
+        $identity = \Src\Kernel\Auth\AuthIdentity::forUser($user, $payload);
         return $this->req('/api/admin')
-            ->withAttribute('auth_payload', (object)['nivel_acesso' => $nivel])
-            ->withAttribute('auth_user', new class($nivel) {
-                public function __construct(private string $n) {}
-                public function getNivelAcesso(): string { return $this->n; }
-            })
-            ->withAttribute('token_signed_with_api_secret', $apiSecret);
+            ->withAttribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY, $identity);
     }
 
     public function test_admin_bloqueia_sem_payload(): void
     {
-        $res = (new AdminOnlyMiddleware())->handle($this->req('/api/admin'), $this->next());
+        $res = $this->adminOnlyMiddleware()->handle($this->req('/api/admin'), $this->next());
         $this->assertSame(401, $res->getStatusCode());
     }
 
     public function test_admin_bloqueia_usuario_comum(): void
     {
-        $res = (new AdminOnlyMiddleware())->handle($this->adminReq('usuario', false), $this->next());
+        $res = $this->adminOnlyMiddleware()->handle($this->adminReq('usuario', false), $this->next());
         $this->assertSame(403, $res->getStatusCode());
     }
 
     public function test_admin_bloqueia_moderador(): void
     {
-        $res = (new AdminOnlyMiddleware())->handle($this->adminReq('moderador', false), $this->next());
+        $res = $this->adminOnlyMiddleware()->handle($this->adminReq('moderador', false), $this->next());
         $this->assertSame(403, $res->getStatusCode());
     }
 
     public function test_admin_bloqueia_admin_system_sem_api_secret(): void
     {
-        $res = (new AdminOnlyMiddleware())->handle($this->adminReq('admin_system', false), $this->next());
+        $res = $this->adminOnlyMiddleware()->handle($this->adminReq('admin_system', false), $this->next());
         $this->assertSame(403, $res->getStatusCode(), 'Escalada de privilegio deve ser bloqueada');
     }
 
     public function test_admin_bloqueia_admin_regular_mesmo_com_api_secret(): void
     {
-        $res = (new AdminOnlyMiddleware())->handle($this->adminReq('admin', true), $this->next());
+        $res = $this->adminOnlyMiddleware()->handle($this->adminReq('admin', true), $this->next());
         $this->assertSame(403, $res->getStatusCode());
     }
 
     public function test_admin_permite_admin_system_com_api_secret(): void
     {
         $passed = false;
-        (new AdminOnlyMiddleware())->handle($this->adminReq('admin_system', true), function ($r) use (&$passed) {
+        $this->adminOnlyMiddleware()->handle($this->adminReq('admin_system', true), function ($r) use (&$passed) {
             $passed = true;
             return Response::json(['ok' => true]);
         });
@@ -368,8 +411,10 @@ class DefenseTest extends TestCase
     public function test_admin_permite_api_token_puro(): void
     {
         $passed = false;
-        $req    = $this->req('/api/admin')->withAttribute('api_token', true);
-        (new AdminOnlyMiddleware())->handle($req, function ($r) use (&$passed) {
+        $identity = \Src\Kernel\Auth\AuthIdentity::forApiToken();
+        $req = $this->req('/api/admin')
+            ->withAttribute(\Src\Kernel\Contracts\AuthContextInterface::IDENTITY_KEY, $identity);
+        $this->adminOnlyMiddleware()->handle($req, function ($r) use (&$passed) {
             $passed = true;
             return Response::json(['ok' => true]);
         });
@@ -378,31 +423,40 @@ class DefenseTest extends TestCase
 
     // EmailThrottle
 
-    public function test_email_throttle_permite_primeiro_envio(): void
+    public function test_email_throttle_permite_envio_quando_nao_ha_registro(): void
     {
+        // tryRecord retorna true quando INSERT é feito (rowCount > 0)
         $stmt = $this->createStub(\PDOStatement::class);
-        $stmt->method('fetch')->willReturn(false);
+        $stmt->method('execute')->willReturn(true);
+        $stmt->method('rowCount')->willReturn(1); // INSERT feito
         $pdo = $this->createStub(\PDO::class);
         $pdo->method('prepare')->willReturn($stmt);
-        $this->assertTrue((new EmailThrottle($pdo))->canSend('verification', 'a@b.com'));
+        $pdo->method('getAttribute')->willReturn('mysql');
+        $this->assertTrue((new \Src\Kernel\Support\EmailThrottle($pdo))->tryRecord('verification', 'a@b.com'));
     }
 
     public function test_email_throttle_bloqueia_dentro_do_cooldown(): void
     {
+        // tryRecord retorna false quando rowCount = 0 (ainda no cooldown)
         $stmt = $this->createStub(\PDOStatement::class);
-        $stmt->method('fetch')->willReturn(['sent_at' => date('Y-m-d H:i:s', time() - 30)]);
+        $stmt->method('execute')->willReturn(true);
+        $stmt->method('rowCount')->willReturn(0); // cooldown ativo
         $pdo = $this->createStub(\PDO::class);
         $pdo->method('prepare')->willReturn($stmt);
-        $this->assertFalse((new EmailThrottle($pdo))->canSend('verification', 'a@b.com', 120));
+        $pdo->method('getAttribute')->willReturn('mysql');
+        $this->assertFalse((new \Src\Kernel\Support\EmailThrottle($pdo))->tryRecord('verification', 'a@b.com', 120));
     }
 
     public function test_email_throttle_permite_apos_cooldown(): void
     {
+        // tryRecord retorna true quando UPDATE é feito (rowCount = 2 no MySQL)
         $stmt = $this->createStub(\PDOStatement::class);
-        $stmt->method('fetch')->willReturn(['sent_at' => date('Y-m-d H:i:s', time() - 200)]);
+        $stmt->method('execute')->willReturn(true);
+        $stmt->method('rowCount')->willReturn(2); // UPDATE feito (cooldown expirou)
         $pdo = $this->createStub(\PDO::class);
         $pdo->method('prepare')->willReturn($stmt);
-        $this->assertTrue((new EmailThrottle($pdo))->canSend('verification', 'a@b.com', 120));
+        $pdo->method('getAttribute')->willReturn('mysql');
+        $this->assertTrue((new \Src\Kernel\Support\EmailThrottle($pdo))->tryRecord('verification', 'a@b.com', 120));
     }
 
     // IpResolver — anti-spoofing

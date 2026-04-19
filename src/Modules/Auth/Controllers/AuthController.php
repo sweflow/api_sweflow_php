@@ -9,7 +9,6 @@ use Src\Kernel\Http\Response\Response;
 use Src\Kernel\Support\AuditLogger;
 use Src\Kernel\Support\IpResolver;
 use Src\Kernel\Support\JwtDecoder;
-use Src\Kernel\Support\RequestContext;
 use Src\Kernel\Support\ThreatScorer;
 use Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository;
 use Src\Modules\Auth\Repositories\RefreshTokenRepository;
@@ -27,7 +26,6 @@ class AuthController
         private readonly AuditLogger                    $auditLogger,
         private readonly ThreatScorer                   $threatScorer,
         private readonly ?EmailSenderInterface          $emailService = null,
-        private readonly ?RequestContext                $requestContext = null,
     ) {
         $this->debug = in_array(
             strtolower(trim($_ENV['APP_DEBUG'] ?? (string) getenv('APP_DEBUG') ?: 'false')),
@@ -129,15 +127,32 @@ class AuthController
                 ? $this->authService->emitirTokensAdmin($usuario)
                 : $this->authService->emitirTokens($usuario);
 
-            $this->definirCookieAuth($tokens['access_token'], $tokens['access_expira_em']);
             $this->auditLogger->registrar('auth.login.success', $usuario->getAuthId(), [
                 'username'     => $usuario->getAuthUsername(),
                 'nivel_acesso' => $usuario->getAuthRole(),
             ]);
 
             $this->enforceMinResponseTime($startTime);
+            
+            // Define o cookie auth_token de DUAS formas para garantir que funcione
+            $cookieOptions = \Src\Kernel\Support\CookieConfig::options($tokens['access_expira_em']);
+            
+            // Método 1: setcookie() direto (pode funcionar se output buffering não interferir)
+            setcookie('auth_token', $tokens['access_token'], $cookieOptions);
+            
+            // Método 2: Via header Set-Cookie na Response (backup)
+            $cookieValue = $this->buildSetCookieHeader('auth_token', $tokens['access_token'], $cookieOptions);
+            
+            // Debug: log do cookie sendo enviado
+            error_log("=== DEBUG LOGIN SUCCESS ===");
+            error_log("Cookie options: " . json_encode($cookieOptions));
+            error_log("Set-Cookie header: " . $cookieValue);
+            error_log("Access token (first 50 chars): " . substr($tokens['access_token'], 0, 50));
+            error_log("Expires timestamp: " . $tokens['access_expira_em'] . " (current: " . time() . ", diff: " . ($tokens['access_expira_em'] - time()) . "s)");
+            error_log("Headers already sent? " . (headers_sent() ? 'YES' : 'NO'));
+            
             // Refresh token vai APENAS no cookie HttpOnly — nunca no body
-            return Response::json([
+            $response = Response::json([
                 'status'      => 'success',
                 'access_token'=> $tokens['access_token'],
                 'expires_in'  => $tokens['access_expira_em'],
@@ -149,7 +164,8 @@ class AuthController
                     'nivel_acesso'  => $usuario->getAuthRole(),
                 ],
             ]);
-
+            
+            return $response->withHeader('Set-Cookie', $cookieValue);
         } catch (DomainException $e) {
             $this->auditLogger->registrar('auth.login.failed', null, [
                 'reason'     => $e->getMessage(),
@@ -519,7 +535,7 @@ class AuthController
             $targetUser = $this->resolverUsuarioAlvo($body);
             if ($targetUser) {
                 $verified = filter_var($body['verified'] ?? true, FILTER_VALIDATE_BOOLEAN);
-                $this->authService->marcarEmailComoVerificado($targetUser->getUuid()->toString(), $verified);
+                $this->authService->marcarEmailComoVerificado($targetUser->getAuthId(), $verified);
                 $responseData['message'] = $verified ? 'E-mail verificado com sucesso.' : 'Verificação de e-mail removida.';
             } else {
                 $this->atualizarPoliticaGlobal($enabled);
@@ -571,7 +587,49 @@ class AuthController
 
     private function definirCookieAuth(string $token, int $expiraEm): void
     {
-        setcookie('auth_token', $token, \Src\Kernel\Support\CookieConfig::options($expiraEm));
+        // Debug: verifica se o cookie está sendo definido corretamente
+        $cookieOptions = \Src\Kernel\Support\CookieConfig::options($expiraEm);
+        
+        // Log para debug (remover depois)
+        error_log("DEBUG Cookie: expires=" . $expiraEm . ", options=" . json_encode($cookieOptions));
+        error_log("DEBUG Cookie: current time=" . time() . ", expires time=" . $expiraEm);
+        
+        setcookie('auth_token', $token, $cookieOptions);
+    }
+    
+    /**
+     * Constrói o header Set-Cookie manualmente para garantir que o cookie seja enviado corretamente.
+     */
+    private function buildSetCookieHeader(string $name, string $value, array $options): string
+    {
+        $cookie = urlencode($name) . '=' . urlencode($value);
+        
+        if (isset($options['expires']) && $options['expires'] > 0) {
+            $cookie .= '; Expires=' . gmdate('D, d M Y H:i:s T', $options['expires']);
+            $cookie .= '; Max-Age=' . ($options['expires'] - time());
+        }
+        
+        if (isset($options['path'])) {
+            $cookie .= '; Path=' . $options['path'];
+        }
+        
+        if (isset($options['domain']) && $options['domain'] !== '') {
+            $cookie .= '; Domain=' . $options['domain'];
+        }
+        
+        if (!empty($options['secure'])) {
+            $cookie .= '; Secure';
+        }
+        
+        if (!empty($options['httponly'])) {
+            $cookie .= '; HttpOnly';
+        }
+        
+        if (isset($options['samesite'])) {
+            $cookie .= '; SameSite=' . $options['samesite'];
+        }
+        
+        return $cookie;
     }
 
     private function tokenDoCookie(): ?string

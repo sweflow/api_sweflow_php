@@ -22,13 +22,22 @@ A Vupi.us API foi concebida para resolver um problema comum no desenvolvimento d
 
 ## Arquitetura
 
-A aplicação segue uma arquitetura de **Kernel + Módulos**, onde o kernel fornece a infraestrutura base (roteamento, autenticação, banco de dados, middlewares, container de dependências) e os módulos encapsulam funcionalidades de negócio de forma independente.
+A aplicação segue uma arquitetura de **Kernel + Módulos** com **autenticação plugável**, onde o kernel fornece a infraestrutura base (roteamento, autenticação, banco de dados, middlewares, container de dependências) e os módulos encapsulam funcionalidades de negócio de forma independente.
+
+O sistema de autenticação é baseado em **contratos (interfaces)**, permitindo que desenvolvedores substituam qualquer parte do pipeline — desde a extração do token até a resolução do usuário — sem modificar o kernel. Isso significa que você pode:
+
+- Substituir JWT por OAuth2, SAML, LDAP ou sessão PHP
+- Usar Active Directory, API externa ou qualquer fonte de usuários
+- Implementar autorização customizada (ACL, RBAC, ABAC)
+- Integrar múltiplos módulos de autenticação diferentes no mesmo projeto
 
 ```
 index.php (entry point)
     └── Application::boot()
             ├── ModuleLoader::discover(src/Modules/)
             ├── ModuleLoader::bootAll()
+            │       └── Módulos registram contratos no container
+            │           (AuthContextInterface, UserResolverInterface, etc.)
             └── ModuleLoader::registerRoutes($router)
 ```
 
@@ -152,8 +161,8 @@ Esta documentação está organizada nos seguintes documentos:
 |---|---|
 | **Introdução** *(este arquivo)* | Visão geral, arquitetura e propósito |
 | **Instalação e Configuração** | Setup completo, variáveis de ambiente e Docker |
-| **Autenticação** | JWT, refresh tokens, rotação de chaves e endpoints de auth |
-| **Módulos** | Como criar, instalar e gerenciar módulos |
+| **Autenticação** | Sistema plugável, contratos, JWT, OAuth2, LDAP e exemplos práticos |
+| **Módulos** | Como criar, instalar e gerenciar módulos (incluindo módulos de auth customizados) |
 | **Endpoints** | Referência completa de todos os endpoints da API |
 | **Segurança** | Rate limiting, circuit breaker, audit logging e boas práticas |
 | **IDE** | Uso da IDE integrada para desenvolvimento de módulos |

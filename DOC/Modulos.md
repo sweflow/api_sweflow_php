@@ -816,6 +816,434 @@ php vupi plugin:install NomeDoModulo
 
 ---
 
+## Módulos de Autenticação Customizados
+
+A Vupi.us API permite que desenvolvedores criem seus próprios módulos de autenticação, substituindo completamente o sistema JWT nativo. Isso é possível graças à arquitetura plugável baseada em contratos.
+
+### Exemplo: Módulo de Autenticação OAuth2
+
+Vamos criar um módulo completo que substitui JWT por OAuth2.
+
+#### Estrutura do Módulo
+
+```
+src/Modules/OAuth2Auth/
+    ├── OAuth2TokenValidator.php
+    ├── OAuth2Payload.php
+    ├── OAuth2AuthContext.php
+    ├── OAuth2AuthProvider.php
+    └── Routes/web.php
+```
+
+#### 1. OAuth2Payload (implementa TokenPayloadInterface)
+
+```php
+<?php
+// src/Modules/OAuth2Auth/OAuth2Payload.php
+
+namespace Src\Modules\OAuth2Auth;
+
+use Src\Kernel\Contracts\TokenPayloadInterface;
+
+final class OAuth2Payload implements TokenPayloadInterface
+{
+    public function __construct(private readonly array $data) {}
+
+    public function getSubject(): ?string
+    {
+        return $this->data['sub'] ?? null;
+    }
+
+    public function getRole(): ?string
+    {
+        return $this->data['role'] ?? $this->data['scope'] ?? null;
+    }
+
+    public function isSignedWithApiSecret(): bool
+    {
+        return ($this->data['client_credentials'] ?? false) === true;
+    }
+
+    public function get(string $key): mixed
+    {
+        return $this->data[$key] ?? null;
+    }
+
+    public function raw(): mixed
+    {
+        return $this->data;
+    }
+}
+```
+
+#### 2. OAuth2TokenValidator (implementa TokenValidatorInterface)
+
+```php
+<?php
+// src/Modules/OAuth2Auth/OAuth2TokenValidator.php
+
+namespace Src\Modules\OAuth2Auth;
+
+use Src\Kernel\Contracts\TokenValidatorInterface;
+use Src\Kernel\Contracts\TokenPayloadInterface;
+
+final class OAuth2TokenValidator implements TokenValidatorInterface
+{
+    public function __construct(
+        private readonly string $introspectionEndpoint,
+        private readonly string $clientId,
+        private readonly string $clientSecret
+    ) {}
+
+    public function validate(string $token): ?TokenPayloadInterface
+    {
+        $response = $this->introspect($token);
+        
+        if (!($response['active'] ?? false)) {
+            return null;
+        }
+
+        return new OAuth2Payload($response);
+    }
+
+    public function isApiToken(string $token): bool
+    {
+        return str_starts_with($token, 'client_');
+    }
+
+    private function introspect(string $token): array
+    {
+        $ch = curl_init($this->introspectionEndpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query(['token' => $token]),
+            CURLOPT_USERPWD => "{$this->clientId}:{$this->clientSecret}",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 5,
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || $response === false) {
+            return ['active' => false];
+        }
+
+        return json_decode($response, true) ?? ['active' => false];
+    }
+}
+```
+
+#### 3. OAuth2AuthContext (implementa AuthContextInterface)
+
+```php
+<?php
+// src/Modules/OAuth2Auth/OAuth2AuthContext.php
+
+namespace Src\Modules\OAuth2Auth;
+
+use Src\Kernel\Contracts\AuthContextInterface;
+use Src\Kernel\Contracts\AuthIdentityInterface;
+use Src\Kernel\Contracts\TokenResolverInterface;
+use Src\Kernel\Contracts\UserResolverInterface;
+use Src\Kernel\Contracts\IdentityFactoryInterface;
+use Src\Kernel\Http\Request\Request;
+
+final class OAuth2AuthContext implements AuthContextInterface
+{
+    public function __construct(
+        private readonly TokenResolverInterface   $tokenResolver,
+        private readonly OAuth2TokenValidator     $tokenValidator,
+        private readonly UserResolverInterface    $userResolver,
+        private readonly IdentityFactoryInterface $identityFactory
+    ) {}
+
+    public function resolve(Request $request): ?AuthIdentityInterface
+    {
+        $token = $this->tokenResolver->resolve($request);
+        if ($token === '') {
+            return null;
+        }
+
+        if ($this->tokenValidator->isApiToken($token)) {
+            return $this->identityFactory->forApiToken();
+        }
+
+        $payload = $this->tokenValidator->validate($token);
+        if ($payload === null) {
+            return null;
+        }
+
+        $identifier = $payload->getSubject();
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $user = $this->userResolver->resolve($identifier, $payload);
+        return $this->identityFactory->forUser($user, $payload);
+    }
+
+    public function identity(Request $request): ?AuthIdentityInterface
+    {
+        $identity = $request->attribute(self::IDENTITY_KEY);
+        return $identity instanceof AuthIdentityInterface ? $identity : null;
+    }
+}
+```
+
+#### 4. OAuth2AuthProvider
+
+```php
+<?php
+// src/Modules/OAuth2Auth/OAuth2AuthProvider.php
+
+namespace Src\Modules\OAuth2Auth;
+
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\ModuleProviderInterface;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Contracts\AuthContextInterface;
+use Src\Kernel\Contracts\TokenValidatorInterface;
+
+class OAuth2AuthProvider implements ModuleProviderInterface
+{
+    public function boot(ContainerInterface $container): void
+    {
+        // Substitui o TokenValidator nativo
+        $container->bind(
+            TokenValidatorInterface::class,
+            static fn() => new OAuth2TokenValidator(
+                introspectionEndpoint: $_ENV['OAUTH2_INTROSPECTION_URL'] ?? '',
+                clientId: $_ENV['OAUTH2_CLIENT_ID'] ?? '',
+                clientSecret: $_ENV['OAUTH2_CLIENT_SECRET'] ?? ''
+            ),
+            true
+        );
+
+        // Substitui o AuthContext nativo
+        $container->bind(
+            AuthContextInterface::class,
+            OAuth2AuthContext::class,
+            true
+        );
+    }
+
+    public function registerRoutes(RouterInterface $router): void
+    {
+        // Rotas de callback OAuth2, se necessário
+    }
+
+    public function describe(): array
+    {
+        return [
+            'name' => 'OAuth2Auth',
+            'version' => '1.0.0',
+            'description' => 'Autenticação via OAuth2',
+            'routes' => [],
+        ];
+    }
+
+    public function getName(): string { return 'OAuth2Auth'; }
+    public function onInstall(): void {}
+    public function onEnable(): void {}
+    public function onDisable(): void {}
+    public function onUninstall(): void {}
+}
+```
+
+#### 5. Configuração no .env
+
+```env
+# OAuth2 Configuration
+OAUTH2_INTROSPECTION_URL=https://auth.example.com/oauth2/introspect
+OAUTH2_CLIENT_ID=my-client-id
+OAUTH2_CLIENT_SECRET=my-client-secret
+```
+
+#### Resultado
+
+Após criar este módulo:
+
+1. Todos os módulos que usam `Auth::user()`, `Auth::admin()`, `Auth::identity()` continuam funcionando
+2. A autenticação agora usa OAuth2 em vez de JWT
+3. Nenhum módulo de negócio precisa ser alterado
+4. O módulo Auth nativo pode ser desabilitado
+
+---
+
+### Exemplo: Módulo de Usuários LDAP
+
+Vamos criar um módulo que busca usuários no LDAP em vez do banco de dados.
+
+#### Estrutura do Módulo
+
+```
+src/Modules/LdapUsers/
+    ├── LdapUserResolver.php
+    ├── LdapUser.php
+    ├── LdapConnection.php
+    └── LdapUsersProvider.php
+```
+
+#### 1. LdapUser (implementa AuthenticatableInterface)
+
+```php
+<?php
+// src/Modules/LdapUsers/LdapUser.php
+
+namespace Src\Modules\LdapUsers;
+
+use Src\Kernel\Contracts\AuthenticatableInterface;
+
+final class LdapUser implements AuthenticatableInterface
+{
+    public function __construct(
+        private readonly string $uid,
+        private readonly string $name,
+        private readonly string $email,
+        private readonly string $role,
+        private readonly bool   $active
+    ) {}
+
+    public function getAuthId(): string { return $this->uid; }
+    public function getAuthRole(): string { return $this->role; }
+    public function getAuthUsername(): string { return $this->email; }
+    
+    public function getName(): string { return $this->name; }
+    public function getEmail(): string { return $this->email; }
+    public function isAtivo(): bool { return $this->active; }
+}
+```
+
+#### 2. LdapUserResolver (implementa UserResolverInterface)
+
+```php
+<?php
+// src/Modules/LdapUsers/LdapUserResolver.php
+
+namespace Src\Modules\LdapUsers;
+
+use Src\Kernel\Contracts\UserResolverInterface;
+use Src\Kernel\Contracts\TokenPayloadInterface;
+
+final class LdapUserResolver implements UserResolverInterface
+{
+    public function __construct(private readonly LdapConnection $ldap) {}
+
+    public function resolve(string $identifier, TokenPayloadInterface $payload): mixed
+    {
+        $dn = "uid={$identifier},ou=users,dc=example,dc=com";
+        $result = ldap_read($this->ldap->connection(), $dn, "(objectClass=*)");
+        
+        if (!$result) {
+            return null;
+        }
+
+        $entries = ldap_get_entries($this->ldap->connection(), $result);
+        $entry = $entries[0] ?? [];
+
+        if (empty($entry)) {
+            return null;
+        }
+
+        return new LdapUser(
+            uid:    $entry['uid'][0] ?? '',
+            name:   $entry['cn'][0] ?? '',
+            email:  $entry['mail'][0] ?? '',
+            role:   $entry['role'][0] ?? 'user',
+            active: ($entry['active'][0] ?? '1') === '1'
+        );
+    }
+}
+```
+
+#### 3. LdapUsersProvider
+
+```php
+<?php
+// src/Modules/LdapUsers/LdapUsersProvider.php
+
+namespace Src\Modules\LdapUsers;
+
+use Src\Kernel\Contracts\ContainerInterface;
+use Src\Kernel\Contracts\ModuleProviderInterface;
+use Src\Kernel\Contracts\RouterInterface;
+use Src\Kernel\Contracts\UserResolverInterface;
+
+class LdapUsersProvider implements ModuleProviderInterface
+{
+    public function boot(ContainerInterface $container): void
+    {
+        // Registra a conexão LDAP
+        $container->bind(
+            LdapConnection::class,
+            static fn() => new LdapConnection(
+                host: $_ENV['LDAP_HOST'] ?? 'ldap://localhost',
+                port: (int) ($_ENV['LDAP_PORT'] ?? 389),
+                bindDn: $_ENV['LDAP_BIND_DN'] ?? '',
+                bindPassword: $_ENV['LDAP_BIND_PASSWORD'] ?? ''
+            ),
+            true
+        );
+
+        // Substitui o UserResolver nativo
+        $container->bind(
+            UserResolverInterface::class,
+            LdapUserResolver::class,
+            true
+        );
+    }
+
+    public function registerRoutes(RouterInterface $router): void {}
+
+    public function describe(): array
+    {
+        return [
+            'name' => 'LdapUsers',
+            'version' => '1.0.0',
+            'description' => 'Resolução de usuários via LDAP',
+            'routes' => [],
+        ];
+    }
+
+    public function getName(): string { return 'LdapUsers'; }
+    public function onInstall(): void {}
+    public function onEnable(): void {}
+    public function onDisable(): void {}
+    public function onUninstall(): void {}
+}
+```
+
+#### Resultado
+
+Após criar este módulo:
+
+1. A autenticação JWT continua funcionando normalmente
+2. Os usuários são buscados no LDAP em vez do banco de dados
+3. Todos os módulos que usam `Auth::current()`, `Auth::id()` continuam funcionando
+4. O módulo Usuario nativo pode ser desabilitado
+
+---
+
+### Integrando Múltiplos Módulos de Autenticação
+
+Um desenvolvedor pode criar um ecossistema completo:
+
+```
+MeuAuth (OAuth2)  →  substitui AuthContextInterface + TokenValidatorInterface
+MeuUsers (LDAP)   →  substitui UserResolverInterface
+MeuEcommerce      →  usa Auth::user() nas rotas
+MeuBlog           →  usa Auth::user() nas rotas
+MeuCRM            →  usa Auth::user() nas rotas
+```
+
+Todos os módulos de negócio (`MeuEcommerce`, `MeuBlog`, `MeuCRM`) funcionam independente de qual módulo de auth está ativo. Eles só usam os contratos do kernel.
+
+Para mais detalhes sobre a arquitetura de autenticação plugável, consulte **DOC/Autenticacao.md**.
+
+---
+
 ## Resumo das Convenções
 
 | Item | Convenção | Exemplo |

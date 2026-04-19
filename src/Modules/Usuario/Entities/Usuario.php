@@ -121,6 +121,7 @@ final class Usuario implements AuthenticatableInterface
 
     public function getAuthId(): string       { return $this->uuid->toString(); }
     public function getAuthEmail(): string    { return $this->email; }
+    /** @phpstan-ignore return.unusedType */
     public function getAuthUsername(): ?string { return $this->username; }
     public function getAuthRole(): string     { return $this->nivelAcesso; }
 
@@ -164,11 +165,23 @@ final class Usuario implements AuthenticatableInterface
         $this->atualizadoEm = RelogioTimeZone::agora();
     }
 
+    /** Alias de alterarUsername() — mantido para compatibilidade com testes e código legado. */
+    public function setUsername(string $username): void
+    {
+        $this->alterarUsername($username);
+    }
+
     public function alterarEmail(string $email): void
     {
         self::validarEmail($email);
         $this->email        = $email;
         $this->atualizadoEm = RelogioTimeZone::agora();
+    }
+
+    /** Alias de alterarEmail() — mantido para compatibilidade com testes e código legado. */
+    public function setEmail(string $email): void
+    {
+        $this->alterarEmail($email);
     }
 
     public function alterarSenha(string $senhaPlana): void

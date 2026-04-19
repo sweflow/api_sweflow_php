@@ -464,12 +464,28 @@
         fetch('/api/auth/me', { method: 'GET', credentials: 'same-origin' })
             .then(function (res) {
                 if (res.status === 401) {
+                    // Previne loop infinito de redirects
+                    var redirectCount = parseInt(sessionStorage.getItem('auth_redirect_count') || '0', 10);
+                    if (redirectCount >= 3) {
+                        console.error('Múltiplas falhas de autenticação detectadas. Parando redirects automáticos.');
+                        sessionStorage.removeItem('auth_redirect_count');
+                        clearInterval(window.__authCheckInterval);
+                        alert('Sua sessão expirou. Por favor, faça login novamente.');
+                        return;
+                    }
+                    sessionStorage.setItem('auth_redirect_count', String(redirectCount + 1));
                     window.location.replace('/ide/login');
+                } else if (res.ok) {
+                    // Autenticação bem-sucedida, limpa contador
+                    sessionStorage.removeItem('auth_redirect_count');
                 }
             })
-            .catch(function () {});
+            .catch(function (err) {
+                console.warn('Erro ao verificar autenticação:', err);
+                // Não redireciona em caso de erro de rede
+            });
     }
-    setInterval(checkAuth, 60000);
+    window.__authCheckInterval = setInterval(checkAuth, 60000);
 
     // ── Profile & Change Password ─────────────────────────────────────────
     var currentUser = null;

@@ -137,8 +137,8 @@ final class Sanitizer
 
     /**
      * Senha: apenas verifica que não está vazia e não excede tamanho máximo.
-     * Não faz strip_tags — senhas podem conter qualquer caractere.
-     * Remove null bytes que podem causar comportamento inesperado em funções C.
+     * Não faz strip_tags — senhas podem conter qualquer caractere, incluindo null bytes.
+     * O hash (bcrypt/argon2) lida com null bytes internamente.
      */
     public static function password(mixed $value, int $maxLen = 128): string
     {
@@ -146,8 +146,6 @@ final class Sanitizer
             return '';
         }
         $s = (string) ($value ?? '');
-        // Remove null bytes
-        $s = str_replace("\x00", '', $s);
         return mb_substr($s, 0, $maxLen);
     }
 }

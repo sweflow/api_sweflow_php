@@ -3316,15 +3316,33 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
     }
 
     // Verifica token a cada 60s — redireciona se expirou
-    setInterval(function () {
-        fetch('/api/auth/me', { method: 'GET', credentials: 'same-origin' })
-            .then(function (res) {
-                if (res.status === 401) {
-                    window.location.replace('/ide/login');
-                }
-            })
-            .catch(function () {});
-    }, 60000);
+    (function setupAuthCheck() {
+        var intervalId = setInterval(function () {
+            fetch('/api/auth/me', { method: 'GET', credentials: 'same-origin' })
+                .then(function (res) {
+                    if (res.status === 401) {
+                        // Previne loop infinito de redirects
+                        var redirectCount = parseInt(sessionStorage.getItem('auth_redirect_count') || '0', 10);
+                        if (redirectCount >= 3) {
+                            console.error('Múltiplas falhas de autenticação detectadas. Parando redirects automáticos.');
+                            sessionStorage.removeItem('auth_redirect_count');
+                            clearInterval(intervalId);
+                            alert('Sua sessão expirou. Por favor, faça login novamente.');
+                            return;
+                        }
+                        sessionStorage.setItem('auth_redirect_count', String(redirectCount + 1));
+                        window.location.replace('/ide/login');
+                    } else if (res.ok) {
+                        // Autenticação bem-sucedida, limpa contador
+                        sessionStorage.removeItem('auth_redirect_count');
+                    }
+                })
+                .catch(function (err) {
+                    console.warn('Erro ao verificar autenticação:', err);
+                    // Não redireciona em caso de erro de rede
+                });
+        }, 60000);
+    })();
 })();
 
 // ── Panel Resize (drag handles) ───────────────────────────────────────────

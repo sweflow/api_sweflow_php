@@ -8,8 +8,6 @@ parameters:
         # em métodos que trabalham com estruturas de dados dinâmicas (rotas,
         # middlewares, configurações). Erros lógicos reais são cobertos pelo nível 6.
         - identifier: missingType.iterableValue
-        - identifier: missingType.parameter
-        - identifier: missingType.return
 
     # Trata PHPDoc types como hints, não como certezas absolutas
     # Evita falsos positivos em is_array() após narrowing por PHPDoc

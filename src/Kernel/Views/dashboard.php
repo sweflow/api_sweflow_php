@@ -369,31 +369,31 @@
             </div>
 
             <!-- Stats cards -->
-            <div id="audit-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;">
-                <div class="audit-stat-card" data-cat="total">
-                    <div class="audit-stat-icon" style="background:rgba(99,102,241,0.12);color:#818cf8;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-list"></i></div>
-                    <div class="audit-stat-val" id="stat-total" style="font-size:2rem;">—</div>
-                    <div class="audit-stat-label" style="font-size:0.88rem;">Total 24h</div>
+            <div id="audit-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;">
+                <div class="audit-stat-card" data-cat="total" style="cursor:pointer;transition:all 0.2s ease;">
+                    <div class="audit-stat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8;font-size:1.6rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:12px;margin-bottom:12px;"><i class="fa-solid fa-list"></i></div>
+                    <div class="audit-stat-val" id="stat-total">—</div>
+                    <div class="audit-stat-label" style="font-size:1rem;margin-top:6px;font-weight:600;">Total 24h</div>
                 </div>
-                <div class="audit-stat-card" data-cat="auth">
-                    <div class="audit-stat-icon" style="background:rgba(74,222,128,0.12);color:#4ade80;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-key"></i></div>
-                    <div class="audit-stat-val" id="stat-auth" style="font-size:2rem;">—</div>
-                    <div class="audit-stat-label" style="font-size:0.88rem;">Autenticações</div>
+                <div class="audit-stat-card" data-cat="auth" style="cursor:pointer;transition:all 0.2s ease;">
+                    <div class="audit-stat-icon" style="background:rgba(74,222,128,0.15);color:#4ade80;font-size:1.6rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:12px;margin-bottom:12px;"><i class="fa-solid fa-key"></i></div>
+                    <div class="audit-stat-val" id="stat-auth">—</div>
+                    <div class="audit-stat-label" style="font-size:1rem;margin-top:6px;font-weight:600;">Autenticações</div>
                 </div>
-                <div class="audit-stat-card" data-cat="usuarios">
-                    <div class="audit-stat-icon" style="background:rgba(96,165,250,0.12);color:#60a5fa;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-users"></i></div>
-                    <div class="audit-stat-val" id="stat-usuarios" style="font-size:2rem;">—</div>
-                    <div class="audit-stat-label" style="font-size:0.88rem;">Usuários</div>
+                <div class="audit-stat-card" data-cat="usuarios" style="cursor:pointer;transition:all 0.2s ease;">
+                    <div class="audit-stat-icon" style="background:rgba(96,165,250,0.15);color:#60a5fa;font-size:1.6rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:12px;margin-bottom:12px;"><i class="fa-solid fa-users"></i></div>
+                    <div class="audit-stat-val" id="stat-usuarios">—</div>
+                    <div class="audit-stat-label" style="font-size:1rem;margin-top:6px;font-weight:600;">Usuários</div>
                 </div>
-                <div class="audit-stat-card" data-cat="seguranca">
-                    <div class="audit-stat-icon" style="background:rgba(248,113,113,0.12);color:#f87171;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-shield-halved"></i></div>
-                    <div class="audit-stat-val" id="stat-seguranca" style="font-size:2rem;">—</div>
-                    <div class="audit-stat-label" style="font-size:0.88rem;">Segurança</div>
+                <div class="audit-stat-card" data-cat="seguranca" style="cursor:pointer;transition:all 0.2s ease;">
+                    <div class="audit-stat-icon" style="background:rgba(248,113,113,0.15);color:#f87171;font-size:1.6rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:12px;margin-bottom:12px;"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="audit-stat-val" id="stat-seguranca">—</div>
+                    <div class="audit-stat-label" style="font-size:1rem;margin-top:6px;font-weight:600;">Segurança</div>
                 </div>
-                <div class="audit-stat-card" data-cat="admin">
-                    <div class="audit-stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:1.3rem;width:44px;height:44px;"><i class="fa-solid fa-gear"></i></div>
-                    <div class="audit-stat-val" id="stat-admin" style="font-size:2rem;">—</div>
-                    <div class="audit-stat-label" style="font-size:0.88rem;">Ações Admin</div>
+                <div class="audit-stat-card" data-cat="admin" style="cursor:pointer;transition:all 0.2s ease;">
+                    <div class="audit-stat-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;font-size:1.6rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:12px;margin-bottom:12px;"><i class="fa-solid fa-gear"></i></div>
+                    <div class="audit-stat-val" id="stat-admin">—</div>
+                    <div class="audit-stat-label" style="font-size:1rem;margin-top:6px;font-weight:600;">Ações Admin</div>
                 </div>
             </div>
 
@@ -425,19 +425,29 @@
             </div>
 
             <!-- Tabela de logs -->
-            <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border-card,rgba(255,255,255,0.07));">
-                <table style="width:100%;border-collapse:collapse;font-size:0.95rem;">
+            <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border-card,rgba(255,255,255,0.07));background:var(--bg-card,rgba(255,255,255,0.02));">
+                <table style="width:100%;border-collapse:collapse;font-size:1rem;">
                     <thead>
-                        <tr style="background:var(--bg-card,rgba(255,255,255,0.03));border-bottom:1px solid var(--border-card,rgba(255,255,255,0.07));">
-                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;white-space:nowrap;font-size:0.9rem;">Data/Hora</th>
-                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Evento</th>
-                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">IP</th>
-                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Endpoint</th>
-                            <th style="padding:13px 16px;text-align:left;color:#94a3b8;font-weight:700;font-size:0.9rem;">Detalhes</th>
+                        <tr style="background:var(--bg-card,rgba(255,255,255,0.05));border-bottom:2px solid var(--border-card,rgba(255,255,255,0.1));">
+                            <th style="padding:18px 20px;text-align:left;color:#cbd5e1;font-weight:700;white-space:nowrap;font-size:1.05rem;letter-spacing:0.3px;">
+                                <i class="fa-solid fa-clock" style="margin-right:8px;color:#818cf8;font-size:1.1rem;"></i>Data/Hora
+                            </th>
+                            <th style="padding:18px 20px;text-align:left;color:#cbd5e1;font-weight:700;font-size:1.05rem;letter-spacing:0.3px;">
+                                <i class="fa-solid fa-tag" style="margin-right:8px;color:#818cf8;font-size:1.1rem;"></i>Evento
+                            </th>
+                            <th style="padding:18px 20px;text-align:left;color:#cbd5e1;font-weight:700;font-size:1.05rem;letter-spacing:0.3px;">
+                                <i class="fa-solid fa-network-wired" style="margin-right:8px;color:#818cf8;font-size:1.1rem;"></i>IP
+                            </th>
+                            <th style="padding:18px 20px;text-align:left;color:#cbd5e1;font-weight:700;font-size:1.05rem;letter-spacing:0.3px;">
+                                <i class="fa-solid fa-route" style="margin-right:8px;color:#818cf8;font-size:1.1rem;"></i>Endpoint
+                            </th>
+                            <th style="padding:18px 20px;text-align:left;color:#cbd5e1;font-weight:700;font-size:1.05rem;letter-spacing:0.3px;">
+                                <i class="fa-solid fa-info-circle" style="margin-right:8px;color:#818cf8;font-size:1.1rem;"></i>Detalhes
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="audit-log-tbody">
-                        <tr><td colspan="5" style="padding:40px;text-align:center;color:#64748b;font-size:1rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                        <tr><td colspan="5" style="padding:50px;text-align:center;color:#64748b;font-size:1.1rem;"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;margin-right:12px;"></i> Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>

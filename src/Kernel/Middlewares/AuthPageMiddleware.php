@@ -1,84 +1,84 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Kernel\Middlewares;
 
+use Src\Kernel\Contracts\AuthContextInterface;
+use Src\Kernel\Contracts\AuthIdentityInterface;
 use Src\Kernel\Contracts\MiddlewareInterface;
-use Src\Kernel\Contracts\TokenBlacklistInterface;
-use Src\Kernel\Contracts\UserRepositoryInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
-use Src\Kernel\Support\JwtDecoder;
-use Src\Kernel\Support\TokenExtractor;
+use Src\Kernel\Support\CookieConfig;
 
 /**
  * Middleware de autenticação para rotas de página (HTML).
- * Redireciona para / quando não autenticado, em vez de retornar JSON 401.
  *
- * Por padrão (requireAdmin=true): exclusivo para admin_system com JWT_API_SECRET.
- * Com requireAdmin=false: aceita qualquer usuário autenticado — usado pela IDE.
+ * Redireciona para / (ou /ide/login para rotas IDE) quando não autenticado,
+ * em vez de retornar JSON 401.
+ *
+ * Recebe um AuthContextInterface já configurado com CookieTokenResolver.
+ * O wiring correto é feito no container (index.php ou provider do módulo):
+ *
+ *   $container->bind(AuthPageMiddleware::class, fn($c) =>
+ *       new AuthPageMiddleware(
+ *           $c->make(AuthContextInterface::class)
+ *               ->withResolver(new CookieTokenResolver())
+ *       )
+ *   );
+ *
+ * Verificação de admin é responsabilidade do AdminOnlyMiddleware — não deste.
  */
-class AuthPageMiddleware implements MiddlewareInterface
+final class AuthPageMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private ?UserRepositoryInterface $usuarios,
-        private ?TokenBlacklistInterface $blacklistRepo,
-        private bool $requireAdmin = true
+        private readonly ?AuthContextInterface $auth
     ) {}
 
     public function handle(Request $request, callable $next): Response
     {
-        // Se os módulos de autenticação não estão instalados, permite acesso livre
-        if ($this->usuarios === null || $this->blacklistRepo === null) {
+        if ($this->auth === null) {
             return $next($request);
         }
 
-        $token = TokenExtractor::fromRequest();
-        if ($token === '') {
-            return $this->redirecionar(false);
+        // Debug: verifica se o cookie está presente
+        error_log("DEBUG AuthPageMiddleware: URI=" . $request->getUri());
+        error_log("DEBUG AuthPageMiddleware: Cookie presente? " . (isset($_COOKIE['auth_token']) ? 'SIM' : 'NÃO'));
+        if (isset($_COOKIE['auth_token'])) {
+            error_log("DEBUG AuthPageMiddleware: Cookie length=" . strlen($_COOKIE['auth_token']));
         }
 
-        try {
-            [$payload, $assinadoComApiSecret] = JwtDecoder::decodeUser($token);
-            JwtDecoder::validateUserClaims($payload);
+        $identity = $this->auth->resolve($request);
+        
+        error_log("DEBUG AuthPageMiddleware: Identity type=" . ($identity ? $identity->type() : 'NULL'));
 
-            if ($this->blacklistRepo->isRevoked($payload->jti)) {
-                return $this->redirecionar(true);
-            }
-
-            $usuario = $this->usuarios->buscarPorUuid($payload->sub ?? '');
-            if (!$usuario) {
-                return $this->redirecionar(true);
-            }
-
-            // Se requireAdmin=true: exclusivo para admin_system com JWT_API_SECRET
-            // Se requireAdmin=false: qualquer usuário ativo pode acessar (IDE)
-            if ($this->requireAdmin) {
-                $nivelPayload = $payload->nivel_acesso ?? null;
-                $nivelUsuario = method_exists($usuario, 'getNivelAcesso') ? $usuario->getNivelAcesso() : null;
-
-                if ($nivelPayload !== 'admin_system' || $nivelUsuario !== 'admin_system' || !$assinadoComApiSecret) {
-                    return $this->redirecionar(true);
-                }
-            }
-
-            return $next(
-                $request
-                    ->withAttribute('auth_user', $usuario)
-                    ->withAttribute('auth_payload', $payload)
-                    ->withAttribute('token_signed_with_api_secret', $assinadoComApiSecret)
-            );
-
-        } catch (\Firebase\JWT\ExpiredException|\Firebase\JWT\SignatureInvalidException) {
-            return $this->redirecionar(true);
-        } catch (\Throwable) {
-            return $this->redirecionar(false);
+        if (!$this->isValid($identity)) {
+            error_log("DEBUG AuthPageMiddleware: Identity inválida, redirecionando");
+            return $this->redirecionar($identity !== null, $request->getUri());
         }
+
+        error_log("DEBUG AuthPageMiddleware: Identity válida, prosseguindo");
+        return $next(
+            $request
+                ->withAttribute(AuthContextInterface::IDENTITY_KEY, $identity)
+                ->withAttribute(AuthContextInterface::LEGACY_USER_KEY, $identity->user())
+                ->withAttribute(AuthContextInterface::LEGACY_PAYLOAD_KEY, $identity->payload())
+        );
     }
 
-    private function redirecionar(bool $limparCookie): Response
+    private function isValid(?AuthIdentityInterface $identity): bool
+    {
+        if ($identity === null) {
+            return false;
+        }
+        $type = $identity->type();
+        return $type !== 'inactive' && $type !== 'not_found';
+    }
+
+    private function redirecionar(bool $limparCookie, string $uri): Response
     {
         if ($limparCookie && isset($_COOKIE['auth_token'])) {
-            setcookie('auth_token', '', \Src\Kernel\Support\CookieConfig::options(time() - 3600));
+            setcookie('auth_token', '', CookieConfig::options(time() - 3600));
         }
 
         $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
@@ -86,12 +86,8 @@ class AuthPageMiddleware implements MiddlewareInterface
             return Response::json(['error' => 'Não autenticado.'], 401);
         }
 
-        // IDE usa login próprio; dashboard usa a home com modal de login
-        $uri = $_SERVER['REQUEST_URI'] ?? '/';
-        if (str_starts_with($uri, '/dashboard/ide')) {
-            return new Response('', 302, ['Location' => '/ide/login']);
-        }
-
-        return new Response('', 302, ['Location' => '/']);
+        return new Response('', 302, [
+            'Location' => str_starts_with($uri, '/dashboard/ide') ? '/ide/login' : '/',
+        ]);
     }
 }

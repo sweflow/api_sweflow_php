@@ -18,9 +18,24 @@ use Src\Kernel\Contracts\ContainerInterface;
  *
  * O bind de UserRepositoryInterface vai para o container principal,
  * e quando resolvido, $c->make(PDO::class) retorna pdo.modules via este proxy.
+ *
+ * Contratos de autenticação (AuthContextInterface, UserRepositoryInterface,
+ * TokenBlacklistInterface) podem ser sobrescritos por módulos externos — são
+ * os pontos de extensão intencionais da plataforma.
  */
 final class ModuleContainerProxy implements ContainerInterface
 {
+    /** Contratos que módulos externos podem sobrescrever intencionalmente */
+    private const OVERRIDABLE = [
+        \Src\Kernel\Contracts\AuthContextInterface::class,
+        \Src\Kernel\Contracts\AuthorizationInterface::class,
+        \Src\Kernel\Contracts\TokenResolverInterface::class,
+        \Src\Kernel\Contracts\TokenValidatorInterface::class,
+        \Src\Kernel\Contracts\UserResolverInterface::class,
+        \Src\Kernel\Contracts\IdentityFactoryInterface::class,
+        \Src\Kernel\Contracts\UserRepositoryInterface::class,
+        \Src\Kernel\Contracts\TokenBlacklistInterface::class,
+    ];
     public function __construct(
         private readonly ContainerInterface $main,
         private readonly \PDO $modulesPdo
@@ -28,9 +43,16 @@ final class ModuleContainerProxy implements ContainerInterface
 
     public function bind(string $abstract, callable|object|string $concrete, bool $singleton = false): void
     {
+        // Contratos de autenticação são pontos de extensão intencionais —
+        // módulos externos podem sobrescrevê-los livremente.
+        if (in_array($abstract, self::OVERRIDABLE, true)) {
+            $this->main->bind($abstract, $concrete, $singleton);
+            return;
+        }
+
         // Não sobrescreve bindings já existentes no container principal.
-        // Isso evita que módulos externos sobrescrevam UserRepositoryInterface,
-        // PDO::class ou outros contratos do sistema core.
+        // Isso evita que módulos externos sobrescrevam PDO::class ou outros
+        // contratos do sistema core.
         if ($this->main instanceof \Src\Kernel\Nucleo\Container
             && $this->main->hasBinding($abstract)) {
             return;

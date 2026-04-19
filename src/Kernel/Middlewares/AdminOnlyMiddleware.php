@@ -1,53 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Kernel\Middlewares;
 
+use Src\Kernel\Contracts\AuthContextInterface;
+use Src\Kernel\Contracts\AuthorizationInterface;
 use Src\Kernel\Contracts\MiddlewareInterface;
 use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 
-class AdminOnlyMiddleware implements MiddlewareInterface
+/**
+ * Verifica permissão de admin após autenticação.
+ * Auth ≠ Authorization: AuthContext diz quem é, AuthorizationInterface diz se pode.
+ */
+final class AdminOnlyMiddleware implements MiddlewareInterface
 {
+    public function __construct(
+        private readonly ?AuthContextInterface   $auth,
+        private readonly ?AuthorizationInterface $authorization
+    ) {}
+
     public function handle(Request $request, callable $next): Response
     {
-        $isPage = !str_starts_with($request->getUri(), '/api/');
-
-        // Caso 1: token de API puro (JWT_API_SECRET com tipo:api) — acesso total
-        if ($request->attribute('api_token') === true) {
+        if ($this->auth === null || $this->authorization === null) {
             return $next($request);
         }
 
-        $payload = $request->attribute('auth_payload');
-        $usuario = $request->attribute('auth_user');
+        $isPage   = !str_starts_with($request->getUri(), '/api/');
+        $identity = $this->auth->identity($request);
 
-        if ($payload === null || $usuario === null) {
+        if ($identity === null) {
             return $isPage
                 ? new Response('', 302, ['Location' => '/'])
                 : Response::json(['error' => 'Autenticação obrigatória.'], 401);
         }
 
-        $nivel        = $payload->nivel_acesso ?? null;
-        // Suporta tanto getNivelAcesso() (Usuario) quanto getAuthRole() (AuthenticatableInterface)
-        $nivelUsuario = null;
-        if (is_object($usuario)) {
-            if (method_exists($usuario, 'getAuthRole')) {
-                $nivelUsuario = $usuario->getAuthRole();
-            } elseif (method_exists($usuario, 'getNivelAcesso')) {
-                $nivelUsuario = $usuario->getNivelAcesso();
-            }
+        if (!$this->authorization->isAdmin($identity, $request)) {
+            return $isPage
+                ? new Response('', 302, ['Location' => '/'])
+                : Response::json(['error' => 'Acesso restrito.'], 403);
         }
 
-        // Caso 2: token de usuário admin_system DEVE ter sido assinado com JWT_API_SECRET.
-        // Confia exclusivamente no atributo injetado pelo AuthHybridMiddleware —
-        // não re-decodifica o token aqui para evitar inconsistências.
-        $assinadoComApiSecret = $request->attribute('token_signed_with_api_secret') === true;
-
-        if ($nivel === 'admin_system' && $nivelUsuario === 'admin_system' && $assinadoComApiSecret) {
-            return $next($request);
-        }
-
-        return $isPage
-            ? new Response('', 302, ['Location' => '/'])
-            : Response::json(['error' => 'Acesso restrito.'], 403);
+        return $next($request);
     }
 }
