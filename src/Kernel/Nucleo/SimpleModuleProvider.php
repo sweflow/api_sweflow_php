@@ -135,10 +135,10 @@ class SimpleModuleProvider implements ModuleProviderInterface
 
                         public function all(): array { return $this->inner->all(); }
                     };
-                    require $realFile;
+                    try { require $realFile; } catch (\Throwable) {}
                 } else {
                     // Módulo interno — sem filtro de URI
-                    require $realFile;
+                    try { require $realFile; } catch (\Throwable) {}
                 }
 
                 $found = true;
@@ -146,7 +146,11 @@ class SimpleModuleProvider implements ModuleProviderInterface
         }
 
         if ($found && $router instanceof ModuleScopedRouter) {
-            $this->routes       = $router->getRegisteredRoutes();
+            $this->routes        = $router->getRegisteredRoutes();
+            $this->describeCache = null;
+        } elseif ($router instanceof ModuleScopedRouter) {
+            // registerRoutes falhou (ex: classe não encontrada) mas o arquivo existe
+            // Invalida o cache para que o describe() recalcule via fallback regex
             $this->describeCache = null;
         }
     }
