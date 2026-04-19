@@ -1,0 +1,245 @@
+{
+  "version": "1.0.0",
+  "title": "Comandos de Módulos",
+  "description": "Comandos disponíveis para gerenciamento de módulos na Vupi.us IDE",
+  "categories": [
+    {
+      "name": "Dependências",
+      "icon": "📦",
+      "commands": [
+        {
+          "name": "Instalar Dependências",
+          "command": "composer install",
+          "description": "Instala todas as dependências do módulo",
+          "workingDir": "src/Modules/{moduleName}",
+          "shortcut": "Ctrl+Shift+I",
+          "example": "cd src/Modules/Authenticador && composer install"
+        },
+        {
+          "name": "Adicionar Dependência",
+          "command": "composer require {package}",
+          "description": "Adiciona nova dependência ao módulo",
+          "workingDir": "src/Modules/{moduleName}",
+          "parameters": [
+            {
+              "name": "package",
+              "description": "Nome do pacote (ex: guzzlehttp/guzzle)",
+              "required": true
+            }
+          ],
+          "example": "composer require league/oauth2-google"
+        },
+        {
+          "name": "Atualizar Dependências",
+          "command": "composer update",
+          "description": "Atualiza dependências para versões mais recentes",
+          "workingDir": "src/Modules/{moduleName}",
+          "example": "composer update"
+        },
+        {
+          "name": "Remover Dependência",
+          "command": "composer remove {package}",
+          "description": "Remove dependência do módulo",
+          "workingDir": "src/Modules/{moduleName}",
+          "parameters": [
+            {
+              "name": "package",
+              "description": "Nome do pacote a remover",
+              "required": true
+            }
+          ],
+          "example": "composer remove guzzlehttp/guzzle"
+        },
+        {
+          "name": "Listar Dependências",
+          "command": "composer show",
+          "description": "Lista todas as dependências instaladas",
+          "workingDir": "src/Modules/{moduleName}",
+          "example": "composer show"
+        }
+      ]
+    },
+    {
+      "name": "Ambiente",
+      "icon": "🌍",
+      "commands": [
+        {
+          "name": "Criar .env",
+          "command": "cp .env.example .env",
+          "description": "Cria arquivo .env a partir do template",
+          "workingDir": "src/Modules/{moduleName}",
+          "shortcut": "Ctrl+Shift+E",
+          "example": "cp .env.example .env"
+        },
+        {
+          "name": "Editar .env",
+          "command": "nano .env",
+          "description": "Abre editor para configurar .env",
+          "workingDir": "src/Modules/{moduleName}",
+          "alternative": "Abra o arquivo .env diretamente na IDE",
+          "example": "nano .env"
+        },
+        {
+          "name": "Ver .env",
+          "command": "cat .env",
+          "description": "Exibe conteúdo do .env",
+          "workingDir": "src/Modules/{moduleName}",
+          "example": "cat .env"
+        }
+      ]
+    },
+    {
+      "name": "Verificação",
+      "icon": "🔍",
+      "commands": [
+        {
+          "name": "Verificar PHP",
+          "command": "php -v",
+          "description": "Exibe versão do PHP",
+          "example": "php -v"
+        },
+        {
+          "name": "Verificar Composer",
+          "command": "composer --version",
+          "description": "Exibe versão do Composer",
+          "example": "composer --version"
+        },
+        {
+          "name": "Listar Arquivos",
+          "command": "ls -la",
+          "description": "Lista arquivos e pastas do módulo",
+          "workingDir": "src/Modules/{moduleName}",
+          "example": "ls -la"
+        },
+        {
+          "name": "Ver Dependências Instaladas",
+          "command": "ls vendor/",
+          "description": "Lista dependências instaladas",
+          "workingDir": "src/Modules/{moduleName}",
+          "example": "ls vendor/"
+        }
+      ]
+    },
+    {
+      "name": "Limpeza",
+      "icon": "🧹",
+      "commands": [
+        {
+          "name": "Limpar Cache",
+          "command": "composer clear-cache",
+          "description": "Limpa cache do Composer",
+          "example": "composer clear-cache"
+        },
+        {
+          "name": "Reinstalar Dependências",
+          "command": "rm -rf vendor/ composer.lock && composer install",
+          "description": "Remove e reinstala todas as dependências",
+          "workingDir": "src/Modules/{moduleName}",
+          "warning": "Isso removerá todas as dependências instaladas",
+          "example": "rm -rf vendor/ composer.lock && composer install"
+        }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Setup Inicial do Módulo",
+      "description": "Configuração inicial de um módulo",
+      "steps": [
+        {
+          "step": 1,
+          "command": "cd src/Modules/{moduleName}",
+          "description": "Entre no diretório do módulo"
+        },
+        {
+          "step": 2,
+          "command": "composer install",
+          "description": "Instale as dependências"
+        },
+        {
+          "step": 3,
+          "command": "cp .env.example .env",
+          "description": "Crie o arquivo .env"
+        },
+        {
+          "step": 4,
+          "command": "nano .env",
+          "description": "Configure as variáveis de ambiente"
+        },
+        {
+          "step": 5,
+          "command": "ls -la",
+          "description": "Verifique a instalação"
+        }
+      ]
+    },
+    {
+      "name": "Adicionar Nova Dependência",
+      "description": "Adicionar biblioteca ao módulo",
+      "steps": [
+        {
+          "step": 1,
+          "command": "cd src/Modules/{moduleName}",
+          "description": "Entre no diretório do módulo"
+        },
+        {
+          "step": 2,
+          "command": "composer require {package}",
+          "description": "Adicione a dependência"
+        },
+        {
+          "step": 3,
+          "command": "composer show | grep {package}",
+          "description": "Verifique a instalação"
+        }
+      ]
+    }
+  ],
+  "troubleshooting": [
+    {
+      "error": "Class not found",
+      "solution": "rm -rf vendor/ composer.lock && composer install",
+      "description": "Reinstala todas as dependências"
+    },
+    {
+      "error": ".env not found",
+      "solution": "cp .env.example .env",
+      "description": "Cria arquivo .env a partir do template"
+    },
+    {
+      "error": "Permission denied",
+      "solution": "chmod -R 755 src/Modules/{moduleName}",
+      "description": "Ajusta permissões do diretório"
+    },
+    {
+      "error": "composer: command not found",
+      "solution": "Verifique se o Composer está instalado",
+      "description": "Instale o Composer: https://getcomposer.org/download/"
+    }
+  ],
+  "quickTips": [
+    "Sempre trabalhe no diretório do módulo: cd src/Modules/SeuModulo",
+    "Nunca versione .env ou vendor/ - são arquivos locais",
+    "Use .env.example como template para documentar variáveis",
+    "Verifique isolamento: ls src/Modules/SeuModulo/vendor/",
+    "Cada módulo tem suas próprias dependências independentes"
+  ],
+  "documentation": [
+    {
+      "title": "Comandos de Módulos",
+      "file": "DOC/ComandosModulos.md"
+    },
+    {
+      "title": "Isolamento de Módulos",
+      "file": "ISOLAMENTO_MODULOS.md"
+    },
+    {
+      "title": "Guia do Desenvolvedor",
+      "file": "GUIA_DESENVOLVEDOR_MODULO.md"
+    },
+    {
+      "title": "OAuth2 Google",
+      "file": "GUIA_RAPIDO_OAUTH2.md"
+    }
+  ]
+}

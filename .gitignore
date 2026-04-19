@@ -1,6 +1,14 @@
 # ── Dependências ──────────────────────────────────────────────────────────
 /vendor/
 
+# ── Módulos - Dependências e Ambiente ─────────────────────────────────────
+# Cada módulo gerencia suas próprias dependências e .env
+src/Modules/*/vendor/
+src/Modules/*/composer.lock
+src/Modules/*/.env
+src/Modules/*/.env.local
+src/Modules/*/.env.*.local
+
 # ── Ambiente ──────────────────────────────────────────────────────────────
 .env
 .env.local
@@ -29,6 +37,26 @@ SOLUCAO_FINAL_AUTH.md
 test_auth_debug.md
 test_cookie.php
 TESTE_RAPIDO.md
+
+CORRECAO_MODULO_AUTHENTICADOR.md
+GUIA_DESENVOLVEDOR_MODULO.md
+GUIA_RAPIDO_OAUTH2.md
+INTEGRACAO_IDE.md
+ISOLAMENTO_MODULOS.md
+LIMPEZA_MODULO_USUARIOS2.md
+MODULOS_DEPENDENCIAS_IMPLEMENTADO.md
+MODULO_AUTHENTICADOR_COMPLETO.md
+MODULO_USUARIOS2_COMPLETO.md
+MODULO_USUARIOS2_FINAL.md
+MODULO_USUARIOS2_MIGRATIONS.md
+MODULO_USUARIOS2_PROGRESSO.md
+OAUTH2_IMPLEMENTACAO.md
+RESUMO_FINAL_IDE.md
+RESUMO_IMPLEMENTACAO_COMPLETA.md
+RESUMO_LIMPEZA_USUARIOS2.md
+SEGURANCA_TERMINAL_IDE.md
+SEPARACAO_FINAL_PERMISSOES.md
+SEPARACAO_MODULOS_FINAL.md
 
 # ── Módulos ignorados no commit
 
