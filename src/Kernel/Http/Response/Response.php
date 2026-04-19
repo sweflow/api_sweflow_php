@@ -5,10 +5,11 @@ namespace Src\Kernel\Http\Response;
 class Response
 {
     private int $status;
+    /** @var array<string, string> */
     private array $headers = [];
-    private $body;
+    private string|array|object|false $body;
 
-    public function __construct($body = '', int $status = 200, array $headers = [])
+    public function __construct(string|array|object|false $body = '', int $status = 200, array $headers = [])
     {
         $this->body = $body;
         $this->status = $status;

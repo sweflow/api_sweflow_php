@@ -2,6 +2,8 @@
 
 namespace Src\Kernel\Utils;
 
+use GdImage;
+
 class ImageProcessor
 {
     public static function resizeAndSave(
@@ -21,28 +23,28 @@ class ImageProcessor
         }
 
         if (!function_exists('getimagesize')) {
-            return @move_uploaded_file($tmpPath, $destPath);
+            return (bool) @move_uploaded_file($tmpPath, $destPath);
         }
 
         $info = @getimagesize($tmpPath);
         if (!is_array($info) || empty($info[0]) || empty($info[1])) {
-            return @move_uploaded_file($tmpPath, $destPath);
+            return (bool) @move_uploaded_file($tmpPath, $destPath);
         }
 
-        $width = (int) $info[0];
+        $width  = (int) $info[0];
         $height = (int) $info[1];
 
-        $scale = min($maxWidth / $width, $maxHeight / $height, 1);
-        $newWidth = (int) max(1, round($width * $scale));
+        $scale     = min($maxWidth / $width, $maxHeight / $height, 1.0);
+        $newWidth  = (int) max(1, round($width * $scale));
         $newHeight = (int) max(1, round($height * $scale));
 
         $src = self::createSourceImage($tmpPath, $mime);
-        if (!$src) {
+        if ($src === null) {
             return self::fallbackMove($tmpPath, $destPath);
         }
 
         $dst = imagecreatetruecolor($newWidth, $newHeight);
-        if (!$dst) {
+        if ($dst === false) {
             imagedestroy($src);
             return self::fallbackMove($tmpPath, $destPath);
         }
@@ -51,7 +53,9 @@ class ImageProcessor
             imagealphablending($dst, false);
             imagesavealpha($dst, true);
             $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-            imagefilledrectangle($dst, 0, 0, $newWidth, $newHeight, $transparent);
+            if ($transparent !== false) {
+                imagefilledrectangle($dst, 0, 0, $newWidth, $newHeight, $transparent);
+            }
         }
 
         imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
@@ -68,23 +72,31 @@ class ImageProcessor
         return true;
     }
 
-    private static function createSourceImage(string $tmpPath, string $mime)
+    private static function createSourceImage(string $tmpPath, string $mime): ?GdImage
     {
-        return match ($mime) {
-            'image/jpeg', 'image/jpg' => function_exists('imagecreatefromjpeg') ? @imagecreatefromjpeg($tmpPath) : null,
-            'image/png' => function_exists('imagecreatefrompng') ? @imagecreatefrompng($tmpPath) : null,
-            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($tmpPath) : null,
-            default => null,
+        $result = match ($mime) {
+            'image/jpeg', 'image/jpg' => function_exists('imagecreatefromjpeg')
+                ? @imagecreatefromjpeg($tmpPath)
+                : false,
+            'image/png'  => function_exists('imagecreatefrompng')
+                ? @imagecreatefrompng($tmpPath)
+                : false,
+            'image/webp' => function_exists('imagecreatefromwebp')
+                ? @imagecreatefromwebp($tmpPath)
+                : false,
+            default => false,
         };
+
+        return ($result instanceof GdImage) ? $result : null;
     }
 
-    private static function saveImage($resource, string $destPath, string $mime, int $quality): bool
+    private static function saveImage(GdImage $resource, string $destPath, string $mime, int $quality): bool
     {
         return match ($mime) {
-            'image/jpeg', 'image/jpg' => @imagejpeg($resource, $destPath, max(60, min(90, $quality))),
-            'image/png' => @imagepng($resource, $destPath, 6),
-            'image/webp' => function_exists('imagewebp')
-                ? @imagewebp($resource, $destPath, max(60, min(90, $quality)))
+            'image/jpeg', 'image/jpg' => (bool) @imagejpeg($resource, $destPath, max(60, min(90, $quality))),
+            'image/png'               => (bool) @imagepng($resource, $destPath, 6),
+            'image/webp'              => function_exists('imagewebp')
+                ? (bool) @imagewebp($resource, $destPath, max(60, min(90, $quality)))
                 : false,
             default => false,
         };
@@ -95,7 +107,6 @@ class ImageProcessor
         if (@move_uploaded_file($tmpPath, $destPath)) {
             return true;
         }
-
-        return @copy($tmpPath, $destPath);
+        return (bool) @copy($tmpPath, $destPath);
     }
 }

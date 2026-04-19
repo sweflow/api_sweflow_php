@@ -130,7 +130,7 @@
             </div>
         </div>
         <div class="idep-hero-text">
-            <p class="idep-hero-greeting">Olá, <span id="idep-hero-name"><?= htmlspecialchars($nome_usuario ?: 'desenvolvedor', ENT_QUOTES, 'UTF-8') ?></span> 👋</p>
+            <p class="idep-hero-greeting">Olá, <span id="idep-hero-name"><?= htmlspecialchars(($nome_usuario ?? '') ?: 'desenvolvedor', ENT_QUOTES, 'UTF-8') ?></span> 👋</p>
             <h1><i class="fa-solid fa-code" style="color:#6366f1;"></i> Module Builder</h1>
             <p class="idep-hero-sub">Crie, edite e publique módulos para o framework Vupi.us API</p>
         </div>

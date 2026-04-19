@@ -36,8 +36,7 @@ final class IdempotencyLock
 
     private function __construct(
         private string $key,
-        private RateLimitStorageInterface $storage,
-        private ?string $lockDir = null
+        private RateLimitStorageInterface $storage
     ) {}
 
     /**

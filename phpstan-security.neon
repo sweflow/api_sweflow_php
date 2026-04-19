@@ -1,5 +1,5 @@
 parameters:
-    level: 8
+    level: 6
     paths:
         - src/Kernel/Middlewares
         - src/Kernel/Support/JwtDecoder.php

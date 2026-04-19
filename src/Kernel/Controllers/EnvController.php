@@ -218,7 +218,7 @@ class EnvController
         }
 
         $content = implode("\n", $newLines);
-        if ($content !== '' && $content[-1] !== "\n") {
+        if ($content !== '' && !str_ends_with($content, "\n")) {
             $content .= "\n";
         }
 

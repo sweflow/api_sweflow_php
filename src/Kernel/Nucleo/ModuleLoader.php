@@ -330,45 +330,6 @@ class ModuleLoader
         $this->setEnabledIfNotExist($module);
     }
 
-    /**
-     * Retorna o container correto para o provider.
-     * Verifica preferredConnection() ou connection.php do módulo.
-     * Se usar 'modules', retorna container com PDO::class = pdo.modules.
-     */
-    private function resolveContainerForProvider(ModuleProviderInterface $provider): ContainerInterface
-    {
-        $pref = $this->getProviderConnection($provider);
-
-        // Resolve 'auto' usando DEFAULT_MODULE_CONNECTION
-        if ($pref === 'auto') {
-            $default = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
-            $pref = in_array($default, ['core', 'modules'], true) ? $default : 'core';
-        }
-
-        if ($pref !== 'modules') {
-            return $this->container;
-        }
-
-        // Tenta obter pdo.modules
-        try {
-            $modulesPdo = $this->container->make('pdo.modules');
-        } catch (\Throwable) {
-            return $this->container;
-        }
-
-        // Verifica se é realmente diferente do core
-        try {
-            $corePdo = $this->container->make(\PDO::class);
-            if ($modulesPdo === $corePdo) {
-                return $this->container;
-            }
-        } catch (\Throwable) {}
-
-        $derived = clone $this->container;
-        $derived->bind(\PDO::class, static fn() => $modulesPdo, true);
-        return $derived;
-    }
-
     /** Cache de conexão por provider — evita reler connection.php a cada boot */
     private array $connectionCache = [];
 

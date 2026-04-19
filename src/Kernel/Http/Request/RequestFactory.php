@@ -39,7 +39,7 @@ class RequestFactory
             }
         } elseif (stripos($contentType, 'application/x-www-form-urlencoded') !== false && $rawBody !== '') {
             parse_str($rawBody, $formData);
-            $body = array_merge($_POST, is_array($formData) ? $formData : []);
+            $body = array_merge($_POST, $formData);
         }
 
         return new Request($body, $_GET, $headers, $method, $uri, $rawBody);

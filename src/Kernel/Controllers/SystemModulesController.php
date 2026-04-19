@@ -516,7 +516,7 @@ class SystemModulesController
             }
 
             if (!$satisfies) {
-                $installedMajor = explode('.', $installedVersion)[0] ?? '0';
+                $installedMajor = explode('.', $installedVersion)[0];
                 $conflicts[] = [
                     'package'    => $package,
                     'installed'  => $installedVersion,
@@ -551,36 +551,6 @@ class SystemModulesController
             array_values($toInstall)
         );
         $this->runComposerRequire($packages);
-    }
-
-    /**
-     * @deprecated Substituído pela lógica de detecção de conflito em installModuleDependencies.
-     * Mantido para compatibilidade com chamadas existentes.
-     */
-    private function resolvePackagesToInstall(array $require): array
-    {
-        $root          = dirname(__DIR__, 3);
-        $installedPath = $root . '/vendor/composer/installed.json';
-        $installedNames = [];
-
-        if (is_file($installedPath)) {
-            $installed      = json_decode((string) file_get_contents($installedPath), true) ?? [];
-            $packages       = $installed['packages'] ?? $installed;
-            $installedNames = array_column(is_array($packages) ? $packages : [], 'name');
-        }
-
-        $toInstall = [];
-        foreach ($require as $dep => $version) {
-            if ($dep === 'php' || str_starts_with($dep, 'ext-') || str_starts_with($dep, 'lib-')) {
-                continue;
-            }
-            if (in_array($dep, $installedNames, true)) {
-                continue;
-            }
-            $toInstall[] = $dep . ':' . $version;
-        }
-
-        return $toInstall;
     }
 
     /**
@@ -898,12 +868,11 @@ class SystemModulesController
             return;
         }
 
-        $pkgFull  = $packageName ?: ('module-' . strtolower($moduleName));
-        $changed  = false;
+        $pkgFull = $packageName ?: ('module-' . strtolower($moduleName));
 
-        $changed = $this->removeComposerRequire($json, $pkgFull) || $changed;
-        $changed = $this->removeComposerAutoload($json, $moduleName) || $changed;
-        $changed = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
+        $changed  = $this->removeComposerRequire($json, $pkgFull);
+        $changed  = $this->removeComposerAutoload($json, $moduleName) || $changed;
+        $changed  = $this->removeComposerRepositories($json, $moduleName, $pkgFull) || $changed;
 
         if ($changed) {
             $json = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";

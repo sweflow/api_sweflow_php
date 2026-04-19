@@ -11,6 +11,8 @@ interface RateLimitStorageInterface
     /**
      * Incrementa o contador da chave e retorna [count, resetAt].
      * Se a janela expirou, reinicia o contador.
+     *
+     * @return array{0: int, 1: int} [count, resetAt]
      */
     public function increment(string $key, int $windowSeconds): array;
 

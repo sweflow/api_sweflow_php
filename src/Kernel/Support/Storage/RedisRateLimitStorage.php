@@ -56,6 +56,7 @@ class RedisRateLimitStorage implements RateLimitStorageInterface
         }
     }
 
+    /** @return array{0: int, 1: int} [count, resetAt] */
     public function increment(string $key, int $windowSeconds): array
     {
         $rlKey   = 'rl:' . $key;

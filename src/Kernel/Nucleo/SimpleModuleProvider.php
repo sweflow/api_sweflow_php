@@ -19,8 +19,6 @@ class SimpleModuleProvider implements ModuleProviderInterface
     private ?array $describeCache = null;
     /** Módulos externos (vendor, storage/modules) passam pelo filtro de URI */
     private bool $isExternal = false;
-    /** Provider delegado para boot() — ex: AccountsServiceProvider do usuário */
-    private ?object $delegateBootProvider = null;
 
     public function __construct(string $name, string $path)
     {
@@ -86,11 +84,6 @@ class SimpleModuleProvider implements ModuleProviderInterface
     {
         // Zero config: bindings são automáticos pelo container.
         // Para usar DB2, implemente o ServiceProvider com boot() explícito.
-    }
-
-    public function setDelegateBootProvider(object $provider): void
-    {
-        $this->delegateBootProvider = $provider;
     }
 
     public function registerRoutes(RouterInterface $router): void
@@ -177,7 +170,6 @@ class SimpleModuleProvider implements ModuleProviderInterface
         foreach ($matches as $m) {
             $method = strtoupper($m[1]);
             $uri    = $m[2];
-            if ($method === '' || $uri === '') continue;
 
             // Detecta se a chamada tem middleware de autenticação na mesma linha/bloco
             $pos  = strpos($src, $m[0]);

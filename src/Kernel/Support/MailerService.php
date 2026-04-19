@@ -53,13 +53,14 @@ class MailerService implements EmailSenderInterface
         $mail->Body    = $htmlBody;
         $mail->AltBody = strip_tags($htmlBody);
 
-        if (is_string($recipients)) {
-            $recipients = [['email' => $recipients, 'name' => $recipients]];
-        }
+        $recipientList = is_string($recipients)
+            ? [['email' => $recipients, 'name' => $recipients]]
+            : $recipients;
 
-        foreach ($recipients as $r) {
-            $email = is_array($r) ? ($r['email'] ?? '') : (string) $r;
-            $name  = is_array($r) ? ($r['name']  ?? $email) : $email;
+        foreach ($recipientList as $r) {
+            /** @var mixed $r */
+            $email = is_array($r) ? (string) ($r['email'] ?? '') : (string) $r;
+            $name  = is_array($r) ? (string) ($r['name']  ?? $email) : $email;
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $mail->addAddress($email, $name);
             }

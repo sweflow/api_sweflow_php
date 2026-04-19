@@ -12,6 +12,7 @@ class FileRateLimitStorage implements RateLimitStorageInterface
 {
     public function __construct(private string $storageDir) {}
 
+    /** @return array{0: int, 1: int} [count, resetAt] */
     public function increment(string $key, int $windowSeconds): array
     {
         $this->ensureDir();

@@ -2,6 +2,7 @@
 namespace Src\Kernel\Controllers;
 
 use Src\Kernel\Nucleo\CapabilityResolver;
+use Src\Kernel\Http\Request\Request;
 use Src\Kernel\Http\Response\Response;
 
 class CapabilitiesController
@@ -37,7 +38,7 @@ class CapabilitiesController
         return Response::json(['items' => $items]);
     }
 
-    public function set($request): Response
+    public function set(Request $request): Response
     {
         $body   = $request->body ?? [];
         $cap    = trim((string) ($body['capability'] ?? ''));

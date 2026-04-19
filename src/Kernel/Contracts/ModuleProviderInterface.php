@@ -32,6 +32,8 @@ interface ModuleProviderInterface
      *
      * Se não implementar describe(), o SimpleModuleProvider detecta as rotas
      * automaticamente via registerRoutes() — recomendado para a maioria dos módulos.
+     *
+     * @return array{name?: string, description?: string, version?: string, routes?: list<array<string, mixed>>, connection?: string}
      */
     public function describe(): array;
 

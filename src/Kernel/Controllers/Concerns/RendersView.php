@@ -15,6 +15,7 @@ trait RendersView
      * Renderiza uma view PHP e retorna Response::html().
      * Captura o output via ob_start/ob_get_clean para compatibilidade com o pipeline.
      */
+    /** @param array<string, mixed> $data */
     protected function renderView(string $view, array $data = []): Response
     {
         ob_start();

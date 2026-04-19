@@ -51,6 +51,7 @@ final class Auth
      * @param int    $limit  Máximo de requisições por minuto (0 = sem limite)
      * @param string $key    Chave do rate limit (padrão: gerada automaticamente)
      * @param bool   $db     Adiciona circuit breaker para proteção do banco
+     * @return list<string|array<string, mixed>>
      */
     public static function user(int $limit = 0, string $key = '', bool $db = false): array
     {
@@ -63,6 +64,7 @@ final class Auth
      * @param int    $limit  Máximo de requisições por minuto (0 = sem limite)
      * @param string $key    Chave do rate limit
      * @param bool   $db     Adiciona circuit breaker
+     * @return list<string|array<string, mixed>>
      */
     public static function admin(int $limit = 0, string $key = '', bool $db = false): array
     {
@@ -72,6 +74,8 @@ final class Auth
     /**
      * Rota de API — exige token de API (JWT_API_SECRET, tipo: 'api').
      * Usado para integrações machine-to-machine.
+     *
+     * @return list<string|array<string, mixed>>
      */
     public static function api(int $limit = 0, string $key = ''): array
     {
@@ -81,6 +85,8 @@ final class Auth
     /**
      * Rota com autenticação opcional — injeta o usuário se logado, mas não bloqueia.
      * Útil para conteúdo diferente para logados/não logados.
+     *
+     * @return list<string>
      */
     public static function optional(): array
     {
@@ -90,6 +96,8 @@ final class Auth
     /**
      * Apenas rate limit — sem autenticação.
      * Útil para rotas públicas que precisam de proteção contra abuso.
+     *
+     * @return list<array{0: class-string, 1: array<string, mixed>}>
      */
     public static function limit(int $limit, int $window = 60, string $key = ''): array
     {
@@ -102,6 +110,8 @@ final class Auth
 
     /**
      * Apenas circuit breaker — sem autenticação.
+     *
+     * @return list<array{0: class-string, 1: array<string, mixed>}>
      */
     public static function db(int $threshold = 5, int $cooldown = 20): array
     {
@@ -114,26 +124,17 @@ final class Auth
 
     // ── Helpers para Controllers ──────────────────────────────────────────
 
-    /**
-     * Retorna o usuário autenticado ou null.
-     */
     public static function current(Request $request): ?AuthenticatableInterface
     {
         $user = $request->attribute('auth_user');
         return ($user instanceof AuthenticatableInterface) ? $user : null;
     }
 
-    /**
-     * Retorna o ID (UUID) do usuário autenticado ou null.
-     */
     public static function id(Request $request): ?string
     {
         return self::current($request)?->getAuthId();
     }
 
-    /**
-     * Retorna o nível de acesso do usuário autenticado ou null.
-     */
     public static function role(Request $request): ?string
     {
         return self::current($request)?->getAuthRole();
@@ -141,7 +142,7 @@ final class Auth
 
     /**
      * Verifica se o usuário está autenticado.
-     * Lança DomainException(401) se não estiver.
+     * @throws \DomainException 401 se não autenticado
      */
     public static function check(Request $request): AuthenticatableInterface
     {
@@ -154,7 +155,7 @@ final class Auth
 
     /**
      * Verifica se o usuário é admin_system.
-     * Lança DomainException(403) se não for.
+     * @throws \DomainException 403 se não for admin
      */
     public static function checkAdmin(Request $request): AuthenticatableInterface
     {
@@ -167,7 +168,7 @@ final class Auth
 
     /**
      * Verifica se o usuário tem um dos papéis informados.
-     * Lança DomainException(403) se não tiver.
+     * @throws \DomainException 403 se não tiver o papel
      */
     public static function checkRole(Request $request, string ...$roles): AuthenticatableInterface
     {
@@ -180,6 +181,10 @@ final class Auth
 
     // ── Interno ───────────────────────────────────────────────────────────
 
+    /**
+     * @param list<string> $middlewares
+     * @return list<string|array<string, mixed>>
+     */
     private static function build(array $middlewares, int $limit, string $key, bool $db): array
     {
         $stack = [];
