@@ -432,9 +432,22 @@ final class PhpExecutor
             $wrapperPhp,
         ];
 
+        // Ambiente limpo para o processo filho — sem secrets do .env
+        // O processo filho NÃO herda $_ENV do pai para evitar vazamento de
+        // JWT_SECRET, DB_SENHA, MAILER_PASSWORD e outros secrets sensíveis.
+        // Apenas variáveis seguras e necessárias para o PHP funcionar são passadas.
+        $safeEnv = [
+            'PATH'            => getenv('PATH') ?: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            'HOME'            => getenv('HOME') ?: '/tmp',
+            'TMPDIR'          => sys_get_temp_dir(),
+            'PHP_SELF'        => $wrapperPhp,
+            // Timezone para que date() funcione corretamente
+            'TZ'              => $_ENV['APP_TIMEZONE'] ?? getenv('APP_TIMEZONE') ?: 'UTC',
+        ];
+
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $start = hrtime(true);
-        $proc  = proc_open($cmdArray, $descriptors, $pipes, $moduleDir);
+        $proc  = proc_open($cmdArray, $descriptors, $pipes, $moduleDir, $safeEnv);
 
         if (!is_resource($proc)) {
             @unlink($wrapperPhp);
