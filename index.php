@@ -708,6 +708,52 @@ $router->get('/api/usuarios/check-email', function ($request) use ($container) {
     }
 }, [\Src\Kernel\Middlewares\AuthHybridMiddleware::class, \Src\Kernel\Middlewares\AdminOnlyMiddleware::class]);
 
+/**
+ * Normaliza e valida o array 'routes' retornado pelo describe() de um provider.
+ *
+ * Contrato esperado: cada entrada deve ser um array associativo com 'method' e 'uri'.
+ * Por compatibilidade, aceita strings no formato "METHOD /uri" e as converte.
+ * Entradas inválidas são descartadas com log de aviso para o dev corrigir o provider.
+ *
+ * @see ModuleProviderInterface::describe()
+ */
+function normalizeModuleRoutes(string $moduleName, array $routes): array
+{
+    $normalized = [];
+    foreach ($routes as $route) {
+        // Formato correto — objeto com method e uri
+        if (is_array($route) && isset($route['method'], $route['uri'])
+            && is_string($route['method']) && is_string($route['uri'])
+            && $route['method'] !== '' && $route['uri'] !== '') {
+            $normalized[] = $route;
+            continue;
+        }
+
+        // Formato legado — string "METHOD /uri"
+        if (is_string($route) && preg_match('/^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S*)/i', trim($route), $m)) {
+            error_log(
+                "[ModuleProvider] '{$moduleName}': describe() retornou rota como string '{$route}'. " .
+                "Use o formato de objeto: ['method' => '{$m[1]}', 'uri' => '{$m[2]}', 'protected' => false, 'tipo' => 'pública']. " .
+                "Veja ModuleProviderInterface::describe() para o contrato completo."
+            );
+            $normalized[] = [
+                'method'    => strtoupper($m[1]),
+                'uri'       => $m[2],
+                'protected' => false,
+                'tipo'      => 'pública',
+            ];
+            continue;
+        }
+
+        // Entrada inválida — descarta e loga
+        error_log(
+            "[ModuleProvider] '{$moduleName}': describe() retornou entrada de rota inválida: " .
+            json_encode($route) . ". Esperado: ['method' => 'GET', 'uri' => '/api/...', ...]."
+        );
+    }
+    return $normalized;
+}
+
 function isPrivateRoute(array $route): bool {
     $private = [
         AuthHybridMiddleware::class,
@@ -771,8 +817,13 @@ $router->get('/sitemap.xml', function () use ($router, $modules) {
         if (!$modules->isEnabled($name)) {
             continue;
         }
-        $desc = $provider->describe();
-        foreach (($desc['routes'] ?? []) as $route) {
+        try {
+            $desc = $provider->describe();
+        } catch (\Throwable) {
+            continue; // módulo com describe() quebrado não afeta o sitemap
+        }
+        $normalizedRoutes = normalizeModuleRoutes($name, $desc['routes'] ?? []);
+        foreach ($normalizedRoutes as $route) {
             $method = strtoupper($route['method'] ?? 'GET');
             $uri = $route['uri'] ?? '';
             $isProtected = ($route['protected'] ?? false) || ($route['tipo'] ?? '') === 'privada';
@@ -1001,7 +1052,15 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules) {
 
     $moduleList = [];
     foreach ($modules->providers() as $name => $provider) {
-        $desc = $provider->describe();
+        try {
+            $desc = $provider->describe();
+        } catch (\Throwable $e) {
+            error_log("[ModuleProvider] '{$name}': describe() lançou exceção: " . $e->getMessage());
+            $desc = ['description' => '', 'version' => '1.0.0', 'routes' => []];
+        }
+        // Normaliza e valida o array 'routes' do describe()
+        // Aceita objetos {method, uri} (correto) e strings "METHOD /uri" (legado)
+        $desc['routes'] = normalizeModuleRoutes($name, $desc['routes'] ?? []);
         // Rota protegida por admin — inclui routes para o dashboard exibir
         $moduleList[] = array_merge(['name' => $name, 'enabled' => $modules->isEnabled($name)], $desc);
     }

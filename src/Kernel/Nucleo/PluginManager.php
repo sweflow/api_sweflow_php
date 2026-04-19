@@ -246,7 +246,11 @@ class PluginManager
     {
         $provider = $this->resolveProvider($pluginName);
         if ($provider && method_exists($provider, $method)) {
-            $provider->{$method}();
+            try {
+                $provider->{$method}();
+            } catch (\Throwable $e) {
+                error_log("[PluginManager] '{$pluginName}': {$method}() lançou exceção: " . $e->getMessage());
+            }
         }
     }
 

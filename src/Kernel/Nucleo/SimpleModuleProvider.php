@@ -219,7 +219,22 @@ class SimpleModuleProvider implements ModuleProviderInterface
             return $this->describeCache;
         }
 
-        // Coleta rotas via router temporário apenas se ainda não foram populadas
+        try {
+            return $this->buildDescribe();
+        } catch (\Throwable $e) {
+            error_log('[SimpleModuleProvider] ' . $this->name . ': describe() falhou: ' . $e->getMessage());
+            return [
+                'name'        => $this->name,
+                'description' => $this->metadata['description'] ?? '',
+                'version'     => $this->metadata['version'] ?? '1.0.0',
+                'routes'      => [],
+                'connection'  => 'auto',
+            ];
+        }
+    }
+
+    private function buildDescribe(): array
+    {
         // (registerRoutes popula $this->routes durante o boot normal)
         if (empty($this->routes)) {
             $collector = new class implements RouterInterface {
@@ -288,12 +303,16 @@ class SimpleModuleProvider implements ModuleProviderInterface
                 }
 
                 // Enriquece com inspeção automática de campos
-                $inspected = RouteInspector::inspect(
-                    $method,
-                    $uri,
-                    $route['handler'] ?? null,
-                    $route['middlewares'] ?? []
-                );
+                try {
+                    $inspected = RouteInspector::inspect(
+                        $method,
+                        $uri,
+                        $route['handler'] ?? null,
+                        $route['middlewares'] ?? []
+                    );
+                } catch (\Throwable) {
+                    $inspected = ['description' => '', 'auth' => null, 'fields' => [], 'path_params' => [], 'query_params' => [], 'body_fields' => []];
+                }
 
                 return [
                     'method'      => $method,

@@ -579,7 +579,12 @@ class ModuleLoader
     {
         $modules = [];
         foreach ($this->providers as $name => $provider) {
-            $desc = $provider->describe();
+            try {
+                $desc = $provider->describe();
+            } catch (\Throwable $e) {
+                error_log("[ModuleLoader] '{$name}': describe() lançou exceção: " . $e->getMessage());
+                $desc = ['description' => '', 'routes' => []];
+            }
             $modules[] = [
                 'name'        => $name,
                 'enabled'     => $this->isEnabled($name),

@@ -49,7 +49,11 @@ final class PartialProviderAdapter implements ModuleProviderInterface
     public function describe(): array
     {
         if (method_exists($this->delegate, 'describe')) {
-            return (array) $this->delegate->describe();
+            try {
+                return (array) $this->delegate->describe();
+            } catch (\Throwable $e) {
+                error_log("[PartialProviderAdapter] describe() lançou exceção: " . $e->getMessage());
+            }
         }
         return ['description' => '', 'version' => '1.0.0', 'routes' => []];
     }
