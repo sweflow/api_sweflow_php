@@ -90,6 +90,13 @@ class ModuleConnectionResolver
 
         foreach ($candidates as $file) {
             if (is_file($file)) {
+                // Usa file_get_contents + regex para evitar cache do OPcache
+                // (include cachearia o valor antigo após troca via dashboard)
+                $raw = @file_get_contents($file);
+                if ($raw !== false && preg_match("/return\s+'(core|modules|auto)'\s*;/", $raw, $m)) {
+                    return $m[1];
+                }
+                // Fallback para include se o formato não for o padrão
                 $value = include $file;
                 if (is_string($value) && in_array($value, ['core', 'modules', 'auto'], true)) {
                     return $value;
