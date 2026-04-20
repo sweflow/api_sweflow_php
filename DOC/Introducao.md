@@ -66,7 +66,7 @@ A plataforma já vem com cinco módulos instalados por padrão:
 |---|---|
 | **Auth** | Autenticação JWT: login, logout, refresh token, recuperação de senha e verificação de e-mail |
 | **Usuario** | Gerenciamento completo de usuários: registro, perfil, alteração de senha, upload de avatar e controle admin |
-| **IdeModuleBuilder** | IDE integrada para criar, editar, executar e fazer deploy de módulos diretamente pela plataforma |
+| **IdeModuleBuilder** | IDE integrada para criar, editar, executar e fazer deploy de módulos diretamente pela plataforma. Inclui configuração de banco de dados personalizado para isolamento de dados de desenvolvimento |
 | **LinkEncurtador** | Encurtador de URLs com autenticação própria, analytics por link e controle de limites por usuário |
 | **Documentacao** | Módulo de documentação integrado à plataforma |
 
@@ -163,6 +163,7 @@ Esta documentação está organizada nos seguintes documentos:
 | **Instalação e Configuração** | Setup completo, variáveis de ambiente e Docker |
 | **Autenticação** | Sistema plugável, contratos, JWT, OAuth2, LDAP e exemplos práticos |
 | **Módulos** | Como criar, instalar e gerenciar módulos (incluindo módulos de auth customizados) |
+| **Configuração de Banco de Dados na IDE** | Como configurar banco de dados personalizado para isolamento de dados de desenvolvimento |
 | **Endpoints** | Referência completa de todos os endpoints da API |
 | **Segurança** | Rate limiting, circuit breaker, audit logging e boas práticas |
 | **IDE** | Uso da IDE integrada para desenvolvimento de módulos |

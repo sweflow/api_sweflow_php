@@ -8500,6 +8500,128 @@ return function (PDO $pdo): void {
             ->fetchAll(PDO::FETCH_ASSOC);
     }
 }</code></pre>
+
+      <h2 id="banco-personalizado">Banco de Dados Personalizado</h2>
+      <p>A IDE permite configurar uma <strong>conexão de banco de dados personalizada</strong> para isolar seus módulos de desenvolvimento do banco core da aplicação.</p>
+
+      <h3>Por que usar?</h3>
+      <div class="kernel-grid">
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(79,70,229,0.12)"><i class="fa-solid fa-shield-halved" style="color:#4f46e5"></i></div>
+          <h3>Isolamento de Dados</h3>
+          <p>Seus módulos não compartilham o mesmo banco que o sistema core. Dados de desenvolvimento ficam separados.</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(22,163,74,0.12)"><i class="fa-solid fa-database" style="color:#16a34a"></i></div>
+          <h3>Flexibilidade</h3>
+          <p>Use PostgreSQL enquanto o core usa MySQL (ou vice-versa). Conecte-se a bancos em nuvem (Aiven, AWS RDS, etc.).</p>
+        </div>
+        <div class="kernel-card">
+          <div class="kernel-card-icon" style="background:rgba(245,158,11,0.12)"><i class="fa-solid fa-lock" style="color:#d97706"></i></div>
+          <h3>Segurança</h3>
+          <p>Credenciais criptografadas com AES-256-CBC. Suporte a SSL/TLS com certificados CA.</p>
+        </div>
+      </div>
+
+      <h3>Como configurar</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Acessar a página de projetos</h3>
+            <p>Na página <code>/dashboard/ide</code>, localize o card <strong>"Conexão de Banco de Dados"</strong>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Clicar em "Configurar Banco de Dados"</h3>
+            <p>Preencha os campos obrigatórios:</p>
+            <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+              <li><strong>Nome da conexão</strong>: Nome amigável (ex: "Meu PostgreSQL Local")</li>
+              <li><strong>Driver</strong>: PostgreSQL ou MySQL</li>
+              <li><strong>Nome do banco</strong>: Nome do database (ex: <code>meu_banco_dev</code>)</li>
+              <li><strong>Host</strong>: Endereço do servidor (ex: <code>localhost</code> ou <code>pg-xxx.aivencloud.com</code>)</li>
+              <li><strong>Porta</strong>: Porta do banco (ex: <code>5432</code> para PostgreSQL, <code>3306</code> para MySQL)</li>
+              <li><strong>Usuário</strong>: Nome de usuário do banco</li>
+              <li><strong>Senha</strong>: Senha do banco de dados</li>
+            </ul>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Configurar SSL (opcional)</h3>
+            <p>Para conexões em produção ou com bancos em nuvem:</p>
+            <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+              <li><strong>Modo SSL</strong>: Nenhum, Require, Verify CA ou Verify Full</li>
+              <li><strong>Certificado CA</strong>: Cole o conteúdo do arquivo <code>.pem</code> (necessário para Verify CA/Full)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Testar e Conectar</h3>
+            <p>Clique em <strong>"Testar Conexão"</strong> para validar. Se bem-sucedido, clique em <strong>"Conectar"</strong> para salvar.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>Exemplo: PostgreSQL no Aiven</h3>
+<pre><code>Nome da conexão: Aiven PostgreSQL
+Driver: PostgreSQL
+Nome do banco: defaultdb
+Host: pg-xxx-yyy.aivencloud.com
+Porta: 12345
+Usuário: avnadmin
+Senha: sua_senha_aiven
+Modo SSL: Require
+Certificado CA: (cole o conteúdo do ca.pem fornecido pelo Aiven)</code></pre>
+
+      <h3>Comportamento do sistema</h3>
+      <table class="docs-table">
+        <thead><tr><th>Tipo de Módulo</th><th>Banco Usado</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Nativos</strong> (Auth, Usuario, etc.)</td><td>Banco Core (DB_*)</td></tr>
+          <tr><td><strong>Desenvolvedor</strong> (seus módulos)</td><td>Banco Personalizado (se configurado)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="callout-body">
+          <strong>Conexões Persistentes</strong>
+          <p>O sistema usa conexões persistentes (PDO::ATTR_PERSISTENT) para melhor performance. Primeira requisição: ~3500ms (estabelece conexão). Requisições subsequentes: ~50-200ms (reutiliza conexão) — <strong>95% mais rápido</strong>!</p>
+        </div>
+      </div>
+
+      <h3>Gerenciamento</h3>
+      <p>No card de banco de dados, você pode:</p>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>Ver/Ocultar dados</strong>: Clique no ícone de olho para mostrar/ocultar host, porta e nome do banco</li>
+        <li><strong>Ver migrations pendentes</strong>: Número de migrations que ainda não foram executadas</li>
+        <li><strong>Ver tabelas</strong>: Lista de todas as tabelas criadas no banco personalizado</li>
+        <li><strong>Editar conexão</strong>: Modifique as configurações (senha é mantida se deixar vazio)</li>
+        <li><strong>Excluir conexão</strong>: Remove a configuração (seus módulos voltam a usar o banco core)</li>
+      </ul>
+
+      <div class="callout warning">
+        <div class="callout-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="callout-body">
+          <strong>Importante</strong>
+          <p>Ao excluir a conexão, seus módulos voltarão a usar o banco de dados padrão da Vupi.us API. As tabelas e dados no banco personalizado <strong>não serão afetados</strong>.</p>
+        </div>
+      </div>
+
+      <h3>Segurança</h3>
+      <ul style="color:var(--text-sub);padding-left:24px;margin-bottom:16px;line-height:2">
+        <li><strong>Criptografia</strong>: Senhas são criptografadas com AES-256-CBC antes de serem armazenadas</li>
+        <li><strong>SSL/TLS</strong>: Suporte completo a conexões seguras com verificação de certificado</li>
+        <li><strong>Isolamento</strong>: Cada usuário tem sua própria configuração de conexão</li>
+      </ul>
+
+      <p>Para mais detalhes, consulte a <a href="/DOC/ConfiguracaoBancoDadosIDE.md" target="_blank">documentação completa de configuração de banco de dados personalizado</a>.</p>
     </section>
 
     <!-- ══════════════════════════════════════════════════════

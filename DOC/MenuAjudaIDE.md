@@ -150,6 +150,7 @@ composer update
 ## 📚 Documentação Completa
 
 - [Comandos de Módulos](ComandosModulos.md)
+- [Configuração de Banco de Dados Personalizado](ConfiguracaoBancoDadosIDE.md)
 - [Isolamento de Módulos](../ISOLAMENTO_MODULOS.md)
 - [Guia do Desenvolvedor](../GUIA_DESENVOLVEDOR_MODULO.md)
 
