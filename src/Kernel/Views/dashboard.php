@@ -308,7 +308,15 @@
         <!-- Módulos -->
         <section class="dash-card dash-section" id="modules">
             <div class="dash-section-header">
-                <h2 class="dash-section-title"><i class="fa-solid fa-layer-group"></i> Módulos registrados</h2>
+                <div>
+                    <h2 class="dash-section-title"><i class="fa-solid fa-layer-group"></i> Módulos registrados</h2>
+                    <p class="dash-section-sub">Gerencie os módulos instalados e suas dependências.</p>
+                </div>
+                <div class="dash-section-actions">
+                    <button class="dash-btn-primary" id="btn-install-modules-deps" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);">
+                        <i class="fa-solid fa-download"></i> Instalar Dependências
+                    </button>
+                </div>
             </div>
             <div id="modules-list" class="module-grid"><span class="dash-loading">Carregando...</span></div>
         </section>
@@ -587,6 +595,31 @@
         <p id="error-modal-message"></p>
         <div class="form-actions" style="justify-content:flex-end;">
             <button class="btn primary" id="error-modal-ok">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmação genérica -->
+<div class="modal-overlay" id="confirm-modal">
+    <div class="modal dash-modal">
+        <div class="modal-header"><h2 id="confirm-modal-title">Confirmar</h2>
+            <button class="modal-close" id="confirm-modal-close"><i class="fa-solid fa-xmark"></i></button></div>
+        <div id="confirm-modal-message" style="line-height:1.7;margin:8px 0 16px;"></div>
+        <div class="form-actions" style="justify-content:flex-end;gap:8px;">
+            <button class="btn ghost" id="confirm-modal-cancel">Cancelar</button>
+            <button class="btn primary" id="confirm-modal-ok">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Informação genérica -->
+<div class="modal-overlay" id="info-modal">
+    <div class="modal dash-modal" style="max-width:1000px;width:90vw;">
+        <div class="modal-header"><h2 id="info-modal-title" style="font-size:1.5rem;">Informação</h2>
+            <button class="modal-close" id="info-modal-close"><i class="fa-solid fa-xmark"></i></button></div>
+        <div id="info-modal-message" style="line-height:1.7;margin:8px 0 16px;"></div>
+        <div class="form-actions" style="justify-content:flex-end;">
+            <button class="btn primary" id="info-modal-ok" style="font-size:1.1rem;padding:14px 32px;min-width:120px;">OK</button>
         </div>
     </div>
 </div>

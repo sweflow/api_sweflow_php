@@ -1294,6 +1294,15 @@ $router->get('/api/dashboard/metrics', function () use ($container, $modules) {
     AdminOnlyMiddleware::class,
 ]);
 
+// Instalar dependências dos módulos
+$router->post('/api/modules/install-dependencies', function () {
+    $controller = new \Src\Kernel\Controllers\ModulesManagementController();
+    return $controller->installDependencies();
+}, [
+    AuthHybridMiddleware::class,
+    AdminOnlyMiddleware::class,
+]);
+
 $router->get('/api/modules/state', function () use ($modules) {
     $states = $modules->states();
     $list = [];

@@ -300,6 +300,80 @@ window.onload = function () {
         requestAnimationFrame(() => modal.classList.add('show'));
     }
 
+    // ── Reusable confirm modal ────────────────────────────────────────────
+    function showConfirmModal(title = 'Confirmar', message = '') {
+        return new Promise((resolve) => {
+            const modal   = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('confirm-modal-title');
+            const msgEl   = document.getElementById('confirm-modal-message');
+            const okBtn   = document.getElementById('confirm-modal-ok');
+            const cancelBtn = document.getElementById('confirm-modal-cancel');
+            const closeBtn = document.getElementById('confirm-modal-close');
+
+            if (!modal) {
+                console.error('Modal de confirmação não encontrado');
+                resolve(false);
+                return;
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (msgEl)   msgEl.innerHTML = message; // Permite HTML para formatação
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                modal.style.zIndex = '';
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+                closeBtn.onclick = null;
+            };
+
+            const confirmHandler = () => { cleanup(); resolve(true); };
+            const cancelHandler = () => { cleanup(); resolve(false); };
+
+            if (okBtn)     okBtn.onclick = confirmHandler;
+            if (cancelBtn) cancelBtn.onclick = cancelHandler;
+            if (closeBtn)  closeBtn.onclick = cancelHandler;
+
+            modal.style.zIndex = '3000';
+            requestAnimationFrame(() => modal.classList.add('show'));
+        });
+    }
+
+    // ── Reusable info modal ───────────────────────────────────────────────
+    function showInfoModal(message = '', title = 'Informação') {
+        return new Promise((resolve) => {
+            const modal   = document.getElementById('info-modal');
+            const titleEl = document.getElementById('info-modal-title');
+            const msgEl   = document.getElementById('info-modal-message');
+            const okBtn   = document.getElementById('info-modal-ok');
+            const closeBtn = document.getElementById('info-modal-close');
+
+            if (!modal) {
+                console.error('Modal de informação não encontrado');
+                resolve();
+                return;
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (msgEl)   msgEl.innerHTML = message; // Permite HTML para formatação
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                modal.style.zIndex = '';
+                okBtn.onclick = null;
+                closeBtn.onclick = null;
+            };
+
+            const closeHandler = () => { cleanup(); resolve(); };
+
+            if (okBtn)    okBtn.onclick = closeHandler;
+            if (closeBtn) closeBtn.onclick = closeHandler;
+
+            modal.style.zIndex = '3000';
+            requestAnimationFrame(() => modal.classList.add('show'));
+        });
+    }
+
     function showEmailDisabledModal() {
         const modal    = document.getElementById('email-disabled-modal');
         const okBtn    = document.getElementById('email-disabled-ok');
@@ -3194,6 +3268,141 @@ window.onload = function () {
         atualizarPreview('ep-avatar', 'ep-avatar-preview', 'ep-avatar-img'));
     document.getElementById('ep-capa')?.addEventListener('input', () =>
         atualizarPreview('ep-capa', 'ep-capa-preview', 'ep-capa-img'));
+
+    // ── Botão: Instalar Dependências dos Módulos ────────────────────────────
+    const btnInstallModulesDeps = document.getElementById('btn-install-modules-deps');
+    if (btnInstallModulesDeps) {
+        btnInstallModulesDeps.addEventListener('click', async function() {
+            // Modal de confirmação
+            const confirmed = await showConfirmModal(
+                'Instalar Dependências',
+                'Deseja instalar as dependências de todos os módulos que possuem composer.json?<br><br>' +
+                '<small style="color:#94a3b8;">Isso executará <code>composer install</code> em cada módulo.</small>'
+            );
+            
+            if (!confirmed) return;
+            
+            // Desabilita botão e mostra loading
+            const originalContent = btnInstallModulesDeps.innerHTML;
+            btnInstallModulesDeps.disabled = true;
+            btnInstallModulesDeps.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Instalando...';
+            
+            try {
+                const res = await fetch('/api/modules/install-dependencies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                });
+                
+                if (!res.ok) {
+                    throw new Error('Erro ao instalar dependências');
+                }
+                
+                const data = await res.json();
+                
+                // Verifica se tudo já está atualizado
+                if (data.all_up_to_date) {
+                    await showInfoModal(
+                        '<div style="text-align:center;padding:40px 20px;">' +
+                        '<i class="fa-solid fa-circle-check" style="font-size:5rem;color:#22c55e;margin-bottom:28px;display:block;"></i>' +
+                        '<h3 style="margin:0 0 16px 0;font-size:1.8rem;color:var(--text-primary);font-weight:700;">Tudo Atualizado!</h3>' +
+                        '<p style="color:#94a3b8;margin:0;font-size:1.2rem;line-height:1.6;max-width:600px;margin:0 auto;">Todas as dependências dos módulos já estão instaladas e atualizadas.</p>' +
+                        '</div>',
+                        'Dependências Atualizadas'
+                    );
+                    return;
+                }
+                
+                // Monta mensagem do resultado
+                const summary = data.summary || {};
+                const details = data.details || [];
+                
+                let message = '<div style="padding:10px;">';
+                
+                // Header com título e linha decorativa
+                message += '<div style="text-align:center;margin-bottom:32px;">';
+                message += '<h3 style="margin:0 0 12px 0;font-size:1.6rem;font-weight:700;color:var(--text-primary);">Resumo da Instalação</h3>';
+                message += '<div style="width:80px;height:3px;background:linear-gradient(90deg,#7c3aed,#6d28d9);margin:0 auto;border-radius:2px;"></div>';
+                message += '</div>';
+                
+                // Cards de resumo com layout responsivo
+                message += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-bottom:36px;">';
+                
+                message += `<div style="text-align:center;padding:24px 16px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05));border:2px solid rgba(34,197,94,0.3);border-radius:16px;box-shadow:0 4px 12px rgba(34,197,94,0.1);">
+                    <div style="font-size:3.5rem;font-weight:800;color:#22c55e;line-height:1;margin-bottom:12px;">${summary.installed || 0}</div>
+                    <div style="font-size:1.05rem;color:#22c55e;font-weight:700;letter-spacing:0.5px;">✅ INSTALADOS</div>
+                </div>`;
+                
+                message += `<div style="text-align:center;padding:24px 16px;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(99,102,241,0.05));border:2px solid rgba(99,102,241,0.3);border-radius:16px;box-shadow:0 4px 12px rgba(99,102,241,0.1);">
+                    <div style="font-size:3.5rem;font-weight:800;color:#818cf8;line-height:1;margin-bottom:12px;">${summary.up_to_date || 0}</div>
+                    <div style="font-size:1.05rem;color:#818cf8;font-weight:700;letter-spacing:0.5px;">✓ ATUALIZADOS</div>
+                </div>`;
+                
+                message += `<div style="text-align:center;padding:24px 16px;background:linear-gradient(135deg,rgba(148,163,184,0.15),rgba(148,163,184,0.05));border:2px solid rgba(148,163,184,0.3);border-radius:16px;box-shadow:0 4px 12px rgba(148,163,184,0.1);">
+                    <div style="font-size:3.5rem;font-weight:800;color:#94a3b8;line-height:1;margin-bottom:12px;">${summary.skipped || 0}</div>
+                    <div style="font-size:1.05rem;color:#94a3b8;font-weight:700;letter-spacing:0.5px;">⏭️ IGNORADOS</div>
+                </div>`;
+                
+                message += `<div style="text-align:center;padding:24px 16px;background:linear-gradient(135deg,rgba(248,113,113,0.15),rgba(248,113,113,0.05));border:2px solid rgba(248,113,113,0.3);border-radius:16px;box-shadow:0 4px 12px rgba(248,113,113,0.1);">
+                    <div style="font-size:3.5rem;font-weight:800;color:#f87171;line-height:1;margin-bottom:12px;">${summary.failed || 0}</div>
+                    <div style="font-size:1.05rem;color:#f87171;font-weight:700;letter-spacing:0.5px;">❌ ERROS</div>
+                </div>`;
+                
+                message += '</div>';
+                
+                // Detalhes dos módulos
+                if (details.length > 0) {
+                    message += '<div style="margin-top:20px;">';
+                    message += '<h4 style="margin:0 0 20px 0;font-size:1.3rem;color:#cbd5e1;font-weight:700;display:flex;align-items:center;gap:10px;">';
+                    message += '<i class="fa-solid fa-list-check" style="color:#818cf8;"></i> Detalhes por Módulo';
+                    message += '</h4>';
+                    
+                    message += '<div style="max-height:450px;overflow-y:auto;background:var(--bg-input,rgba(255,255,255,0.03));border-radius:16px;padding:20px;border:1px solid var(--border-card,rgba(255,255,255,0.1));">';
+                    
+                    details.forEach((detail, index) => {
+                        const statusMap = {
+                            'success': { icon: '✅', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' },
+                            'up-to-date': { icon: '✓', color: '#818cf8', bg: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.3)' },
+                            'skipped': { icon: '⏭️', color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.2)' },
+                            'error': { icon: '❌', color: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.3)' }
+                        };
+                        const status = statusMap[detail.status] || statusMap['skipped'];
+                        
+                        message += `<div style="padding:18px 20px;margin-bottom:${index < details.length - 1 ? '12px' : '0'};border-left:5px solid ${status.color};background:${status.bg};border-radius:10px;border:1px solid ${status.border};transition:all 0.2s ease;">
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                                <span style="font-size:1.5rem;line-height:1;">${status.icon}</span>
+                                <div style="flex:1;">
+                                    <div style="font-weight:700;color:${status.color};font-size:1.15rem;margin-bottom:4px;">${esc(detail.module)}</div>
+                                    <div style="font-size:1.05rem;color:#94a3b8;line-height:1.5;">${esc(detail.message)}</div>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    message += '</div>';
+                    message += '</div>';
+                }
+                
+                message += '</div>';
+                
+                // Mostra modal com resultado
+                await showInfoModal(message, 'Instalação Concluída');
+                
+            } catch (error) {
+                console.error('Erro ao instalar dependências:', error);
+                await showErrorModal(
+                    'Erro ao instalar dependências dos módulos. Verifique os logs do servidor.',
+                    'Erro'
+                );
+            } finally {
+                // Restaura botão
+                btnInstallModulesDeps.disabled = false;
+                btnInstallModulesDeps.innerHTML = originalContent;
+            }
+        });
+    }
 
 };
 

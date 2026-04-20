@@ -76,6 +76,7 @@ class SetupCommand
         echo "27) Recarregar tudo (PHP-FPM + Caddy)\n";
         echo "28) Verificar e corrigir permissões do projeto\n";
         echo "29) \033[1;35m[MODO ESQUELETO]\033[0m Remover módulos nativos e frontend (strip)\n";
+        echo "30) \033[1;36m[MÓDULOS]\033[0m Instalar dependências de todos os módulos\n";
         echo "0)  Sair\n";
         echo "==============================\n";
     }
@@ -113,6 +114,7 @@ class SetupCommand
             '27' => fn() => $this->reloadAll(),
             '28' => fn() => $this->fixPermissions(),
             '29' => fn() => $this->runStrip(),
+            '30' => fn() => $this->installModulesDependencies(),
         ];
 
         if ($choice === '0') {
@@ -1659,4 +1661,95 @@ class SetupCommand
         echo "✔ Migrations modules finalizadas\n";
     }
 
+    /**
+     * Detecta e instala dependências de todos os módulos que possuem composer.json
+     */
+    private function installModulesDependencies(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $modulesPath = $root . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Modules';
+        
+        if (!is_dir($modulesPath)) {
+            echo "✖ Diretório de módulos não encontrado: {$modulesPath}\n";
+            return;
+        }
+        
+        echo "\n\033[1;36m╔══════════════════════════════════════════════════════════════╗\033[0m\n";
+        echo "\033[1;36m║  Instalando Dependências dos Módulos                        ║\033[0m\n";
+        echo "\033[1;36m╚══════════════════════════════════════════════════════════════╝\033[0m\n\n";
+        
+        $modules = scandir($modulesPath);
+        $installed = 0;
+        $skipped = 0;
+        $failed = 0;
+        
+        foreach ($modules as $module) {
+            if ($module === '.' || $module === '..') {
+                continue;
+            }
+            
+            $moduleDir = $modulesPath . DIRECTORY_SEPARATOR . $module;
+            
+            if (!is_dir($moduleDir)) {
+                continue;
+            }
+            
+            $composerFile = $moduleDir . DIRECTORY_SEPARATOR . 'composer.json';
+            
+            if (!is_file($composerFile)) {
+                echo "  ⏭️  {$module}: sem composer.json\n";
+                $skipped++;
+                continue;
+            }
+            
+            echo "  📦 {$module}: instalando dependências...\n";
+            
+            // Verifica se composer está disponível
+            if (!$this->commandExists('composer')) {
+                echo "    ✖ Composer não encontrado. Instale o Composer primeiro.\n";
+                $failed++;
+                continue;
+            }
+            
+            // No Windows, usa shell_exec para executar composer no diretório correto
+            $currentDir = getcwd();
+            chdir($moduleDir);
+            
+            $output = shell_exec('composer install --no-interaction --prefer-dist 2>&1');
+            $exitCode = 0; // shell_exec não retorna exit code, assume sucesso se não houver erro fatal
+            
+            chdir($currentDir);
+            
+            // Verifica se houve erro analisando a saída
+            if ($output && (str_contains($output, 'Error') || str_contains($output, 'Fatal'))) {
+                echo "    ✖ Falha ao instalar dependências\n";
+                echo "    Erro: " . trim($output) . "\n";
+                $failed++;
+            } else {
+                echo "    ✅ Dependências instaladas com sucesso\n";
+                $installed++;
+            }
+        }
+        
+        echo "\n\033[1;36m╔══════════════════════════════════════════════════════════════╗\033[0m\n";
+        echo "\033[1;36m║  Resumo                                                      ║\033[0m\n";
+        echo "\033[1;36m╚══════════════════════════════════════════════════════════════╝\033[0m\n\n";
+        
+        echo "  ✅ Instalados: {$installed}\n";
+        echo "  ⏭️  Ignorados: {$skipped}\n";
+        
+        if ($failed > 0) {
+            echo "  ✖ Falhas: {$failed}\n";
+        }
+        
+        echo "\n";
+        
+        if ($installed > 0) {
+            echo "\033[1;32m✔ Dependências dos módulos instaladas com sucesso!\033[0m\n";
+        } else {
+            echo "\033[1;33m⚠ Nenhum módulo com dependências foi encontrado.\033[0m\n";
+        }
+    }
+
 }
+
