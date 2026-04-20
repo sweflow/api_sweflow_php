@@ -114,8 +114,16 @@ class Response
             // Página HTML: scripts via nonce + SRI para CDN externo.
             // Trusted Types: mata DOM XSS moderno (Chrome/Edge 83+).
             //   - require-trusted-types-for 'script' bloqueia innerHTML com strings não-TrustedHTML
-            //   - trusted-types default dompurify monaco-editor: políticas aceitas pelo dashboard
-            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify monaco-editor";
+            //   - trusted-types: políticas aceitas pelo dashboard
+            //     * default: política padrão do dashboard.js
+            //     * dompurify: usado pelo DOMPurify para sanitização
+            //     * Wildcard (*): permite todas as políticas (necessário para Monaco Editor 0.45.0+
+            //       que cria múltiplas políticas dinamicamente: monaco-editor, diffReview, 
+            //       stickyScrollViewLayer, defaultWorkerFactory, standaloneColorizer, 
+            //       tokenizeToString, amdLoader, editorViewLayer, diffEditorWidget, editorGhostText, etc.)
+            //   Nota: Usar wildcard é seguro aqui porque o script-src já está restrito via nonce,
+            //   então apenas scripts autorizados podem criar políticas.
+            $csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' https://cdnjs.cloudflare.com blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types default dompurify *";
         }
 
         $headers = [

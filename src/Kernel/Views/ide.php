@@ -58,6 +58,10 @@
             <i class="fa-solid fa-bolt" aria-hidden="true"></i>
             <span class="ide-topbar-btn-label">Rotas</span>
         </button>
+        <button class="ide-topbar-btn" id="btn-database-config" title="Configurar Banco de Dados Personalizado" aria-label="Configurar banco de dados">
+            <i class="fa-solid fa-database" aria-hidden="true"></i>
+            <span class="ide-topbar-btn-label">Banco de Dados</span>
+        </button>
         <button class="ide-topbar-btn ide-topbar-btn-deploy" id="btn-deploy-top" title="Publicar no Packagist — disponibiliza seu módulo no Marketplace da Vupi.us API" aria-label="Publicar no Packagist">
             <i class="fa-brands fa-php" aria-hidden="true"></i>
             <span class="ide-topbar-btn-label">Publicar no Packagist</span>
@@ -619,6 +623,106 @@
         <div class="ide-modal-body" id="mig-blocked-body" style="max-height:60vh;overflow-y:auto;"></div>
         <div class="ide-modal-footer">
             <button class="ide-btn-primary" id="mig-blocked-ok">Entendi</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Configurar Banco de Dados -->
+<div class="ide-modal-overlay" id="modal-database-config" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-db-title">
+    <div class="ide-modal ide-modal-wide">
+        <div class="ide-modal-header">
+            <h2 id="modal-db-title"><i class="fa-solid fa-database" aria-hidden="true"></i> Configurar Banco de Dados Personalizado</h2>
+            <button class="ide-modal-close" id="modal-db-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-modal-body">
+            <p style="font-size:.92rem;color:var(--ide-muted,#94a3b8);margin:0 0 16px;">
+                Configure uma conexão de banco de dados personalizada para seus módulos. Cada desenvolvedor pode ter sua própria conexão isolada.
+            </p>
+            
+            <!-- Formulário de conexão -->
+            <div class="ide-db-form">
+                <div class="ide-input-group">
+                    <label for="db-connection-name">Nome da conexão *</label>
+                    <input type="text" id="db-connection-name" placeholder="Ex: Meu PostgreSQL Local" autocomplete="off" required>
+                </div>
+
+                <div class="ide-input-group">
+                    <label for="db-driver">Driver *</label>
+                    <select id="db-driver">
+                        <option value="pgsql">PostgreSQL</option>
+                        <option value="mysql">MySQL</option>
+                    </select>
+                </div>
+
+                <div class="ide-input-group">
+                    <label for="db-service-uri">Service URI (opcional)</label>
+                    <input type="text" id="db-service-uri" placeholder="postgresql://user:pass@host:5432/dbname" autocomplete="off">
+                    <small style="color:var(--ide-muted,#64748b);margin-top:4px;display:block;">Se informado, sobrescreve os campos abaixo</small>
+                </div>
+
+                <div class="ide-db-grid">
+                    <div class="ide-input-group">
+                        <label for="db-database-name">Nome do banco *</label>
+                        <input type="text" id="db-database-name" placeholder="meu_banco" autocomplete="off" required>
+                    </div>
+
+                    <div class="ide-input-group">
+                        <label for="db-host">Host *</label>
+                        <input type="text" id="db-host" placeholder="localhost" autocomplete="off" required>
+                    </div>
+
+                    <div class="ide-input-group">
+                        <label for="db-port">Porta *</label>
+                        <input type="number" id="db-port" placeholder="5432" autocomplete="off" required>
+                    </div>
+
+                    <div class="ide-input-group">
+                        <label for="db-username">Usuário *</label>
+                        <input type="text" id="db-username" placeholder="postgres" autocomplete="off" required>
+                    </div>
+
+                    <div class="ide-input-group">
+                        <label for="db-password">Senha *</label>
+                        <div class="ide-pwd-wrap">
+                            <input type="password" id="db-password" placeholder="••••••••" autocomplete="off" required>
+                            <button type="button" class="ide-pwd-toggle" data-target="db-password" aria-label="Mostrar/ocultar senha"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="ide-input-group">
+                        <label for="db-ssl-mode">Modo SSL</label>
+                        <select id="db-ssl-mode">
+                            <option value="">Nenhum</option>
+                            <option value="require">Require</option>
+                            <option value="verify-ca">Verify CA</option>
+                            <option value="verify-full">Verify Full</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="ide-input-group">
+                    <label for="db-ca-certificate">Certificado CA (opcional)</label>
+                    <textarea id="db-ca-certificate" rows="3" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" style="font-family:monospace;font-size:12px;"></textarea>
+                </div>
+
+                <div id="db-test-result" style="display:none;margin-top:12px;padding:12px;border-radius:6px;font-size:.9rem;"></div>
+            </div>
+
+            <!-- Lista de conexões existentes -->
+            <div class="ide-db-connections-list" id="db-connections-list" style="margin-top:24px;">
+                <h3 style="font-size:1rem;margin:0 0 12px;color:var(--ide-text,#e2e8f0);">
+                    <i class="fa-solid fa-list" aria-hidden="true"></i> Minhas Conexões
+                </h3>
+                <div id="db-connections-items"></div>
+            </div>
+        </div>
+        <div class="ide-modal-footer">
+            <button class="ide-btn-secondary" id="btn-db-test">
+                <i class="fa-solid fa-vial" aria-hidden="true"></i> Testar Conexão
+            </button>
+            <button class="ide-btn-primary" id="btn-db-connect">
+                <i class="fa-solid fa-plug" aria-hidden="true"></i> Conectar
+            </button>
         </div>
     </div>
 </div>

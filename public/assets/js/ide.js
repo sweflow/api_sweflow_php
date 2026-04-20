@@ -203,7 +203,17 @@ async function api(method, url, body) {
 }
 
 function showModal(id) { const el=$(id); if(el){el.removeAttribute('aria-hidden');el.classList.add('show');} }
-function hideModal(id) { const el=$(id); if(el){el.setAttribute('aria-hidden','true');el.classList.remove('show');} }
+function hideModal(id) { 
+    const el=$(id); 
+    if(el){
+        // Remove o foco de qualquer elemento dentro do modal antes de ocultá-lo
+        if(document.activeElement && el.contains(document.activeElement)){
+            document.activeElement.blur();
+        }
+        el.setAttribute('aria-hidden','true');
+        el.classList.remove('show');
+    } 
+}
 
 // ── Get project ID from URL ───────────────────────────────────────────────
 function getProjectId() {
@@ -3934,4 +3944,350 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
 
     // Init
     loadCurrentUser();
+})();
+
+// ══════════════════════════════════════════════════════════════════════════
+// Database Connection Configuration
+// ══════════════════════════════════════════════════════════════════════════
+(function () {
+    'use strict';
+
+    var connections = [];
+
+    // ── Open modal ────────────────────────────────────────────────────────
+    function openDatabaseModal() {
+        showModal('modal-database-config');
+        loadConnections();
+        
+        // Set default port based on driver
+        var driverSelect = $('db-driver');
+        var portInput = $('db-port');
+        if (driverSelect && portInput) {
+            portInput.value = driverSelect.value === 'pgsql' ? '5432' : '3306';
+        }
+    }
+
+    // ── Load connections ──────────────────────────────────────────────────
+    async function loadConnections() {
+        try {
+            var data = await api('GET', '/api/ide/database-connections');
+            connections = data.connections || [];
+            renderConnections();
+        } catch (e) {
+            toast('Erro ao carregar conexões: ' + e.message);
+        }
+    }
+
+    // ── Render connections list ───────────────────────────────────────────
+    function renderConnections() {
+        var container = $('db-connections-items');
+        if (!container) return;
+
+        container.textContent = '';
+
+        if (connections.length === 0) {
+            var empty = document.createElement('p');
+            empty.style.cssText = 'color:var(--ide-muted);font-size:.9rem;text-align:center;padding:20px;';
+            empty.textContent = 'Nenhuma conexão configurada ainda.';
+            container.appendChild(empty);
+            return;
+        }
+
+        connections.forEach(function (conn) {
+            var item = document.createElement('div');
+            item.className = 'ide-db-connection-item' + (conn.is_active ? ' active' : '');
+
+            var info = document.createElement('div');
+            info.className = 'ide-db-connection-info';
+
+            var name = document.createElement('div');
+            name.className = 'ide-db-connection-name';
+            name.textContent = conn.connection_name;
+
+            var details = document.createElement('div');
+            details.className = 'ide-db-connection-details';
+            details.textContent = conn.driver.toUpperCase() + ' • ' + conn.host + ':' + conn.port + ' • ' + conn.database_name;
+
+            info.appendChild(name);
+            info.appendChild(details);
+
+            var actions = document.createElement('div');
+            actions.className = 'ide-db-connection-actions';
+
+            if (!conn.is_active) {
+                var activateBtn = document.createElement('button');
+                activateBtn.className = 'ide-db-connection-btn';
+                activateBtn.textContent = 'Ativar';
+                activateBtn.addEventListener('click', function () { activateConnection(conn.id); });
+                actions.appendChild(activateBtn);
+            } else {
+                var deactivateBtn = document.createElement('button');
+                deactivateBtn.className = 'ide-db-connection-btn';
+                deactivateBtn.textContent = 'Desativar';
+                deactivateBtn.addEventListener('click', function () { deactivateAllConnections(); });
+                actions.appendChild(deactivateBtn);
+            }
+
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'ide-db-connection-btn danger';
+            deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            deleteBtn.addEventListener('click', function () { deleteConnection(conn.id); });
+            actions.appendChild(deleteBtn);
+
+            item.appendChild(info);
+            item.appendChild(actions);
+            container.appendChild(item);
+        });
+    }
+
+    // ── Test connection ───────────────────────────────────────────────────
+    async function testConnection() {
+        var config = getFormData();
+        if (!validateForm(config)) return;
+
+        var testBtn = $('btn-db-test');
+        var resultDiv = $('db-test-result');
+
+        if (testBtn) {
+            testBtn.disabled = true;
+            setBtn(testBtn, 'fa-solid fa-spinner fa-spin', 'Testando...');
+        }
+
+        if (resultDiv) {
+            resultDiv.style.display = 'none';
+        }
+
+        try {
+            var data = await api('POST', '/api/ide/database-connections/test', config);
+            
+            if (resultDiv) {
+                resultDiv.className = 'success';
+                resultDiv.innerHTML = '<i class="fa-solid fa-check-circle"></i> ' + data.message;
+                resultDiv.style.display = 'block';
+            }
+            toast('✓ Conexão bem-sucedida!');
+        } catch (e) {
+            if (resultDiv) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '<i class="fa-solid fa-times-circle"></i> ' + e.message;
+                resultDiv.style.display = 'block';
+            }
+            toast('Erro ao testar conexão: ' + e.message);
+        } finally {
+            if (testBtn) {
+                testBtn.disabled = false;
+                setBtn(testBtn, 'fa-solid fa-vial', 'Testar Conexão');
+            }
+        }
+    }
+
+    // ── Connect (create connection) ───────────────────────────────────────
+    async function connectDatabase() {
+        var config = getFormData();
+        if (!validateForm(config)) return;
+
+        var connectBtn = $('btn-db-connect');
+        var resultDiv = $('db-test-result');
+
+        if (connectBtn) {
+            connectBtn.disabled = true;
+            setBtn(connectBtn, 'fa-solid fa-spinner fa-spin', 'Conectando...');
+        }
+
+        if (resultDiv) {
+            resultDiv.style.display = 'none';
+        }
+
+        try {
+            var data = await api('POST', '/api/ide/database-connections', config);
+            
+            if (resultDiv) {
+                resultDiv.className = 'success';
+                resultDiv.innerHTML = '<i class="fa-solid fa-check-circle"></i> ' + data.message;
+                resultDiv.style.display = 'block';
+            }
+            
+            toast('✓ Banco de dados conectado com sucesso!');
+            
+            // Ativa automaticamente a conexão recém-criada
+            if (data.connection && data.connection.id) {
+                try {
+                    await api('POST', '/api/ide/database-connections/' + data.connection.id + '/activate');
+                    toast('✓ Conexão ativada automaticamente!');
+                } catch (e) {
+                    console.error('Erro ao ativar conexão:', e);
+                }
+            }
+            
+            // Clear form
+            clearForm();
+            
+            // Reload connections
+            await loadConnections();
+        } catch (e) {
+            if (resultDiv) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '<i class="fa-solid fa-times-circle"></i> ' + e.message;
+                resultDiv.style.display = 'block';
+            }
+            toast('Erro ao conectar: ' + e.message);
+        } finally {
+            if (connectBtn) {
+                connectBtn.disabled = false;
+                setBtn(connectBtn, 'fa-solid fa-plug', 'Conectar');
+            }
+        }
+    }
+
+    // ── Activate connection ───────────────────────────────────────────────
+    async function activateConnection(id) {
+        try {
+            var data = await api('POST', '/api/ide/database-connections/' + id + '/activate');
+            toast('✓ ' + data.message);
+            await loadConnections();
+        } catch (e) {
+            toast('Erro ao ativar conexão: ' + e.message);
+        }
+    }
+
+    // ── Deactivate all connections ────────────────────────────────────────
+    async function deactivateAllConnections() {
+        try {
+            var data = await api('POST', '/api/ide/database-connections/deactivate-all');
+            toast('✓ ' + data.message);
+            await loadConnections();
+        } catch (e) {
+            toast('Erro ao desativar conexões: ' + e.message);
+        }
+    }
+
+    // ── Delete connection ─────────────────────────────────────────────────
+    async function deleteConnection(id) {
+        var confirmed = await ideConfirm({
+            title: 'Remover Conexão',
+            message: 'Tem certeza que deseja remover esta conexão?',
+            detail: 'Esta ação não pode ser desfeita.',
+            okText: 'Remover',
+            danger: true,
+            icon: 'fa-solid fa-trash',
+            okIcon: 'fa-solid fa-trash'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            var data = await api('DELETE', '/api/ide/database-connections/' + id);
+            toast('✓ ' + data.message);
+            await loadConnections();
+        } catch (e) {
+            toast('Erro ao remover conexão: ' + e.message);
+        }
+    }
+
+    // ── Get form data ─────────────────────────────────────────────────────
+    function getFormData() {
+        return {
+            connection_name: $('db-connection-name')?.value.trim() || '',
+            driver: $('db-driver')?.value || 'pgsql',
+            service_uri: $('db-service-uri')?.value.trim() || null,
+            database_name: $('db-database-name')?.value.trim() || '',
+            host: $('db-host')?.value.trim() || '',
+            port: parseInt($('db-port')?.value) || 5432,
+            username: $('db-username')?.value.trim() || '',
+            password: $('db-password')?.value || '',
+            ssl_mode: $('db-ssl-mode')?.value || null,
+            ca_certificate: $('db-ca-certificate')?.value.trim() || null
+        };
+    }
+
+    // ── Validate form ─────────────────────────────────────────────────────
+    function validateForm(config) {
+        if (!config.connection_name) {
+            toast('Nome da conexão é obrigatório');
+            $('db-connection-name')?.focus();
+            return false;
+        }
+
+        if (!config.service_uri) {
+            if (!config.database_name) {
+                toast('Nome do banco é obrigatório');
+                $('db-database-name')?.focus();
+                return false;
+            }
+            if (!config.host) {
+                toast('Host é obrigatório');
+                $('db-host')?.focus();
+                return false;
+            }
+            if (!config.username) {
+                toast('Usuário é obrigatório');
+                $('db-username')?.focus();
+                return false;
+            }
+            if (!config.password) {
+                toast('Senha é obrigatória');
+                $('db-password')?.focus();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ── Clear form ────────────────────────────────────────────────────────
+    function clearForm() {
+        if ($('db-connection-name')) $('db-connection-name').value = '';
+        if ($('db-service-uri')) $('db-service-uri').value = '';
+        if ($('db-database-name')) $('db-database-name').value = '';
+        if ($('db-host')) $('db-host').value = '';
+        if ($('db-username')) $('db-username').value = '';
+        if ($('db-password')) $('db-password').value = '';
+        if ($('db-ca-certificate')) $('db-ca-certificate').value = '';
+        
+        var driverSelect = $('db-driver');
+        var portInput = $('db-port');
+        if (driverSelect && portInput) {
+            portInput.value = driverSelect.value === 'pgsql' ? '5432' : '3306';
+        }
+        
+        var resultDiv = $('db-test-result');
+        if (resultDiv) resultDiv.style.display = 'none';
+    }
+
+    // ── Event listeners ───────────────────────────────────────────────────
+    var dbConfigBtn = $('btn-database-config');
+    if (dbConfigBtn) dbConfigBtn.addEventListener('click', openDatabaseModal);
+
+    var dbCloseBtn = $('modal-db-close');
+    if (dbCloseBtn) dbCloseBtn.addEventListener('click', function () { hideModal('modal-database-config'); });
+
+    var dbTestBtn = $('btn-db-test');
+    if (dbTestBtn) dbTestBtn.addEventListener('click', testConnection);
+
+    var dbConnectBtn = $('btn-db-connect');
+    if (dbConnectBtn) dbConnectBtn.addEventListener('click', connectDatabase);
+
+    // Update port when driver changes
+    var driverSelect = $('db-driver');
+    if (driverSelect) {
+        driverSelect.addEventListener('change', function () {
+            var portInput = $('db-port');
+            if (portInput) {
+                portInput.value = driverSelect.value === 'pgsql' ? '5432' : '3306';
+            }
+        });
+    }
+
+    // Password toggle for database password
+    var dbPwdToggle = document.querySelector('.ide-pwd-toggle[data-target="db-password"]');
+    if (dbPwdToggle) {
+        dbPwdToggle.addEventListener('click', function () {
+            var input = $('db-password');
+            if (!input) return;
+            var isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            var icon = dbPwdToggle.querySelector('i');
+            if (icon) icon.className = isText ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+        });
+    }
 })();

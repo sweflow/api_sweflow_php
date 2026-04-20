@@ -106,6 +106,13 @@
 
     // ── Modal de detalhes ─────────────────────────────────────────────────
     function openDetailModal(pkg) {
+        console.log('[Marketplace Debug] Package data:', {
+            name: pkg.name,
+            url: pkg.url,
+            repository: pkg.repository,
+            fullPkg: pkg
+        });
+        
         const name      = pkg.name      || '';
         const desc      = pkg.description || 'Sem descrição disponível.';
         const dls       = (pkg.downloads || 0).toLocaleString('pt-BR');

@@ -122,13 +122,18 @@ class SystemModulesController
                 if ($name === '') continue;
                 // Busca detalhes individuais para pegar downloads reais do Packagist
                 $detail = $this->fetchPackagistDetail($name, $context, $baseUrl);
-                $results[] = $detail ?? [
-                    'name'        => $name,
-                    'description' => $r['description'] ?? '',
-                    'downloads'   => $r['downloads'] ?? 0,
-                    'url'         => $r['url'] ?? '',
-                    'repository'  => $r['repository'] ?? '',
-                ];
+                if ($detail) {
+                    $results[] = $detail;
+                } else {
+                    // Fallback: usa dados da busca (menos completos, mas melhor que nada)
+                    $results[] = [
+                        'name'        => $name,
+                        'description' => $r['description'] ?? '',
+                        'downloads'   => $r['downloads'] ?? 0,
+                        'url'         => 'https://packagist.org/packages/' . $name,
+                        'repository'  => $r['repository'] ?? '',
+                    ];
+                }
             }
             return $results;
 
@@ -150,12 +155,27 @@ class SystemModulesController
             $pkg  = is_array($data) ? ($data['package'] ?? null) : null;
             if (!$pkg) return null;
 
+            // Extrai a URL do repositório da versão mais recente
+            $repository = '';
+            if (!empty($pkg['versions']) && is_array($pkg['versions'])) {
+                // Pega a primeira versão (mais recente)
+                $latestVersion = reset($pkg['versions']);
+                if (is_array($latestVersion)) {
+                    // Tenta source.url primeiro (mais confiável), depois repository
+                    $repository = $latestVersion['source']['url'] ?? $latestVersion['repository'] ?? '';
+                }
+            }
+            // Fallback para o campo repository no nível do pacote
+            if ($repository === '') {
+                $repository = $pkg['repository'] ?? '';
+            }
+
             return [
                 'name'        => $name,
                 'description' => $pkg['description'] ?? '',
                 'downloads'   => $pkg['downloads']['total'] ?? 0,
                 'url'         => 'https://packagist.org/packages/' . $name,
-                'repository'  => $pkg['repository'] ?? '',
+                'repository'  => $repository,
             ];
         } catch (\Throwable) {
             return null;
@@ -993,7 +1013,14 @@ class SystemModulesController
         if (!is_dir($root)) return [];
 
         // Módulos nativos do projeto — nunca devem aparecer no marketplace
-        $nativeModules = ['auth', 'usuario', 'documentacao'];
+        $nativeModules = [
+            'auth',
+            'authenticador',
+            'usuario',
+            'documentacao',
+            'idemodebuilder',
+            'idemodulebuilder',
+        ];
 
         $results = [];
         foreach (scandir($root) as $dir) {

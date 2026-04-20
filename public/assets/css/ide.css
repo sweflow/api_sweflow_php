@@ -891,6 +891,173 @@ body.ide-body .ide-folder-item i {
     border-top: 1px solid rgba(255,255,255,.07);
 }
 
+/* ── Database Config Modal ──────────────────────────────────────────────── */
+.ide-db-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.ide-db-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.ide-input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.ide-input-group label {
+    font-size: .9rem;
+    font-weight: 600;
+    color: var(--ide-muted);
+    margin-bottom: 6px;
+}
+
+.ide-input-group input[type="text"],
+.ide-input-group input[type="number"],
+.ide-input-group input[type="password"],
+.ide-input-group input[type="url"],
+.ide-input-group select,
+.ide-input-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: .92rem;
+    background: rgba(255,255,255,.05);
+    border: 1.5px solid rgba(255,255,255,.1);
+    border-radius: 6px;
+    color: var(--ide-text);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.ide-input-group input:focus,
+.ide-input-group select:focus,
+.ide-input-group textarea:focus {
+    border-color: var(--ide-accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.2);
+}
+
+.ide-pwd-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ide-pwd-wrap input {
+    padding-right: 40px;
+}
+
+.ide-pwd-toggle {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--ide-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+}
+
+.ide-pwd-toggle:hover {
+    color: var(--ide-text);
+    background: rgba(255,255,255,.08);
+}
+
+#db-test-result {
+    font-weight: 500;
+}
+
+#db-test-result.success {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+}
+
+#db-test-result.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+.ide-db-connections-list {
+    border-top: 1px solid rgba(255,255,255,.07);
+    padding-top: 16px;
+}
+
+.ide-db-connection-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: background .15s, border-color .15s;
+}
+
+.ide-db-connection-item:hover {
+    background: rgba(255,255,255,.05);
+    border-color: rgba(255,255,255,.12);
+}
+
+.ide-db-connection-item.active {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.ide-db-connection-info {
+    flex: 1;
+}
+
+.ide-db-connection-name {
+    font-weight: 600;
+    color: var(--ide-text);
+    margin-bottom: 4px;
+}
+
+.ide-db-connection-item.active .ide-db-connection-name::before {
+    content: "✓ ";
+    color: #6366f1;
+    font-weight: 700;
+}
+
+.ide-db-connection-details {
+    font-size: .85rem;
+    color: var(--ide-muted);
+}
+
+.ide-db-connection-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.ide-db-connection-btn {
+    padding: 6px 10px;
+    font-size: .85rem;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 6px;
+    color: var(--ide-text);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+
+.ide-db-connection-btn:hover {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(255,255,255,.15);
+}
+
+.ide-db-connection-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
 /* ── Deploy Options ─────────────────────────────────────────────────────── */
 .ide-deploy-options {
     border: none;

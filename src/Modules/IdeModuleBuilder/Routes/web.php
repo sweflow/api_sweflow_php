@@ -1,6 +1,8 @@
 <?php
 
 use Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController;
+use Src\Modules\IdeModuleBuilder\Controllers\DatabaseConnectionController;
+use Src\Modules\IdeModuleBuilder\Controllers\DatabaseStatusController;
 use Src\Kernel\Middlewares\AuthHybridMiddleware;
 use Src\Kernel\Middlewares\AdminOnlyMiddleware;
 use Src\Kernel\Middlewares\RateLimitMiddleware;
@@ -45,3 +47,15 @@ $router->post('/api/ide/projects/{id}/terminal',     [IdeProjectController::clas
 $router->get('/api/ide/my-limits',                   [IdeProjectController::class, 'myLimits'],     $protected);
 $router->get('/api/ide/user-limit/{userId}',         [IdeProjectController::class, 'getUserLimit'], $admin);
 $router->put('/api/ide/user-limit/{userId}',         [IdeProjectController::class, 'setUserLimit'], $admin);
+
+// Conexões de banco de dados personalizadas
+$router->get('/api/ide/database-connections',                    [DatabaseConnectionController::class, 'index'],         $protected);
+$router->post('/api/ide/database-connections/test',              [DatabaseConnectionController::class, 'test'],          $protected);
+$router->post('/api/ide/database-connections',                   [DatabaseConnectionController::class, 'store'],         $protected);
+$router->put('/api/ide/database-connections/{id}',               [DatabaseConnectionController::class, 'update'],        $protected);
+$router->post('/api/ide/database-connections/{id}/activate',     [DatabaseConnectionController::class, 'activate'],      $protected);
+$router->post('/api/ide/database-connections/deactivate-all',    [DatabaseConnectionController::class, 'deactivateAll'], $protected);
+$router->delete('/api/ide/database-connections/{id}',            [DatabaseConnectionController::class, 'destroy'],       $protected);
+
+// Status da conexão de banco de dados (migrations pendentes e tabelas)
+$router->get('/api/ide/database-status',                         [DatabaseStatusController::class, 'status'],            $protected);

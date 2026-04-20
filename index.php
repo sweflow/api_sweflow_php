@@ -305,7 +305,109 @@ $container = new Container();
 $container->bind(ContainerInterface::class, $container, true);
 
 try {
-    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv('DB'), true);
+    // Cache de PDO por request (evita múltiplas conexões na mesma requisição)
+    $pdoCache = null;
+    $pdoCacheKey = null;
+    
+    // PDO principal - resolve automaticamente a conexão personalizada do desenvolvedor
+    // APENAS para módulos não-nativos (módulos desenvolvidos pelo usuário)
+    $container->bind(\PDO::class, static function() use (&$pdoCache, &$pdoCacheKey) {
+        // Lista de módulos nativos que SEMPRE usam banco core
+        $nativeModules = ['auth', 'authenticador', 'usuario', 'documentacao', 'idemodebuilder', 'idemodulebuilder', 'system'];
+        
+        // Detecta qual módulo está sendo acessado pela URI
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        $isNativeModule = false;
+        
+        // Verifica se a URI corresponde a um módulo nativo
+        foreach ($nativeModules as $native) {
+            if (stripos($requestUri, "/api/{$native}") !== false || 
+                stripos($requestUri, "/{$native}/") !== false) {
+                $isNativeModule = true;
+                break;
+            }
+        }
+        
+        // Cria chave de cache baseada no contexto
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $cacheKey = $isNativeModule ? 'core' : ($authHeader ? md5($authHeader) : 'core');
+        
+        // Retorna do cache se já foi resolvido nesta requisição
+        if ($pdoCache !== null && $pdoCacheKey === $cacheKey) {
+            return $pdoCache;
+        }
+        
+        // Módulos nativos sempre usam banco core
+        if ($isNativeModule) {
+            $pdoCacheKey = $cacheKey;
+            return $pdoCache = PdoFactory::fromEnv('DB');
+        }
+        
+        // Para módulos do desenvolvedor, tenta obter a conexão personalizada
+        if (preg_match('/Bearer\s+(.+)/', $authHeader, $matches)) {
+            $token = $matches[1];
+            $parts = explode('.', $token);
+            if (count($parts) === 3) {
+                $payload = json_decode(base64_decode($parts[1]), true);
+                $userId = $payload['sub'] ?? null;
+                
+                if ($userId) {
+                    try {
+                        // Busca a conexão personalizada ativa (query otimizada com índice)
+                        $corePdo = PdoFactory::fromEnv('DB');
+                        $stmt = $corePdo->prepare("
+                            SELECT host, port, database_name, username, password, driver 
+                            FROM ide_database_connections 
+                            WHERE usuario_uuid = ? AND is_active = true 
+                            LIMIT 1
+                        ");
+                        $stmt->execute([$userId]);
+                        $conn = $stmt->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($conn) {
+                            // Descriptografa a senha
+                            $key = $_ENV['APP_KEY'] ?? $_ENV['JWT_SECRET'] ?? 'default-key';
+                            $data = base64_decode($conn['password']);
+                            $iv = substr($data, 0, 16);
+                            $encrypted = substr($data, 16);
+                            $password = openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
+                            
+                            if ($password === false) {
+                                throw new \RuntimeException("Falha ao descriptografar senha do banco de dados");
+                            }
+                            
+                            // Cria o PDO com a conexão personalizada
+                            $driver = $conn['driver'] ?? 'pgsql';
+                            
+                            // Para PostgreSQL com SSL (Aiven), adiciona sslmode no DSN
+                            if ($driver === 'pgsql') {
+                                $dsn = "{$driver}:host={$conn['host']};port={$conn['port']};dbname={$conn['database_name']};sslmode=require";
+                            } else {
+                                $dsn = "{$driver}:host={$conn['host']};port={$conn['port']};dbname={$conn['database_name']}";
+                            }
+                            
+                            $options = [
+                                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                                PDO::ATTR_PERSISTENT => true, // ← PERSISTENT CONNECTION (reutiliza TCP)
+                                PDO::ATTR_EMULATE_PREPARES => false,
+                                PDO::ATTR_TIMEOUT => 5, // Timeout de 5 segundos
+                            ];
+                            
+                            $pdoCacheKey = $cacheKey;
+                            return $pdoCache = new PDO($dsn, $conn['username'], $password, $options);
+                        }
+                    } catch (\Throwable $e) {
+                        error_log("[PDO Resolver] Erro: " . $e->getMessage());
+                    }
+                }
+            }
+        }
+        
+        // Fallback: usa a conexão padrão
+        $pdoCacheKey = $cacheKey;
+        return $pdoCache = PdoFactory::fromEnv('DB');
+    }, false); // NÃO é singleton - mas usa cache manual por request
 
     // Segunda conexão para módulos externos (DB2_*).
     // Se DB2_NOME não estiver definido, módulos externos usam a mesma conexão do core.
@@ -469,6 +571,53 @@ if (class_exists(\Src\Modules\IdeModuleBuilder\Controllers\IdeProjectController:
     );
 }
 
+// Registra DatabaseConnectionController com PDO injetado
+if (class_exists(\Src\Modules\IdeModuleBuilder\Controllers\DatabaseConnectionController::class)) {
+    $container->bind(
+        \Src\Modules\IdeModuleBuilder\Controllers\DatabaseConnectionController::class,
+        static function () use ($container) {
+            $pdo = $container->make(\PDO::class);
+            $repository = new \Src\Modules\IdeModuleBuilder\Repositories\DatabaseConnectionRepository($pdo);
+            $service = new \Src\Modules\IdeModuleBuilder\Services\DatabaseConnectionService();
+            return new \Src\Modules\IdeModuleBuilder\Controllers\DatabaseConnectionController($repository, $service);
+        },
+        true
+    );
+}
+
+// Registra DatabaseStatusController com PDO injetado
+if (class_exists(\Src\Modules\IdeModuleBuilder\Controllers\DatabaseStatusController::class)) {
+    $container->bind(
+        \Src\Modules\IdeModuleBuilder\Controllers\DatabaseStatusController::class,
+        static function () use ($container) {
+            $pdo = $container->make(\PDO::class);
+            $pdoModules = null;
+            
+            // Tenta obter PDO secundário (DB2) se configurado
+            try {
+                if (\Src\Kernel\Database\PdoFactory::hasSecondaryConnection()) {
+                    $pdoModules = \Src\Kernel\Database\PdoFactory::fromEnv('DB2');
+                }
+            } catch (\Throwable $e) {
+                // Silencioso - DB2 é opcional
+            }
+            
+            $repository = new \Src\Modules\IdeModuleBuilder\Repositories\DatabaseConnectionRepository($pdo);
+            $service = new \Src\Modules\IdeModuleBuilder\Services\DatabaseConnectionService();
+            $projectService = $container->make(\Src\Modules\IdeModuleBuilder\Services\IdeProjectService::class);
+            
+            return new \Src\Modules\IdeModuleBuilder\Controllers\DatabaseStatusController(
+                $repository,
+                $service,
+                $projectService,
+                $pdo,
+                $pdoModules
+            );
+        },
+        true
+    );
+}
+
 $router = new Router($container);
 $container->bind(RouterInterface::class, $router, true);
 
@@ -514,7 +663,13 @@ if (!$container->hasBinding(\Src\Kernel\Contracts\TokenBlacklistInterface::class
     if (class_exists(\Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class)) {
         $container->bind(
             \Src\Kernel\Contracts\TokenBlacklistInterface::class,
-            \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository::class,
+            static function() {
+                // AccessTokenBlacklistRepository SEMPRE usa banco core
+                // (tabela revoked_access_tokens está no banco do sistema)
+                return new \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository(
+                    PdoFactory::fromEnv('DB')
+                );
+            },
             true
         );
     } else {

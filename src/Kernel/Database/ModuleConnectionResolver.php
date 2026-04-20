@@ -4,6 +4,8 @@ namespace Src\Kernel\Database;
 
 use PDO;
 use RuntimeException;
+use Src\Modules\IdeModuleBuilder\Repositories\DatabaseConnectionRepository;
+use Src\Modules\IdeModuleBuilder\Services\DatabaseConnectionService;
 
 /**
  * Resolve qual conexão PDO usar para um módulo baseado no seu connection.php.
@@ -29,6 +31,47 @@ class ModuleConnectionResolver
     {
         if (isset(self::$cache[$moduleName])) {
             return self::$cache[$moduleName];
+        }
+
+        // Módulos nativos SEMPRE usam banco core (não usam conexão personalizada)
+        $nativeModules = ['Auth', 'Usuario', 'Authenticador', 'Documentacao', 'IdeModuleBuilder', 'System'];
+        $isNativeModule = in_array($moduleName, $nativeModules, true);
+        
+        // Verifica se há usuário autenticado com conexão personalizada
+        // APENAS para módulos não-nativos
+        if (!$isNativeModule) {
+            $usuarioUuid = $_SESSION['user_uuid'] ?? null;
+            
+            if ($usuarioUuid) {
+                try {
+                    // Busca conexão ativa do usuário
+                    $pdoMain = PdoFactory::fromEnv('DB'); // Conexão principal para buscar config
+                    $repo = new DatabaseConnectionRepository($pdoMain);
+                    $activeConnection = $repo->findActiveByUser($usuarioUuid);
+                    
+                    if ($activeConnection) {
+                        // Usa conexão personalizada do desenvolvedor
+                        $service = new DatabaseConnectionService();
+                        $customPdo = $service->createPdoConnection([
+                            'service_uri' => $activeConnection['service_uri'],
+                            'database_name' => $activeConnection['database_name'],
+                            'host' => $activeConnection['host'],
+                            'port' => $activeConnection['port'],
+                            'username' => $activeConnection['username'],
+                            'password' => $repo->decryptPassword($activeConnection['password']),
+                            'driver' => $activeConnection['driver'],
+                            'ssl_mode' => $activeConnection['ssl_mode'],
+                            'ca_certificate' => $activeConnection['ca_certificate'],
+                            'persistent' => true, // ← PERSISTENT CONNECTION
+                        ]);
+                        
+                        return self::$cache[$moduleName] = $customPdo;
+                    }
+                } catch (\Throwable $e) {
+                    // Se falhar ao buscar conexão personalizada, continua com o fluxo padrão
+                    error_log("Erro ao buscar conexão personalizada: " . $e->getMessage());
+                }
+            }
         }
 
         $conn = self::readConnectionFile($moduleName);

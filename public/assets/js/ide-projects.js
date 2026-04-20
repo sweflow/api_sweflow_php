@@ -48,9 +48,15 @@ async function api(method, url, body) {
     if (body) opts.body = JSON.stringify(body);
     var res = await fetch(url, opts);
 
-    // Token expirado — redireciona para login
+    // Token expirado — redireciona para login apenas se não estiver em loop
     if (res.status === 401) {
-        window.location.replace('/ide/login');
+        // Verifica se já tentou redirecionar recentemente (evita loop)
+        var lastRedirect = sessionStorage.getItem('last_auth_redirect');
+        var now = Date.now();
+        if (!lastRedirect || (now - parseInt(lastRedirect)) > 5000) {
+            sessionStorage.setItem('last_auth_redirect', now.toString());
+            window.location.replace('/ide/login');
+        }
         throw new Error('Sessão expirada');
     }
 
@@ -65,7 +71,18 @@ async function api(method, url, body) {
 }
 
 function showModal(id) { var e = $(id); if (e) { e.removeAttribute('aria-hidden'); e.classList.add('show'); } }
-function hideModal(id) { var e = $(id); if (e) { e.setAttribute('aria-hidden', 'true'); e.classList.remove('show'); } }
+function hideModal(id) { 
+    var e = $(id); 
+    if (e) { 
+        // Remove o foco de qualquer elemento dentro do modal antes de ocultá-lo
+        // Isso previne o aviso de acessibilidade do navegador
+        if (document.activeElement && e.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+        e.setAttribute('aria-hidden', 'true'); 
+        e.classList.remove('show'); 
+    } 
+}
 
 // ── Load Projects ─────────────────────────────────────────────────────────
 async function loadProjects(bust) {
@@ -93,6 +110,7 @@ async function loadProjects(bust) {
 }
 
 var currentLimits = null;
+var hasActiveDatabaseConnection = false; // Flag global para verificar se há conexão ativa
 
 function updateLimitInfo(limits, count) {
     currentLimits = limits;
@@ -165,6 +183,31 @@ function showLimitModal(type, limits, totalCount) {
         var statLimit = el('div', { className: 'idep-limit-stat' }, [icon('fa-solid fa-gauge-high'), ' Limite: ' + limits.limit]);
         statsEl.appendChild(statLimit);
     }
+
+    showModal('modal-limit');
+}
+
+function showDatabaseConnectionRequiredModal() {
+    var iconEl = $('modal-limit-icon');
+    var titleEl = $('modal-limit-title');
+    var subtitleEl = $('modal-limit-subtitle');
+    var alertEl = $('modal-limit-alert');
+    var msgEl = $('modal-limit-msg');
+    var statsEl = $('modal-limit-stats');
+    var helpEl = $('modal-limit-help');
+
+    // Reset
+    alertEl.className = 'idep-limit-alert';
+    statsEl.textContent = '';
+
+    iconEl.style.background = 'linear-gradient(135deg,#3b82f6,#60a5fa)';
+    iconEl.textContent = '';
+    iconEl.appendChild(icon('fa-solid fa-database'));
+    titleEl.textContent = 'Conexão de banco de dados necessária';
+    subtitleEl.textContent = 'Configure uma conexão antes de criar projetos';
+    alertEl.classList.add('idep-limit-alert-info');
+    msgEl.textContent = 'Para criar projetos na IDE, você precisa configurar uma conexão de banco de dados personalizada. Isso garante que suas migrations e tabelas sejam criadas no banco correto.';
+    helpEl.textContent = '';
 
     showModal('modal-limit');
 }
@@ -274,6 +317,12 @@ async function openNewProjectModal() {
             showLimitModal('reached', currentLimits, currentLimits.count || 0);
             return;
         }
+    }
+
+    // ── Validação: desenvolvedor deve ter conexão de banco configurada ──
+    if (!hasActiveDatabaseConnection) {
+        showDatabaseConnectionRequiredModal();
+        return;
     }
 
     $('inp-project-name').value = '';
@@ -458,5 +507,671 @@ document.querySelectorAll('.idep-modal-overlay').forEach(function (o) {
     });
 });
 
+// ── Database Connection ───────────────────────────────────────────────────
+async function loadDatabaseConnection() {
+    var card = $('idep-db-card');
+    if (!card) return;
+    
+    // Sempre mostra o card
+    card.style.display = 'block';
+    
+    try {
+        var data = await api('GET', '/api/ide/database-connections');
+        var connections = data.connections || [];
+        var activeConnection = connections.find(function (c) { return c.is_active; });
+        
+        // Atualiza flag global
+        hasActiveDatabaseConnection = !!activeConnection;
+        
+        var icon = $('idep-db-icon');
+        var name = $('idep-db-name');
+        var details = $('idep-db-details');
+        var status = $('idep-db-status');
+        var actions = $('idep-db-actions');
+        var configureBtn = $('btn-db-configure');
+        var infoSection = $('idep-db-info-section');
+        
+        if (activeConnection) {
+            // Tem conexão ativa
+            var driver = activeConnection.driver || 'pgsql';
+            icon.className = 'idep-db-card-icon db-' + driver;
+            icon.textContent = '';
+            icon.appendChild(document.createElement('i')).className = 'fa-solid fa-database';
+            
+            name.textContent = activeConnection.connection_name;
+            
+            // Dados sensíveis mascarados por padrão
+            var detailsText = driver.toUpperCase() + ' • ';
+            detailsText += '••••••••:' + activeConnection.port + ' • ';
+            detailsText += '••••••••';
+            details.textContent = detailsText;
+            details.setAttribute('data-masked', 'true');
+            details.setAttribute('data-host', activeConnection.host);
+            details.setAttribute('data-port', activeConnection.port);
+            details.setAttribute('data-database', activeConnection.database_name);
+            details.setAttribute('data-driver', driver.toUpperCase());
+            
+            status.textContent = '';
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'idep-db-status-badge idep-db-status-active';
+            var statusIcon = document.createElement('i');
+            statusIcon.className = 'fa-solid fa-circle';
+            statusBadge.appendChild(statusIcon);
+            statusBadge.appendChild(document.createTextNode(' Ativa'));
+            status.appendChild(statusBadge);
+            
+            // Adiciona botão de toggle para mostrar/ocultar dados
+            var toggleBtn = document.createElement('button');
+            toggleBtn.className = 'idep-db-toggle-visibility';
+            toggleBtn.setAttribute('id', 'btn-toggle-db-visibility');
+            toggleBtn.setAttribute('title', 'Mostrar/ocultar dados da conexão');
+            toggleBtn.setAttribute('aria-label', 'Mostrar/ocultar dados da conexão');
+            var eyeIcon = document.createElement('i');
+            eyeIcon.className = 'fa-solid fa-eye';
+            eyeIcon.setAttribute('id', 'icon-toggle-db-visibility');
+            toggleBtn.appendChild(eyeIcon);
+            status.appendChild(toggleBtn);
+            
+            actions.style.display = 'flex';
+            configureBtn.style.display = 'none'; // Esconde botão quando tem conexão ativa
+            infoSection.style.display = 'block';
+            
+            // Store connection ID for edit/delete
+            card.setAttribute('data-connection-id', activeConnection.id);
+            
+            // Carrega status (migrations e tabelas)
+            await loadDatabaseStatus();
+        } else {
+            // Sem conexão - mostra botão para configurar
+            icon.className = 'idep-db-card-icon db-default';
+            icon.textContent = '';
+            icon.appendChild(document.createElement('i')).className = 'fa-solid fa-database';
+            
+            name.textContent = 'Conexão de Banco de Dados';
+            details.textContent = 'Configure uma conexão personalizada para seus módulos';
+            
+            status.textContent = '';
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'idep-db-status-badge idep-db-status-inactive';
+            var statusIcon = document.createElement('i');
+            statusIcon.className = 'fa-solid fa-circle';
+            statusBadge.appendChild(statusIcon);
+            statusBadge.appendChild(document.createTextNode(' Inativa'));
+            status.appendChild(statusBadge);
+            
+            actions.style.display = 'none'; // Esconde botões de editar/excluir
+            configureBtn.style.display = 'block'; // Mostra botão de configurar
+            infoSection.style.display = 'none'; // Esconde seção de info (migrations/tabelas)
+        }
+    } catch (e) {
+        console.error('Erro ao carregar conexão:', e);
+        
+        // Se houver erro (401, etc), mostra o card com opção de configurar
+        var icon = $('idep-db-icon');
+        var name = $('idep-db-name');
+        var details = $('idep-db-details');
+        var status = $('idep-db-status');
+        var actions = $('idep-db-actions');
+        var configureBtn = $('btn-db-configure');
+        var infoSection = $('idep-db-info-section');
+        
+        if (icon) {
+            icon.className = 'idep-db-card-icon db-default';
+            icon.textContent = '';
+            icon.appendChild(document.createElement('i')).className = 'fa-solid fa-database';
+        }
+        
+        if (name) name.textContent = 'Conexão de Banco de Dados';
+        if (details) details.textContent = 'Configure uma conexão personalizada para seus módulos';
+        if (status) {
+            status.textContent = '';
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'idep-db-status-badge idep-db-status-inactive';
+            var statusIcon = document.createElement('i');
+            statusIcon.className = 'fa-solid fa-circle';
+            statusBadge.appendChild(statusIcon);
+            statusBadge.appendChild(document.createTextNode(' Inativa'));
+            status.appendChild(statusBadge);
+        }
+        if (actions) actions.style.display = 'none';
+        if (configureBtn) configureBtn.style.display = 'block';
+        if (infoSection) infoSection.style.display = 'none';
+    }
+}
+
+async function loadDatabaseStatus() {
+    try {
+        var data = await api('GET', '/api/ide/database-status');
+        
+        if (!data.has_connection) return;
+        
+        var migrationsEl = $('idep-db-migrations');
+        var tablesEl = $('idep-db-tables');
+        var tablesSection = $('idep-db-tables-section');
+        var tablesList = $('idep-db-tables-list');
+        
+        // Migrations pendentes
+        var pendingCount = data.pending_migrations ? data.pending_migrations.length : 0;
+        if (migrationsEl) {
+            migrationsEl.textContent = pendingCount;
+            if (pendingCount > 0) {
+                migrationsEl.classList.add('has-pending');
+            } else {
+                migrationsEl.classList.remove('has-pending');
+            }
+        }
+        
+        // Tabelas
+        var tablesCount = data.tables ? data.tables.length : 0;
+        if (tablesEl) {
+            tablesEl.textContent = tablesCount;
+        }
+        
+        // Mostra seção de tabelas se houver tabelas
+        if (tablesSection && tablesCount > 0) {
+            tablesSection.style.display = 'block';
+            
+            // Renderiza lista de tabelas
+            if (tablesList) {
+                tablesList.textContent = '';
+                data.tables.forEach(function (table) {
+                    var item = document.createElement('div');
+                    item.className = 'idep-db-table-item';
+                    
+                    var nameDiv = document.createElement('div');
+                    nameDiv.className = 'idep-db-table-name';
+                    var tableIcon = document.createElement('i');
+                    tableIcon.className = 'fa-solid fa-table';
+                    nameDiv.appendChild(tableIcon);
+                    nameDiv.appendChild(document.createTextNode(' ' + table.name));
+                    
+                    var sizeDiv = document.createElement('div');
+                    sizeDiv.className = 'idep-db-table-size';
+                    sizeDiv.textContent = table.size;
+                    
+                    item.appendChild(nameDiv);
+                    item.appendChild(sizeDiv);
+                    tablesList.appendChild(item);
+                });
+            }
+        } else if (tablesSection) {
+            tablesSection.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('Erro ao carregar status:', e);
+    }
+}
+
+function toggleTablesList() {
+    var btn = $('btn-toggle-tables');
+    var list = $('idep-db-tables-list');
+    
+    if (!btn || !list) return;
+    
+    var isExpanded = list.style.display === 'block';
+    
+    if (isExpanded) {
+        list.style.display = 'none';
+        btn.classList.remove('expanded');
+        btn.textContent = '';
+        btn.appendChild(document.createElement('i')).className = 'fa-solid fa-chevron-down';
+        btn.appendChild(document.createTextNode(' Ver Tabelas'));
+    } else {
+        list.style.display = 'block';
+        btn.classList.add('expanded');
+        btn.textContent = '';
+        btn.appendChild(document.createElement('i')).className = 'fa-solid fa-chevron-up';
+        btn.appendChild(document.createTextNode(' Ocultar Tabelas'));
+    }
+}
+
+async function deleteDatabaseConnection() {
+    var card = $('idep-db-card');
+    if (!card) return;
+    
+    var connectionId = card.getAttribute('data-connection-id');
+    if (!connectionId) return;
+    
+    if (!confirm('Tem certeza que deseja excluir esta conexão?\n\nAo excluir, seus módulos voltarão a usar o banco de dados padrão da Vupi.us API.')) {
+        return;
+    }
+    
+    try {
+        await api('DELETE', '/api/ide/database-connections/' + connectionId);
+        toast('✓ Conexão excluída com sucesso!');
+        await loadDatabaseConnection();
+    } catch (e) {
+        toast('Erro ao excluir conexão: ' + e.message);
+    }
+}
+
+function toggleDatabaseVisibility() {
+    var details = $('idep-db-details');
+    var icon = $('icon-toggle-db-visibility');
+    
+    if (!details || !icon) return;
+    
+    var isMasked = details.getAttribute('data-masked') === 'true';
+    
+    if (isMasked) {
+        // Mostra dados reais
+        var driver = details.getAttribute('data-driver');
+        var host = details.getAttribute('data-host');
+        var port = details.getAttribute('data-port');
+        var database = details.getAttribute('data-database');
+        
+        details.textContent = driver + ' • ' + host + ':' + port + ' • ' + database;
+        details.setAttribute('data-masked', 'false');
+        icon.className = 'fa-solid fa-eye-slash';
+    } else {
+        // Oculta dados
+        var driver = details.getAttribute('data-driver');
+        var port = details.getAttribute('data-port');
+        
+        details.textContent = driver + ' • ••••••••:' + port + ' • ••••••••';
+        details.setAttribute('data-masked', 'true');
+        icon.className = 'fa-solid fa-eye';
+    }
+}
+
+async function openDatabaseConfig() {
+    // Abre o modal de banco de dados diretamente na página de projetos
+    // A conexão é do desenvolvedor, não precisa de projeto específico
+    showModal('modal-database-config-projects');
+    await loadDatabaseConnectionModal();
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 loadProjects();
+loadDatabaseConnection();
+
+// Event listeners para o card de banco de dados
+var btnDbConfigure = $('btn-db-configure');
+if (btnDbConfigure) btnDbConfigure.addEventListener('click', openDatabaseConfig);
+
+var btnDbEdit = $('btn-db-edit');
+if (btnDbEdit) btnDbEdit.addEventListener('click', openDatabaseConfig);
+
+var btnDbDelete = $('btn-db-delete');
+if (btnDbDelete) btnDbDelete.addEventListener('click', deleteDatabaseConnection);
+
+var btnToggleTables = $('btn-toggle-tables');
+if (btnToggleTables) btnToggleTables.addEventListener('click', toggleTablesList);
+
+// Event listener para toggle de visibilidade (delegação de eventos pois o botão é criado dinamicamente)
+document.addEventListener('click', function(e) {
+    if (e.target && (e.target.id === 'btn-toggle-db-visibility' || e.target.id === 'icon-toggle-db-visibility')) {
+        toggleDatabaseVisibility();
+    }
+});
+
+
+// ── Database Configuration Modal ──────────────────────────────────────────
+async function loadDatabaseConnectionModal() {
+    // Carrega conexão existente se houver
+    try {
+        var data = await api('GET', '/api/ide/database-connections');
+        var connections = data.connections || [];
+        var activeConnection = connections.find(function (c) { return c.is_active; });
+        
+        if (activeConnection) {
+            // Preenche formulário com dados da conexão existente
+            $('dbp-connection-name').value = activeConnection.connection_name;
+            $('dbp-driver').value = activeConnection.driver;
+            $('dbp-database-name').value = activeConnection.database_name;
+            $('dbp-host').value = activeConnection.host;
+            $('dbp-port').value = activeConnection.port;
+            $('dbp-username').value = activeConnection.username;
+            $('dbp-ssl-mode').value = activeConnection.ssl_mode || '';
+            $('dbp-ca-certificate').value = activeConnection.ca_certificate || '';
+            
+            // Mostra seção CA se SSL mode requer
+            updateCaSectionVisibility(activeConnection.ssl_mode || '');
+            
+            // Se tem CA certificate, mostra o textarea
+            if (activeConnection.ca_certificate) {
+                $('dbp-ca-textarea-wrapper').style.display = 'block';
+                var btn = $('btn-toggle-ca');
+                btn.textContent = '';
+                btn.appendChild(document.createElement('i')).className = 'fa-solid fa-certificate';
+                btn.appendChild(document.createTextNode(' Ocultar Certificado CA'));
+            }
+            
+            // Senha não é retornada por segurança
+            $('dbp-password').value = '';
+            $('dbp-password').placeholder = '(mantém a senha atual se deixar vazio)';
+        } else {
+            // Limpa formulário
+            $('dbp-connection-name').value = '';
+            $('dbp-driver').value = 'pgsql';
+            $('dbp-database-name').value = '';
+            $('dbp-host').value = '';
+            $('dbp-port').value = '';
+            $('dbp-username').value = '';
+            $('dbp-password').value = '';
+            $('dbp-password').placeholder = '••••••••';
+            $('dbp-ssl-mode').value = '';
+            $('dbp-ca-certificate').value = '';
+            $('dbp-ca-section').style.display = 'none';
+            $('dbp-ca-textarea-wrapper').style.display = 'none';
+            var btn = $('btn-toggle-ca');
+            btn.textContent = '';
+            btn.appendChild(document.createElement('i')).className = 'fa-solid fa-certificate';
+            btn.appendChild(document.createTextNode(' Adicionar Certificado CA'));
+        }
+    } catch (e) {
+        console.error('Erro ao carregar conexão:', e);
+    }
+}
+
+function updateCaSectionVisibility(sslMode) {
+    var caSection = $('dbp-ca-section');
+    
+    // Mostra seção CA apenas para verify-ca e verify-full
+    if (sslMode === 'verify-ca' || sslMode === 'verify-full') {
+        caSection.style.display = 'block';
+    } else {
+        caSection.style.display = 'none';
+        $('dbp-ca-textarea-wrapper').style.display = 'none';
+        var btn = $('btn-toggle-ca');
+        btn.textContent = '';
+        btn.appendChild(document.createElement('i')).className = 'fa-solid fa-certificate';
+        btn.appendChild(document.createTextNode(' Adicionar Certificado CA'));
+    }
+}
+
+function toggleCaTextarea() {
+    var wrapper = $('dbp-ca-textarea-wrapper');
+    var btn = $('btn-toggle-ca');
+    
+    if (wrapper.style.display === 'none') {
+        wrapper.style.display = 'block';
+        btn.textContent = '';
+        btn.appendChild(document.createElement('i')).className = 'fa-solid fa-certificate';
+        btn.appendChild(document.createTextNode(' Ocultar Certificado CA'));
+        // Foca no textarea
+        setTimeout(function() {
+            $('dbp-ca-certificate').focus();
+        }, 100);
+    } else {
+        wrapper.style.display = 'none';
+        btn.textContent = '';
+        btn.appendChild(document.createElement('i')).className = 'fa-solid fa-certificate';
+        btn.appendChild(document.createTextNode(' Adicionar Certificado CA'));
+    }
+}
+
+async function testDatabaseConnection() {
+    var btn = $('modal-dbp-test');
+    var errorEl = $('modal-dbp-error');
+    var successEl = $('modal-dbp-success');
+    
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+    
+    var connectionName = $('dbp-connection-name').value.trim();
+    var driver = $('dbp-driver').value;
+    var databaseName = $('dbp-database-name').value.trim();
+    var host = $('dbp-host').value.trim();
+    var port = $('dbp-port').value.trim();
+    var username = $('dbp-username').value.trim();
+    var password = $('dbp-password').value;
+    var sslMode = $('dbp-ssl-mode').value;
+    var caCertificate = $('dbp-ca-certificate').value.trim();
+    
+    if (!connectionName || !databaseName || !host || !port || !username) {
+        errorEl.textContent = 'Preencha todos os campos obrigatórios';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    if (!password) {
+        errorEl.textContent = 'A senha é obrigatória';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    btn.disabled = true;
+    setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Testando...');
+    
+    try {
+        var payload = {
+            connection_name: connectionName,
+            driver: driver,
+            database_name: databaseName,
+            host: host,
+            port: parseInt(port),
+            username: username,
+            password: password
+        };
+        
+        if (sslMode) {
+            payload.ssl_mode = sslMode;
+        }
+        
+        if (caCertificate) {
+            payload.ca_certificate = caCertificate;
+        }
+        
+        var result = await api('POST', '/api/ide/database-connections/test', payload);
+        
+        if (result.success) {
+            successEl.textContent = '✓ Conexão testada com sucesso!';
+            if (result.database_created) {
+                successEl.textContent += ' Banco de dados criado automaticamente.';
+            }
+            successEl.style.display = 'block';
+        } else {
+            // Exibe mensagem de erro do backend
+            var errorMsg = result.message || result.error || 'Falha ao testar conexão';
+            
+            // Se houver erros de validação, exibe todos
+            if (result.errors && Array.isArray(result.errors)) {
+                errorMsg = result.errors.join(', ');
+            }
+            
+            errorEl.textContent = errorMsg;
+            errorEl.style.display = 'block';
+        }
+    } catch (e) {
+        var errorMsg = 'Erro ao testar conexão: ' + e.message;
+        
+        // Se a resposta tiver detalhes, exibe (e.data é populado pela função api())
+        if (e.data) {
+            if (e.data.errors && Array.isArray(e.data.errors)) {
+                errorMsg = 'Erro de validação: ' + e.data.errors.join(', ');
+            } else if (e.data.message) {
+                errorMsg = e.data.message;
+            } else if (e.data.error) {
+                errorMsg = e.data.error;
+            }
+        }
+        
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        setBtn(btn, 'fa-solid fa-vial', 'Testar Conexão');
+    }
+}
+
+async function saveDatabaseConnection() {
+    var btn = $('modal-dbp-confirm');
+    var errorEl = $('modal-dbp-error');
+    var successEl = $('modal-dbp-success');
+    
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+    
+    var connectionName = $('dbp-connection-name').value.trim();
+    var driver = $('dbp-driver').value;
+    var databaseName = $('dbp-database-name').value.trim();
+    var host = $('dbp-host').value.trim();
+    var port = $('dbp-port').value.trim();
+    var username = $('dbp-username').value.trim();
+    var password = $('dbp-password').value;
+    var sslMode = $('dbp-ssl-mode').value;
+    var caCertificate = $('dbp-ca-certificate').value.trim();
+    
+    if (!connectionName || !databaseName || !host || !port || !username) {
+        errorEl.textContent = 'Preencha todos os campos obrigatórios';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    btn.disabled = true;
+    setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Conectando...');
+    
+    try {
+        // Verifica se já existe conexão
+        var listData = await api('GET', '/api/ide/database-connections');
+        var connections = listData.connections || [];
+        var existingConnection = connections.find(function (c) { return c.is_active; });
+        
+        if (existingConnection) {
+            // Atualiza conexão existente
+            var updateData = {
+                connection_name: connectionName,
+                driver: driver,
+                database_name: databaseName,
+                host: host,
+                port: parseInt(port),
+                username: username
+            };
+            
+            // Só envia senha se foi preenchida
+            if (password) {
+                updateData.password = password;
+            }
+            
+            // Adiciona SSL se configurado
+            if (sslMode) {
+                updateData.ssl_mode = sslMode;
+            }
+            
+            if (caCertificate) {
+                updateData.ca_certificate = caCertificate;
+            }
+            
+            await api('PUT', '/api/ide/database-connections/' + existingConnection.id, updateData);
+            
+            // Ativa a conexão
+            await api('POST', '/api/ide/database-connections/' + existingConnection.id + '/activate');
+        } else {
+            // Cria nova conexão
+            if (!password) {
+                errorEl.textContent = 'Senha é obrigatória para nova conexão';
+                errorEl.style.display = 'block';
+                btn.disabled = false;
+                setBtn(btn, 'fa-solid fa-plug', 'Conectar');
+                return;
+            }
+            
+            var createData = {
+                connection_name: connectionName,
+                driver: driver,
+                database_name: databaseName,
+                host: host,
+                port: parseInt(port),
+                username: username,
+                password: password
+            };
+            
+            // Adiciona SSL se configurado (não envia se vazio)
+            if (sslMode && sslMode !== '') {
+                createData.ssl_mode = sslMode;
+            }
+            
+            if (caCertificate && caCertificate !== '') {
+                createData.ca_certificate = caCertificate;
+            }
+            
+            var result = await api('POST', '/api/ide/database-connections', createData);
+            
+            console.log('Conexão criada:', result);
+            
+            // Ativa automaticamente a nova conexão
+            if (result.connection && result.connection.id) {
+                console.log('Ativando conexão ID:', result.connection.id);
+                try {
+                    var activateResult = await api('POST', '/api/ide/database-connections/' + result.connection.id + '/activate');
+                    console.log('Resultado da ativação:', activateResult);
+                } catch (activateError) {
+                    console.error('Erro ao ativar conexão:', activateError);
+                }
+            } else if (result.success) {
+                console.warn('Conexão criada mas ID não retornado, recarregando lista...');
+            }
+        }
+        
+        toast('✓ Conexão configurada com sucesso!');
+        hideModal('modal-database-config-projects');
+        
+        // Recarrega o card de banco de dados
+        await loadDatabaseConnection();
+    } catch (e) {
+        var errorMsg = 'Erro ao salvar conexão: ' + e.message;
+        
+        // Se a resposta tiver detalhes, exibe (e.data é populado pela função api())
+        if (e.data) {
+            if (e.data.errors && Array.isArray(e.data.errors)) {
+                errorMsg = 'Erro de validação: ' + e.data.errors.join(', ');
+            } else if (e.data.message) {
+                errorMsg = e.data.message;
+            } else if (e.data.error) {
+                errorMsg = e.data.error;
+            }
+        }
+        
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        setBtn(btn, 'fa-solid fa-plug', 'Conectar');
+    }
+}
+
+// Event listeners para o modal de banco de dados
+var btnDbpClose = $('modal-dbp-close');
+if (btnDbpClose) btnDbpClose.addEventListener('click', function () { hideModal('modal-database-config-projects'); });
+
+var btnDbpCancel = $('modal-dbp-cancel');
+if (btnDbpCancel) btnDbpCancel.addEventListener('click', function () { hideModal('modal-database-config-projects'); });
+
+var btnDbpTest = $('modal-dbp-test');
+if (btnDbpTest) btnDbpTest.addEventListener('click', testDatabaseConnection);
+
+var btnDbpConfirm = $('modal-dbp-confirm');
+if (btnDbpConfirm) btnDbpConfirm.addEventListener('click', saveDatabaseConnection);
+
+// Event listener para mudança de driver - removido auto-preenchimento de porta
+// O usuário deve digitar a porta manualmente
+
+// Event listener para mudança de SSL Mode (mostra/oculta CA)
+var dbpSslMode = $('dbp-ssl-mode');
+if (dbpSslMode) {
+    dbpSslMode.addEventListener('change', function () {
+        updateCaSectionVisibility(this.value);
+    });
+}
+
+// Event listener para toggle do CA Certificate
+var btnToggleCa = $('btn-toggle-ca');
+if (btnToggleCa) {
+    btnToggleCa.addEventListener('click', toggleCaTextarea);
+}
+
+// Password eye toggle para o modal de banco de dados
+document.querySelectorAll('.idep-pwd-eye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var targetId = btn.getAttribute('data-target');
+        var allowed = ['dbp-password'];
+        if (!targetId || !allowed.includes(targetId)) return;
+        var inp = document.getElementById(targetId);
+        if (!inp) return;
+        var show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        var ic = btn.querySelector('i');
+        if (ic) ic.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    });
+});

@@ -451,6 +451,489 @@
     border-color: rgba(99,102,241,.2);
 }
 
+/* ── Database Connection Card ───────────────────────────────────────────── */
+.idep-db-connection-card {
+    max-width: 1400px;
+    margin: 0 auto 32px;
+    padding: 0 32px;
+}
+
+.idep-db-card-header {
+    background: #fff;
+    border: 2px solid rgba(99,102,241,.15);
+    border-radius: 20px;
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 4px 16px rgba(99,102,241,.08);
+    transition: all .2s;
+}
+
+.idep-db-card-header:hover {
+    box-shadow: 0 8px 24px rgba(99,102,241,.12);
+    border-color: rgba(99,102,241,.25);
+}
+
+.idep-dark .idep-db-card-header {
+    background: #1a1a2e;
+    border-color: rgba(99,102,241,.2);
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+
+.idep-dark .idep-db-card-header:hover {
+    box-shadow: 0 8px 24px rgba(99,102,241,.15);
+    border-color: rgba(99,102,241,.3);
+}
+
+.idep-db-card-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,.1);
+    transition: transform .2s;
+}
+
+.idep-db-card-icon.db-postgresql {
+    background: linear-gradient(135deg, #336791, #4a90b8);
+    color: #fff;
+}
+
+.idep-db-card-icon.db-mysql {
+    background: linear-gradient(135deg, #00758f, #00a0c8);
+    color: #fff;
+}
+
+.idep-db-card-icon.db-default {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    color: #fff;
+}
+
+.idep-db-card-header:hover .idep-db-card-icon {
+    transform: scale(1.05);
+}
+
+.idep-db-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.idep-db-card-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 6px;
+}
+
+.idep-dark .idep-db-card-title {
+    color: #e2e8f0;
+}
+
+.idep-db-card-details {
+    font-size: 1.05rem;
+    color: #64748b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.idep-dark .idep-db-card-details {
+    color: #94a3b8;
+}
+
+.idep-db-card-status {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.idep-db-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.idep-db-toggle-visibility {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1.5px solid rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.1rem;
+}
+
+.idep-db-toggle-visibility:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: scale(1.05);
+}
+
+.idep-db-toggle-visibility:active {
+    transform: scale(0.95);
+}
+
+.idep-dark .idep-db-toggle-visibility {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #818cf8;
+}
+
+.idep-dark .idep-db-toggle-visibility:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.idep-db-status-active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+    border: 1.5px solid rgba(34, 197, 94, 0.3);
+}
+
+.idep-db-status-inactive {
+    background: rgba(148, 163, 184, 0.15);
+    color: #64748b;
+    border: 1.5px solid rgba(148, 163, 184, 0.3);
+}
+
+.idep-dark .idep-db-status-active {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+}
+
+.idep-dark .idep-db-status-inactive {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+}
+
+.idep-db-status-badge i {
+    font-size: 0.7em;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.idep-db-status-active i {
+    color: #16a34a;
+}
+
+.idep-dark .idep-db-status-active i {
+    color: #4ade80;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.idep-db-card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0,0,0,.06);
+}
+
+.idep-dark .idep-db-card-actions {
+    border-top-color: rgba(255,255,255,.06);
+}
+
+.idep-db-action-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border: 1.5px solid rgba(0,0,0,.1);
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.idep-db-action-btn:hover {
+    background: rgba(99,102,241,.08);
+    border-color: rgba(99,102,241,.3);
+    color: #6366f1;
+    transform: translateY(-1px);
+}
+
+.idep-db-btn-delete:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.idep-dark .idep-db-action-btn {
+    background: #16162a;
+    border-color: rgba(255,255,255,.1);
+    color: #94a3b8;
+}
+
+.idep-dark .idep-db-action-btn:hover {
+    background: rgba(99,102,241,.15);
+    border-color: rgba(99,102,241,.4);
+    color: #a5b4fc;
+}
+
+.idep-dark .idep-db-btn-delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+.idep-db-configure-btn {
+    width: 100%;
+    padding: 14px 24px;
+    margin-top: 16px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: 2px dashed rgba(99,102,241,.3);
+    background: rgba(99,102,241,.05);
+    color: #6366f1;
+    cursor: pointer;
+    transition: all .2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.idep-db-configure-btn:hover {
+    background: rgba(99,102,241,.12);
+    border-color: rgba(99,102,241,.5);
+    transform: translateY(-2px);
+}
+
+.idep-dark .idep-db-configure-btn {
+    background: rgba(99,102,241,.1);
+    border-color: rgba(99,102,241,.4);
+    color: #a5b4fc;
+}
+
+.idep-dark .idep-db-configure-btn:hover {
+    background: rgba(99,102,241,.18);
+    border-color: rgba(99,102,241,.6);
+}
+
+/* ── Database Info Section ──────────────────────────────────────────────── */
+.idep-db-card-info-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0,0,0,.06);
+}
+
+.idep-dark .idep-db-card-info-section {
+    border-top-color: rgba(255,255,255,.06);
+}
+
+.idep-db-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.idep-db-info-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(99,102,241,.05);
+    border-radius: 12px;
+    border: 1px solid rgba(99,102,241,.1);
+}
+
+.idep-dark .idep-db-info-item {
+    background: rgba(99,102,241,.08);
+    border-color: rgba(99,102,241,.15);
+}
+
+.idep-db-info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.idep-db-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.idep-db-info-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.idep-dark .idep-db-info-label {
+    color: #94a3b8;
+}
+
+.idep-db-info-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.idep-dark .idep-db-info-value {
+    color: #e2e8f0;
+}
+
+.idep-db-info-value.has-pending {
+    color: #f59e0b;
+}
+
+.idep-dark .idep-db-info-value.has-pending {
+    color: #fbbf24;
+}
+
+/* ── Tables Section ─────────────────────────────────────────────────────── */
+.idep-db-tables-section {
+    margin-top: 16px;
+}
+
+.idep-db-toggle-tables {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1px solid rgba(0,0,0,.1);
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.idep-db-toggle-tables:hover {
+    background: rgba(99,102,241,.05);
+    border-color: rgba(99,102,241,.2);
+    color: #6366f1;
+}
+
+.idep-db-toggle-tables i {
+    transition: transform .2s;
+}
+
+.idep-db-toggle-tables.expanded i {
+    transform: rotate(180deg);
+}
+
+.idep-dark .idep-db-toggle-tables {
+    background: #16162a;
+    border-color: rgba(255,255,255,.1);
+    color: #94a3b8;
+}
+
+.idep-dark .idep-db-toggle-tables:hover {
+    background: rgba(99,102,241,.1);
+    border-color: rgba(99,102,241,.3);
+    color: #a5b4fc;
+}
+
+.idep-db-tables-list {
+    margin-top: 12px;
+    padding: 16px;
+    background: rgba(0,0,0,.02);
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,.06);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.idep-dark .idep-db-tables-list {
+    background: rgba(0,0,0,.2);
+    border-color: rgba(255,255,255,.06);
+}
+
+.idep-db-table-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(0,0,0,.06);
+}
+
+.idep-db-table-item:last-child {
+    margin-bottom: 0;
+}
+
+.idep-dark .idep-db-table-item {
+    background: #1a1a2e;
+    border-color: rgba(255,255,255,.06);
+}
+
+.idep-db-table-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.idep-dark .idep-db-table-name {
+    color: #e2e8f0;
+}
+
+.idep-db-table-name i {
+    color: #6366f1;
+    font-size: 0.9rem;
+}
+
+.idep-db-table-size {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.idep-dark .idep-db-table-size {
+    color: #94a3b8;
+}
+
+.idep-db-empty-tables {
+    text-align: center;
+    padding: 24px;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.idep-dark .idep-db-empty-tables {
+    color: #94a3b8;
+}
+
 /* ── Grid ───────────────────────────────────────────────────────────────── */
 .idep-grid {
     display: grid;
@@ -625,7 +1108,38 @@
 .idep-dark .idep-modal-close:hover { background: rgba(255,255,255,.08); color: #cdd6f4; }
 
 .idep-modal-body {
-    padding: 24px 28px; display: flex; flex-direction: column; gap: 20px;
+    padding: 24px 28px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar customizada */
+.idep-modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+.idep-modal-body::-webkit-scrollbar-track {
+    background: rgba(0,0,0,.05);
+    border-radius: 4px;
+}
+.idep-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(99,102,241,.3);
+    border-radius: 4px;
+}
+.idep-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(99,102,241,.5);
+}
+.idep-dark .idep-modal-body::-webkit-scrollbar-track {
+    background: rgba(255,255,255,.05);
+}
+.idep-dark .idep-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(99,102,241,.4);
+}
+.idep-dark .idep-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(99,102,241,.6);
 }
 
 /* Form groups */
@@ -661,6 +1175,8 @@
 .idep-module-check-warn { color: #f59e0b; }
 
 .idep-modal-body input[type="text"],
+.idep-modal-body input[type="number"],
+.idep-modal-body select,
 .idep-modal-body textarea {
     width: 100%; padding: 14px 16px; font-size: 1.05rem;
     border: 2px solid rgba(0,0,0,.1); border-radius: 12px;
@@ -670,17 +1186,85 @@
     box-sizing: border-box;
 }
 .idep-modal-body input[type="text"]:focus,
+.idep-modal-body input[type="number"]:focus,
+.idep-modal-body select:focus,
 .idep-modal-body textarea:focus {
     border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,.12);
     background: #fff;
 }
 .idep-dark .idep-modal-body input[type="text"],
+.idep-dark .idep-modal-body input[type="number"],
+.idep-dark .idep-modal-body select,
 .idep-dark .idep-modal-body textarea {
     background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); color: #cdd6f4;
 }
 .idep-dark .idep-modal-body input[type="text"]:focus,
+.idep-dark .idep-modal-body input[type="number"]:focus,
+.idep-dark .idep-modal-body select:focus,
 .idep-dark .idep-modal-body textarea:focus {
     border-color: #6366f1; background: rgba(255,255,255,.08);
+}
+
+/* Select específico com seta customizada */
+.idep-modal-body select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%236366f1' d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+    cursor: pointer;
+}
+.idep-dark .idep-modal-body select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23818cf8' d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+}
+
+/* Input number - remove spinners */
+.idep-modal-body input[type="number"]::-webkit-inner-spin-button,
+.idep-modal-body input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.idep-modal-body input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Botão toggle CA Certificate */
+.idep-btn-toggle-ca {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 12px;
+    background: rgba(99,102,241,.08);
+    border: 2px dashed rgba(99,102,241,.3);
+    color: #6366f1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.idep-btn-toggle-ca:hover {
+    background: rgba(99,102,241,.15);
+    border-color: rgba(99,102,241,.5);
+    transform: translateY(-2px);
+}
+.idep-btn-toggle-ca:active {
+    transform: translateY(0);
+}
+.idep-btn-toggle-ca i {
+    font-size: 1.1rem;
+}
+.idep-dark .idep-btn-toggle-ca {
+    background: rgba(99,102,241,.12);
+    border-color: rgba(99,102,241,.4);
+    color: #818cf8;
+}
+.idep-dark .idep-btn-toggle-ca:hover {
+    background: rgba(99,102,241,.2);
+    border-color: rgba(99,102,241,.6);
 }
 
 .idep-module-preview {
@@ -712,6 +1296,13 @@
     padding: 14px 18px; background: rgba(239,68,68,.08);
     border: 1.5px solid rgba(239,68,68,.25); border-radius: 12px;
     color: #dc2626; font-size: 1rem; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+}
+
+.idep-modal-success {
+    padding: 14px 18px; background: rgba(34,197,94,.08);
+    border: 1.5px solid rgba(34,197,94,.25); border-radius: 12px;
+    color: #16a34a; font-size: 1rem; font-weight: 600;
     display: flex; align-items: center; gap: 10px;
 }
 

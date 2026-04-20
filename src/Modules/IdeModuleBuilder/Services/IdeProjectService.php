@@ -97,6 +97,13 @@ class IdeProjectService
         }, $rows);
     }
 
+    public function countProjects(string $userId): int
+    {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM ide_projects WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     public function createProject(string $userId, string $name, string $moduleName, bool $scaffold = true, string $description = ''): array
     {
         // Verifica limite de projetos
@@ -110,7 +117,7 @@ class IdeProjectService
 
         $id    = $this->uuid4();
         $now   = date('c');
-        $files = $scaffold ? $this->generateScaffold($moduleName) : [];
+        $files = $scaffold ? $this->generateScaffold($moduleName, $userId) : [];
 
         $stmt = $this->pdo->prepare("INSERT INTO ide_projects (id, user_id, name, module_name, description, files, folders, created_at, updated_at) VALUES (:id, :uid, :name, :mn, :desc, :files, :folders, :ca, :ua)");
         $stmt->execute([
@@ -861,26 +868,16 @@ class IdeProjectService
         $moduleName = $project['module_name'];
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
         $deployed   = is_dir($moduleDir);
+        $userId     = $project['user_id'];
 
         // Estado ativo/inativo via ModuleLoader
         $enabled = $this->moduleLoader->isEnabled($moduleName);
 
-        // Resolve o PDO correto para este módulo (core ou DB2)
+        // Resolve o PDO correto para este módulo (prioriza conexão personalizada)
         $activePdo = $pdo;
         if ($deployed) {
-            $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-            $conn     = 'core';
-            if (is_file($connFile)) {
-                // Usa file_get_contents + regex para evitar cache do OPcache
-                // (include cachearia o valor antigo após troca via dashboard)
-                $raw = @file_get_contents($connFile);
-                if ($raw !== false && preg_match("/return\s+'(core|modules|auto)'\s*;/", $raw, $m)) {
-                    $conn = $m[1];
-                } else {
-                    $conn = (string)(include $connFile); // fallback
-                }
-            }
-            $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+            $activePdo = $this->resolveModulePdo($userId, $moduleDir, $pdo, $pdoModules);
+            
             // Garante que a tabela migrations existe antes de qualquer consulta
             $this->ensureMigrationsTable($activePdo);
         }
@@ -913,6 +910,7 @@ class IdeProjectService
     {
         $moduleName = $project['module_name'];
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        $userId     = $project['user_id'];
 
         if (!is_dir($moduleDir)) {
             return ['error' => 'Módulo não publicado. Faça o deploy local primeiro.'];
@@ -932,11 +930,9 @@ class IdeProjectService
         $files = glob($migrDir . DIRECTORY_SEPARATOR . '*.php') ?: [];
         sort($files, SORT_NATURAL);
 
-        // Determina conexão — tenta criar DB2 dinamicamente se necessário
-        $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
-
+        // Resolve qual PDO usar (prioriza conexão personalizada)
+        $activePdo = $this->resolveModulePdo($userId, $moduleDir, $pdo, $pdoModules);
+        
         $this->ensureMigrationsTable($activePdo);
 
         foreach ($files as $file) {
@@ -1214,6 +1210,7 @@ class IdeProjectService
     {
         $moduleName = $project['module_name'];
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        $userId     = $project['user_id'];
 
         if (!is_dir($moduleDir)) {
             return ['error' => 'Módulo não publicado. Faça o deploy local primeiro.'];
@@ -1224,10 +1221,9 @@ class IdeProjectService
             return ['ran' => [], 'message' => 'Nenhum seeder encontrado no módulo.'];
         }
 
-        $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
-
+        // Resolve qual PDO usar (prioriza conexão personalizada)
+        $activePdo = $this->resolveModulePdo($userId, $moduleDir, $pdo, $pdoModules);
+        
         $this->ensureMigrationsTable($activePdo);
 
         $ran = [];
@@ -1379,14 +1375,14 @@ class IdeProjectService
     {
         $moduleName = $project['module_name'];
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        $userId     = $project['user_id'];
 
         if (!is_dir($moduleDir)) {
             return ['error' => 'Módulo não está publicado. Não é possível remover tabelas.'];
         }
 
-        $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+        // Resolve qual PDO usar (prioriza conexão personalizada)
+        $activePdo = $this->resolveModulePdo($userId, $moduleDir, $pdo, $pdoModules);
 
         $migrDir = $this->resolveMigrDir($moduleDir);
         if (!is_dir($migrDir)) {
@@ -1862,27 +1858,143 @@ class IdeProjectService
         if ($conn === 'auto') {
             $defaultConn = trim((string) ($_ENV['DEFAULT_MODULE_CONNECTION'] ?? getenv('DEFAULT_MODULE_CONNECTION') ?: 'core'));
             $useModules  = ($defaultConn === 'modules');
+            error_log("[DEBUG resolveActivePdo] conn='auto', DEFAULT_MODULE_CONNECTION='{$defaultConn}', useModules=" . ($useModules ? 'true' : 'false'));
         }
 
+        error_log("[DEBUG resolveActivePdo] conn='{$conn}', useModules=" . ($useModules ? 'true' : 'false') . ", pdoModules=" . ($pdoModules ? 'available' : 'null'));
+
         if (!$useModules) {
+            error_log("[DEBUG resolveActivePdo] Retornando PDO core");
             return $pdo;
         }
 
         // Já tem conexão modules disponível no container
         if ($pdoModules !== null) {
+            error_log("[DEBUG resolveActivePdo] Retornando PDO modules (injetado)");
             return $pdoModules;
         }
 
         // Tenta criar conexão DB2 dinamicamente com os valores atuais do .env
         try {
             if (\Src\Kernel\Database\PdoFactory::hasSecondaryConnection()) {
+                error_log("[DEBUG resolveActivePdo] Criando PDO modules dinamicamente");
                 return \Src\Kernel\Database\PdoFactory::fromEnv('DB2');
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            error_log("[DEBUG resolveActivePdo] Erro ao criar PDO modules: " . $e->getMessage());
             // Falha silenciosa — cai para core
         }
 
+        error_log("[DEBUG resolveActivePdo] Fallback para PDO core");
         return $pdo;
+    }
+
+    /**
+     * Resolve qual PDO usar para um módulo, priorizando conexão personalizada.
+     * Método centralizado para evitar duplicação de código.
+     */
+    private function resolveModulePdo(string $userId, string $moduleDir, PDO $pdo, ?PDO $pdoModules): PDO
+    {
+        // Tenta buscar conexão personalizada do desenvolvedor
+        $customPdo = $this->getCustomDeveloperConnection($userId);
+        if ($customPdo !== null) {
+            return $customPdo;
+        }
+        
+        // Fallback: usa connection.php do módulo
+        $connFile = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
+        $conn = is_file($connFile) ? (string)(include $connFile) : 'core';
+        
+        return $this->resolveActivePdo($conn, $pdo, $pdoModules);
+    }
+
+    /**
+     * Verifica se o desenvolvedor tem uma conexão de banco de dados ativa configurada.
+     */
+    public function hasActiveDatabaseConnection(string $userId): bool
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT 1
+                FROM ide_database_connections
+                WHERE usuario_uuid = :uid AND is_active = TRUE
+                LIMIT 1
+            ");
+            $stmt->execute([':uid' => $userId]);
+            return $stmt->fetchColumn() !== false;
+        } catch (\Throwable $e) {
+            error_log("[ERROR hasActiveDatabaseConnection] " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Busca a conexão personalizada ativa do desenvolvedor.
+     * Retorna PDO conectado ao banco personalizado ou null se não houver.
+     */
+    private function getCustomDeveloperConnection(string $userId): ?PDO
+    {
+        try {
+            // Busca conexão ativa do desenvolvedor
+            $stmt = $this->pdo->prepare("
+                SELECT service_uri, database_name, host, port, username, password, driver, ssl_mode, ca_certificate
+                FROM ide_database_connections
+                WHERE usuario_uuid = :uid AND is_active = TRUE
+                LIMIT 1
+            ");
+            $stmt->execute([':uid' => $userId]);
+            $conn = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$conn) {
+                error_log("[DEBUG getCustomDeveloperConnection] Nenhuma conexão ativa para userId: {$userId}");
+                return null;
+            }
+            
+            error_log("[DEBUG getCustomDeveloperConnection] Conexão ativa encontrada: {$conn['database_name']} @ {$conn['host']}:{$conn['port']}");
+            
+            // Descriptografa a senha
+            $password = $this->decryptPassword($conn['password']);
+            
+            // Cria PDO com a conexão personalizada
+            $dsn = "{$conn['driver']}:host={$conn['host']};port={$conn['port']};dbname={$conn['database_name']}";
+            
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ];
+            
+            // Adiciona SSL se necessário
+            if ($conn['ssl_mode'] === 'require' && !empty($conn['ca_certificate'])) {
+                // Salva certificado temporariamente
+                $certFile = sys_get_temp_dir() . '/pgsql_ca_' . md5($userId) . '.crt';
+                file_put_contents($certFile, $conn['ca_certificate']);
+                $dsn .= ";sslmode=require;sslrootcert={$certFile}";
+            } elseif ($conn['ssl_mode'] === 'require') {
+                $dsn .= ";sslmode=require";
+            }
+            
+            $pdo = new PDO($dsn, $conn['username'], $password, $options);
+            
+            error_log("[DEBUG getCustomDeveloperConnection] PDO criado com sucesso");
+            return $pdo;
+            
+        } catch (\Throwable $e) {
+            error_log("[DEBUG getCustomDeveloperConnection] Erro ao criar PDO: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Descriptografa a senha do banco de dados.
+     * Usa a mesma lógica do DatabaseConnectionRepository.
+     */
+    private function decryptPassword(string $encryptedPassword): string
+    {
+        $key = $_ENV['APP_KEY'] ?? $_ENV['JWT_SECRET'] ?? 'default-key';
+        $data = base64_decode($encryptedPassword);
+        $iv = substr($data, 0, 16);
+        $encrypted = substr($data, 16);
+        return openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
     }
 
     private function ensureMigrationsTable(PDO $pdo): void
@@ -1896,7 +2008,7 @@ class IdeProjectService
 
     // ── Scaffold ──────────────────────────────────────────────────────────
 
-    public function generateScaffold(string $moduleName): array
+    public function generateScaffold(string $moduleName, ?string $userId = null): array
     {
         // Namespace relativo ao módulo — o prefixo Src\Modules\ é adicionado automaticamente ao salvar
         $ns = $moduleName;
@@ -1924,7 +2036,7 @@ class IdeProjectService
             // Config
             "Config/config.php"                       => $this->tplConfig($moduleName),
             // Database
-            "Database/connection.php"                 => $this->tplConnection(),
+            "Database/connection.php"                 => $this->tplConnection($userId),
             "Database/Migrations/2026_01_01_000001_create_{$this->snake($moduleName)}_table.php" => $this->tplMigration($moduleName),
             "Database/Seeders/{$moduleName}Seeder.php" => $this->tplSeeder($moduleName),
             // Routes
@@ -2128,14 +2240,47 @@ class IdeProjectService
         ]);
     }
 
-    private function tplConnection(): string
+    private function tplConnection(?string $userId = null): string
     {
-        // Lê DEFAULT_MODULE_CONNECTION diretamente do .env para garantir valor mais recente
-        // (evita usar $_ENV que pode estar desatualizado se o FPM não foi recarregado)
+        // Se o desenvolvedor tem uma conexão personalizada ativa, usa 'auto'
+        // O sistema priorizará automaticamente a conexão personalizada
+        if ($userId !== null) {
+            try {
+                $stmt = $this->pdo->prepare("
+                    SELECT COUNT(*) 
+                    FROM ide_database_connections 
+                    WHERE usuario_uuid = :uid AND is_active = TRUE
+                ");
+                $stmt->execute([':uid' => $userId]);
+                $hasActiveConnection = (int) $stmt->fetchColumn() > 0;
+                
+                if ($hasActiveConnection) {
+                    return implode("\n", [
+                        '<?php',
+                        "// Define qual banco de dados este módulo usa.",
+                        "// 'core'    → usa DB_* do .env (banco principal)",
+                        "// 'modules' → usa DB2_* do .env (banco secundário)",
+                        "// 'auto'    → o Kernel decide baseado na origem do módulo",
+                        "//",
+                        "// Este módulo está configurado para usar 'auto' porque você tem",
+                        "// uma conexão de banco de dados personalizada ativa.",
+                        "// O sistema priorizará automaticamente sua conexão personalizada.",
+                        "return 'auto';",
+                        '',
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                // Silencioso - se falhar, continua com lógica padrão
+            }
+        }
+        
+        // Lê DEFAULT_MODULE_CONNECTION do .env para módulos sem conexão personalizada
         $conn = $this->readDefaultModuleConnection();
+        
         if (!in_array($conn, ['core', 'modules', 'auto'], true)) {
             $conn = 'core';
         }
+        
         return implode("\n", [
             '<?php',
             "// Define qual banco de dados este módulo usa.",
@@ -2333,11 +2478,57 @@ class IdeProjectService
         $prefix = $this->snake($name) . '_';
         $t      = $prefix . $this->snake($name) . 's'; // ex: task_tasks
         return implode("\n", [
-            '<?php', '', 'use PDO;', '',
+            '<?php',
+            '',
+            'use PDO;',
+            '',
             'return function (PDO $pdo): void {',
-            '    // Insira dados iniciais aqui',
-            '    // $pdo->prepare("INSERT INTO ' . $t . ' (id, nome) VALUES (?, ?)")->execute([\'uuid\', \'Exemplo\']);',
-            '};', '',
+            '    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);',
+            '    ',
+            '    // Dados de exemplo',
+            '    $dados = [',
+            '        [\'nome\' => \'Exemplo 1\'],',
+            '        [\'nome\' => \'Exemplo 2\'],',
+            '        [\'nome\' => \'Exemplo 3\'],',
+            '    ];',
+            '    ',
+            '    if ($driver === \'pgsql\') {',
+            '        // PostgreSQL - usa gen_random_uuid() automaticamente',
+            '        $stmt = $pdo->prepare("',
+            '            INSERT INTO ' . $t . ' (nome) ',
+            '            VALUES (:nome)',
+            '            ON CONFLICT DO NOTHING',
+            '        ");',
+            '        ',
+            '        foreach ($dados as $item) {',
+            '            $stmt->execute([\':nome\' => $item[\'nome\']]);',
+            '        }',
+            '    } else {',
+            '        // MySQL - gera UUID manualmente',
+            '        $stmt = $pdo->prepare("',
+            '            INSERT IGNORE INTO ' . $t . ' (id, nome) ',
+            '            VALUES (:id, :nome)',
+            '        ");',
+            '        ',
+            '        foreach ($dados as $item) {',
+            '            // Gera UUID v4',
+            '            $uuid = sprintf(',
+            '                \'%04x%04x-%04x-%04x-%04x-%04x%04x%04x\',',
+            '                mt_rand(0, 0xffff), mt_rand(0, 0xffff),',
+            '                mt_rand(0, 0xffff),',
+            '                mt_rand(0, 0x0fff) | 0x4000,',
+            '                mt_rand(0, 0x3fff) | 0x8000,',
+            '                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)',
+            '            );',
+            '            ',
+            '            $stmt->execute([',
+            '                \':id\' => $uuid,',
+            '                \':nome\' => $item[\'nome\']',
+            '            ]);',
+            '        }',
+            '    }',
+            '};',
+            '',
         ]);
     }
 

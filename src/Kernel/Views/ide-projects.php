@@ -145,6 +145,68 @@
         <p>Carregando projetos...</p>
     </div>
 
+    <!-- Card de Conexão de Banco de Dados -->
+    <div class="idep-db-connection-card" id="idep-db-card" style="display:none;">
+        <div class="idep-db-card-header">
+            <div class="idep-db-card-icon" id="idep-db-icon">
+                <i class="fa-solid fa-database"></i>
+            </div>
+            <div class="idep-db-card-info">
+                <h3 class="idep-db-card-title" id="idep-db-name">Conexão de Banco de Dados</h3>
+                <p class="idep-db-card-details" id="idep-db-details">Nenhuma conexão configurada</p>
+            </div>
+            <div class="idep-db-card-status" id="idep-db-status">
+                <span class="idep-db-status-badge idep-db-status-inactive">
+                    <i class="fa-solid fa-circle"></i> Inativa
+                </span>
+            </div>
+        </div>
+        
+        <!-- Informações adicionais (migrations e tabelas) -->
+        <div class="idep-db-card-info-section" id="idep-db-info-section" style="display:none;">
+            <div class="idep-db-info-grid">
+                <div class="idep-db-info-item">
+                    <div class="idep-db-info-icon">
+                        <i class="fa-solid fa-code-branch"></i>
+                    </div>
+                    <div class="idep-db-info-content">
+                        <span class="idep-db-info-label">Migrations Pendentes</span>
+                        <span class="idep-db-info-value" id="idep-db-migrations">-</span>
+                    </div>
+                </div>
+                <div class="idep-db-info-item">
+                    <div class="idep-db-info-icon">
+                        <i class="fa-solid fa-table"></i>
+                    </div>
+                    <div class="idep-db-info-content">
+                        <span class="idep-db-info-label">Tabelas</span>
+                        <span class="idep-db-info-value" id="idep-db-tables">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Lista de tabelas (expansível) -->
+            <div class="idep-db-tables-section" id="idep-db-tables-section" style="display:none;">
+                <button class="idep-db-toggle-tables" id="btn-toggle-tables">
+                    <i class="fa-solid fa-chevron-down"></i> Ver Tabelas
+                </button>
+                <div class="idep-db-tables-list" id="idep-db-tables-list" style="display:none;"></div>
+            </div>
+        </div>
+        
+        <div class="idep-db-card-actions" id="idep-db-actions" style="display:none;">
+            <button class="idep-db-action-btn idep-db-btn-edit" id="btn-db-edit" title="Editar conexão">
+                <i class="fa-solid fa-pen"></i> Editar
+            </button>
+            <button class="idep-db-action-btn idep-db-btn-delete" id="btn-db-delete" title="Excluir conexão">
+                <i class="fa-solid fa-trash"></i> Excluir
+            </button>
+        </div>
+        <button class="idep-db-configure-btn" id="btn-db-configure">
+            <i class="fa-solid fa-plug"></i> Configurar Banco de Dados
+        </button>
+    </div>
+
     <div class="idep-empty" id="idep-empty" style="display:none;">
         <div class="idep-empty-icon" aria-hidden="true">
             <i class="fa-solid fa-folder-open"></i>
@@ -707,6 +769,131 @@
     loadCurrentUser();
 })();
 </script>
+
+<!-- MODAL: Configurar Banco de Dados -->
+<div class="idep-modal-overlay" id="modal-database-config-projects" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-dbp-title">
+    <div class="idep-modal idep-modal-lg">
+        <div class="idep-modal-header">
+            <div class="idep-modal-header-icon" aria-hidden="true">
+                <i class="fa-solid fa-database"></i>
+            </div>
+            <div class="idep-modal-header-text">
+                <h2 id="modal-dbp-title">Configurar Banco de Dados Personalizado</h2>
+                <p class="idep-modal-subtitle">Configure uma conexão isolada para seus módulos</p>
+            </div>
+            <button class="idep-modal-close" id="modal-dbp-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="idep-modal-body">
+            <p style="font-size:.92rem;color:var(--idep-muted,#94a3b8);margin:0 0 16px;">
+                Configure uma conexão de banco de dados personalizada. Todos os seus módulos usarão esta conexão automaticamente.
+            </p>
+            
+            <!-- Formulário de conexão -->
+            <div class="idep-form-group">
+                <label for="dbp-connection-name">
+                    <i class="fa-solid fa-tag"></i> Nome da conexão
+                </label>
+                <input type="text" id="dbp-connection-name" placeholder="Ex: Meu PostgreSQL Local" autocomplete="off" required>
+            </div>
+
+            <div class="idep-form-row">
+                <div class="idep-form-group">
+                    <label for="dbp-driver">
+                        <i class="fa-solid fa-server"></i> Driver
+                    </label>
+                    <select id="dbp-driver">
+                        <option value="pgsql">PostgreSQL</option>
+                        <option value="mysql">MySQL</option>
+                    </select>
+                </div>
+
+                <div class="idep-form-group">
+                    <label for="dbp-database-name">
+                        <i class="fa-solid fa-database"></i> Nome do banco
+                    </label>
+                    <input type="text" id="dbp-database-name" placeholder="meu_banco" autocomplete="off" required>
+                </div>
+            </div>
+
+            <div class="idep-form-row">
+                <div class="idep-form-group">
+                    <label for="dbp-host">
+                        <i class="fa-solid fa-network-wired"></i> Host
+                    </label>
+                    <input type="text" id="dbp-host" placeholder="ex: localhost ou pg-xxx.aivencloud.com" autocomplete="off" required>
+                </div>
+
+                <div class="idep-form-group">
+                    <label for="dbp-port">
+                        <i class="fa-solid fa-plug"></i> Porta
+                    </label>
+                    <input type="number" id="dbp-port" placeholder="ex: 5432 (PostgreSQL) ou 3306 (MySQL)" autocomplete="off" required>
+                </div>
+            </div>
+
+            <div class="idep-form-row">
+                <div class="idep-form-group">
+                    <label for="dbp-username">
+                        <i class="fa-solid fa-user"></i> Usuário
+                    </label>
+                    <input type="text" id="dbp-username" placeholder="postgres" autocomplete="off" required>
+                </div>
+
+                <div class="idep-form-group">
+                    <label for="dbp-password">
+                        <i class="fa-solid fa-lock"></i> Senha
+                    </label>
+                    <div class="idep-pwd-wrap">
+                        <input type="password" id="dbp-password" placeholder="••••••••" autocomplete="off" required>
+                        <button type="button" class="idep-pwd-eye" data-target="dbp-password" aria-label="Mostrar/ocultar senha"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="idep-form-group">
+                <label for="dbp-ssl-mode">
+                    <i class="fa-solid fa-shield-halved"></i> Modo SSL
+                </label>
+                <select id="dbp-ssl-mode">
+                    <option value="">Nenhum</option>
+                    <option value="require">Require</option>
+                    <option value="verify-ca">Verify CA</option>
+                    <option value="verify-full">Verify Full</option>
+                </select>
+                <span class="idep-form-hint">Conexão criptografada SSL/TLS (recomendado para produção)</span>
+            </div>
+
+            <div class="idep-form-group" id="dbp-ca-section" style="display:none;">
+                <button type="button" class="idep-btn-secondary idep-btn-toggle-ca" id="btn-toggle-ca">
+                    <i class="fa-solid fa-certificate"></i> Adicionar Certificado CA
+                </button>
+                
+                <div id="dbp-ca-textarea-wrapper" style="display:none; margin-top: 12px;">
+                    <label for="dbp-ca-certificate">
+                        <i class="fa-solid fa-certificate"></i> Certificado CA
+                    </label>
+                    <textarea id="dbp-ca-certificate" rows="6" placeholder="-----BEGIN CERTIFICATE-----&#10;MIIEUDCCArigAwIBAgIUZ32q1G94GpkVxNWGVd1Vw1L4+Vw...&#10;-----END CERTIFICATE-----" style="font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.4;"></textarea>
+                    <span class="idep-form-hint">Cole o certificado CA completo (necessário para verify-ca e verify-full)</span>
+                </div>
+            </div>
+
+            <div class="idep-modal-error" id="modal-dbp-error" style="display:none;" role="alert"></div>
+            <div class="idep-modal-success" id="modal-dbp-success" style="display:none;" role="alert"></div>
+        </div>
+        <div class="idep-modal-footer">
+            <button class="idep-btn-secondary" id="modal-dbp-cancel">
+                <i class="fa-solid fa-xmark"></i> Cancelar
+            </button>
+            <button class="idep-btn-secondary" id="modal-dbp-test">
+                <i class="fa-solid fa-vial"></i> Testar Conexão
+            </button>
+            <button class="idep-btn-primary" id="modal-dbp-confirm">
+                <i class="fa-solid fa-plug"></i> Conectar
+            </button>
+        </div>
+    </div>
+</div>
+
 <script src="/assets/js/ide-projects.js?v=<?= filemtime(dirname(__DIR__, 3) . '/public/assets/js/ide-projects.js') ?: time() ?>"></script>
 </body>
 </html>

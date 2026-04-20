@@ -125,6 +125,16 @@ final class IdeProjectController
             return $this->errorResponse('module_name deve ser PascalCase, apenas letras e numeros.', 422);
         }
 
+        // ── Validação: desenvolvedor deve ter uma conexão de banco configurada ──
+        $hasConnection = $this->service->hasActiveDatabaseConnection($userId);
+        if (!$hasConnection) {
+            return $this->errorResponse(
+                'Você precisa configurar uma conexão de banco de dados antes de criar um projeto. ' .
+                'Acesse a seção "Configuração de Banco de Dados" na página de projetos.',
+                403
+            );
+        }
+
         $scaffold = filter_var($body['scaffold'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
         try {
