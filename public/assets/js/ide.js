@@ -135,6 +135,47 @@ function ideConfirm(opts) {
 }
 
 /**
+ * Modal de alerta — substitui alert() nativo.
+ * Retorna Promise<void>.
+ */
+function ideAlert(opts) {
+    return new Promise(function (resolve) {
+        var titleEl = $('modal-alert-title');
+        var msgEl   = $('modal-alert-msg');
+        var okBtn   = $('modal-alert-ok');
+        var closeBtn = $('modal-alert-close');
+
+        // Título com ícone
+        titleEl.textContent = '';
+        var iconCls = opts.icon || 'fa-solid fa-circle-info';
+        var iconColor = opts.danger ? '#ef4444' : (opts.warning ? '#f59e0b' : '#6366f1');
+        titleEl.appendChild(domIcon(iconCls, iconColor));
+        titleEl.appendChild(document.createTextNode(' ' + (opts.title || 'Aviso')));
+
+        // Mensagem
+        msgEl.textContent = opts.message || '';
+
+        // Botão OK
+        okBtn.textContent = '';
+        okBtn.appendChild(domIcon('fa-solid fa-check'));
+        okBtn.appendChild(document.createTextNode(' ' + (opts.okText || 'OK')));
+
+        function cleanup() {
+            hideModal('modal-alert');
+            okBtn.removeEventListener('click', onOk);
+            closeBtn.removeEventListener('click', onOk);
+            resolve();
+        }
+        function onOk() { cleanup(); }
+
+        okBtn.addEventListener('click', onOk);
+        closeBtn.addEventListener('click', onOk);
+
+        showModal('modal-alert');
+    });
+}
+
+/**
  * Modal de input — substitui prompt() nativo.
  * Retorna Promise<string|null> (null se cancelou).
  */
@@ -3337,7 +3378,12 @@ document.addEventListener('keydown',function(e){if(e.key==='\\'&&(e.ctrlKey||e.m
                             console.error('Múltiplas falhas de autenticação detectadas. Parando redirects automáticos.');
                             sessionStorage.removeItem('auth_redirect_count');
                             clearInterval(intervalId);
-                            alert('Sua sessão expirou. Por favor, faça login novamente.');
+                            ideAlert({
+                                title: 'Sessão Expirada',
+                                message: 'Sua sessão expirou. Por favor, faça login novamente.',
+                                icon: 'fa-solid fa-triangle-exclamation',
+                                warning: true
+                            });
                             return;
                         }
                         sessionStorage.setItem('auth_redirect_count', String(redirectCount + 1));

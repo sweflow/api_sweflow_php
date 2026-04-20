@@ -353,6 +353,29 @@
     </div>
 </div>
 
+<!-- MODAL: Alerta genérico -->
+<div class="idep-modal-overlay" id="modal-alert" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-alert-title">
+    <div class="idep-modal">
+        <div class="idep-modal-header">
+            <div class="idep-modal-header-icon" style="background:linear-gradient(135deg,#6366f1,#818cf8);" aria-hidden="true">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <div class="idep-modal-header-text">
+                <h2 id="modal-alert-title">Aviso</h2>
+            </div>
+            <button class="idep-modal-close" id="modal-alert-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="idep-modal-body">
+            <p id="modal-alert-msg"></p>
+        </div>
+        <div class="idep-modal-footer">
+            <button class="idep-btn-primary" id="modal-alert-ok">
+                <i class="fa-solid fa-check"></i> OK
+            </button>
+        </div>
+    </div>
+</div>
+
 <div id="idep-toast" role="status" aria-live="polite"></div>
 
 <!-- MODAL: Perfil do usuário -->
@@ -532,7 +555,16 @@
                         console.error('Múltiplas falhas de autenticação detectadas. Parando redirects automáticos.');
                         sessionStorage.removeItem('auth_redirect_count');
                         clearInterval(window.__authCheckInterval);
-                        alert('Sua sessão expirou. Por favor, faça login novamente.');
+                        // Usa ideAlert se disponível, senão usa alert nativo
+                        if (typeof ideAlert === 'function') {
+                            ideAlert({
+                                title: 'Sessão Expirada',
+                                message: 'Sua sessão expirou. Por favor, faça login novamente.',
+                                icon: 'fa-solid fa-triangle-exclamation'
+                            });
+                        } else {
+                            alert('Sua sessão expirou. Por favor, faça login novamente.');
+                        }
                         return;
                     }
                     sessionStorage.setItem('auth_redirect_count', String(redirectCount + 1));
@@ -769,6 +801,43 @@
     loadCurrentUser();
 })();
 </script>
+
+<!-- MODAL: Confirmar exclusão de conexão de banco de dados -->
+<div class="idep-modal-overlay" id="modal-delete-db-connection" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-del-db-title">
+    <div class="idep-modal">
+        <div class="idep-modal-header">
+            <div class="idep-modal-header-icon" style="background:linear-gradient(135deg,#ef4444,#f87171);" aria-hidden="true">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="idep-modal-header-text">
+                <h2 id="modal-del-db-title">Excluir Conexão de Banco de Dados</h2>
+                <p class="idep-modal-subtitle">Seus módulos voltarão a usar o banco padrão</p>
+            </div>
+            <button class="idep-modal-close" id="modal-del-db-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="idep-modal-body">
+            <div class="idep-del-warning" role="alert">
+                <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                <span>Tem certeza que deseja excluir esta conexão?</span>
+            </div>
+            <p class="idep-del-detail">Ao confirmar:</p>
+            <ul class="idep-del-list">
+                <li><i class="fa-solid fa-database" aria-hidden="true"></i> A conexão personalizada será removida</li>
+                <li><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Seus módulos voltarão a usar o banco de dados padrão da Vupi.us API</li>
+                <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> As credenciais armazenadas serão apagadas permanentemente</li>
+            </ul>
+            <p class="idep-del-confirm-text"><strong>Nota:</strong> As tabelas e dados no banco personalizado não serão afetados.</p>
+        </div>
+        <div class="idep-modal-footer">
+            <button class="idep-btn-secondary" id="modal-del-db-cancel">
+                <i class="fa-solid fa-xmark"></i> Cancelar
+            </button>
+            <button class="idep-btn-danger" id="modal-del-db-confirm">
+                <i class="fa-solid fa-trash"></i> Excluir Conexão
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- MODAL: Configurar Banco de Dados -->
 <div class="idep-modal-overlay" id="modal-database-config-projects" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-dbp-title">

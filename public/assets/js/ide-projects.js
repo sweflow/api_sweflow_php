@@ -84,6 +84,54 @@ function hideModal(id) {
     } 
 }
 
+/**
+ * Modal de alerta — substitui alert() nativo.
+ * Retorna Promise<void>.
+ */
+function ideAlert(opts) {
+    return new Promise(function (resolve) {
+        var titleEl = $('modal-alert-title');
+        var msgEl   = $('modal-alert-msg');
+        var okBtn   = $('modal-alert-ok');
+        var closeBtn = $('modal-alert-close');
+
+        if (!titleEl || !msgEl || !okBtn || !closeBtn) {
+            // Fallback para alert nativo se modal não existir
+            alert(opts.message || '');
+            resolve();
+            return;
+        }
+
+        // Título com ícone
+        titleEl.textContent = '';
+        var iconCls = opts.icon || 'fa-solid fa-circle-info';
+        var iconEl = icon(iconCls);
+        titleEl.appendChild(iconEl);
+        titleEl.appendChild(document.createTextNode(' ' + (opts.title || 'Aviso')));
+
+        // Mensagem
+        msgEl.textContent = opts.message || '';
+
+        // Botão OK
+        okBtn.textContent = '';
+        okBtn.appendChild(icon('fa-solid fa-check'));
+        okBtn.appendChild(document.createTextNode(' ' + (opts.okText || 'OK')));
+
+        function cleanup() {
+            hideModal('modal-alert');
+            okBtn.removeEventListener('click', onOk);
+            closeBtn.removeEventListener('click', onOk);
+            resolve();
+        }
+        function onOk() { cleanup(); }
+
+        okBtn.addEventListener('click', onOk);
+        closeBtn.addEventListener('click', onOk);
+
+        showModal('modal-alert');
+    });
+}
+
 // ── Load Projects ─────────────────────────────────────────────────────────
 async function loadProjects(bust) {
     $('idep-loading').style.display = 'flex';
@@ -732,16 +780,31 @@ async function deleteDatabaseConnection() {
     var connectionId = card.getAttribute('data-connection-id');
     if (!connectionId) return;
     
-    if (!confirm('Tem certeza que deseja excluir esta conexão?\n\nAo excluir, seus módulos voltarão a usar o banco de dados padrão da Vupi.us API.')) {
-        return;
-    }
+    // Mostra modal de confirmação customizada
+    showModal('modal-delete-db-connection');
+}
+
+async function confirmDeleteDatabaseConnection() {
+    var card = $('idep-db-card');
+    if (!card) return;
+    
+    var connectionId = card.getAttribute('data-connection-id');
+    if (!connectionId) return;
+    
+    var btn = $('modal-del-db-confirm');
+    btn.disabled = true;
+    setBtn(btn, 'fa-solid fa-spinner fa-spin', 'Excluindo...');
     
     try {
         await api('DELETE', '/api/ide/database-connections/' + connectionId);
+        hideModal('modal-delete-db-connection');
         toast('✓ Conexão excluída com sucesso!');
         await loadDatabaseConnection();
     } catch (e) {
         toast('Erro ao excluir conexão: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        setBtn(btn, 'fa-solid fa-trash', 'Excluir Conexão');
     }
 }
 
@@ -1143,6 +1206,16 @@ if (btnDbpTest) btnDbpTest.addEventListener('click', testDatabaseConnection);
 
 var btnDbpConfirm = $('modal-dbp-confirm');
 if (btnDbpConfirm) btnDbpConfirm.addEventListener('click', saveDatabaseConnection);
+
+// Event listeners para o modal de exclusão de conexão
+var btnDelDbClose = $('modal-del-db-close');
+if (btnDelDbClose) btnDelDbClose.addEventListener('click', function () { hideModal('modal-delete-db-connection'); });
+
+var btnDelDbCancel = $('modal-del-db-cancel');
+if (btnDelDbCancel) btnDelDbCancel.addEventListener('click', function () { hideModal('modal-delete-db-connection'); });
+
+var btnDelDbConfirm = $('modal-del-db-confirm');
+if (btnDelDbConfirm) btnDelDbConfirm.addEventListener('click', confirmDeleteDatabaseConnection);
 
 // Event listener para mudança de driver - removido auto-preenchimento de porta
 // O usuário deve digitar a porta manualmente

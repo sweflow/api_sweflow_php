@@ -502,6 +502,22 @@
     </div>
 </div>
 
+<!-- MODAL: Alerta genérico -->
+<div class="ide-modal-overlay" id="modal-alert" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-alert-title">
+    <div class="ide-modal">
+        <div class="ide-modal-header">
+            <h2 id="modal-alert-title"></h2>
+            <button class="ide-modal-close" id="modal-alert-close" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ide-modal-body">
+            <p id="modal-alert-msg"></p>
+        </div>
+        <div class="ide-modal-footer">
+            <button class="ide-btn-primary" id="modal-alert-ok">OK</button>
+        </div>
+    </div>
+</div>
+
 <div id="ide-toast" role="status" aria-live="polite"></div>
 
 <!-- MODAL: Perfil do usuário -->
