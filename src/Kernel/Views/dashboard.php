@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title><?= htmlspecialchars($titulo ?? 'Dashboard', ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="/favicon.ico" type="image/x-icon">
     <style>
         html, body { margin: 0; padding: 0; background: #f8fafc; }
         /* Pré-aplica variáveis dark antes do CSS externo carregar — elimina flash */
@@ -94,7 +95,7 @@
             <?php if (!empty($logo_url)): ?>
                 <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="dash-brand-img" fetchpriority="high" />
             <?php else: ?>
-                <img src="/favicon.ico" alt="Vupi.us" class="dash-brand-img" width="32" height="32" />
+                <img src="/assets/imgs/logo.svg" alt="Vupi.us" class="dash-brand-img" width="32" height="32" />
             <?php endif; ?>
             <span class="dash-brand-name">Vupi.us <span class="dash-brand-accent">API</span></span>
         </a>
@@ -233,7 +234,7 @@
         <section class="dash-hero" id="metrics">
             <div class="dash-hero-text">
                 <div class="dash-hero-brand">
-                    <img src="/favicon.ico" alt="Vupi.us API" class="dash-hero-logo" />
+                    <img src="/assets/imgs/logo.svg" alt="Vupi.us API" class="dash-hero-logo" />
                     <span class="dash-hero-brand-name">Vupi.us <span style="color:#818cf8">API</span></span>
                 </div>
                 <h1 class="dash-hero-title">Olá, <span id="hero-username">...</span> 👋</h1>

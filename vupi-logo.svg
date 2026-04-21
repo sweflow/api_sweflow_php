@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="400" height="400">
+  <defs>
+    <!-- Gradiente azul-roxo (indigo) -->
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4338ca;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#818cf8;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Sombra suave -->
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="15"/>
+      <feOffset dx="0" dy="8" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.4"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Forma principal: hexágono com V integrado (MUITO MAIOR) -->
+  <g filter="url(#shadow)">
+    <!-- Hexágono de fundo (quase ocupando todo o canvas) -->
+    <path d="M 400 40 L 720 190 L 720 610 L 400 760 L 80 610 L 80 190 Z" 
+          fill="url(#mainGrad)" opacity="0.95"/>
+    
+    <!-- V vazado (negativo) - MUITO MAIOR -->
+    <path d="M 200 140 L 300 140 L 400 520 L 500 140 L 600 140 L 470 680 L 330 680 Z" 
+          fill="#ffffff"/>
+    
+    <!-- Três pontos horizontais (dentro do V) - MAIORES -->
+    <circle cx="300" cy="420" r="24" fill="#ffffff"/>
+    <circle cx="400" cy="420" r="24" fill="#ffffff"/>
+    <circle cx="500" cy="420" r="24" fill="#ffffff"/>
+  </g>
+  
+  <!-- Detalhes de canto (representando conectividade) -->
+  <g opacity="0.5">
+    <!-- Canto superior esquerdo -->
+    <circle cx="60" cy="60" r="12" fill="#4338ca"/>
+    <circle cx="90" cy="30" r="8" fill="#6366f1"/>
+    <line x1="60" y1="60" x2="90" y2="30" stroke="#4338ca" stroke-width="3"/>
+    
+    <!-- Canto superior direito -->
+    <circle cx="740" cy="60" r="12" fill="#6366f1"/>
+    <circle cx="710" cy="30" r="8" fill="#818cf8"/>
+    <line x1="740" y1="60" x2="710" y2="30" stroke="#6366f1" stroke-width="3"/>
+    
+    <!-- Canto inferior -->
+    <circle cx="400" cy="770" r="12" fill="#818cf8"/>
+    <circle cx="430" cy="790" r="8" fill="#4338ca"/>
+    <line x1="400" y1="770" x2="430" y2="790" stroke="#818cf8" stroke-width="3"/>
+  </g>
+  
+  <!-- Partículas flutuantes (efeito tech) -->
+  <g opacity="0.35">
+    <circle cx="40" cy="400" r="6" fill="#4338ca"/>
+    <circle cx="760" cy="400" r="6" fill="#818cf8"/>
+    <circle cx="200" cy="740" r="6" fill="#6366f1"/>
+    <circle cx="600" cy="740" r="6" fill="#6366f1"/>
+    <circle cx="150" cy="100" r="6" fill="#818cf8"/>
+    <circle cx="650" cy="100" r="6" fill="#4338ca"/>
+  </g>
+</svg>
