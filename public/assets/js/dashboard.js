@@ -84,12 +84,17 @@ window.onload = function () {
     const emailPreview = document.getElementById('email-preview');
 
     /** Insere HTML no editor/preview sanitizando via DOMPurify. */
-    function setEditorHtml(el, html) {
+    function setEditorHtml(el, html, skipSanitize = false) {
         if (!el) return;
         if (!html) { el.innerHTML = ''; return; }
-        el.innerHTML = window.DOMPurify
-            ? DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG)
-            : '';
+        // Se skipSanitize=true, assume que o HTML já foi sanitizado (ex: ao carregar rascunho)
+        if (skipSanitize) {
+            el.innerHTML = html;
+        } else {
+            el.innerHTML = window.DOMPurify
+                ? DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG)
+                : '';
+        }
     }
 
     /**
@@ -99,10 +104,14 @@ window.onload = function () {
     const EDITOR_PURIFY_CONFIG = {
         ALLOWED_TAGS: ['div','span','p','br','b','i','u','strong','em','s','h1','h2','h3','h4','h5','h6',
                        'ul','ol','li','table','thead','tbody','tr','th','td','img','a','hr','blockquote',
-                       'pre','code','font'],
-        ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel','color','size','face'],
+                       'pre','code','font','strike','del','ins','sub','sup','mark'],
+        ALLOWED_ATTR: ['class','style','href','src','alt','width','height','target','rel','color','size','face',
+                       'align','valign','bgcolor','border','cellpadding','cellspacing'],
         FORBID_ATTR:  ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
         ALLOW_DATA_ATTR: false,
+        KEEP_CONTENT: true,
+        // Permite todos os estilos CSS inline para preservar formatação completa
+        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     };
 
     function sanitizeEditorHtml(raw) {
@@ -1029,7 +1038,8 @@ window.onload = function () {
         if (!emailPreview || !emailEditor) return;
         const isHidden = emailPreview.hasAttribute('hidden');
         if (isHidden) {
-            emailPreview.innerHTML = emailEditor.innerHTML;
+            // Sanitiza para preview (segurança e consistência)
+            emailPreview.innerHTML = sanitizeEditorHtml(emailEditor.innerHTML);
             emailPreview.removeAttribute('hidden');
             emailEditor.setAttribute('hidden', 'hidden');
             emailPreviewBtn.classList.add('active');
@@ -2225,7 +2235,8 @@ window.onload = function () {
             if (emailTo)      emailTo.value         = draft.to       || '';
             if (emailSubject) emailSubject.value    = draft.subject  || '';
             if (emailLogo)    emailLogo.value       = draft.logo_url || '';
-            if (emailEditor)  setEditorHtml(emailEditor, draft.html || '');
+            // skipSanitize=true: HTML já foi sanitizado ao salvar o rascunho
+            if (emailEditor)  setEditorHtml(emailEditor, draft.html || '', true);
             closeEmailDetail();
             historyModal?.classList.remove('show');
             if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
@@ -2247,7 +2258,8 @@ window.onload = function () {
                     if (emailTo) emailTo.value = '';
                     if (emailSubject) emailSubject.value = draft.subject || '';
                     if (emailLogo) emailLogo.value = draft.logo_url || '';
-                    if (emailEditor) setEditorHtml(emailEditor, draft.html || '');
+                    // skipSanitize=true: HTML já foi sanitizado ao salvar o rascunho
+                    if (emailEditor) setEditorHtml(emailEditor, draft.html || '', true);
                     closeEmailDetail();
                     historyModal?.classList.remove('show');
                     if (!emailModuleEnabled) { showEmailDisabledModal(); return; }
@@ -2311,7 +2323,8 @@ window.onload = function () {
                 if (emailTo) emailTo.value = recipientEmails(item.recipients);
                 if (emailSubject) emailSubject.value = item.subject || '';
                 if (emailLogo) emailLogo.value = item.logo_url || '';
-                if (emailEditor) setEditorHtml(emailEditor, item.html || '');
+                // skipSanitize=true: HTML do servidor já está sanitizado
+                if (emailEditor) setEditorHtml(emailEditor, item.html || '', true);
 
                 closeEmailDetail();
                 historyModal?.classList.remove('show');
