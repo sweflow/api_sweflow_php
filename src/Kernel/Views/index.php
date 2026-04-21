@@ -7,7 +7,7 @@
     <meta name="description" content="<?= htmlspecialchars($descricao ?? 'API modular com detecção automática de módulos e rotas.', ENT_QUOTES, 'UTF-8') ?>">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="<?= htmlspecialchars(($_ENV['APP_URL'] ?? '') . '/', ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.svg?v=<?= time() ?>" type="image/svg+xml">
     <link rel="alternate icon" href="/favicon.ico" type="image/x-icon">
     <!-- Open Graph -->
     <meta property="og:type"        content="website">
@@ -38,7 +38,7 @@
                 <?php if (!empty($logo_url)): ?>
                     <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="home-nav-logo-img" fetchpriority="high" width="28" height="28" />
                 <?php else: ?>
-                    <img src="/assets/imgs/logo.svg" alt="Vupi.us API" class="home-nav-logo-img" width="28" height="28" />
+                    <img src="/assets/imgs/logo.svg?v=<?= time() ?>" alt="Vupi.us API" class="home-nav-logo-img" width="28" height="28" />
                 <?php endif; ?>
                 <span class="home-nav-name">Vupi.us <span class="home-nav-name-accent">API</span></span>
             </a>
@@ -192,7 +192,7 @@
     <footer class="home-footer">
         <div class="home-footer-inner">
             <span class="home-footer-brand">
-                <img src="/assets/imgs/logo.svg" alt="Vupi.us API" style="width:20px;height:20px;border-radius:5px;object-fit:contain;vertical-align:middle;" />
+                <img src="/assets/imgs/logo.svg?v=<?= time() ?>" alt="Vupi.us API" style="width:20px;height:20px;border-radius:5px;object-fit:contain;vertical-align:middle;" />
                 Vupi.us API
             </span>
             <span class="home-footer-copy">&copy; <?= date('Y') ?> Vupi.us &mdash; Desenvolvido por Adimael</span>
@@ -213,7 +213,7 @@
                         <?php if (!empty($logo_url)): ?>
                             <img src="<?= htmlspecialchars($logo_url, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:12px;" />
                         <?php else: ?>
-                            <img src="/assets/imgs/logo.svg" alt="Vupi.us API" style="width:100%;height:100%;object-fit:contain;" />
+                            <img src="/assets/imgs/logo.svg?v=<?= time() ?>" alt="Vupi.us API" style="width:100%;height:100%;object-fit:contain;" />
                         <?php endif; ?>
                     </div>
                     <h2 id="login-modal-title" class="lm-title">Acesso administrativo</h2>
