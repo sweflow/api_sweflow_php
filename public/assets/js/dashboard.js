@@ -1383,16 +1383,67 @@ window.onload = function () {
 
     function applyFontSizePx(px) {
         if (!emailEditor || !px) return;
+        
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        
+        const range = sel.getRangeAt(0);
+        
+        // Se há algo selecionado
+        if (!range.collapsed) {
+            // Verifica se a seleção contém elementos com font-size já aplicado
+            const container = range.commonAncestorContainer;
+            const parent = container.nodeType === 3 ? container.parentNode : container;
+            
+            // Se o elemento pai já tem font-size, atualiza diretamente
+            if (parent && (parent.tagName === 'SPAN' || parent.tagName === 'FONT') && parent.style.fontSize) {
+                parent.style.fontSize = `${px}px`;
+                parent.style.lineHeight = '1.4';
+                console.log('[FONT-SIZE] Atualizado elemento existente:', parent.tagName);
+                return;
+            }
+            
+            // Procura por spans/fonts com font-size dentro da seleção
+            const fragment = range.cloneContents();
+            const elementsWithFontSize = fragment.querySelectorAll('[style*="font-size"]');
+            
+            if (elementsWithFontSize.length > 0) {
+                // Atualiza elementos existentes na seleção real
+                const actualElements = range.commonAncestorContainer.querySelectorAll 
+                    ? range.commonAncestorContainer.querySelectorAll('[style*="font-size"]')
+                    : [];
+                
+                actualElements.forEach(el => {
+                    if (sel.containsNode(el, true)) {
+                        el.style.fontSize = `${px}px`;
+                        el.style.lineHeight = '1.4';
+                        console.log('[FONT-SIZE] Atualizado elemento na seleção:', el.tagName);
+                    }
+                });
+                
+                if (actualElements.length > 0) return;
+            }
+        }
+        
+        // Fallback: usa execCommand para criar novo elemento
         document.execCommand('fontSize', false, '7');
+        
+        // Converte <font> para <span>
         emailEditor.querySelectorAll('font[size="7"]').forEach(node => {
             node.removeAttribute('size');
-            node.style.fontSize = `${px}px`;
-            node.style.lineHeight = '1.4';
+            
+            const span = document.createElement('span');
+            span.style.fontSize = `${px}px`;
+            span.style.lineHeight = '1.4';
+            span.innerHTML = node.innerHTML;
+            node.parentNode.replaceChild(span, node);
+            console.log('[FONT-SIZE] Criado novo span com font-size:', px);
         });
     }
 
     function handleFontSizeChange() {
         if (!emailFontSize) return;
+        restoreSelection();
         const v = Number(emailFontSize.value);
         if (!v) return;
         const sizeMap = {
@@ -2694,7 +2745,12 @@ window.onload = function () {
         emailEditor.addEventListener('mouseleave', storeSelection);
         emailEditor.addEventListener('input', storeSelection);
     }
-    if (emailFontSize) emailFontSize.addEventListener('change', handleFontSizeChange);
+    if (emailFontSize) {
+        // Salva seleção antes do foco ir para o dropdown
+        emailFontSize.addEventListener('mousedown', storeSelection);
+        emailFontSize.addEventListener('focus', storeSelection);
+        emailFontSize.addEventListener('change', handleFontSizeChange);
+    }
     if (emailFontColor) {
         // Salva seleção antes do foco ir para o color picker
         emailFontColor.addEventListener('mousedown', storeSelection);

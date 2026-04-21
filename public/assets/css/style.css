@@ -2974,9 +2974,6 @@ h1 i, h2 i, h3 i {
     background: var(--bg-input, rgba(255,255,255,0.03));
     color: var(--text-primary, #f1f5f9);
     overflow-y: auto;
-    /* Tamanho base para texto sem formatação */
-    font-size: 16px !important;
-    line-height: 1.7;
     outline: none;
     transition: border-color .15s;
 }
@@ -2990,9 +2987,6 @@ h1 i, h2 i, h3 i {
     padding: 16px;
     background: var(--bg-card, rgba(255,255,255,0.03));
     min-height: 120px;
-    /* Mesmo tamanho base do editor */
-    font-size: 16px !important;
-    line-height: 1.7;
 }
 
 /* ── Footer ──────────────────────────────────────────────── */
@@ -3092,8 +3086,6 @@ h1 i, h2 i, h3 i {
 .email-preview-frame {
     /* Fundo branco SEMPRE para melhor visualização do conteúdo do e-mail */
     background: #ffffff !important;
-    /* Removido font-size fixo para permitir que estilos inline controlem o tamanho */
-    line-height: 1.6;
     color: #1e293b;
 }
 .dash-body:not(.dark) .email-preview-frame {
@@ -3103,20 +3095,6 @@ h1 i, h2 i, h3 i {
 .dash-body.dark .email-preview-frame {
     background: #ffffff !important;
     color: #0f172a;
-}
-/* Garante que elementos com style inline mantenham seus estilos */
-.email-preview-frame [style] {
-    /* Não sobrescreve estilos inline */
-}
-/* Elementos sem estilo inline herdam tamanho base do navegador */
-.email-preview-frame > *:not([style*="font-size"]) {
-    font-size: 16px;
-}
-.email-preview-frame font[style*="font-size"],
-.email-preview-frame span[style*="font-size"],
-.email-preview-frame div[style*="font-size"],
-.email-preview-frame p[style*="font-size"] {
-    /* Garante que font-size inline seja respeitado */
 }
 
 /* ── Image popover ───────────────────────────────────────── */
