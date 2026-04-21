@@ -118,27 +118,72 @@ window.onload = function () {
         RETURN_DOM: false,
         RETURN_DOM_FRAGMENT: false,
         FORCE_BODY: false,
+        // CRÍTICO: Permite todas as propriedades CSS no atributo style
+        ADD_ATTR: ['style'],
+        // Não remove propriedades CSS do atributo style
+        FORBID_CONTENTS: [],
     };
 
     // Hook do DOMPurify para preservar TODAS as propriedades CSS inline
     if (window.DOMPurify) {
+        // Remove hooks anteriores para evitar duplicação
+        DOMPurify.removeAllHooks();
+        
+        // Configura DOMPurify para NÃO filtrar propriedades CSS
+        if (DOMPurify.Config) {
+            DOMPurify.Config.ALLOW_UNKNOWN_PROTOCOLS = false;
+        }
+        
         DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
             // Preserva o atributo style completamente (todas as propriedades CSS)
             if (data.attrName === 'style') {
-                // Não permite apenas propriedades perigosas
+                // Bloqueia apenas propriedades perigosas
                 const dangerous = /expression|javascript|behavior|binding|import|@import/i;
                 if (dangerous.test(data.attrValue)) {
                     data.keepAttr = false;
-                } else {
-                    data.keepAttr = true;
+                    return;
+                }
+                // Força manter o atributo style com TODAS as propriedades
+                data.keepAttr = true;
+                // Não permite que o DOMPurify modifique o valor
+                data.forceKeepAttr = true;
+            }
+        });
+        
+        // Hook adicional para garantir que font-size e outras propriedades sejam preservadas
+        DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+            // Se o nó tem um atributo style original, garante que não foi modificado
+            if (node.hasAttribute('style')) {
+                const style = node.getAttribute('style');
+                // Verifica se font-size foi removido e restaura se necessário
+                if (node.style && node.style.fontSize) {
+                    // Já está presente, não faz nada
+                } else if (style && style.includes('font-size')) {
+                    // Força re-aplicação do style completo
+                    node.setAttribute('style', style);
                 }
             }
         });
+        
+        console.log('[DOMPURIFY] Hooks configurados para preservar estilos CSS');
     }
 
     function sanitizeEditorHtml(raw) {
         if (!raw) return '';
-        return window.DOMPurify ? DOMPurify.sanitize(raw, EDITOR_PURIFY_CONFIG) : raw;
+        if (!window.DOMPurify) return raw;
+        
+        console.log('[SANITIZE] HTML antes:', raw);
+        const sanitized = DOMPurify.sanitize(raw, EDITOR_PURIFY_CONFIG);
+        console.log('[SANITIZE] HTML depois:', sanitized);
+        
+        // Verifica se font-size foi preservado
+        const hasFontSizeBefore = raw.includes('font-size');
+        const hasFontSizeAfter = sanitized.includes('font-size');
+        if (hasFontSizeBefore && !hasFontSizeAfter) {
+            console.error('[SANITIZE] ERRO: font-size foi removido!');
+        }
+        
+        return sanitized;
     }
     const emailPreviewBtn = document.getElementById('email-preview-btn');
     const emailFullscreenBtn = document.getElementById('email-fullscreen-btn');
