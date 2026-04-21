@@ -3084,6 +3084,23 @@ h1 i, h2 i, h3 i {
     margin: 8px 0;
 }
 
+/* ── Preserva formatação no preview de e-mail ─────────────── */
+.email-preview-frame {
+    background: var(--bg-input, #fff);
+    /* Define tamanho de fonte base, mas permite override por estilos inline */
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1e293b;
+}
+.dash-body:not(.dark) .email-preview-frame {
+    background: #fff;
+    color: #0f172a;
+}
+/* Garante que elementos com style inline mantenham seus estilos */
+.email-preview-frame [style] {
+    /* Não sobrescreve estilos inline */
+}
+
 /* ── Image popover ───────────────────────────────────────── */
 .image-popover {
     position: absolute;

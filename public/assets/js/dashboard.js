@@ -112,7 +112,29 @@ window.onload = function () {
         KEEP_CONTENT: true,
         // Permite todos os estilos CSS inline para preservar formatação completa
         ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+        // Preserva TODOS os estilos CSS inline (não filtra propriedades CSS)
+        ALLOW_UNKNOWN_PROTOCOLS: false,
+        WHOLE_DOCUMENT: false,
+        RETURN_DOM: false,
+        RETURN_DOM_FRAGMENT: false,
+        FORCE_BODY: false,
     };
+
+    // Hook do DOMPurify para preservar TODAS as propriedades CSS inline
+    if (window.DOMPurify) {
+        DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+            // Preserva o atributo style completamente (todas as propriedades CSS)
+            if (data.attrName === 'style') {
+                // Não permite apenas propriedades perigosas
+                const dangerous = /expression|javascript|behavior|binding|import|@import/i;
+                if (dangerous.test(data.attrValue)) {
+                    data.keepAttr = false;
+                } else {
+                    data.keepAttr = true;
+                }
+            }
+        });
+    }
 
     function sanitizeEditorHtml(raw) {
         if (!raw) return '';
@@ -2085,8 +2107,14 @@ window.onload = function () {
             frame.replaceChildren(em);
             return;
         }
+        
+        // Debug: verifica o HTML antes e depois da sanitização
+        console.log('[PREVIEW] HTML original:', html.substring(0, 200));
+        
         if (window.DOMPurify) {
-            frame.innerHTML = DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG);
+            const sanitized = DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG);
+            console.log('[PREVIEW] HTML sanitizado:', sanitized.substring(0, 200));
+            frame.innerHTML = sanitized;
         } else {
             frame.textContent = html;
         }
@@ -2130,7 +2158,7 @@ window.onload = function () {
             <div style="font-size:0.82rem;font-weight:700;color:var(--text-muted,#64748b);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">
                 <i class="fa-solid fa-envelope" style="color:#818cf8;margin-right:6px;"></i>Conteúdo
             </div>
-            <div class="email-preview-frame" style="max-height:280px;overflow-y:auto;pointer-events:none;user-select:text;border:1px solid var(--border-card,rgba(255,255,255,0.07));border-radius:8px;padding:12px;background:var(--bg-input,#fff);"></div>
+            <div class="email-preview-frame" style="max-height:280px;overflow-y:auto;pointer-events:none;user-select:text;border:1px solid var(--border-card,rgba(255,255,255,0.07));border-radius:8px;padding:12px;"></div>
         </div>`;
     }
 
@@ -2560,6 +2588,11 @@ window.onload = function () {
         const subject = emailSubject?.value.trim() || '';
         const rawBody = emailEditor?.innerHTML      || '';
         const body    = sanitizeEditorHtml(rawBody);
+        
+        // Debug: verifica se a formatação está sendo preservada
+        console.log('[DRAFT] Raw HTML:', rawBody.substring(0, 200));
+        console.log('[DRAFT] Sanitized HTML:', body.substring(0, 200));
+        
         if (!to && !subject && !body) return;
 
         const drafts = getDrafts();
