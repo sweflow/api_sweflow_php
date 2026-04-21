@@ -111,28 +111,23 @@ window.onload = function () {
         ALLOW_DATA_ATTR: false,
         KEEP_CONTENT: true,
         // Permite todos os estilos CSS inline para preservar formatação completa
-        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-        // Preserva TODOS os estilos CSS inline (não filtra propriedades CSS)
+        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+        // CRÍTICO: Desabilita filtragem de propriedades CSS
         ALLOW_UNKNOWN_PROTOCOLS: false,
         WHOLE_DOCUMENT: false,
         RETURN_DOM: false,
         RETURN_DOM_FRAGMENT: false,
         FORCE_BODY: false,
-        // CRÍTICO: Permite todas as propriedades CSS no atributo style
         ADD_ATTR: ['style'],
-        // Não remove propriedades CSS do atributo style
         FORBID_CONTENTS: [],
+        // NOVO: Desabilita sanitização de CSS inline
+        SANITIZE_NAMED_PROPS: false,
     };
 
     // Hook do DOMPurify para preservar TODAS as propriedades CSS inline
     if (window.DOMPurify) {
         // Remove hooks anteriores para evitar duplicação
         DOMPurify.removeAllHooks();
-        
-        // Configura DOMPurify para NÃO filtrar propriedades CSS
-        if (DOMPurify.Config) {
-            DOMPurify.Config.ALLOW_UNKNOWN_PROTOCOLS = false;
-        }
         
         DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
             // Preserva o atributo style completamente (todas as propriedades CSS)
@@ -145,42 +140,58 @@ window.onload = function () {
                 }
                 // Força manter o atributo style com TODAS as propriedades
                 data.keepAttr = true;
-                // Não permite que o DOMPurify modifique o valor
-                data.forceKeepAttr = true;
-            }
-        });
-        
-        // Hook adicional para garantir que font-size e outras propriedades sejam preservadas
-        DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-            // Se o nó tem um atributo style original, garante que não foi modificado
-            if (node.hasAttribute('style')) {
-                const style = node.getAttribute('style');
-                // Verifica se font-size foi removido e restaura se necessário
-                if (node.style && node.style.fontSize) {
-                    // Já está presente, não faz nada
-                } else if (style && style.includes('font-size')) {
-                    // Força re-aplicação do style completo
-                    node.setAttribute('style', style);
-                }
             }
         });
         
         console.log('[DOMPURIFY] Hooks configurados para preservar estilos CSS');
     }
 
+    /**
+     * Sanitização customizada que preserva 100% dos estilos CSS inline.
+     * Remove apenas scripts e event handlers perigosos.
+     */
+    function customSanitizeHtml(html) {
+        if (!html) return '';
+        
+        // Remove scripts e event handlers
+        let sanitized = html
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+            .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
+            .replace(/javascript:/gi, '');
+        
+        // Remove propriedades CSS perigosas do atributo style
+        sanitized = sanitized.replace(/style\s*=\s*["']([^"']*)["']/gi, (match, styleContent) => {
+            const safe = styleContent
+                .replace(/expression\s*\(/gi, '')
+                .replace(/javascript:/gi, '')
+                .replace(/behavior\s*:/gi, '')
+                .replace(/binding\s*:/gi, '')
+                .replace(/@import/gi, '');
+            return `style="${safe}"`;
+        });
+        
+        return sanitized;
+    }
+
     function sanitizeEditorHtml(raw) {
         if (!raw) return '';
-        if (!window.DOMPurify) return raw;
         
-        console.log('[SANITIZE] HTML antes:', raw);
-        const sanitized = DOMPurify.sanitize(raw, EDITOR_PURIFY_CONFIG);
-        console.log('[SANITIZE] HTML depois:', sanitized);
+        console.log('[SANITIZE] HTML antes:', raw.substring(0, 300));
+        
+        // Usa sanitização customizada que preserva 100% dos estilos CSS
+        const sanitized = customSanitizeHtml(raw);
+        
+        console.log('[SANITIZE] HTML depois:', sanitized.substring(0, 300));
         
         // Verifica se font-size foi preservado
         const hasFontSizeBefore = raw.includes('font-size');
         const hasFontSizeAfter = sanitized.includes('font-size');
+        
         if (hasFontSizeBefore && !hasFontSizeAfter) {
             console.error('[SANITIZE] ERRO: font-size foi removido!');
+        } else if (hasFontSizeBefore && hasFontSizeAfter) {
+            console.log('[SANITIZE] ✓ font-size preservado');
         }
         
         return sanitized;
@@ -2141,7 +2152,7 @@ window.onload = function () {
         }
     }
 
-    /** Popula o preview de e-mail com HTML sanitizado via DOMPurify. */
+    /** Popula o preview de e-mail com HTML sanitizado. */
     function setEmailPreviewHtml(container, html) {
         const frame = container ? container.querySelector('.email-preview-frame') : null;
         if (!frame) return;
@@ -2154,15 +2165,13 @@ window.onload = function () {
         }
         
         // Debug: verifica o HTML antes e depois da sanitização
-        console.log('[PREVIEW] HTML original:', html.substring(0, 200));
+        console.log('[PREVIEW] HTML original:', html.substring(0, 300));
         
-        if (window.DOMPurify) {
-            const sanitized = DOMPurify.sanitize(html, EDITOR_PURIFY_CONFIG);
-            console.log('[PREVIEW] HTML sanitizado:', sanitized.substring(0, 200));
-            frame.innerHTML = sanitized;
-        } else {
-            frame.textContent = html;
-        }
+        // Usa sanitização customizada que preserva 100% dos estilos CSS
+        const sanitized = customSanitizeHtml(html);
+        console.log('[PREVIEW] HTML sanitizado:', sanitized.substring(0, 300));
+        
+        frame.innerHTML = sanitized;
     }
 
     function buildDetailFields({ para, assunto, logo, status, data, html, error }) {

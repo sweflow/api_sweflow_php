@@ -3086,14 +3086,19 @@ h1 i, h2 i, h3 i {
 
 /* ── Preserva formatação no preview de e-mail ─────────────── */
 .email-preview-frame {
-    background: var(--bg-input, #fff);
+    /* Fundo branco SEMPRE para melhor visualização do conteúdo do e-mail */
+    background: #ffffff !important;
     /* Define tamanho de fonte base, mas permite override por estilos inline */
     font-size: 14px;
     line-height: 1.6;
     color: #1e293b;
 }
 .dash-body:not(.dark) .email-preview-frame {
-    background: #fff;
+    background: #ffffff !important;
+    color: #0f172a;
+}
+.dash-body.dark .email-preview-frame {
+    background: #ffffff !important;
     color: #0f172a;
 }
 /* Garante que elementos com style inline mantenham seus estilos */
