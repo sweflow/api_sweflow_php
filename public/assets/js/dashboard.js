@@ -1116,11 +1116,28 @@ window.onload = function () {
         if (!emailPreview || !emailEditor) return;
         const isHidden = emailPreview.hasAttribute('hidden');
         if (isHidden) {
+            const editorHtml = emailEditor.innerHTML;
+            console.log('[TOGGLE PREVIEW] HTML do editor:', editorHtml.substring(0, 300));
+            
             // Sanitiza para preview (segurança e consistência)
-            emailPreview.innerHTML = sanitizeEditorHtml(emailEditor.innerHTML);
+            const sanitized = sanitizeEditorHtml(editorHtml);
+            console.log('[TOGGLE PREVIEW] HTML sanitizado:', sanitized.substring(0, 300));
+            
+            emailPreview.innerHTML = sanitized;
             emailPreview.removeAttribute('hidden');
             emailEditor.setAttribute('hidden', 'hidden');
             emailPreviewBtn.classList.add('active');
+            
+            // Debug: verifica computed style de elementos com font-size
+            setTimeout(() => {
+                const fontsInPreview = emailPreview.querySelectorAll('[style*="font-size"]');
+                console.log('[TOGGLE PREVIEW] Elementos com font-size no preview:', fontsInPreview.length);
+                fontsInPreview.forEach((el, i) => {
+                    const computed = window.getComputedStyle(el).fontSize;
+                    const inline = el.style.fontSize;
+                    console.log(`[TOGGLE PREVIEW] Elemento ${i}: inline="${inline}", computed="${computed}"`);
+                });
+            }, 100);
         } else {
             emailPreview.setAttribute('hidden', 'hidden');
             emailEditor.removeAttribute('hidden');

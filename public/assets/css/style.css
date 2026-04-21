@@ -2975,7 +2975,7 @@ h1 i, h2 i, h3 i {
     color: var(--text-primary, #f1f5f9);
     overflow-y: auto;
     /* Tamanho base para texto sem formatação */
-    font-size: 16px;
+    font-size: 16px !important;
     line-height: 1.7;
     outline: none;
     transition: border-color .15s;
@@ -2984,13 +2984,6 @@ h1 i, h2 i, h3 i {
     border-color: rgba(99,102,241,0.5);
     box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
 }
-/* Elementos com font-size inline no editor mantêm seu tamanho */
-.email-editor font[style*="font-size"],
-.email-editor span[style*="font-size"],
-.email-editor div[style*="font-size"],
-.email-editor p[style*="font-size"] {
-    /* Garante que font-size inline seja respeitado */
-}
 .email-preview {
     border: 1.5px solid rgba(99,102,241,0.2);
     border-radius: 12px;
@@ -2998,15 +2991,8 @@ h1 i, h2 i, h3 i {
     background: var(--bg-card, rgba(255,255,255,0.03));
     min-height: 120px;
     /* Mesmo tamanho base do editor */
-    font-size: 16px;
+    font-size: 16px !important;
     line-height: 1.7;
-}
-/* Elementos com font-size inline no preview mantêm seu tamanho */
-.email-preview font[style*="font-size"],
-.email-preview span[style*="font-size"],
-.email-preview div[style*="font-size"],
-.email-preview p[style*="font-size"] {
-    /* Garante que font-size inline seja respeitado */
 }
 
 /* ── Footer ──────────────────────────────────────────────── */
