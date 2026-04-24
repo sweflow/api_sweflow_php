@@ -63,22 +63,44 @@ final class DeveloperConnectionResolver
 
         $this->resolved = true;
 
-        // Estratégia 1: userId do token JWT
+        // Estratégia 1: userId do token JWT → busca conexão ativa desse usuário
         $userId = $this->getUserId();
 
-        // Estratégia 2: sem token → busca o dono do módulo pela URI
-        if ($userId === null) {
-            $userId = $this->resolveOwnerByUri();
-            if ($userId !== null) {
-                $this->log('fallback', "dono do módulo userId={$userId}");
+        if ($userId !== null) {
+            $pdo = $this->tryResolveConnection($userId);
+            if ($pdo !== null) {
+                $this->cachedPdo = $pdo;
+                return $this->cachedPdo;
+            }
+            // Token presente mas sem conexão própria — pode ser um usuário
+            // do módulo (ex: app Flutter), não o desenvolvedor.
+            // Cai para o fallback por URI.
+        }
+
+        // Estratégia 2: busca o dono do módulo pela URI em ide_projects
+        $ownerId = $this->resolveOwnerByUri();
+        if ($ownerId !== null && $ownerId !== $userId) {
+            $this->log('fallback', "dono do módulo userId={$ownerId}");
+            $pdo = $this->tryResolveConnection($ownerId);
+            if ($pdo !== null) {
+                $this->cachedPdo = $pdo;
+                return $this->cachedPdo;
             }
         }
 
-        if ($userId === null) {
+        if ($userId === null && $ownerId === null) {
             $this->log('skip', 'sem token e sem módulo identificável');
-            return null;
         }
 
+        return null;
+    }
+
+    /**
+     * Tenta resolver a conexão personalizada de um userId específico.
+     * Retorna null se o usuário não tem conexão ativa.
+     */
+    private function tryResolveConnection(string $userId): ?PDO
+    {
         try {
             $corePdo = PdoFactory::fromEnv('DB');
             $repo = new DatabaseConnectionRepository($corePdo);
@@ -90,7 +112,7 @@ final class DeveloperConnectionResolver
             }
 
             $service = new DatabaseConnectionService();
-            $this->cachedPdo = $service->createPdoConnection([
+            $pdo = $service->createPdoConnection([
                 'service_uri'    => $activeConnection['service_uri'],
                 'database_name'  => $activeConnection['database_name'],
                 'host'           => $activeConnection['host'],
@@ -111,7 +133,7 @@ final class DeveloperConnectionResolver
                 $activeConnection['database_name'] ?? '?'
             ));
 
-            return $this->cachedPdo;
+            return $pdo;
         } catch (\Throwable $e) {
             $this->log('error', "userId={$userId} erro={$e->getMessage()}");
             return null;
