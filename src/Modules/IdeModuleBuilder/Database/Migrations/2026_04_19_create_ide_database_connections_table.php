@@ -6,9 +6,9 @@ return [
         
         if ($driver === 'pgsql') {
             $pdo->exec("
-                CREATE TABLE IF NOT EXISTS database_connections (
+                CREATE TABLE IF NOT EXISTS ide_database_connections (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    user_id VARCHAR(255) NOT NULL,
+                    usuario_uuid VARCHAR(255) NOT NULL,
                     connection_name VARCHAR(100) NOT NULL,
                     service_uri TEXT,
                     database_name VARCHAR(100) NOT NULL,
@@ -22,25 +22,25 @@ return [
                     is_active BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    UNIQUE(user_id, connection_name)
+                    UNIQUE(usuario_uuid, connection_name)
                 )
             ");
             
             $pdo->exec("
                 CREATE INDEX IF NOT EXISTS idx_db_conn_user 
-                ON database_connections(user_id)
+                ON ide_database_connections(usuario_uuid)
             ");
             
             $pdo->exec("
                 CREATE INDEX IF NOT EXISTS idx_db_conn_active 
-                ON database_connections(user_id, is_active) 
+                ON ide_database_connections(usuario_uuid, is_active) 
                 WHERE is_active = TRUE
             ");
         } else {
             $pdo->exec("
-                CREATE TABLE IF NOT EXISTS database_connections (
+                CREATE TABLE IF NOT EXISTS ide_database_connections (
                     id CHAR(36) PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
+                    usuario_uuid VARCHAR(255) NOT NULL,
                     connection_name VARCHAR(100) NOT NULL,
                     service_uri TEXT,
                     database_name VARCHAR(100) NOT NULL,
@@ -54,15 +54,15 @@ return [
                     is_active TINYINT(1) DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    UNIQUE KEY unique_user_connection (user_id, connection_name),
-                    INDEX idx_db_conn_user (user_id),
-                    INDEX idx_db_conn_active (user_id, is_active)
+                    UNIQUE KEY unique_user_connection (usuario_uuid, connection_name),
+                    INDEX idx_db_conn_user (usuario_uuid),
+                    INDEX idx_db_conn_active (usuario_uuid, is_active)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
         }
     },
     
     'down' => function (PDO $pdo): void {
-        $pdo->exec("DROP TABLE IF EXISTS database_connections");
+        $pdo->exec("DROP TABLE IF EXISTS ide_database_connections");
     }
 ];
