@@ -306,19 +306,15 @@ $container = new Container();
 $container->bind(ContainerInterface::class, $container, true);
 
 try {
-    // PDO principal — usa DeveloperConnectionResolver como ponto único de resolução.
-    // Para módulos nativos (Auth, Usuario, IDE, etc.) → sempre banco core.
-    // Para módulos do desenvolvedor → conexão personalizada se configurada na IDE.
-    $container->bind(\PDO::class, static function() {
-        $resolver = DeveloperConnectionResolver::instance();
+    // PDO::class → SEMPRE banco core. Usado por serviços do kernel (AuditLogger,
+    // AuthService, RefreshTokenRepository, etc.) que precisam das tabelas do sistema.
+    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv('DB'), true);
 
-        // Módulos nativos sempre usam banco core
-        if ($resolver->isNativeModuleRequest()) {
-            return PdoFactory::fromEnv('DB');
-        }
-
-        // Para módulos do desenvolvedor, usa conexão personalizada ou fallback para core
-        return $resolver->resolveOrDefault();
+    // pdo.developer → conexão personalizada do desenvolvedor (Aiven, etc.)
+    // Usado APENAS por módulos não-nativos criados na IDE.
+    // Se não houver conexão personalizada, cai para o banco core.
+    $container->bind('pdo.developer', static function() {
+        return DeveloperConnectionResolver::instance()->resolveOrDefault();
     }, false);
 
     // Segunda conexão para módulos externos (DB2_*).
