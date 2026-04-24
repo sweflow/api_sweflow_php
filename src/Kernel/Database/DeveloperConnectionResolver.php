@@ -48,6 +48,11 @@ final class DeveloperConnectionResolver
     /**
      * Resolve a conexão personalizada do desenvolvedor.
      * Retorna null se não houver conexão ativa ou se o usuário não estiver autenticado.
+     *
+     * Estratégias de resolução (em ordem):
+     *   1. Token JWT (Bearer header ou cookie) → extrai userId → busca conexão ativa
+     *   2. Fallback por módulo: extrai nome do módulo da URI → busca o dono em ide_projects
+     *      → busca conexão ativa do dono. Cobre rotas públicas (registro, etc.)
      */
     public function resolve(): ?PDO
     {
@@ -58,9 +63,19 @@ final class DeveloperConnectionResolver
 
         $this->resolved = true;
 
+        // Estratégia 1: userId do token JWT
         $userId = $this->getUserId();
+
+        // Estratégia 2: sem token → busca o dono do módulo pela URI
         if ($userId === null) {
-            $this->log('skip', 'sem token de autenticação');
+            $userId = $this->resolveOwnerByUri();
+            if ($userId !== null) {
+                $this->log('fallback', "dono do módulo userId={$userId}");
+            }
+        }
+
+        if ($userId === null) {
+            $this->log('skip', 'sem token e sem módulo identificável');
             return null;
         }
 
@@ -191,6 +206,64 @@ final class DeveloperConnectionResolver
             self::$instance->userIdResolved = false;
         }
         self::$instance = null;
+    }
+
+    /**
+     * Fallback: identifica o módulo pela URI e busca o userId do dono em ide_projects.
+     *
+     * Cobre rotas públicas (ex: /api/roxxer/registrar) onde não há token JWT.
+     * Extrai o nome do módulo do segundo segmento da URI (/api/{modulo}/...).
+     * Busca na tabela ide_projects qual usuário criou esse módulo.
+     * Retorna o userId do dono para buscar sua conexão personalizada.
+     */
+    private function resolveOwnerByUri(): ?string
+    {
+        $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $segments = explode('/', trim($uri, '/'));
+
+        // Espera formato: api/{moduleName}/...
+        if (count($segments) < 2 || strtolower($segments[0]) !== 'api') {
+            return null;
+        }
+
+        $moduleSlug = $segments[1]; // ex: "roxxer"
+
+        // Ignora módulos nativos
+        if ($this->isNativeModuleSlug($moduleSlug)) {
+            return null;
+        }
+
+        try {
+            $corePdo = PdoFactory::fromEnv('DB');
+
+            // Busca o dono do módulo (case-insensitive) na tabela ide_projects
+            $stmt = $corePdo->prepare("
+                SELECT user_id 
+                FROM ide_projects 
+                WHERE LOWER(module_name) = LOWER(?) 
+                LIMIT 1
+            ");
+            $stmt->execute([$moduleSlug]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            return $row['user_id'] ?? null;
+        } catch (\Throwable $e) {
+            $this->log('error', "resolveOwnerByUri falhou: {$e->getMessage()}");
+            return null;
+        }
+    }
+
+    /**
+     * Verifica se um slug de URI corresponde a um módulo nativo.
+     */
+    private function isNativeModuleSlug(string $slug): bool
+    {
+        static $nativeSlugs = [
+            'auth', 'authenticador', 'usuario', 'documentacao',
+            'ide', 'system', 'dashboard', 'login', 'registro',
+        ];
+
+        return in_array(strtolower($slug), $nativeSlugs, true);
     }
 
     /**

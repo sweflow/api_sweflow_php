@@ -2824,6 +2824,8 @@ function restoreActiveTab() {
             addLine(t.out, '  clear / cls / clean    Limpa toda a tela do terminal.', 'term-help');
             addLine(t.out, '  history                Lista os ultimos comandos executados nesta aba.', 'term-help');
             addLine(t.out, '                         Use seta cima/baixo para navegar no historico.', 'term-help');
+            addLine(t.out, '  logs [N]               Exibe as ultimas N linhas do log do servidor.', 'term-help');
+            addLine(t.out, '                         Padrao: 30 linhas. Exemplo: logs 50', 'term-help');
             addLine(t.out, '  help / ?               Exibe esta ajuda detalhada.', 'term-help');
             addLine(t.out, '', '');
             addLine(t.out, '--- Atalhos de Teclado ---', 'term-help-title');
@@ -2848,6 +2850,25 @@ function restoreActiveTab() {
             return;
         }
         if (cmd==='history') { addLine(t.out,'php> history','term-cmd'); for(var i=t.hist.length-1;i>=1;i--)addLine(t.out,'  '+(t.hist.length-i)+'. '+t.hist[i],'term-help'); return; }
+        if (cmd==='logs') {
+            addLine(t.out,'$ logs' + (arg ? ' ' + arg : ''),'term-cmd');
+            if (!S.project) { addLine(t.out,'Nenhum projeto carregado.','term-err'); return; }
+            var lines = parseInt(arg) || 30;
+            try {
+                var d = await api('POST','/api/ide/projects/'+S.project.id+'/terminal',{command:'logs',lines:lines});
+                if (d.error) { addLine(t.out, d.error, 'term-err'); return; }
+                var logLines = (d.output || d.content || '').split('\n');
+                logLines.forEach(function(line) {
+                    if (!line.trim()) return;
+                    var cls = 'term-info';
+                    if (line.indexOf('Error') !== -1 || line.indexOf('error') !== -1) cls = 'term-err';
+                    else if (line.indexOf('Warning') !== -1 || line.indexOf('warning') !== -1) cls = 'term-warn';
+                    else if (line.indexOf('[DevConn:') !== -1) cls = 'term-help';
+                    addLine(t.out, line, cls);
+                });
+            } catch(e) { addLine(t.out, 'Erro: ' + e.message, 'term-err'); }
+            return;
+        }
         if (cmd==='pwd') { addLine(t.out,'$ pwd','term-cmd'); addLine(t.out,'src/Modules/'+(S.project?S.project.module_name:'?')+'/'+(t.cwd||'')); return; }
         if (cmd==='cd') { addLine(t.out,'$ cd '+(arg||'~'),'term-cmd'); if(!arg||arg==='~'||arg==='/') t.cwd=''; else if(arg==='..'){var s=t.cwd.split('/').filter(Boolean);s.pop();t.cwd=s.join('/');} else if(arg.indexOf('..')!==-1||arg.startsWith('/')){addLine(t.out,'Acesso negado.','term-err');return;} else t.cwd=t.cwd?t.cwd+'/'+arg:arg; addLine(t.out,'src/Modules/'+(S.project?S.project.module_name:'')+'/'+(t.cwd||''),'term-info'); return; }
         if (!S.project) { addLine(t.out,'Nenhum projeto carregado.','term-err'); return; }

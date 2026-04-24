@@ -709,10 +709,56 @@ final class IdeProjectController
             return match ($cmd) {
                 'ls', 'dir'   => Response::json($exec->listFiles($project['module_name'], $path)),
                 'cat', 'type' => Response::json($exec->readFile($project['module_name'], $path)),
+                'logs'        => $this->terminalLogs($request),
                 default       => $this->errorResponse('Comando nao reconhecido.', 422),
             };
         } catch (\Throwable) {
             return $this->errorResponse('Erro interno.', 500);
         }
+    }
+
+    /**
+     * Retorna as últimas linhas do log do PHP-FPM.
+     * Acessível via terminal da IDE: logs [N]
+     */
+    private function terminalLogs(Request $request): Response
+    {
+        $lines = max(1, min(200, (int) ($request->body['lines'] ?? 30)));
+
+        $logFiles = [
+            '/var/log/php-fpm/vupi.us-error.log',
+            '/var/log/php-fpm/vupi.us-slow.log',
+        ];
+
+        $output = '';
+        foreach ($logFiles as $logFile) {
+            if (!is_file($logFile) || !is_readable($logFile)) {
+                continue;
+            }
+
+            // Lê as últimas N linhas de forma eficiente (sem carregar o arquivo inteiro)
+            $fp = fopen($logFile, 'r');
+            if ($fp === false) continue;
+
+            $buffer = [];
+            while (($line = fgets($fp)) !== false) {
+                $buffer[] = rtrim($line);
+                if (count($buffer) > $lines) {
+                    array_shift($buffer);
+                }
+            }
+            fclose($fp);
+
+            if (!empty($buffer)) {
+                $output .= "── " . basename($logFile) . " (últimas {$lines} linhas) ──\n";
+                $output .= implode("\n", $buffer) . "\n\n";
+            }
+        }
+
+        if ($output === '') {
+            $output = "Nenhum log encontrado. Verifique se o PHP-FPM está configurado para logar em /var/log/php-fpm/";
+        }
+
+        return Response::json(['output' => $output]);
     }
 }
