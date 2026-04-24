@@ -400,7 +400,6 @@ class ModuleLoader
     public function bootAll(): void
     {
         $resolver = new CapabilityResolver($this->storageDir());
-        $devResolver = \Src\Kernel\Database\DeveloperConnectionResolver::instance();
 
         foreach ($this->providers as $name => $provider) {
             if (!$this->isEnabled($name)) continue;
@@ -432,17 +431,10 @@ class ModuleLoader
                 } catch (\Throwable) {}
             }
 
-            // Módulos não-nativos: usa proxy lazy que redireciona PDO::class
-            // para a conexão personalizada do desenvolvedor (pdo.developer).
-            // O proxy é lazy — resolve o PDO apenas quando make(PDO::class) é chamado,
-            // garantindo que o token do request já esteja disponível.
-            if (!$devResolver->isNativeModule($name) && !$this->isProtected($name)) {
-                $lazyProxy = new DeveloperContainerProxy($this->container);
-                ModuleGuard::safeBoot(fn() => $provider->boot($lazyProxy), $name);
-                continue;
-            }
-
-            // Módulos core — usa container normal
+            // Módulos core e módulos do desenvolvedor — usa container normal.
+            // PDO::class resolve automaticamente via DeveloperConnectionResolver:
+            // - Módulos nativos → banco core
+            // - Módulos do desenvolvedor → conexão personalizada (se configurada)
             $container = $this->container;
             if ($this->isProtected($name) || $this->isInternalProvider($provider)) {
                 $provider->boot($container);

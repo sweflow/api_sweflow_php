@@ -306,19 +306,24 @@ $container = new Container();
 $container->bind(ContainerInterface::class, $container, true);
 
 try {
-    // PDO::class → SEMPRE banco core. Usado por serviços do kernel (AuditLogger,
-    // AuthService, RefreshTokenRepository, etc.) que precisam das tabelas do sistema.
-    $container->bind(\PDO::class, static fn() => PdoFactory::fromEnv('DB'), true);
+    // PDO::class → resolve a conexão correta baseado no contexto da request.
+    // Para módulos nativos (Auth, Usuario, IDE) → banco core.
+    // Para módulos do desenvolvedor (Roxxer, etc.) → conexão personalizada.
+    $container->bind(\PDO::class, static function() {
+        $resolver = DeveloperConnectionResolver::instance();
 
-    // pdo.developer → conexão personalizada do desenvolvedor (Aiven, etc.)
-    // Usado APENAS por módulos não-nativos criados na IDE.
-    // Se não houver conexão personalizada, cai para o banco core.
-    $container->bind('pdo.developer', static function() {
-        return DeveloperConnectionResolver::instance()->resolveOrDefault();
+        if ($resolver->isNativeModuleRequest()) {
+            return PdoFactory::fromEnv('DB');
+        }
+
+        return $resolver->resolveOrDefault();
     }, false);
 
+    // pdo.core → SEMPRE banco core. Usado por serviços do kernel (AuditLogger, etc.)
+    // que precisam das tabelas do sistema independente do módulo sendo acessado.
+    $container->bind('pdo.core', static fn() => PdoFactory::fromEnv('DB'), true);
+
     // Segunda conexão para módulos externos (DB2_*).
-    // Se DB2_NOME não estiver definido, módulos externos usam a mesma conexão do core.
     $container->bind('pdo.modules', static fn() => PdoFactory::hasSecondaryConnection()
         ? PdoFactory::fromEnv('DB2')
         : PdoFactory::fromEnv('DB'),
@@ -359,7 +364,8 @@ $container->bind(
 // evitando DDL desnecessário a cada request em produção.
 $container->bind(AuditLogger::class, static function () use ($container) {
     try {
-        $pdo = $container->make(\PDO::class);
+        // AuditLogger SEMPRE usa banco core — a tabela audit_logs é do sistema
+        $pdo = $container->make('pdo.core');
         // Garante que a tabela existe — executado apenas uma vez por processo PHP-FPM worker
         static $tableEnsured = false;
         if (!$tableEnsured) {
