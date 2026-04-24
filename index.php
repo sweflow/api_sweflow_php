@@ -429,14 +429,36 @@ $container->bind(
 
 // Registra AuthController com todas as dependências injetadas via container
 if (class_exists(\Src\Modules\Auth\Controllers\AuthController::class)) {
+    // AuthService e RefreshTokenRepository SEMPRE usam banco core.
+    // Registrados como singletons para que módulos do desenvolvedor (Roxxer, etc.)
+    // que dependem de AuthService recebam a instância correta com PDO core,
+    // e não o PDO customizado do desenvolvedor.
+    $container->bind(
+        \Src\Modules\Auth\Repositories\RefreshTokenRepository::class,
+        static function () {
+            $pdo = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Auth');
+            return new \Src\Modules\Auth\Repositories\RefreshTokenRepository($pdo);
+        },
+        true
+    );
+
+    $container->bind(
+        \Src\Modules\Auth\Services\AuthService::class,
+        static function () use ($container) {
+            $userRepo    = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
+            $refreshRepo = $container->make(\Src\Modules\Auth\Repositories\RefreshTokenRepository::class);
+            return new \Src\Modules\Auth\Services\AuthService($userRepo, $refreshRepo);
+        },
+        true
+    );
+
     $container->bind(
         \Src\Modules\Auth\Controllers\AuthController::class,
         static function () use ($container) {
             $pdo             = \Src\Kernel\Database\ModuleConnectionResolver::forModule('Auth');
-            $userRepo        = $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class);
-            $refreshRepo     = new \Src\Modules\Auth\Repositories\RefreshTokenRepository($pdo);
+            $refreshRepo     = $container->make(\Src\Modules\Auth\Repositories\RefreshTokenRepository::class);
             $blacklist        = new \Src\Modules\Auth\Repositories\AccessTokenBlacklistRepository($pdo);
-            $authService     = new \Src\Modules\Auth\Services\AuthService($userRepo, $refreshRepo);
+            $authService     = $container->make(\Src\Modules\Auth\Services\AuthService::class);
             $auditLogger     = $container->make(\Src\Kernel\Support\AuditLogger::class);
             $threatScorer    = $container->make(\Src\Kernel\Support\ThreatScorer::class);
             $emailService    = $container->make(\Src\Kernel\Contracts\EmailSenderInterface::class);
