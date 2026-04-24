@@ -697,8 +697,29 @@ PHP;
 
     private function findPhp(): string
     {
+        // PHP_BINARY pode apontar para php-fpm em produção, que não executa scripts.
+        // Precisamos garantir que usamos o binário CLI.
         if (defined('PHP_BINARY') && is_file(PHP_BINARY)) {
-            return PHP_BINARY;
+            $binary = PHP_BINARY;
+            
+            // Se o binário é php-fpm, busca o CLI equivalente
+            if (str_contains($binary, 'fpm')) {
+                // /usr/sbin/php-fpm8.2 → tenta /usr/bin/php8.2, /usr/bin/php
+                $version = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+                $cliCandidates = [
+                    "/usr/bin/php{$version}",
+                    "/usr/bin/php",
+                    "/usr/local/bin/php{$version}",
+                    "/usr/local/bin/php",
+                ];
+                foreach ($cliCandidates as $cli) {
+                    if (is_file($cli) && is_executable($cli)) {
+                        return $cli;
+                    }
+                }
+            }
+            
+            return $binary;
         }
         return 'php';
     }
