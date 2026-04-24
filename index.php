@@ -651,12 +651,15 @@ if (!$container->hasBinding(\Src\Kernel\Contracts\TokenValidatorInterface::class
 }
 
 // UserResolverInterface — quem é o usuário?
+// Usa CompositeUserResolver: tenta o repositório nativo (tabela usuarios) primeiro,
+// e se não encontrar, busca no repositório do módulo sendo acessado (ex: roxxer_usuarios).
+// Isso permite que módulos do desenvolvedor tenham tabelas de usuários próprias.
 if (!$container->hasBinding(\Src\Kernel\Contracts\UserResolverInterface::class)) {
     if ($container->hasBinding(\Src\Kernel\Contracts\UserRepositoryInterface::class)) {
         $container->bind(
             \Src\Kernel\Contracts\UserResolverInterface::class,
             static function () use ($container) {
-                return new \Src\Kernel\Auth\DatabaseUserResolver(
+                return new \Src\Kernel\Auth\CompositeUserResolver(
                     $container->make(\Src\Kernel\Contracts\UserRepositoryInterface::class)
                 );
             },
