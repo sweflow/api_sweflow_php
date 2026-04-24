@@ -15,11 +15,29 @@ class Handler
 
     private function report(Throwable $e): void
     {
-        $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
-        error_log("[Vupi.us Error] " . get_class($e) . ': ' . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
-        // Em produção omite o stack trace completo para não vazar paths e lógica interna
-        if (!$isProduction) {
-            error_log($e->getTraceAsString());
+        // Sempre loga a mensagem + arquivo + linha
+        error_log(sprintf(
+            "[Vupi.us Error] %s: %s at %s:%d",
+            get_class($e),
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        ));
+
+        // Sempre loga o trace completo — vai para o arquivo de log do PHP-FPM,
+        // não para o usuário. Essencial para diagnosticar problemas em produção.
+        error_log($e->getTraceAsString());
+
+        // Se tem exceção anterior (causa raiz), loga também
+        if ($e->getPrevious() instanceof \Throwable) {
+            $prev = $e->getPrevious();
+            error_log(sprintf(
+                "[Vupi.us Error] Caused by %s: %s at %s:%d",
+                get_class($prev),
+                $prev->getMessage(),
+                $prev->getFile(),
+                $prev->getLine()
+            ));
         }
     }
 
@@ -70,6 +88,20 @@ class Handler
             $body['file']      = $e->getFile();
             $body['line']      = $e->getLine();
             $body['trace']     = explode("\n", $e->getTraceAsString());
+
+            // Contexto de conexão — essencial para diagnosticar problemas de banco
+            try {
+                $devResolver = \Src\Kernel\Database\DeveloperConnectionResolver::instance();
+                $body['_debug'] = [
+                    'user_id'           => $devResolver->getUserId(),
+                    'is_native_request' => $devResolver->isNativeModuleRequest(),
+                    'has_custom_pdo'    => $devResolver->resolve() !== null,
+                    'request_uri'       => $_SERVER['REQUEST_URI'] ?? '/',
+                    'auth_source'       => !empty($_SERVER['HTTP_AUTHORIZATION']) ? 'bearer' : (!empty($_COOKIE['auth_token']) ? 'cookie' : 'none'),
+                ];
+            } catch (\Throwable $debugErr) {
+                $body['_debug'] = ['error' => $debugErr->getMessage()];
+            }
         }
 
         return Response::json($body, $status);
@@ -163,7 +195,26 @@ class Handler
 
     private function isDebug(): bool
     {
-        // Em produção, debug NUNCA é ativado — mesmo que APP_DEBUG=true esteja no .env
+        // 1. Header secreto: permite debug em produção sem editar .env
+        //    Uso: curl -H "X-Debug-Token: <valor de JWT_SECRET>" https://api.vupi.us/...
+        $debugToken = $_SERVER['HTTP_X_DEBUG_TOKEN'] ?? '';
+        if ($debugToken !== '') {
+            $secret = $_ENV['JWT_SECRET'] ?? '';
+            if ($secret !== '' && hash_equals($secret, $debugToken)) {
+                return true;
+            }
+        }
+
+        // 2. Query param: ?_debug=<JWT_SECRET> (útil para testar no navegador)
+        $debugParam = $_GET['_debug'] ?? '';
+        if ($debugParam !== '') {
+            $secret = $_ENV['JWT_SECRET'] ?? '';
+            if ($secret !== '' && hash_equals($secret, $debugParam)) {
+                return true;
+            }
+        }
+
+        // 3. Modo padrão: APP_ENV != production + APP_DEBUG=true
         $isProduction = ($_ENV['APP_ENV'] ?? 'local') === 'production';
         if ($isProduction) {
             return false;

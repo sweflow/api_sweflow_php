@@ -60,6 +60,7 @@ final class DeveloperConnectionResolver
 
         $userId = $this->getUserId();
         if ($userId === null) {
+            $this->log('skip', 'sem token de autenticação');
             return null;
         }
 
@@ -69,6 +70,7 @@ final class DeveloperConnectionResolver
             $activeConnection = $repo->findActiveByUser($userId);
 
             if ($activeConnection === null) {
+                $this->log('skip', "userId={$userId} sem conexão ativa");
                 return null;
             }
 
@@ -86,9 +88,17 @@ final class DeveloperConnectionResolver
                 'persistent'     => true,
             ]);
 
+            $this->log('ok', sprintf(
+                "userId=%s conn=%s host=%s db=%s",
+                $userId,
+                $activeConnection['connection_name'] ?? '?',
+                $activeConnection['host'] ?? '?',
+                $activeConnection['database_name'] ?? '?'
+            ));
+
             return $this->cachedPdo;
         } catch (\Throwable $e) {
-            error_log("[DeveloperConnectionResolver] Erro ao resolver conexão personalizada: " . $e->getMessage());
+            $this->log('error', "userId={$userId} erro={$e->getMessage()}");
             return null;
         }
     }
@@ -231,5 +241,15 @@ final class DeveloperConnectionResolver
         }
 
         return '';
+    }
+
+    /**
+     * Loga informações de resolução de conexão.
+     * Sempre vai para o error_log (arquivo de log do PHP-FPM em produção).
+     */
+    private function log(string $level, string $message): void
+    {
+        $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        error_log("[DevConn:{$level}] {$message} uri={$uri}");
     }
 }
