@@ -645,18 +645,27 @@ final class IdeProjectController
 
         // Verifica tabelas referenciadas — cobre SELECT, INSERT, UPDATE, DELETE, DDL
         $pattern = '/\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
-        preg_match_all($pattern, $code, $matches);
+        preg_match_all($pattern, $code, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
-        foreach ($matches[1] as $table) {
-            $t = strtolower($table);
+        foreach ($matches as $match) {
+            $fullMatch = $match[0][0];
+            $t = strtolower($match[1][0]);
+            $offset = (int) $match[0][1];
+
             if ($t === 'migrations' || $t === '') continue;
 
+            // Filtra falsos positivos: "ON DUPLICATE KEY UPDATE coluna" e "DO UPDATE SET coluna"
+            $before = strtolower(substr($code, max(0, $offset - 30), 30));
+            if (stripos($fullMatch, 'UPDATE') !== false && preg_match('/\b(?:key|do|set)\s*$/i', $before)) {
+                continue;
+            }
+
             if (in_array($t, $systemTables, true)) {
-                return "[Segurança] Acesso proibido à tabela do sistema '{$table}'.";
+                return "[Segurança] Acesso proibido à tabela do sistema '{$match[1][0]}'.";
             }
 
             if (str_contains($t, '_') && !str_starts_with($t, $prefix . '_') && $t !== $prefix) {
-                return "[Segurança] Tabela '{$table}' não pertence ao módulo '{$moduleName}'.";
+                return "[Segurança] Tabela '{$match[1][0]}' não pertence ao módulo '{$moduleName}'.";
             }
         }
 
