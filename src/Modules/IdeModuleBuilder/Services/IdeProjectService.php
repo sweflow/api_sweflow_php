@@ -1144,6 +1144,7 @@ class IdeProjectService
     {
         $moduleName = $project['module_name'];
         $moduleDir  = $this->modulesBase . DIRECTORY_SEPARATOR . $moduleName;
+        $userId     = $project['user_id'];
 
         if (!is_dir($moduleDir)) {
             return ['valid' => false, 'error' => 'Módulo não publicado.', 'violations' => []];
@@ -1154,9 +1155,8 @@ class IdeProjectService
             return ['valid' => true, 'pending' => [], 'violations' => []];
         }
 
-        $connFile  = $moduleDir . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . 'connection.php';
-        $conn      = is_file($connFile) ? (string)(include $connFile) : 'core';
-        $activePdo = $this->resolveActivePdo($conn, $pdo, $pdoModules);
+        // Usa a mesma lógica de resolução do runMigrations — prioriza conexão personalizada
+        $activePdo = $this->resolveModulePdo($userId, $moduleDir, $pdo, $pdoModules);
 
         $this->ensureMigrationsTable($activePdo);
 
