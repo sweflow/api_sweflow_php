@@ -2927,6 +2927,12 @@ function restoreActiveTab() {
             var table = match[1].toLowerCase();
             if (table === 'migrations') continue;
 
+            // Filtra falsos positivos: "ON DUPLICATE KEY UPDATE coluna" e "DO UPDATE SET coluna"
+            if (/UPDATE/i.test(match[0])) {
+                var before = code.substring(Math.max(0, match.index - 30), match.index).toLowerCase();
+                if (/\b(?:key|do|set)\s*$/.test(before)) continue;
+            }
+
             // Tabela do sistema
             if (systemTables.indexOf(table) !== -1) {
                 return "Acesso proibido à tabela do sistema '" + match[1] + "'.";

@@ -296,20 +296,29 @@ final class PhpExecutor
         // 4. Extrai tabelas referenciadas em SQL e valida cada uma
         // Cobre: SELECT FROM, INSERT INTO, UPDATE, DELETE FROM, CREATE/DROP/ALTER/TRUNCATE TABLE, JOIN
         $tablePattern = '/\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|TABLE|TRUNCATE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?[`"\']?([a-zA-Z_][a-zA-Z0-9_]*)[`"\']?/i';
-        preg_match_all($tablePattern, $code, $matches);
+        preg_match_all($tablePattern, $code, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
-        foreach ($matches[1] as $table) {
-            $t = strtolower($table);
+        foreach ($matches as $match) {
+            $fullMatch = $match[0][0];
+            $t = strtolower($match[1][0]);
+            $offset = (int) $match[0][1];
+
             if ($t === 'migrations' || $t === '') continue;
+
+            // Filtra falsos positivos: "ON DUPLICATE KEY UPDATE coluna" e "DO UPDATE SET coluna"
+            $before = strtolower(substr($code, max(0, $offset - 30), 30));
+            if (stripos($fullMatch, 'UPDATE') !== false && preg_match('/\b(?:key|do|set)\s*$/i', $before)) {
+                continue;
+            }
 
             // Tabela do sistema
             if (in_array($t, self::SYSTEM_TABLES, true)) {
-                return "[Segurança] Acesso proibido à tabela do sistema '{$table}'. Módulos só podem acessar suas próprias tabelas (prefixo: '{$prefix}_').";
+                return "[Segurança] Acesso proibido à tabela do sistema '{$match[1][0]}'. Módulos só podem acessar suas próprias tabelas (prefixo: '{$prefix}_').";
             }
 
             // Tabela de outro módulo (tem underscore mas não começa com o prefixo correto)
             if (str_contains($t, '_') && !str_starts_with($t, $prefix . '_') && $t !== $prefix) {
-                return "[Segurança] Tabela '{$table}' não pertence ao módulo '{$moduleName}'. Use apenas tabelas com prefixo '{$prefix}_'.";
+                return "[Segurança] Tabela '{$match[1][0]}' não pertence ao módulo '{$moduleName}'. Use apenas tabelas com prefixo '{$prefix}_'.";
             }
         }
 

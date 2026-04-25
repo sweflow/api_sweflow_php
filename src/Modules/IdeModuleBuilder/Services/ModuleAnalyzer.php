@@ -567,12 +567,22 @@ final class ModuleAnalyzer
      */
     private function checkFileTableAccess(string $path, string $content, string $pattern, array $systemTables, array $ownTables, string $modulePrefix): void
     {
-        preg_match_all($pattern, $content, $matches, PREG_OFFSET_CAPTURE);
+        preg_match_all($pattern, $content, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
-        foreach ($matches[1] as $match) {
-            $tableName = strtolower($match[0]);
-            $offset    = (int) $match[1];
+        foreach ($matches as $match) {
+            $fullMatch = $match[0][0];
+            $tableName = strtolower($match[1][0]);
+            $offset    = (int) $match[0][1];
             $line      = substr_count(substr($content, 0, $offset), "\n") + 1;
+
+            // Filtra falsos positivos: "ON DUPLICATE KEY UPDATE coluna" e "DO UPDATE SET coluna"
+            // Nesses casos, UPDATE é parte de uma cláusula de upsert, não um UPDATE de tabela.
+            $before = strtolower(substr($content, max(0, $offset - 30), 30));
+            if (str_contains($fullMatch, 'UPDATE') || str_contains($fullMatch, 'update')) {
+                if (preg_match('/\b(?:key|do|set)\s*$/i', $before)) {
+                    continue;
+                }
+            }
 
             if ($tableName === 'migrations') continue;
 
